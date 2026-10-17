@@ -48,6 +48,7 @@ interface TrackerDetailHeaderProps {
   badgeSlots: ResolvedSlot[]
   onTogglePause: () => void
   pauseLoading: boolean
+  settingsSaves: number
 }
 
 export function TrackerDetailHeader({
@@ -64,6 +65,7 @@ export function TrackerDetailHeader({
   badgeSlots,
   onTogglePause,
   pauseLoading,
+  settingsSaves,
 }: TrackerDetailHeaderProps) {
   const health = getTrackerHealth(tracker)
 
@@ -178,8 +180,13 @@ export function TrackerDetailHeader({
               statusPageUrl={registryEntry.statusPageUrl}
             />
           )}
+          {/* Remounted on each settings save so a new URL or token is fetched at once */}
           {tracker.platformType === "mam" && tracker.mouseholeUrl && (
-            <MamMouseholeCard trackerId={tracker.id} mouseholeUrl={tracker.mouseholeUrl} />
+            <MamMouseholeCard
+              key={settingsSaves}
+              trackerId={tracker.id}
+              mouseholeUrl={tracker.mouseholeUrl}
+            />
           )}
         </div>
       )}

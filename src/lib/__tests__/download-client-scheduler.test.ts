@@ -27,6 +27,7 @@ import {
   getStoreRevision,
   isStoreInitialized,
 } from "@/lib/download-clients"
+import type { MaindataUpdateRefusal } from "@/lib/download-clients/sync-store"
 import { clearFailureLogGate } from "@/lib/failure-log-gate"
 import { log } from "@/lib/logger"
 import { createTrackedTorrentPredicate } from "@/lib/tracker-matching"
@@ -156,10 +157,9 @@ function makeEncryptionKey(): Buffer {
   return Buffer.alloc(32, 0xab)
 }
 
-/** Mocks the db.select chain for deepPollClient's client row lookup.
- *  Tracker tags are now passed as a parameter, not fetched from DB. */
+/** Mocks the db.select chain for deepPollClient's client row lookup. */
 function mockDbSelectSequence(client: typeof MOCK_CLIENT | null) {
-  // downloadClients lookup (tracker tags are now passed as a parameter, not fetched from DB)
+  // downloadClients lookup
   const clientMockLimit = vi.fn().mockResolvedValue(client ? [client] : [])
   const clientMockWhere = vi.fn().mockReturnValue({ limit: clientMockLimit })
   const clientMockFrom = vi.fn().mockReturnValue({ where: clientMockWhere })
@@ -183,10 +183,8 @@ function mockDbUpdateClient() {
 }
 
 /**
- * Wires all mocks for a successful deepPollClient run.
- * Tracker tags are passed directly to deepPollClient (no longer fetched from DB).
- * crossSeedTags come from MOCK_CLIENT.crossSeedTags = '["cross-seed"]'.
- * getDeltaSync returns MOCK_MAINDATA_RESPONSE; getFilteredTorrents returns [] by default.
+ * Wires all mocks for a successful deepPollClient run. getDeltaSync returns
+ * MOCK_MAINDATA_RESPONSE and getFilteredTorrents returns [].
  */
 function setupFullHappyPathMocks() {
   mockDbSelectSequence(MOCK_CLIENT)
@@ -206,7 +204,7 @@ function setupFullHappyPathMocks() {
 
 describe("deepPollClient per-tag optimization", () => {
   beforeEach(() => {
-    // resetAllMocks clears call history AND pending mockReturnValueOnce queues,
+    // resetAllMocks clears call history and pending mockReturnValueOnce queues,
     // preventing leakage of unconsumed queued returns across tests.
     vi.resetAllMocks()
     vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
@@ -232,7 +230,7 @@ describe("deepPollClient per-tag optimization", () => {
 
     await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
-    // New flow: a single getDeltaSync call instead of N per-tag getTorrents calls
+    // One getDeltaSync call per poll, whatever the tag count
     expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
   })
 
@@ -490,7 +488,6 @@ describe("deepPollClient per-tag optimization", () => {
     ;(aggregateByTag as ReturnType<typeof vi.fn>).mockReturnValue(MOCK_STATS)
     mockDbInsertSnapshot()
 
-    // Capture ALL update calls, deep poll does 2 updates now (cache + status)
     const updateCalls: Record<string, unknown>[] = []
     const mockWhere = vi.fn().mockResolvedValue(undefined)
     const mockSet = vi.fn().mockImplementation((values: Record<string, unknown>) => {
@@ -566,7 +563,7 @@ describe("deepPollClient per-tag optimization", () => {
 
   it("omits cachedTorrents from the DB update when syncMaindata reports no delta", async () => {
     // syncMaindata returns a response with no fullUpdate, no torrents changes, no removals.
-    // hasChanges should be false, so the update set() must NOT include cachedTorrents.
+    // hasChanges should be false, so the update set() must not include cachedTorrents.
     const noDeltaResponse = {
       rid: 2,
       fullUpdate: false,
@@ -645,13 +642,10 @@ describe("deepPollClient dedup without isPrivate", () => {
     clearFailureLogGate()
   })
 
-  // Regression: the old per-tag fetch path had a dedup guard `if (!t.isPrivate || seen.has(t.hash)) continue`
-  // which silently dropped all torrents because `t.isPrivate` is always undefined (the real qBT API
-  // returns `is_private` in snake_case, not camelCase). The new syncMaindata path uses a pure tag
-  // filter via parseTorrentTags, no isPrivate check at all. This test verifies that torrents
-  // without isPrivate are still included.
+  // qBittorrent sends is_private in snake_case, so t.isPrivate is always
+  // undefined and a filter that checks it drops every torrent.
   it("filter includes torrents that do not have an isPrivate field", async () => {
-    // Torrents constructed WITHOUT isPrivate, matching real qBT API response shape
+    // Torrents constructed without isPrivate, matching real qBT API response shape
     const torrentsWithoutIsPrivate = [
       { hash: "h1", state: "uploading", tags: "aither", uploadSpeed: 100, downloadSpeed: 0 },
       { hash: "h2", state: "uploading", tags: "aither", uploadSpeed: 200, downloadSpeed: 0 },
@@ -739,7 +733,7 @@ describe("deepPollClient dedup without isPrivate", () => {
 })
 
 // ---------------------------------------------------------------------------
-// The predicate both the cache write and the warm read now share
+// The predicate the cache write and the warm read share
 // ---------------------------------------------------------------------------
 
 describe("createTrackedTorrentPredicate", () => {
@@ -784,17 +778,9 @@ describe("createTrackedTorrentPredicate", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Regression: the cached list must select the same torrents as the warm read,
-// while the stats list must not.
-//
-// coordinator.ts keeps a torrent that carries a tracked tag OR announces to a
-// known tracker host; the scheduler kept only the tagged ones and wrote that
-// narrower list to cachedTorrents, so a cold start under-reported the fleet.
-//
-// The stats list deliberately stays tag-only. aggregator.ts derives
-// totalSeedingCount and totalLeechingCount from every torrent it is handed, so
-// widening it would step both counts up on the first poll after upgrade and
-// leave a permanent break in the historical chart series.
+// The cached list keeps what the warm read keeps, a tracked tag or a known
+// announce host. The stats list stays tag-only, or the seeding and leeching
+// series would jump.
 // ---------------------------------------------------------------------------
 
 describe("deepPollClient cold-start cache parity", () => {
@@ -928,8 +914,8 @@ describe("deepPollClient cold-start cache parity", () => {
   it("caches only the tagged torrent when no announce hosts are supplied", async () => {
     const { updatePayloads } = setupCacheParityMocks()
 
-    // Every other caller in this file omits the argument; that path must keep
-    // behaving exactly as it did before the predicate was shared.
+    // Every other caller in this file omits the argument, and that path stays
+    // tag-only.
     await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     const cacheUpdate = updatePayloads.find((c) => "cachedTorrents" in c)
@@ -956,11 +942,9 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
     clearFailureLogGate()
   })
 
-  // Regression: prevents heartbeat from starving the deep poll scheduler.
-  // deepPollAllClients decides whether to run by comparing now - lastPolledAt >= intervalMs.
-  // If heartbeat (running every 5s) also wrote lastPolledAt, the overdue threshold would
-  // never be reached after the first heartbeat, and deep polls would stop firing.
-  // The fix: heartbeat updates only lastError/errorSince/updatedAt, never lastPolledAt.
+  // deepPollAllClients runs a client once the time since lastPolledAt reaches
+  // the interval. A 5s heartbeat that wrote lastPolledAt would keep that from
+  // ever happening.
   it("deep poll success writes lastPolledAt to the DB", async () => {
     setupFullHappyPathMocks()
     const { mockSet } = mockDbUpdateClient()
@@ -974,20 +958,12 @@ describe("deepPollClient lastPolledAt written; heartbeat update does not include
     expect(statusUpdate?.lastPolledAt).toBeInstanceOf(Date)
   })
 
-  // Regression: if heartbeat wrote lastPolledAt (the bug), a client polled 5s ago
-  // via heartbeat would NOT be considered overdue even after the deep poll interval elapsed.
-  // This test documents that scenario: if lastPolledAt reflects a heartbeat timestamp
-  // (5s ago) and the poll interval is 30s, the client should still be overdue,
-  // but only if deep poll hadn't run. We verify the boundary is the deep poll timestamp,
-  // not the heartbeat timestamp.
   it("overdue check: client whose only recent update was a heartbeat 5s ago is still overdue after 30s interval", () => {
     const pollIntervalSeconds = 30
     const now = Date.now()
 
-    // Scenario demonstrating the bug: if heartbeat wrote lastPolledAt 5s ago,
-    // the client would appear not-overdue even though deep poll hasn't run in 60s.
-    // With the fix, heartbeat does NOT write lastPolledAt, so the last deep poll
-    // timestamp (60s ago) is what drives the overdue check.
+    // Heartbeat never writes lastPolledAt, so the last deep poll, 60s ago,
+    // drives the overdue check.
     const lastDeepPollAt = new Date(now - 60_000) // deep poll ran 60s ago
     const intervalMs = pollIntervalSeconds * 1000
     const lastPoll = lastDeepPollAt.getTime()
@@ -1075,9 +1051,8 @@ describe("heartbeat failure logging", () => {
     mockDbUpdateClient()
   })
 
-  // This is the central claim of the log gate: it wraps the log call only. It
-  // never gates the poll, so no heartbeat is skipped and no 5-minute uptime
-  // bucket develops a hole while a client is down.
+  // The log gate wraps the log call only, never the poll, so no heartbeat is
+  // skipped and no 5-minute uptime bucket gets a hole while a client is down.
   it("records every failed attempt for uptime while logging the outage once", async () => {
     const CYCLES = 12
     mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
@@ -1142,13 +1117,9 @@ describe("heartbeat failure logging", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Regression: snapshot retention. NULL means "keep forever".
-//
-// The client prune coerced a NULL snapshot_retention_days to the 90-day
-// default and ran an hourly rolling DELETE the user never configured, while
-// tracker-scheduler.ts gated the identical delete on a truthy value and so
-// kept everything. That one difference is why client_snapshots held nine
-// client-days while tracker_snapshots held 87 days over the same window.
+// NULL snapshot retention means keep forever, the rule tracker-scheduler.ts
+// applies. Coercing it to the 90-day default deletes history the user chose
+// to keep.
 // ---------------------------------------------------------------------------
 
 describe("client snapshot pruning honours a NULL retention", () => {
@@ -1281,10 +1252,9 @@ describe("deepPollClient durability", () => {
     vi.useRealTimers()
   })
 
-  // The update and the insert used to race inside one Promise.all. When the
-  // insert lost, the update still committed, so lastPolledAt advanced and
-  // lastError cleared with no snapshot behind them: the client read as
-  // "just polled, healthy" and was not overdue again for a full interval.
+  // If the update commits while the snapshot insert fails, lastPolledAt
+  // advances and lastError clears with no snapshot behind them, and the client
+  // reads as healthy for a full interval.
   it("does not advance lastPolledAt when the snapshot insert fails", async () => {
     setupFullHappyPathMocks()
     ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -1321,6 +1291,40 @@ describe("deepPollClient durability", () => {
     expect(mockAdapter.getDeltaSync).toHaveBeenNthCalledWith(2, 0)
     // The snapshot is written from the re-synced store, not the empty one.
     expect(mockValues).toHaveBeenCalledOnce()
+  })
+
+  // A refused update leaves the store holding the previous poll. Writing a
+  // snapshot from it republishes those figures as a fresh observation, with
+  // lastError cleared, so the operator sees a healthy client whose numbers
+  // have quietly stopped moving.
+  it("records a poll failure instead of a snapshot when the store refuses an update", async () => {
+    setupFullHappyPathMocks()
+    const refusal: MaindataUpdateRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(refusal)
+    const mockValues = mockDbInsertSnapshot()
+    const { mockSet } = mockDbUpdateClient()
+
+    await expect(deepPollClient(1, makeEncryptionKey(), ["aither"])).resolves.toBeUndefined()
+
+    expect(mockValues).not.toHaveBeenCalled()
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
+    // The cap is what the operator has to act on, so it survives into the card.
+    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
+    expect(setCalls.map((s) => String(s.lastError)).join(" ")).toContain("100000")
+  })
+
+  it("does not re-sync from rid 0 after the store refuses an update", async () => {
+    setupFullHappyPathMocks()
+    const refusal: MaindataUpdateRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(refusal)
+    // A refusal is not the mid-poll reset: the store is intact and holds the
+    // previous poll, so asking for everything again would only be refused too.
+    vi.mocked(isStoreInitialized).mockReturnValue(true)
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
   })
 
   it("writes no snapshot when the store cannot be re-initialised", async () => {
@@ -1392,10 +1396,9 @@ describe("client scheduler self-healing", () => {
     vi.useRealTimers()
   })
 
-  // startClientScheduler registers the heartbeat task before the deep-poll
-  // task. A throw in between leaves the heartbeat alive and the deep poll
-  // dead, and both idempotency guards only looked at the heartbeat task, so
-  // every later ensure call returned early and the deep poll never came back.
+  // startClientScheduler registers the heartbeat before the deep poll. A throw
+  // in between leaves the heartbeat alive and the deep poll dead, and an ensure
+  // call that checks only the heartbeat never brings the deep poll back.
   it("restarts the deep poll when only the heartbeat task survived", async () => {
     const registered: string[] = []
     let recovered = false
@@ -1420,15 +1423,9 @@ describe("client scheduler self-healing", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Regression: the final uptime flush was fire-and-forget, so a clean stop tore
-// the process down mid-write and dropped a 5-minute uptime bucket every time.
-// The outage bands drawn from those buckets treat each hole as missing
-// evidence, so every restart quietly thinned the record they rely on.
-//
-// stopClientScheduler now returns a promise that resolves only after the flush
-// has landed. These tests pin the two halves of that contract: it really waits,
-// and waiting costs the fire-and-forget callers nothing, every teardown side
-// effect still happens synchronously and the promise never rejects.
+// stopClientScheduler resolves only once the final uptime flush lands, or a
+// clean stop drops a bucket. Teardown stays synchronous and the promise never
+// rejects.
 // ---------------------------------------------------------------------------
 
 describe("stopClientScheduler waits for the final uptime flush", () => {
@@ -1453,8 +1450,8 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
   })
 
   it("stays pending until the flush write completes", async () => {
-    // Stands in for the INSERT that a `docker stop` used to cut off. Driven by
-    // a fake timer rather than a real sleep, so the test is deterministic.
+    // Stands in for the INSERT a `docker stop` would cut off. A fake timer
+    // drives it, so the test is deterministic.
     const WRITE_MS = 1000
     vi.mocked(flushCompletedBuckets).mockImplementation(
       () =>

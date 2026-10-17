@@ -1,7 +1,7 @@
 // src/hooks/__tests__/useTrackerTorrents.test.tsx
 //
 // Tests for useTrackerTorrents:
-// - An untagged tracker is a real request now, not a disabled query (issue #152)
+// - An untagged tracker still makes a request (issue #152)
 // - Live-vs-cached precedence: an empty live result only yields to the cache
 //   when the live fetch was also incomplete
 //
@@ -240,10 +240,7 @@ describe("useTrackerTorrents — category stats", () => {
     // drags the category down; fleet-aggregation already excludes it.
     mockFetch({
       live: makeResponse({
-        torrents: [
-          makeTorrent("h1", { ratio: 2 }),
-          makeTorrent("h2", { ratio: -1 }),
-        ],
+        torrents: [makeTorrent("h1", { ratio: 2 }), makeTorrent("h2", { ratio: -1 })],
       }),
     })
     const { result } = renderTracker("movies")

@@ -44,6 +44,7 @@ export const fearnopeer: TrackerRegistryEntry = {
     {
       name: "Leech",
       requirements: "Ratio below 0.8 — download, request, chat, and forum privileges revoked",
+      outsideLadder: "below",
     },
     { name: "User", requirements: "Ratio ≥ 0.8. 7 download slots" },
     {
@@ -90,50 +91,68 @@ export const fearnopeer: TrackerRegistryEntry = {
     {
       name: "V.I.P.",
       requirements: "Donation — freeleech, 2x upload, H&R immune. 35 download slots",
+      outsideLadder: "above",
     },
     {
       name: "Diamond V.I.P.",
       requirements: "Donation — freeleech, 2x upload, H&R immune. 500 download slots",
+      outsideLadder: "above",
     },
     {
       name: "Jedi",
       requirements: "Lifetime VIP — freeleech, 2x upload, H&R immune. 500 download slots",
+      outsideLadder: "above",
     },
     {
       name: "Sith",
       requirements: "Lifetime VIP — freeleech, 2x upload, H&R immune. 500 download slots",
+      outsideLadder: "above",
     },
     // Staff-picked
     {
       name: "Trustee",
       requirements:
         "Staff — seasoned veterans of other sites. 50 download slots, freeleech, H&R immune",
+      outsideLadder: "above",
     },
     {
       name: "Encoders",
       requirements:
         "Staff — reputable encoders with personal encoding releases. Freeleech, 2x upload, H&R immune",
+      outsideLadder: "above",
     },
     {
       name: "Nova Uploader",
       requirements: "Staff — first tier hand-selected uploader. Freeleech, 2x upload",
+      outsideLadder: "above",
     },
     {
       name: "Pulse Uploader",
       requirements: "Staff — second tier uploader, continuous contributions. Freeleech, H&R immune",
+      outsideLadder: "above",
     },
     {
       name: "Omega Uploader",
       requirements:
         "Staff — third tier, peak dedication. 100 download slots, freeleech, 2x upload, H&R immune",
+      outsideLadder: "above",
     },
     {
       name: "Internal",
       requirements:
         "Staff — in-house release group members. 75 download slots, freeleech, 2x upload, H&R immune",
+      outsideLadder: "above",
     },
-    { name: "Editor", requirements: "Staff — polishes torrent names and metadata" },
-    { name: "Torrent Moderator", requirements: "Staff — enforces upload rules, moderates queue" },
+    {
+      name: "Editor",
+      requirements: "Staff — polishes torrent names and metadata",
+      outsideLadder: "above",
+    },
+    {
+      name: "Torrent Moderator",
+      requirements: "Staff — enforces upload rules, moderates queue",
+      outsideLadder: "above",
+    },
   ],
   releaseGroups: ["EiNSTEIN_SiR23", "onlyfaffs", "POLAR", "SM737"],
   bannedGroups: [

@@ -6,6 +6,12 @@ If your tracker runs on a new platform, read [Tracker API Responses](tracker-res
 
 ---
 
+## Before you open a pull request
+
+Branch from `development` and open your pull request against `development`, not `main`. `main` is updated from `development` when a release ships, so a pull request against it is built on code that is weeks behind and has to be rebased before it can merge.
+
+---
+
 ## Standardization Philosophy
 
 Every tracker file follows the same field order and completeness rules. This makes diffs clean and reviews fast.
@@ -59,7 +65,7 @@ Full template:
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "custom"
 //   - apiPath must match platform default:
 //       unit3d     → "/api/user"
 //       gazelle    → "/ajax.php"
@@ -82,7 +88,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only, "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only, enables enrichment call
@@ -214,7 +220,7 @@ description: "The largest general music tracker (also has some software). Has an
 
 #### `platform`
 
-Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"`
+Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "custom"`
 
 Which adapter handles API requests. This tells the scheduler how to fetch stats. Pick the one that matches the tracker's software.
 
@@ -232,6 +238,7 @@ Which adapter handles API requests. This tells the scheduler how to fetch stats.
 | `"iptorrents"`   | IPTorrents, cookie auth + profile scraping                  |
 | `"torrentleech"` | TorrentLeech, username/password login + profile scraping    |
 | `"hawke"`        | HawkeUno, API key against `/api/profile`                    |
+| `"retrotoon"`    | RetroToon World, cookie auth + profile scraping             |
 | `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`
@@ -471,15 +478,27 @@ interface TrackerUserClass {
   requirements?: string // what it takes to reach this class
   perks?: RankPerk[] // structured perks (optional, rarely populated)
   icon?: string // path to an icon (optional)
+  outsideLadder?: "above" | "below" // see below; leave unset for classes earned by stats
 }
 ```
 
 For most trackers, `name` and `requirements` are enough. Write `requirements` as a human-readable summary. Hit the key numeric thresholds (upload, ratio, account age, seed count) without being exhaustive.
 
+List classes lowest to highest. The dashboard's Ranks section draws the list as a stack, one rung per class earned by stats, lit up to the member's current class. Flag everything else with `outsideLadder` or it is drawn as a rung nobody can reach:
+
+- `"above"` for classes granted by staff, donation or invitation (Uploader, Trustee, VIP by donation, anything bought mid-ladder). A member holding one shows a full stack under that name.
+- `"below"` for ratio demotions and administrative states (Leech, Banned, Validating, Parked). A member holding one shows an empty stack under that name.
+
+Only flag a bottom class when it is a penalty. LST's "Leech" is its entry class and stays unflagged.
+
 ```typescript
 // From aither.ts, upload-based progression
 userClasses: [
-  { name: "Leech", requirements: "Ratio below 0.4 — download privileges revoked" },
+  {
+    name: "Leech",
+    requirements: "Ratio below 0.4 — download privileges revoked",
+    outsideLadder: "below",
+  },
   { name: "Phobos", requirements: "Ratio ≥ 0.4. 4 download slots" },
   {
     name: "Zeus",
@@ -488,7 +507,11 @@ userClasses: [
   },
   // ...
   // Staff-assigned ranks follow community ranks
-  { name: "Uploader", requirements: "Staff — role model uploader. Freeleech, H&R immune" },
+  {
+    name: "Uploader",
+    requirements: "Staff — role model uploader. Freeleech, H&R immune",
+    outsideLadder: "above",
+  },
 ]
 ```
 
@@ -496,8 +519,8 @@ userClasses: [
 // From redacted.ts, simpler progression
 userClasses: [
   { name: "User", requirements: "Default class on registration" },
-  { name: "Member", requirements: "1 week, 25 GB up, 0.65 ratio" },
-  { name: "Power User", requirements: "2 weeks, 25 GB up, 0.65 ratio, 5 torrents seeding" },
+  { name: "Member", requirements: "1 week, 10 GB up, ratio above 0.65" },
+  { name: "Power User", requirements: "2 weeks, 5 uploads, 25 GB up, ratio above 0.65" },
 ]
 ```
 
@@ -728,9 +751,9 @@ invisible or unusable:
 
 | # | What | Where |
 |---|------|-------|
-| 1 | The adapter itself | `src/lib/adapters/<platform>.ts` implementing `TrackerAdapter` |
-| 2 | Register it | `adapters` record in `src/lib/adapters/index.ts` |
-| 3 | Declare the platform | `VALID_PLATFORM_TYPES` and `DEFAULT_API_PATHS` in `src/lib/adapters/constants.ts` |
+| 1 | The adapter itself | `src/lib/tracker-platforms/adapters/<platform>.ts` implementing `TrackerAdapter` |
+| 2 | Register it | `adapters` record in `src/lib/tracker-platforms/index.ts` |
+| 3 | Declare the platform | `VALID_PLATFORM_TYPES` and `DEFAULT_API_PATHS` in `src/data/platform-types.ts` |
 | 4 | Credential UI | a branch in `src/components/AddTrackerDialog.tsx` **and** `src/components/TrackerSettingsSheet.tsx` |
 | 5 | Credential size cap | `LARGE_TOKEN_PLATFORMS` in `src/lib/limits.ts`, if credentials are a JSON blob |
 
@@ -744,14 +767,14 @@ routes at once.
 
 ### Use the shared fetch helper
 
-Route requests through `adapterFetch` (`src/lib/adapters/adapter-fetch.ts`)
+Route requests through `adapterFetch` (`src/lib/tracker-platforms/helpers/adapter-fetch.ts`)
 rather than calling `fetch` directly. It supplies the shared timeout, honours
 a user's configured proxy, and normalizes errors. It supports `POST` with a
 body, so JSON-RPC style APIs work too.
 
 `adapterFetch` parses the response as JSON. If your tracker has no API and you
 have to scrape an authenticated page instead, use `fetchTrackerHtml`
-(`src/lib/adapters/html-fetch.ts`). It returns the raw HTML and handles the
+(`src/lib/tracker-platforms/helpers/html-fetch.ts`). It returns the raw HTML and handles the
 browser headers, the proxy, the timeout, and sanitized errors. It takes the
 parts that vary per tracker as options:
 
@@ -770,7 +793,7 @@ they configured a tunnel to prevent exactly that.
 ### Parse credential blobs with the shared helpers
 
 Platforms that need more than one secret take a JSON blob in the `apiToken`
-field. Use `parseCredentialJson` (`src/lib/adapters/cookie-credentials.ts`) to
+field. Use `parseCredentialJson` (`src/lib/tracker-platforms/helpers/cookie-credentials.ts`) to
 read it. It validates that every field you name is a present, non-empty string
 and produces the error wording users already see on the other adapters.
 

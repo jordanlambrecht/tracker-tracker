@@ -24,7 +24,7 @@ import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
-import type { NotificationTargetType } from "@/lib/notifications/types"
+import { NOTIFY_TOGGLE_KEYS, type NotificationTargetType } from "@/lib/notifications/types"
 import type { SafeNotificationTarget } from "@/types/api"
 
 type NotificationTarget = SafeNotificationTarget
@@ -51,25 +51,17 @@ interface NotificationCardProps {
   onRemove: (id: number) => void
 }
 
-/** Fields tracked for dirty detection (excludes transient fields). */
+/**
+ * Fields tracked for dirty detection (excludes transient fields). A toggle
+ * missing here is switched in the UI and left out of the PATCH body, so it
+ * reverts on the next load; the toggles come from the same list the PATCH
+ * route allows rather than a second copy that can fall behind it.
+ */
 const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "name",
   "type",
   "enabled",
-  "notifyRatioDrop",
-  "notifyHitAndRun",
-  "notifyTrackerDown",
-  "notifyBufferMilestone",
-  "notifyWarned",
-  "notifyRatioDanger",
-  "notifyZeroSeeding",
-  "notifyRankChange",
-  "notifyAnniversary",
-  "notifyBonusCap",
-  "notifyVipExpiring",
-  "notifyUnsatisfiedLimit",
-  "notifyActiveHnrs",
-  "notifyDownloadDisabled",
+  ...NOTIFY_TOGGLE_KEYS,
   "thresholds",
   "includeTrackerName",
   "scope",

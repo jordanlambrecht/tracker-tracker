@@ -5,8 +5,8 @@ import { H2 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { CredentialFields } from "@/components/CredentialFields"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { AreaInput } from "@/components/ui/AreaInput"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { Dialog } from "@/components/ui/Dialog"
@@ -19,9 +19,20 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { useClickOutside } from "@/hooks/useClickOutside"
-import { DOCS } from "@/lib/constants"
-import { normalizeUrl } from "@/lib/data-transforms"
+import {
+  buildCredentialBlob,
+  CREDENTIAL_FORMS,
+  type CredentialValues,
+  credentialFormFor,
+  EMPTY_CREDENTIAL_VALUES,
+  validateCredentialValues,
+} from "@/lib/credential-forms"
 import { localDateStr } from "@/lib/formatters"
+import {
+  MOUSEHOLE_TOKEN_TIP,
+  MOUSEHOLE_URL_PLACEHOLDER,
+  MOUSEHOLE_URL_TIP,
+} from "@/lib/mousehole"
 
 // ---------------------------------------------------------------------------
 // Fuzzy match
@@ -220,53 +231,33 @@ interface AddTrackerDialogProps {
   open: boolean
   onClose: () => void
   onAdded: (trackerId: number) => void
-  existingBaseUrls?: string[]
+  existingSlugs?: string[]
 }
 
-function AddTrackerDialog({
-  open,
-  onClose,
-  onAdded,
-  existingBaseUrls = [],
-}: AddTrackerDialogProps) {
+function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTrackerDialogProps) {
   const [selectedPreset, setSelectedPreset] = useState("")
   const [nickname, setNickname] = useState("")
-  const [baseUrl, setBaseUrl] = useState("")
-  const [apiToken, setApiToken] = useState("")
-  const [avistazUsername, setAvistazUsername] = useState("")
-  const [avistazCookies, setAvistazCookies] = useState("")
-  const [dcCookies, setDcCookies] = useState("")
-  const [iptCookies, setIptCookies] = useState("")
-  const [flCookies, setFlCookies] = useState("")
-  const [tlUsername, setTlUsername] = useState("")
-  const [tlPassword, setTlPassword] = useState("")
-  const [tlAlt2FAToken, setTlAlt2FAToken] = useState("")
+  const [credentials, setCredentials] = useState<CredentialValues>(EMPTY_CREDENTIAL_VALUES)
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
+  const [mouseholeToken, setMouseholeToken] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
   const [joinedAt, setJoinedAt] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [testResult, setTestResult] = useState<{ username: string; group: string } | null>(null)
 
+  const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
+    setCredentials((prev) => ({ ...prev, [field]: value }))
+  }, [])
+
   const resetForm = useCallback(() => {
     setSelectedPreset("")
     setNickname("")
-    setBaseUrl("")
-    setApiToken("")
-    setAvistazUsername("")
-    setAvistazCookies("")
-    setDcCookies("")
-    setIptCookies("")
-    setFlCookies("")
-    // Drive-by: the TorrentLeech fields were never cleared here, so a closed
-    // dialog kept the password in memory and re-showed it on reopen. Adding a
-    // third secret without fixing that would have made it worse.
-    setTlUsername("")
-    setTlPassword("")
-    setTlAlt2FAToken("")
+    setCredentials(EMPTY_CREDENTIAL_VALUES)
     setQbtTag("")
     setMouseholeUrl("")
+    setMouseholeToken("")
     setColor(CHART_THEME.accent)
     setJoinedAt("")
     setErrors({})
@@ -283,28 +274,29 @@ function AddTrackerDialog({
     setSelectedPreset(slug)
     const entry = TRACKER_REGISTRY.find((t) => t.slug === slug)
     if (entry) {
-      setBaseUrl(entry.url)
       setColor(entry.color)
       setErrors({})
       setTestResult(null)
     } else {
-      setBaseUrl("")
       setColor(CHART_THEME.accent)
     }
-    setAvistazUsername("")
-    setAvistazCookies("")
-    setDcCookies("")
-    setIptCookies("")
-    setFlCookies("")
+    // Everything typed belongs to the tracker it was typed for. Keeping a token
+    // across a switch would send it to the next tracker's host on submit.
+    setCredentials(EMPTY_CREDENTIAL_VALUES)
+    setMouseholeUrl("")
+    setMouseholeToken("")
   }
 
   const availablePresets = useMemo(() => {
-    const urls = new Set(existingBaseUrls.map(normalizeUrl))
-    return TRACKER_REGISTRY.filter((t) => !urls.has(normalizeUrl(t.url)))
-  }, [existingBaseUrls])
+    const taken = new Set(existingSlugs)
+    return TRACKER_REGISTRY.filter((t) => !taken.has(t.slug))
+  }, [existingSlugs])
 
   const selectedEntry = TRACKER_REGISTRY.find((t) => t.slug === selectedPreset)
   const trackerName = nickname.trim() || selectedEntry?.name || ""
+
+  // Before a tracker is picked the dialog still shows a UNIT3D token field.
+  const credentialForm = selectedEntry ? credentialFormFor(selectedEntry) : CREDENTIAL_FORMS.unit3d
 
   function validate(): Record<string, string> {
     const next: Record<string, string> = {}
@@ -313,67 +305,9 @@ function AddTrackerDialog({
       next.preset = "Select a tracker"
     }
 
-    if (selectedEntry?.platform === "avistaz") {
-      if (!avistazUsername.trim()) {
-        next.apiToken = "Username is required"
-      } else if (!avistazCookies.trim()) {
-        next.apiToken = "Browser cookies are required"
-      } else if (!avistazCookies.includes("=")) {
-        next.apiToken =
-          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. cf_clearance=abc123; session=xyz)"
-      } else if (
-        /^(cf_clearance|[a-z]+x_session|remember_web_\w+|XSRF-TOKEN|love)$/i.test(
-          avistazCookies.trim()
-        )
-      ) {
-        next.apiToken =
-          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
-      }
-    } else if (selectedEntry?.platform === "digitalcore") {
-      const trimmed = dcCookies.trim()
-      if (!trimmed) {
-        next.apiToken = "Session cookies are required"
-      } else {
-        const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
-        const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
-        if (!uidMatch) {
-          next.apiToken =
-            "Cookie string is missing uid value. Paste the full Cookie header from DevTools."
-        } else if (!passMatch) {
-          next.apiToken =
-            "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
-        }
-      }
-    } else if (selectedEntry?.platform === "iptorrents") {
-      const trimmed = iptCookies.trim().replace(/^Cookie:\s*/i, "")
-      if (!trimmed) {
-        next.apiToken = "Browser cookies are required"
-      } else if (!trimmed.includes("=")) {
-        next.apiToken =
-          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. uid=123; pass=abc123)"
-      } else if (/^(cf_clearance|uid|pass|remember_web_\w+|XSRF-TOKEN)$/i.test(trimmed)) {
-        next.apiToken =
-          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
-      }
-    } else if (selectedEntry?.platform === "filelist") {
-      const trimmed = flCookies.trim().replace(/^Cookie:\s*/i, "")
-      if (!trimmed) {
-        next.apiToken = "Browser cookies are required"
-      } else if (!trimmed.includes("=")) {
-        next.apiToken =
-          "This doesn't look like a cookie string. It should contain key=value pairs (i.e. uid=123; pass=abc123)"
-      } else if (/^(cf_clearance|uid|pass|remember_web_\w+|XSRF-TOKEN)$/i.test(trimmed)) {
-        next.apiToken =
-          'You pasted a cookie name, not the value. Copy the entire string after "Cookie:" in the request headers.'
-      }
-    } else if (selectedEntry?.platform === "torrentleech") {
-      if (!tlUsername.trim()) {
-        next.apiToken = "Username is required"
-      } else if (!tlPassword) {
-        next.apiToken = "Password is required"
-      }
-    } else if (!apiToken.trim()) {
-      next.apiToken = "API token is required"
+    const credentialError = validateCredentialValues(credentialForm, credentials)
+    if (credentialError) {
+      next.apiToken = credentialError
     }
 
     return next
@@ -390,65 +324,17 @@ function AddTrackerDialog({
     setLoading(true)
     setTestResult(null)
 
-    const isAvistaz = selectedEntry?.platform === "avistaz"
-    const isDigitalCore = selectedEntry?.platform === "digitalcore"
-    const isIptorrents = selectedEntry?.platform === "iptorrents"
-    const isFilelist = selectedEntry?.platform === "filelist"
-    const isTorrentleech = selectedEntry?.platform === "torrentleech"
-    let effectiveApiToken = apiToken
-
-    if (isAvistaz) {
-      effectiveApiToken = JSON.stringify({
-        cookies: avistazCookies.trim(),
-        userAgent: navigator.userAgent,
-        username: avistazUsername.trim(),
-      })
-    } else if (isDigitalCore) {
-      const trimmed = dcCookies.trim()
-      const uidMatch = trimmed.match(/(?:^|;\s*)uid=([^;]+)/)
-      const passMatch = trimmed.match(/(?:^|;\s*)pass=([^;]+)/)
-      // The cookies were copied out of this browser, so its UA is the one the
-      // session was issued to. TrackerSettingsSheet must capture it too, or a
-      // later cookie change silently drops it.
-      effectiveApiToken = JSON.stringify({
-        uid: uidMatch?.[1]?.trim() ?? "",
-        pass: passMatch?.[1]?.trim() ?? "",
-        userAgent: navigator.userAgent,
-      })
-    } else if (isIptorrents) {
-      // The adapter matches the User-Agent against the session that minted the
-      // cookies, so send the browser's own UA rather than a server-side default.
-      effectiveApiToken = JSON.stringify({
-        cookies: iptCookies.trim().replace(/^Cookie:\s*/i, ""),
-        userAgent: navigator.userAgent,
-      })
-    } else if (isFilelist) {
-      // Same rule as IPTorrents: the session is fingerprinted against the UA
-      // that minted the cookies, so send this browser's own UA.
-      effectiveApiToken = JSON.stringify({
-        cookies: flCookies.trim().replace(/^Cookie:\s*/i, ""),
-        userAgent: navigator.userAgent,
-      })
-    } else if (isTorrentleech) {
-      const alt2FAToken = tlAlt2FAToken.trim()
-      effectiveApiToken = JSON.stringify({
-        username: tlUsername.trim(),
-        password: tlPassword,
-        // Omitted entirely for accounts without 2FA, so their stored credential
-        // blob stays exactly the shape it has always been.
-        ...(alt2FAToken ? { alt2FAToken } : {}),
-      })
-    }
+    // navigator is a browser-only global; this component is server-rendered on
+    // first load, so it is read in the handler and never during render.
+    const effectiveApiToken = buildCredentialBlob(credentialForm, credentials, navigator.userAgent)
 
     try {
       const testRes = await fetch("/api/trackers/test-connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          baseUrl,
+          slug: selectedPreset,
           apiToken: effectiveApiToken,
-          platformType: selectedEntry?.platform ?? "unit3d",
-          apiPath: selectedEntry?.apiPath,
         }),
       })
 
@@ -466,13 +352,13 @@ function AddTrackerDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trackerName,
-          baseUrl,
+          slug: selectedPreset,
           apiToken: effectiveApiToken,
-          platformType: selectedEntry?.platform ?? "unit3d",
           color,
           qbtTag: qbtTag.trim() || undefined,
           joinedAt: joinedAt || undefined,
           mouseholeUrl: mouseholeUrl.trim() || undefined,
+          mouseholeToken: mouseholeToken.trim() || undefined,
         }),
       })
 
@@ -550,194 +436,29 @@ function AddTrackerDialog({
           placeholder={selectedEntry?.name ?? "Custom name for this tracker"}
         />
 
-        {selectedEntry?.platform === "avistaz" ? (
-          <div className="flex flex-col gap-3">
-            <Input
-              label={`${selectedEntry?.name ?? "AvistaZ"} Username`}
-              name="tracker-avistaz-username"
-              autoComplete="off"
-              data-1p-ignore
-              value={avistazUsername}
-              onChange={(e) => setAvistazUsername(e.target.value)}
-              placeholder="Your username on this tracker"
-            />
-            <div className="flex flex-col gap-1">
-              <AreaInput
-                label="Browser Cookies"
-                tooltip="Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display."
-                docs={DOCS.ADDING_A_TRACKER}
-                id="tracker-avistaz-cookies"
-                name="tracker-avistaz-cookies"
-                autoComplete="off"
-                data-1p-ignore
-                value={avistazCookies}
-                onChange={(e) => setAvistazCookies(e.target.value)}
-                placeholder="F12 → Network → any request → Cookie header → right-click → Copy Value"
-                rows={3}
-              />
-              {avistazCookies.includes("\u2026") && (
-                <Notice variant="warn">
-                  Cookie string appears truncated (contains &quot;&hellip;&quot;). Firefox truncates
-                  long values in the display. Right-click the Cookie header and select{" "}
-                  <strong>Copy Value</strong> instead.
-                </Notice>
-              )}
-              <Notice message={errors.apiToken} />
-            </div>
-            {testResult && (
-              <Notice variant="success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </Notice>
-            )}
-          </div>
-        ) : selectedEntry?.platform === "digitalcore" ? (
-          <div className="flex flex-col gap-1">
-            <AreaInput
-              label="Session Cookies"
-              tooltip="DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value."
-              docs={DOCS.ADDING_A_TRACKER}
-              id="tracker-dc-cookies"
-              name="tracker-dc-cookies"
-              autoComplete="off"
-              data-1p-ignore
-              value={dcCookies}
-              onChange={(e) => setDcCookies(e.target.value)}
-              placeholder="uid=56954; pass=abc123def456..."
-              rows={2}
-            />
-            <Notice message={errors.apiToken} />
-            {testResult && (
-              <Notice variant="success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </Notice>
-            )}
-          </div>
-        ) : selectedEntry?.platform === "iptorrents" ? (
-          <div className="flex flex-col gap-1">
-            <AreaInput
-              label="Browser Cookies"
-              tooltip="IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
-              docs={DOCS.ADDING_A_TRACKER}
-              id="tracker-ipt-cookies"
-              name="tracker-ipt-cookies"
-              autoComplete="off"
-              data-1p-ignore
-              value={iptCookies}
-              onChange={(e) => setIptCookies(e.target.value)}
-              placeholder="cf_clearance=...; uid=123456; pass=abc123def456..."
-              rows={3}
-            />
-            <Notice message={errors.apiToken} />
-            {testResult && (
-              <Notice variant="success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </Notice>
-            )}
-          </div>
-        ) : selectedEntry?.platform === "filelist" ? (
-          <div className="flex flex-col gap-1">
-            <AreaInput
-              label="Browser Cookies"
-              tooltip="FileList's API is torrent-search only, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value."
-              docs={DOCS.ADDING_A_TRACKER}
-              id="tracker-fl-cookies"
-              name="tracker-fl-cookies"
-              autoComplete="off"
-              data-1p-ignore
-              value={flCookies}
-              onChange={(e) => setFlCookies(e.target.value)}
-              placeholder="uid=123456; pass=abc123def456..."
-              rows={3}
-            />
-            <Notice message={errors.apiToken} />
-            {testResult && (
-              <Notice variant="success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </Notice>
-            )}
-          </div>
-        ) : selectedEntry?.platform === "torrentleech" ? (
-          <div className="flex flex-col gap-3">
-            <Input
-              label="TorrentLeech Username"
-              name="tracker-tl-username"
-              autoComplete="off"
-              data-1p-ignore
-              value={tlUsername}
-              onChange={(e) => setTlUsername(e.target.value)}
-              placeholder="Your TorrentLeech username"
-            />
-            <div className="flex flex-col gap-1">
-              <Input
-                label="TorrentLeech Password"
-                tooltip="TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential."
-                docs={DOCS.ADDING_A_TRACKER}
-                id="tracker-tl-password"
-                name="tracker-tl-password"
-                type="password"
-                autoComplete="off"
-                data-1p-ignore
-                value={tlPassword}
-                onChange={(e) => setTlPassword(e.target.value)}
-                placeholder="Your TorrentLeech password"
-                error={errors.apiToken}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Input
-                label="Alt 2FA Token (optional)"
-                tooltip="Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code."
-                docs={DOCS.ADDING_A_TRACKER}
-                id="tracker-tl-alt2fa"
-                name="tracker-tl-alt2fa"
-                type="password"
-                autoComplete="off"
-                data-1p-ignore
-                value={tlAlt2FAToken}
-                onChange={(e) => setTlAlt2FAToken(e.target.value)}
-                placeholder="Only if 2FA is enabled on your account"
-              />
-            </div>
-            {testResult && (
-              <Notice variant="success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </Notice>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <Input
-              label="API Token"
-              name="tracker-api-token"
-              type="password"
-              autoComplete="off"
-              data-1p-ignore
-              value={apiToken}
-              onChange={(e) => setApiToken(e.target.value)}
-              placeholder={
-                selectedEntry?.platform === "mam"
-                  ? "Your mam_id session cookie"
-                  : selectedEntry?.platform === "ggn"
-                    ? "Your GGn API key"
-                    : selectedEntry?.platform === "gazelle"
-                      ? "Your Gazelle API key"
-                      : "Your UNIT3D API token"
-              }
-              error={errors.apiToken}
-            />
-            {testResult && (
-              <Notice variant="success">
-                Connected as <span className="font-semibold">{testResult.username}</span>
-                {testResult.group ? ` (${testResult.group})` : ""}
-              </Notice>
-            )}
-          </div>
-        )}
+        <div
+          className={clsx(
+            "flex flex-col",
+            credentialForm.kind === "cookies-username" || credentialForm.kind === "login"
+              ? "gap-3"
+              : "gap-1"
+          )}
+        >
+          <CredentialFields
+            form={credentialForm}
+            values={credentials}
+            onChange={setCredentialField}
+            error={errors.apiToken}
+            surface="dialog"
+            trackerName={selectedEntry?.name ?? ""}
+          />
+          {testResult && (
+            <Notice variant="success">
+              Connected as <span className="font-semibold">{testResult.username}</span>
+              {testResult.group ? ` (${testResult.group})` : ""}
+            </Notice>
+          )}
+        </div>
 
         <div className="flex flex-col gap-1">
           <Input
@@ -753,7 +474,7 @@ function AddTrackerDialog({
         </div>
 
         {selectedEntry?.platform === "mam" && (
-          <div className="flex flex-col gap-1">
+          <>
             <div className="flex items-center gap-1">
               <Input
                 label="Mousehole URL (optional)"
@@ -762,10 +483,10 @@ function AddTrackerDialog({
                 data-1p-ignore
                 value={mouseholeUrl}
                 onChange={(e) => setMouseholeUrl(e.target.value)}
-                placeholder="http://localhost:7001"
+                placeholder={MOUSEHOLE_URL_PLACEHOLDER}
               />
               <InfoTip
-                content="If you run Mousehole to manage your MAM seedbox IP, enter its URL here to see status and trigger updates from Tracker Tracker."
+                content={MOUSEHOLE_URL_TIP}
                 size="sm"
                 docs={{
                   href: "https://github.com/t-mart/mousehole",
@@ -773,26 +494,34 @@ function AddTrackerDialog({
                 }}
               />
             </div>
-          </div>
+            <div className="flex items-center gap-1">
+              <Input
+                type="password"
+                label="Mousehole API token"
+                name="tracker-mousehole-token"
+                autoComplete="off"
+                data-1p-ignore
+                value={mouseholeToken}
+                onChange={(e) => setMouseholeToken(e.target.value)}
+                placeholder="••••••••"
+              />
+              <InfoTip content={MOUSEHOLE_TOKEN_TIP} size="sm" />
+            </div>
+          </>
         )}
 
         <ColorPicker label="Color" value={color} onChange={setColor} />
 
-        {selectedEntry &&
-          !selectedEntry.gazelleEnrich &&
-          selectedEntry.platform !== "ggn" &&
-          selectedEntry.platform !== "avistaz" &&
-          selectedEntry.platform !== "digitalcore" &&
-          selectedEntry.platform !== "filelist" && (
-            <Input
-              label="Join Date (optional)"
-              type="date"
-              value={joinedAt}
-              max={localDateStr()}
-              onChange={(e) => setJoinedAt(e.target.value)}
-              placeholder="YYYY-MM-DD"
-            />
-          )}
+        {selectedEntry && !credentialForm.hidesJoinDate && (
+          <Input
+            label="Join Date (optional)"
+            type="date"
+            value={joinedAt}
+            max={localDateStr()}
+            onChange={(e) => setJoinedAt(e.target.value)}
+            placeholder="YYYY-MM-DD"
+          />
+        )}
 
         <Notice message={errors.form} />
       </div>

@@ -2,7 +2,7 @@
 //
 // Copy this file to add a new tracker to the registry.
 //
-// 1. Duplicate this file and rename it to your tracker's slug (e.g. mytracker.ts)
+// 1. Duplicate this file and rename it to your tracker's slug (mytracker.ts)
 // 2. Fill in all fields below. Every field must be present (use "" / [] / false
 //    rather than omitting). See inline comments for guidance.
 // 3. Export from src/data/trackers/index.ts (add to the barrel + ALL_TRACKERS array)
@@ -17,7 +17,7 @@
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "custom"
 //   - apiPath must match platform default:
 //       unit3d   → "/api/user"
 //       gazelle  → "/ajax.php"
@@ -36,14 +36,14 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const mytracker: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
-  slug: "mytracker", // lowercase, hyphens only (e.g. "my-tracker")
+  slug: "mytracker", // lowercase, hyphens only ("my-tracker")
   name: "My Tracker", // display name
-  abbreviation: "", // short code (e.g. "ATH", "RED"). "" if none
+  abbreviation: "", // short code ("ATH", "RED"). "" if none
   url: "https://example.com", // base URL (https only)
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only. "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only. Enables enrichment call
@@ -51,7 +51,7 @@ export const mytracker: TrackerRegistryEntry = {
   apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php"
 
   // ── Content ─────────────────────────────────────────────────────────
-  specialty: "", // what the tracker is known for (e.g. "HD Movies", "Anime")
+  specialty: "", // what the tracker is known for ("HD Movies", "Anime")
   contentCategories: [], // see allowed list in header
   language: "English",
 
@@ -64,7 +64,9 @@ export const mytracker: TrackerRegistryEntry = {
   statusPageUrl: "", // external status page URL. "" if none
 
   // ── Community ───────────────────────────────────────────────────────
-  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
+  // Lowest to highest. Flag staff/donor classes outsideLadder: "above" and
+  // demotion/administrative states "below"; unset means earned by stats.
+  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }, { name: "Uploader", requirements: "Staff", outsideLadder: "above" }]
   releaseGroups: [], // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
   bannedGroups: [], // ["GroupName"]. Groups explicitly banned by the tracker
   notableMembers: [], // ["handle"]. Notable community figures
@@ -93,21 +95,21 @@ export const mytracker: TrackerRegistryEntry = {
   // the message. A defunct tracker's API is gone, so this can only be recorded
   // by hand here. It can never come from the adapter.
   // defunct: true,
-  // defunctMessage: "",   // one short factual line, e.g. "Example has shut down."
-  // defunctDate: "",      // "YYYY-MM-DD". The shutdown date, e.g. "2026-05-11"
+  // defunctMessage: "",   // one short factual line, "Example has shut down."
+  // defunctDate: "",      // "YYYY-MM-DD". The shutdown date, "2026-05-11"
   // defunctLink: "",      // https:// announcement (forum post, reddit thread). Omit if none
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: true, // remove (or set false) once all required fields are filled in
   supportsTransitPapers: false, // true if the tracker supports transit papers export
-  profileUrlPattern: "", // e.g. "/user.php?id={id}". Required when supportsTransitPapers: true
+  profileUrlPattern: "", // "/user.php?id={id}". Required when supportsTransitPapers: true
 
   // ── Stats (omit this block entirely if no real data is available) ───
   // stats: {
   //   userCount: undefined,
   //   activeUsers: undefined,
   //   torrentCount: undefined,
-  //   seedSize: undefined,    // e.g. "500 TiB"
+  //   seedSize: undefined,    // "500 TiB"
   //   statsUpdatedAt: undefined, // ISO 8601 date string
   // },
 }

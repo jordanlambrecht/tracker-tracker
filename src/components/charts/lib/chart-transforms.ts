@@ -75,7 +75,7 @@ export function buildActivityMatrix(addedOnSeconds: number[]): {
  * Map a pre-built Map<timestamp, number> onto a string timestamp axis, carrying
  * forward the last known value at timestamps where there is no data.
  * O(T) where T = timestamps.length. Used by charts that pre-index values
- * before mapping to the unified axis (e.g. SeedbonusRiverChart).
+ * before mapping to the unified axis, such as SeedbonusRiverChart.
  */
 export function carryForwardValues(
   timestamps: string[],

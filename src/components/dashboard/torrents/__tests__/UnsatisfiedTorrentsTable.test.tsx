@@ -1,7 +1,7 @@
 // src/components/dashboard/torrents/__tests__/UnsatisfiedTorrentsTable.test.tsx
 //
-// What the Unsatisfied table renders for each shape of tracker rule, and the two
-// bad-number cases that previously rendered a torrent as finished.
+// What the Unsatisfied table renders for each shape of tracker rule, and the bad
+// numbers that would render a torrent as finished.
 //
 // Functions:
 //   makeTorrent  - Build a TorrentRaw with everything zeroed
@@ -97,7 +97,6 @@ function progressBar(container: HTMLElement): HTMLElement {
   return withWidth[0]
 }
 
-
 function headers(): string[] {
   return screen.getAllByRole("columnheader").map((th) => th.textContent?.trim() ?? "")
 }
@@ -187,13 +186,13 @@ describe("UnsatisfiedTorrentsTable progress", () => {
   })
 })
 
-// Both of these rendered a torrent as finished inside a table of unfinished ones.
+// Each bad number here would render a torrent as finished among unfinished ones.
 describe("UnsatisfiedTorrentsTable bad numbers", () => {
   it("shows no progress for a torrent whose seed time is missing", () => {
-    // seeding_time is absent from a client response, so the division yields NaN.
-    // NaN loses every comparison: the percentage read a dash, `width: NaN%` is
-    // invalid CSS and was dropped so the bar filled, and NaN fell past both
-    // thresholds in the colour ramp to green.
+    // A missing seeding_time makes the division NaN, which loses every
+    // comparison. Unguarded, the percentage would read a dash, `width: NaN%`
+    // would be dropped as invalid CSS so the bar fills, and the colour ramp
+    // would fall through to green.
     const { container } = renderTable(EITHER_OR, [
       makeTorrent({ seedingTime: undefined as unknown as number }),
     ])
@@ -201,8 +200,8 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
     const bar = progressBar(container)
     expect(bar.style.width).toBe("0%")
     expect(bar.style.backgroundColor).toBe(DANGER)
-    // The full 240h is owed. The raw NaN rendered this cell as "Done" on a
-    // torrent the same row marks 0% complete.
+    // The full 240h is owed. A raw NaN would render this cell as "Done" on a
+    // row marked 0% complete.
     expect(screen.getByText("10.0d")).toBeVisible()
     expect(screen.queryByText("Done")).toBeNull()
   })
@@ -225,8 +224,8 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
   })
 
   it("owes the full ratio for the -1 sentinel rather than inflating it", () => {
-    // Subtracting -1 from the requirement reported "2.00 ratio" owed against a
-    // 1.0 rule, a number that cannot occur.
+    // Subtracting -1 from the requirement would report 2.00 ratio owed against a
+    // 1.0 rule.
     renderTable(RATIO_ONLY, [makeTorrent({ ratio: -1 })])
     expect(screen.getByText("1.00 ratio")).toBeVisible()
     expect(screen.queryByText("2.00 ratio")).toBeNull()

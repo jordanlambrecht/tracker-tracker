@@ -13,6 +13,7 @@ export const anthelion: TrackerRegistryEntry = {
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "nebulance",
+  nebulanceAuthParam: "apikey",
   apiPath: "/api.php",
 
   // ── Content ─────────────────────────────────────────────────────────

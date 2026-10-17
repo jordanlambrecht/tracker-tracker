@@ -83,16 +83,16 @@ describe("UsernamePrompt", () => {
     const user = userEvent.setup()
     const spy = vi
       .spyOn(global, "fetch")
-      .mockResolvedValue(jsonResponse({ success: true, username: "jordy" }))
+      .mockResolvedValue(jsonResponse({ success: true, username: "tealotter" }))
 
     render(<UsernamePrompt needed />)
     // Typed with the stray spaces the trim exists for.
-    await user.type(await screen.findByRole("textbox"), "  jordy  ")
+    await user.type(await screen.findByRole("textbox"), "  tealotter  ")
     await user.click(screen.getByRole("button", { name: /Save username/i }))
 
     await waitFor(() => expect(postBodies(spy)).toHaveLength(1))
     expect(spy.mock.calls[0][0]).toBe("/api/auth/username")
-    expect(postBodies(spy)[0]).toEqual({ username: "jordy" })
+    expect(postBodies(spy)[0]).toEqual({ username: "tealotter" })
 
     await waitFor(() => expect(screen.queryByText(TITLE)).not.toBeInTheDocument())
     // Server-rendered surfaces still hold the old NULL until this fires.
@@ -122,7 +122,7 @@ describe("UsernamePrompt", () => {
     )
 
     render(<UsernamePrompt needed />)
-    await user.type(await screen.findByRole("textbox"), "jordy")
+    await user.type(await screen.findByRole("textbox"), "tealotter")
     await user.click(screen.getByRole("button", { name: /Save username/i }))
 
     expect(await screen.findByText(/A username is already set/i)).toBeInTheDocument()

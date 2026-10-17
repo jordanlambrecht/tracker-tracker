@@ -1,11 +1,9 @@
 // src/lib/__tests__/tracker-scheduler-failure-cause.test.ts
 //
-// The message a failed poll stores is deliberately lossy: sanitizeNetworkError
-// collapses anything it does not recognise to "Poll failed", and that string
-// is what the UI shows. Issue #214's logs carried exactly that and nothing
-// else, so an adapter crash on a changed payload was indistinguishable from a
-// dead host. The raw cause has to reach the server log next to the sanitised
-// message, as download-client-scheduler already does for clients.
+// sanitizeNetworkError collapses anything it does not recognise to
+// "Poll failed", and the UI shows only that. The raw cause has to reach the
+// server log beside it, or an adapter crash on a changed payload reads like a
+// dead host.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -25,11 +23,13 @@ vi.mock("@/lib/notifications/dispatch", () => ({ dispatchNotifications: vi.fn(as
 vi.mock("@/lib/alert-pruning", () => ({ pruneDismissedAlerts: vi.fn(async () => 0) }))
 vi.mock("@/lib/server-data", () => ({ recordDatabaseSize: vi.fn(async () => {}) }))
 vi.mock("@/lib/tunnel", () => ({ buildProxyAgentFromSettings: vi.fn(() => undefined) }))
-vi.mock("@/data/tracker-registry", () => ({ findRegistryEntry: vi.fn(() => null) }))
+vi.mock("@/data/tracker-registry", () => ({
+  registryEntryFor: vi.fn(() => undefined),
+}))
 vi.mock("node-cron", () => ({ default: { schedule: vi.fn() } }))
 
 const fetchStats = vi.fn()
-vi.mock("@/lib/adapters", () => ({
+vi.mock("@/lib/tracker-platforms", () => ({
   getAdapter: vi.fn(() => ({ fetchStats })),
   buildFetchOptions: vi.fn(() => ({})),
 }))

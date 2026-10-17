@@ -4,8 +4,8 @@
 //   1. `loaded` means "the server told us", not "the request finished". Consumers gate WebGL
 //      charts on it, so flipping it after a failed fetch mounts echarts-gl for the very users
 //      who turned it off.
-//   2. An update writes only the key it changed. Sending the whole object meant a toggle made
-//      before the initial GET resolved wrote defaults over every other stored setting.
+//   2. An update writes only the key it changed. A whole-object write made before the initial GET
+//      resolves puts defaults over every other stored setting.
 
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -93,16 +93,16 @@ describe("useDashboardSettings", () => {
       const bodies = putBodies(spy)
       expect(bodies).toHaveLength(1)
       expect(bodies[0]).toEqual({ enable3DCharts: false })
-      // The point of the invariant: an untouched key must not ride along, or a
-      // stale local value overwrites what the server already has.
+      // An untouched key must not ride along, or a stale local value overwrites
+      // what the server already has.
       expect(bodies[0]).not.toHaveProperty("showLoginTimers")
       expect(bodies[0]).not.toHaveProperty("showTodayAtAGlance")
       expect(bodies[0]).not.toHaveProperty("showHealthIndicators")
     })
 
     it("does not write stale defaults over stored settings when toggled before the GET resolves", async () => {
-      // The original bug: GET still in flight, so `prev` is DEFAULTS, and PUTting the
-      // whole object reverted every other setting the user had stored.
+      // With the GET still in flight `prev` is DEFAULTS, so PUTting the whole object
+      // would revert every other stored setting.
       const spy = vi.spyOn(global, "fetch").mockImplementation((_url, init) => {
         if ((init as RequestInit | undefined)?.method === "PUT") {
           return Promise.resolve(jsonResponse({}))
@@ -123,10 +123,9 @@ describe("useDashboardSettings", () => {
     })
   })
 
-  // The one-time localStorage migration had the same whole-object-write shape the
-  // `update` path above was already fixed for: it spread the legacy blob over
-  // DEFAULTS and PUT the result, so every key the user never set in localStorage
-  // overwrote the server with a default.
+  // The one-time localStorage migration must PUT only the keys the legacy blob
+  // held, or every key the user never set there overwrites the server with a
+  // default.
   describe("legacy migration", () => {
     it("writes only the keys the legacy blob held, keeping the server's value for the rest", async () => {
       localStorage.setItem(
@@ -168,12 +167,9 @@ describe("useDashboardSettings", () => {
   })
 
   describe("cross-instance sync", () => {
-    // Several instances of this hook are mounted at once, the settings sheet,
-    // the dashboard, the outage-band provider. Before the broadcast existed, a
-    // toggle flipped in the sheet updated only the sheet's copy, so the user
-    // could switch something off and watch it stay on everywhere else. This is
-    // the seam the "toggle hides the outage bands" behaviour actually rides
-    // through in the app, so it is pinned directly.
+    // Several instances of this hook are mounted at once. Without the broadcast,
+    // a toggle flipped in the sheet updates only the sheet's copy and stays on
+    // everywhere else.
     it("applies one instance's write to every other instance", async () => {
       vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse(DASHBOARD_SETTINGS_DEFAULTS))
 

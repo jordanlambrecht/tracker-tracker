@@ -1,9 +1,10 @@
 // src/lib/api-helpers.ts
 //
 // Functions: authenticate, parseRouteId, parseTrackerId, parseJsonBody,
-//            validateHttpUrl, validateHexColor, validatePort, validatePastDate,
-//            validateJoinedAt, validateLastAccessAt, validateIntRange,
-//            validateMaxLength, validateAuthMethod, decodeKey
+//            validateHttpUrl, validateMouseholeUrl, validateMouseholeToken,
+//            validateHexColor, validatePort, validatePastDate, validateJoinedAt,
+//            validateLastAccessAt, validateIntRange, validateMaxLength,
+//            validateAuthMethod, decodeKey
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
@@ -11,6 +12,7 @@ import { getSession } from "@/lib/auth"
 // credentials.ts, which is "server-only".
 import { VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
+import { CREDENTIAL_MAX } from "@/lib/limits"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
 
@@ -69,6 +71,64 @@ export function validateHttpUrl(url: string, label = "baseUrl"): NextResponse | 
   } catch {
     return NextResponse.json({ error: `Invalid ${label} format` }, { status: 400 })
   }
+}
+
+/**
+ * validateHttpUrl plus a refusal of userinfo. The Mousehole API token has its
+ * own encrypted column, so a URL carrying one would store the secret in
+ * plaintext and send it nowhere.
+ */
+export function validateMouseholeUrl(url: string): NextResponse | null {
+  const urlErr = validateHttpUrl(url, "Mousehole URL")
+  if (urlErr) return urlErr
+  const parsed = new URL(url)
+  if (parsed.username || parsed.password) {
+    return NextResponse.json(
+      {
+        error:
+          "Mousehole URL must not contain a token or password. Enter the token in the Mousehole API token field",
+      },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+/**
+ * NUL, CR and LF make undici throw a TypeError that quotes the whole header,
+ * and the rest of the control range would go on the wire, so both are refused
+ * here. A non-Latin-1 character cannot be sent in a header at all. Messages
+ * name the character by code point and never echo the token.
+ */
+export function validateMouseholeToken(token: string): NextResponse | null {
+  const lengthErr = validateMaxLength(token, CREDENTIAL_MAX, "Mousehole API token")
+  if (lengthErr) return lengthErr
+
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional control-char check
+  const control = token.match(/[\x00-\x1F\x7F]/)
+  if (control) {
+    const code = control[0].codePointAt(0)?.toString(16).toUpperCase().padStart(4, "0")
+    return NextResponse.json(
+      {
+        error: `Mousehole API token contains a control character (U+${code}) at position ${control.index}. Copy only the token value`,
+      },
+      { status: 400 }
+    )
+  }
+
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional byte-range check
+  const nonLatin1 = token.match(/[^\x00-\xFF]/)
+  if (nonLatin1) {
+    const code = nonLatin1[0].codePointAt(0)?.toString(16).toUpperCase().padStart(4, "0")
+    return NextResponse.json(
+      {
+        error: `Mousehole API token contains a non-Latin-1 character (U+${code}) at position ${nonLatin1.index}. Re-copy the full token`,
+      },
+      { status: 400 }
+    )
+  }
+
+  return null
 }
 
 export function validateHexColor(color: string): NextResponse | null {

@@ -3,11 +3,11 @@
 // Mock the registry so band tests control minimumRatio directly. The default
 // (undefined) keeps every fixture on the no-requirement fallback bands.
 vi.mock("@/data/tracker-registry", () => ({
-  findRegistryEntry: vi.fn(() => undefined),
+  registryEntryFor: vi.fn(() => undefined),
 }))
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor } from "@/data/tracker-registry"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
@@ -18,15 +18,19 @@ import {
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
 
-const mockFindRegistryEntry = vi.mocked(findRegistryEntry)
+const mockRegistryEntryFor = vi.mocked(registryEntryFor)
 
+// Keyed on the slug, so a row carrying none resolves nothing however its URL is
+// spelled.
 function mockRegistryMinimum(minimumRatio: number | undefined) {
-  // biome-ignore lint/suspicious/noExplicitAny: partial registry entry, only rules matter here
-  mockFindRegistryEntry.mockReturnValue({ rules: { minimumRatio } } as any)
+  mockRegistryEntryFor.mockImplementation((tracker) =>
+    // biome-ignore lint/suspicious/noExplicitAny: partial registry entry, only rules matter here
+    tracker.registrySlug ? ({ rules: { minimumRatio } } as any) : undefined
+  )
 }
 
 beforeEach(() => {
-  mockFindRegistryEntry.mockReturnValue(undefined)
+  mockRegistryEntryFor.mockReturnValue(undefined)
 })
 
 function makeStats(overrides: Partial<TrackerLatestStats> = {}): TrackerLatestStats {
@@ -55,6 +59,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     id: 1,
     name: "Aither",
     baseUrl: "https://aither.cc",
+    registrySlug: "aither",
     platformType: "unit3d",
     isActive: true,
     lastPolledAt: new Date().toISOString(),
@@ -66,6 +71,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     color: "#00d4ff",
     qbtTag: null,
     mouseholeUrl: null,
+    hasMouseholeToken: false,
     useProxy: false,
     countCrossSeedUnsatisfied: false,
     hideUnreadBadges: false,
@@ -87,8 +93,8 @@ const healthOf = (stats: Partial<TrackerLatestStats>) =>
 // ---------------------------------------------------------------------------
 // The thin-ratio / zero-seed split
 //
-// These two conditions shared one "warning" pill until they were separated.
-// The tests below pin each one alone, plus the precedence when they overlap.
+// The thin-ratio and zero-seed conditions each get their own pill. The tests
+// below pin each one alone, plus the precedence when they overlap.
 // ---------------------------------------------------------------------------
 
 describe("getTrackerHealth — thin ratio vs. zero seeds", () => {
@@ -187,30 +193,37 @@ describe("health metadata", () => {
 describe("resolveRequiredRatio", () => {
   it("prefers the live requiredRatio over the registry", () => {
     mockRegistryMinimum(0.6)
-    expect(resolveRequiredRatio(2.0, "https://example.org")).toBe(2.0)
+    expect(resolveRequiredRatio(2.0, { registrySlug: "example" })).toBe(2.0)
   })
 
   it("a live requirement of exactly 0 wins over the registry", () => {
     // Phoenix at full seeding: the sliding requirement really is 0, and the
     // registry's 0.6 bracket cap must not resurrect it.
     mockRegistryMinimum(0.6)
-    expect(resolveRequiredRatio(0, "https://example.org")).toBe(0)
+    expect(resolveRequiredRatio(0, { registrySlug: "example" })).toBe(0)
   })
 
   it("falls back to the registry minimumRatio when no live figure exists", () => {
     mockRegistryMinimum(0.6)
-    expect(resolveRequiredRatio(null, "https://example.org")).toBe(0.6)
+    expect(resolveRequiredRatio(null, { registrySlug: "example" })).toBe(0.6)
+  })
+
+  it("resolves nothing for a row with no slug, whatever its URL", () => {
+    // A pre-registry custom site. Its stored URL is a poll address, not a key,
+    // so no registry requirement can be read off it.
+    mockRegistryMinimum(0.6)
+    expect(resolveRequiredRatio(null, { registrySlug: null })).toBeNull()
   })
 
   it("returns null when neither source has a requirement", () => {
-    expect(resolveRequiredRatio(null, "https://example.org")).toBeNull()
-    expect(resolveRequiredRatio(undefined, "https://example.org")).toBeNull()
+    expect(resolveRequiredRatio(null, { registrySlug: "example" })).toBeNull()
+    expect(resolveRequiredRatio(undefined, { registrySlug: "example" })).toBeNull()
   })
 
   it("ignores a non-finite or negative live value", () => {
     mockRegistryMinimum(0.6)
-    expect(resolveRequiredRatio(Number.NaN, "https://example.org")).toBe(0.6)
-    expect(resolveRequiredRatio(-1, "https://example.org")).toBe(0.6)
+    expect(resolveRequiredRatio(Number.NaN, { registrySlug: "example" })).toBe(0.6)
+    expect(resolveRequiredRatio(-1, { registrySlug: "example" })).toBe(0.6)
   })
 })
 
@@ -221,6 +234,16 @@ describe("getTrackerHealth — requirement-aware bands", () => {
     expect(healthOf({ ratio: 0.6, requiredRatio: null })).toBe("warning")
     expect(healthOf({ ratio: 1.19, requiredRatio: null })).toBe("warning")
     expect(healthOf({ ratio: 1.2, requiredRatio: null })).toBe("healthy")
+  })
+
+  it("leaves a row with no slug on the fallback bands", () => {
+    mockRegistryMinimum(0.6)
+    const noSlug = (ratio: number) =>
+      getTrackerHealth(
+        makeTracker({ registrySlug: null, latestStats: makeStats({ ratio, requiredRatio: null }) })
+      )
+    expect(noSlug(0.9)).toBe("critical")
+    expect(noSlug(1.5)).toBe("warning")
   })
 
   it("lets the live requiredRatio supersede the registry", () => {

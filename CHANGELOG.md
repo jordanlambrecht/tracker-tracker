@@ -1,5 +1,104 @@
 # Changelog
 
+## [2.12.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.11.0...v2.12.1) (2026-10-16)
+
+MyAnonamouse seeding and leeching counts read 0 from about 2026-09-23 until this release, after MAM moved those figures in its API response. This release reads the new location; the zeros already recorded for that period stay in the charts. The Mousehole card now needs Mousehole v0.5.0 or newer with MOUSEHOLE_AUTH_TOKEN set, and the token entered in the MAM tracker's settings.
+
+### ⚠ BREAKING CHANGES
+
+* **trackers:** require Mousehole v0.5.0 or newer and its own API token
+
+### Features
+
+* **dashboard:** add a Hit & Runs card to the Ecosystem section
+* **dashboard:** add a Ranks section with a class stack per tracker
+* **trackers:** add DreadVault (thanks [@thund3rcracker](https://github.com/thund3rcracker))
+* **trackers:** add InfinityHD and RocketHD (thanks [@mwallace02-dev](https://github.com/mwallace02-dev))
+* **trackers:** add Retro Movies Club and refresh OldToons (thanks @LocalBoomer)
+* **trackers:** add SeedCore (thanks [@thund3rcracker](https://github.com/thund3rcracker) and [@vasilvestre](https://github.com/vasilvestre))
+* **trackers:** add the retrotoon adapter
+* **trackers:** backfill the registry slug once at startup and carry it through backup restore
+* **trackers:** mark which registry classes sit outside the earned ladder
+* **trackers:** record each tracker's registry entry by slug and stop deriving it from the URL
+* **trackers:** rewrite the Redacted class ladder from the site wiki
+
+### Bug Fixes
+
+* **api:** store base URLs without a trailing slash and drop a vestigial debug log
+* **backups:** restore each row the way it was saved
+* **backups:** restore the seven tracker and snapshot columns the inserts never named
+* **charts:** render percentile ranks with the correct ordinal suffix
+* **ci:** make lint errors block, mirror the ladder rules into the validator and pin the audit checks
+* **ci:** silence dotenv in the playwright config
+* **dashboard:** give each rank stack one tooltip and a spoken class name
+* **dashboard:** keep an infinite-ratio account from voiding the fleet ratio change
+* **dashboard:** stop offering an older release as an update
+* **db-fleet:** cap every qBittorrent read, carry the deadline into login and fix the sync store cap
+* **db-fleet:** the qBittorrent transport no longer copies a header-validation TypeError
+* **scheduler:** bound a proxied request and the poll cycle so a stalled proxy cannot stop polling
+* **security:** bumped next and sharp
+* **security:** bumped next and sharp again
+* **security:** cancel a download client request when its deadline passes
+* **security:** close the audit blind spot that left download-clients unscanned
+* **security:** forbid framing with frame-ancestors as well as X-Frame-Options (thanks @Ian-Costa18)
+* **security:** keep undici's header-validation message out of tracker errors and logs
+* **security:** reject control characters in a pasted cookie header
+* **security:** reject every control character in DigitalCore's uid and pass cookies
+* **security:** remove a dead public route prefix
+* **security:** require a real character class in the cookie injection guard check
+* **security:** stop leaking API tokens through the auth probe and the debug view
+* **security:** stop the connection test passing on a credential it never sent
+* **security:** stop the qBittorrent login following a redirect that replays the password
+* **security:** validate the MAM session cookie like every other pasted cookie
+* **security:** validate what the download client host sends before it reaches the store
+* **sidebar:** vertically centre the infinite-ratio sign
+* **tracker-adapters:** derive the GGn ratio when the reported one will not parse
+* **tracker-adapters:** make fetchRaw and error classification match what fetchStats does
+* **tracker-adapters:** make the error wording an interface rather than prose
+* **tracker-adapters:** parse every bonus figure through the shared count helper
+* **tracker-adapters:** parse the binary byte units the shared helper silently dropped
+* **tracker-adapters:** refuse a blank BTN byte total instead of recording it as zero
+* **tracker-adapters:** refuse a byte total a scraper could not read instead of storing zero
+* **tracker-adapters:** refuse a byte total the API omitted instead of recording it as zero
+* **tracker-adapters:** report a figure UNIT3D omits as unknown rather than zero
+* **tracker-adapters:** report an absent count as unknown instead of zero
+* **tracker-adapters:** stop a DigitalCore maintenance page reading as invalid credentials
+* **tracker-adapters:** stop adapters asserting what the tracker never reported
+* **tracker-adapters:** surface failed fetches and bad credentials instead of healthy data
+* **tracker-adapters:** tell an absent figure apart from a measured zero
+* **trackers:** check pasted credentials evenly and match the registry entry by hostname
+* **trackers:** correct the session cache, permission flags and platformMeta clearing
+* **trackers:** dim classes outside the ladder and read a missing hit & run count as unknown
+* **trackers:** fail a RetroToon poll on a dead session and list its awarded ranks above the ladder
+* **trackers:** keep a bare join date on the day the tracker reported it
+* **trackers:** move the Mousehole integration to its current API
+* **trackers:** order rank changes by rung, not list position (thanks @Avamander)
+* **trackers:** read MAM snatch counts from snatch_summary (thanks @Avamander)
+* **trackers:** remove the URL edit from the settings sheet and the PATCH route
+* **trackers:** require Mousehole v0.5.0 or newer and its own API token
+* **trackers:** stop prefixing "Profile" to the IPTorrents username (thanks @Ian-Costa18)
+* **trackers:** store an infinite GGn ratio when nothing has been downloaded (thanks @Avamander)
+* **trackers:** test the base URL the save will store
+* **ui:** label the tracker settings credential section Credentials instead of API Key
+* **webhooks:** persist the download disabled notification toggle
+
+### Refactoring
+
+* **tracker-adapters:** build each request once and take the auth spelling from the registry
+* **tracker-adapters:** derive the TorrentLeech session key with scrypt
+* **tracker-adapters:** enforce the adapter rules in the types and one shared test
+* **tracker-adapters:** enforce the source-text rules and fix what they flagged
+* **tracker-adapters:** extract FileList's text helpers into a shared module
+* **tracker-adapters:** keep the adapters folder holding only adapters
+* **tracker-adapters:** key the session retry on an error type instead of its message
+* **tracker-adapters:** move the shared helpers into their own folder
+* **tracker-adapters:** promote one count parser and retire the four private ones
+* **trackers:** move the platform vocabulary into the data layer
+* **trackers:** move the poll-result types out of the adapter module
+* **trackers:** put the cookie-header validator in the credentials module
+* **ui:** drop the group role from the stat tile
+* **ui:** move the Add Tracker credential fields onto a per-platform table
+* **ui:** move the tracker settings credential fields onto the shared table
 ## [2.11.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.10.1...v2.11.0) (2026-08-31)
 
 ### Features
@@ -55,7 +154,7 @@
 
 ### Refactoring
 
-* **tracker-adapters:** add adapterRequest seam that returns non-2xx
+* **tracker-adapters:** add adapterRequest helper that returns non-2xx
 * **tracker-adapters:** parse optional credential fields in one place
 * **tracker-adapters:** route digitalcore through adapterRequest
 * **tracker-adapters:** route nebulance through adapterRequest

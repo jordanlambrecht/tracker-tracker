@@ -509,9 +509,11 @@ function StatCard(props: StatCardProps) {
     )
   }
 
-  // Default: basic
+  // Default: basic. The tile is a label and a value, not a group of controls,
+  // so it sets no role or aria-label.
   return (
     <Shell
+      data-testid={`stat-card-${props.label}`}
       accentColor={accentColor}
       alert={alert}
       className={className}

@@ -2,11 +2,10 @@
 //
 // Functions: decryptTrackerCredentials (real crypto round-trip tests)
 //
-// Real crypto, no mocks, same reasoning as notification-decrypt.test.ts. The
-// bugs worth catching live at the seam between decrypt(), JSON.parse and the
-// shape guard: format changes, key mismatches, and above all the error-message
-// shape, because a leaked crypto error tells an attacker whether the key was
-// wrong and a leaked SyntaxError quotes plaintext back.
+// Real crypto, no mocks. The bugs worth catching live between decrypt(),
+// JSON.parse and the shape guard, above all in the error message. A leaked
+// crypto error tells an attacker the key was wrong, and a leaked SyntaxError
+// quotes plaintext back.
 
 import { randomBytes, scryptSync } from "node:crypto"
 import { describe, expect, it } from "vitest"
@@ -39,7 +38,7 @@ describe("decryptTrackerCredentials", () => {
           id: "irc",
           title: "IRC",
           fields: [
-            { id: "irc_nick", label: "Nick", value: "jordy", secret: false },
+            { id: "irc_nick", label: "Nick", value: "tealotter", secret: false },
             { id: "irc_nickserv", label: "NickServ password", value: "hunter2", secret: true },
           ],
         },

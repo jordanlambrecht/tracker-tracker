@@ -197,7 +197,9 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
     fleetBufferDelta += delta.bufferDelta
     fleetSeedbonusChange += delta.seedbonusChange
 
-    if (delta.uploadDelta > 0n) {
+    // An account infinite at either end of the day has no finite ratio change,
+    // and one NaN or Infinity would void the whole fleet figure.
+    if (delta.uploadDelta > 0n && Number.isFinite(delta.ratioChange)) {
       // NOTE: Number(delta.uploadDelta) can lose precision when uploadDelta
       // exceeds Number.MAX_SAFE_INTEGER (~8 PiB). For realistic tracker upload
       // volumes this is unlikely, but a full bigint weighted-average refactor

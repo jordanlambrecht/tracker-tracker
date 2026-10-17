@@ -6,15 +6,15 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import type { DebugApiCall, TrackerStats } from "@/lib/adapters/types"
 import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { scrubObject } from "@/lib/scrub-object"
+import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
+import type { DebugApiCall, TrackerStats } from "@/types/tracker-stats"
 
 function serializeStats(stats: TrackerStats): Record<string, unknown> {
   return {
@@ -56,6 +56,7 @@ export async function POST(_request: Request, props: RouteContext) {
       baseUrl: trackers.baseUrl,
       apiPath: trackers.apiPath,
       platformType: trackers.platformType,
+      registrySlug: trackers.registrySlug,
       encryptedApiToken: trackers.encryptedApiToken,
       isActive: trackers.isActive,
       remoteUserId: trackers.remoteUserId,
@@ -113,7 +114,8 @@ export async function POST(_request: Request, props: RouteContext) {
     )
   }
 
-  const fetchOptions = buildFetchOptions(tracker.baseUrl, {
+  const fetchOptions = buildFetchOptions({
+    registrySlug: tracker.registrySlug,
     proxyAgent: tracker.useProxy ? proxyAgent : undefined,
     remoteUserId: tracker.remoteUserId ?? undefined,
   })
@@ -123,23 +125,19 @@ export async function POST(_request: Request, props: RouteContext) {
   let apiCalls: DebugApiCall[] | null = null
   let rawError: string | null = null
 
-  if (adapter.fetchRaw) {
-    try {
-      const calls = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
-      apiCalls = calls.map((call) => ({
-        ...call,
-        data: call.data ? scrubObject(call.data) : null,
-      }))
-    } catch (err) {
-      // security-audit-ignore: error captured in rawError for debug response
-      rawError = err instanceof Error ? err.message : "Raw fetch failed"
-      log.warn(
-        { route: "POST /api/trackers/[id]/debug", trackerId, error: rawError },
-        "debug raw fetch failed"
-      )
-    }
-  } else {
-    rawError = `fetchRaw not implemented for platform: ${tracker.platformType}`
+  try {
+    const calls = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+    apiCalls = calls.map((call) => ({
+      ...call,
+      data: call.data ? scrubObject(call.data) : null,
+    }))
+  } catch (err) {
+    // security-audit-ignore: error captured in rawError for debug response
+    rawError = err instanceof Error ? err.message : "Raw fetch failed"
+    log.warn(
+      { route: "POST /api/trackers/[id]/debug", trackerId, error: rawError },
+      "debug raw fetch failed"
+    )
   }
 
   let normalizedResponse: Record<string, unknown> | null = null

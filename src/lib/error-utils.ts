@@ -40,6 +40,25 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/banned this IP/i.test(raw)) {
     return "Banned by qBittorrent after too many failed logins. It will clear on its own"
   }
+  // Three refusals the qBittorrent transport raises on a host that did answer.
+  // The fallback would read as unreachable to isUnreachableMessage.
+  if (/exceeded \d+ bytes and was refused/i.test(raw)) {
+    return "qBittorrent returned an oversized response"
+  }
+  if (/session cookie contained an unsafe character/i.test(raw)) {
+    return "qBittorrent sent an unsafe session cookie"
+  }
+  // `redirect: "manual"` surfaces a 3xx as a non-ok status rather than
+  // following it, and the transport words every non-ok status the same way.
+  if (/qBittorrent API error: 3\d\d/i.test(raw)) {
+    return "qBittorrent redirected the request"
+  }
+  // The tracker proxy transport's own cap, worded differently and, through the
+  // proxy branch, wrapped as a proxy failure that the rule further down would
+  // otherwise read as the proxy being down.
+  if (/Response exceeded \d+ byte limit/i.test(raw)) {
+    return "Tracker returned an oversized response"
+  }
   // TorrentLeech auth outcomes. Static strings the adapter throws verbatim,
   // kept because each needs different user action, like the qBittorrent rules.
   if (/requires 2FA/i.test(raw)) {
@@ -124,11 +143,13 @@ export function classifyFetchError(err: unknown, hostname: string): Error {
   if (effective?.code) {
     return new Error(`Failed to connect to ${hostname}: ${effective.code}`)
   }
-  // Use inner cause message if available. For the outer error, only use
-  // message from TypeError (always "fetch failed", safe). Other error messages
-  // may contain URLs with embedded API tokens, so fall back to name only.
-  const detail =
-    inner?.message || (err instanceof TypeError ? effective?.message : null) || name || "Unknown"
+  // Use the inner cause message if there is one. A bare TypeError is trusted
+  // only when it says exactly "fetch failed": undici's header validation throws
+  // a TypeError with no cause that quotes the whole header value, so any other
+  // message falls back to the name.
+  const outerMessage =
+    err instanceof TypeError && effective?.message === "fetch failed" ? effective.message : null
+  const detail = inner?.message || outerMessage || name || "Unknown"
   return new Error(`Failed to connect to ${hostname}: ${detail}`)
 }
 

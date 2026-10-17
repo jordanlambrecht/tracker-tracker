@@ -6,7 +6,7 @@ import { CHART_THEME } from "@/components/charts/lib/theme"
 import { ExternalLinkIcon } from "@/components/ui/Icons"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { StatCard } from "@/components/ui/StatCard"
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
 
 interface TimerEntry {
@@ -29,7 +29,7 @@ export function LoginTimers({ trackers, expanded, onToggleExpanded }: LoginTimer
   const entries: TimerEntry[] = trackers
     .map((tracker) => {
       if (!tracker.lastAccessAt || !tracker.isActive) return null
-      const entry = findRegistryEntry(tracker.baseUrl)
+      const entry = registryEntryFor(tracker)
       if (!entry?.rules?.loginIntervalDays) return null
 
       const lastAccess = new Date(tracker.lastAccessAt).getTime()

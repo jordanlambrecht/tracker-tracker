@@ -1,18 +1,9 @@
 // src/lib/__tests__/tracker-scheduler-outage-wiring.test.ts
 //
-// pollTracker is the ONLY thing that ever writes the tracker connectability
-// ledger. If this wiring is wrong the feature is silently dead, every unit test
-// in tracker-outages.test.ts still passes, the table stays empty, and the charts
-// draw nothing forever while looking exactly like a healthy install.
-//
-// So this file pins the wiring itself, in both directions:
-//   * a FAILED poll records one failure, tagged scheduled or manual
-//   * a SUCCESSFUL poll records NOTHING
-//
-// The second is the load-bearing one. Rows are written closed, so a success has
-// nothing to close; a "close it on recovery" call here would be exactly the
-// unbounded overstatement the ledger's design rejects, it would band a
-// multi-day circuit-breaker pause that nothing ever observed.
+// pollTracker is the only writer of the tracker outage ledger. A failed poll
+// records one failure, tagged poll or manual, and a successful poll records
+// nothing. Rows are written closed, so a close-on-recovery call would band a
+// circuit-breaker pause nothing observed.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -32,11 +23,13 @@ vi.mock("@/lib/notifications/dispatch", () => ({ dispatchNotifications: vi.fn(as
 vi.mock("@/lib/alert-pruning", () => ({ pruneDismissedAlerts: vi.fn(async () => 0) }))
 vi.mock("@/lib/server-data", () => ({ recordDatabaseSize: vi.fn(async () => {}) }))
 vi.mock("@/lib/tunnel", () => ({ buildProxyAgentFromSettings: vi.fn(() => undefined) }))
-vi.mock("@/data/tracker-registry", () => ({ findRegistryEntry: vi.fn(() => null) }))
+vi.mock("@/data/tracker-registry", () => ({
+  registryEntryFor: vi.fn(() => undefined),
+}))
 vi.mock("node-cron", () => ({ default: { schedule: vi.fn() } }))
 
 const fetchStats = vi.fn()
-vi.mock("@/lib/adapters", () => ({
+vi.mock("@/lib/tracker-platforms", () => ({
   getAdapter: vi.fn(() => ({ fetchStats })),
   buildFetchOptions: vi.fn(() => ({})),
 }))

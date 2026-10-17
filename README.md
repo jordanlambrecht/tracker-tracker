@@ -157,6 +157,8 @@ pnpm db:push
 pnpm dev
 ```
 
+Unit tests run with `pnpm test:run`. The browser smoke suite runs with `pnpm test:e2e` against a production build (`pnpm build` first) and a throwaway `tracker_tracker_e2e` database on the same Postgres server, which it wipes on every run; create that database once with `createdb tracker_tracker_e2e` and sync it with `POSTGRES_DB=tracker_tracker_e2e pnpm db:push`.
+
 ## Configuration
 
 | Variable            | Required | Default           | Description                                         |
@@ -231,7 +233,7 @@ Covers installation, tracker setup (UNIT3D, Gazelle, GGn, MAM, AvistaZ), feature
 PRs welcome. Areas where help matters most:
 
 - **New trackers & missing data**: copy [`src/data/trackers/_template.ts`](src/data/trackers/_template.ts), fill in what you know, and submit a PR. Partial entries are fine. Set `draft: true` and CI will accept it. Filling in user classes, rules, release groups, and banned groups on existing trackers is just as valuable.
-- **Download client adapters**: only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/qbt/` for the pattern.
+- **Download client adapters**: only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/download-clients/adapters/qbt.ts` for the pattern.
 - **Tracker verification**: if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
 - **Security auditing**: check out SECURITY.md for threat surfice info.
 - **Responsiveness** - I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated

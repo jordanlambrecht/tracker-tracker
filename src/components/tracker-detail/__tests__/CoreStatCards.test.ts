@@ -1,13 +1,13 @@
 // src/components/tracker-detail/__tests__/CoreStatCards.test.ts
 //
 // Regression coverage: an infinite ratio (uploaded > 0, downloaded === 0)
-// crosses the wire as `ratio: null` plus `ratioIsInfinite`. The ratio
-// descriptor used to read `ratio` alone and render "—" with no trend,
-// identical to a tracker with no stats at all.
+// crosses the wire as `ratio: null` plus `ratioIsInfinite`. Reading `ratio`
+// alone renders a dash with no trend, identical to a tracker with no stats at
+// all.
 //
-// Also covers the Hit & Runs descriptor: a count of nothing is zero, so a
-// snapshot with no recorded hit & runs must render "0" rather than the "—"
-// reserved for "no snapshot at all".
+// Also covers the Hit & Runs descriptor: a measured zero renders "0", while a
+// null count (the adapter cannot read the field) renders "—" like a missing
+// snapshot, so unknown never reads as clean.
 
 import { describe, expect, it } from "vitest"
 import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
@@ -116,13 +116,13 @@ function hnrDescriptor(latestSnapshot: Snapshot | null) {
   return descriptor
 }
 
-describe("buildCoreStatDescriptors hit & runs (zero is not unknown)", () => {
+describe("buildCoreStatDescriptors hit & runs (zero is not unknown, null is)", () => {
   it("renders '0' when the snapshot reports zero hit & runs", () => {
     expect(hnrDescriptor({ ...baseSnapshot, hitAndRuns: 0 }).value).toBe("0")
   })
 
-  it("renders '0' when a snapshot exists but recorded no hit & runs", () => {
-    expect(hnrDescriptor({ ...baseSnapshot, hitAndRuns: null }).value).toBe("0")
+  it("renders '—' when the snapshot carries no hit & run count at all", () => {
+    expect(hnrDescriptor({ ...baseSnapshot, hitAndRuns: null }).value).toBe("—")
   })
 
   it("renders '—' when there is no snapshot at all", () => {

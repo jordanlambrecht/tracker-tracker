@@ -276,7 +276,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  // Sync from parent when group prop changes (e.g. after save + refetch)
+  // Sync from parent when the group prop changes, as after save and refetch
   useEffect(() => {
     setName(group.name)
     setEmoji(group.emoji ?? "")

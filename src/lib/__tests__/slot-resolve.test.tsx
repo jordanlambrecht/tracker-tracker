@@ -2,15 +2,15 @@
 
 import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
+import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { SlotContext } from "@/types/slots"
 import type {
   DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GGnPlatformMeta,
   NebulancePlatformMeta,
   Unit3dPlatformMeta,
-} from "@/lib/adapters/types"
-import type { Snapshot, TrackerSummary } from "@/types/api"
-import type { SlotContext } from "@/types/slots"
+} from "@/types/tracker-stats"
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -21,6 +21,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     id: 1,
     name: "Test Tracker",
     baseUrl: "https://tracker.example.com",
+    registrySlug: null,
     platformType: "ggn",
     isActive: true,
     lastPolledAt: null,
@@ -32,6 +33,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     color: "#00d4ff",
     qbtTag: null,
     mouseholeUrl: null,
+    hasMouseholeToken: false,
     hideUnreadBadges: false,
     useProxy: false,
     countCrossSeedUnsatisfied: false,
@@ -839,7 +841,7 @@ describe("security: slot resolution does not expose secrets", () => {
 
     const map = resolveSlots(ctx)
 
-    // Flatten ALL resolved slot props and verify no secrets leaked
+    // Flatten all resolved slot props and verify no secrets leaked
     const forbidden = [
       "encryptedApiToken",
       "passwordHash",
@@ -878,9 +880,6 @@ describe("security: slot resolution does not expose secrets", () => {
       accentColor: BASE_ACCENT,
     }
 
-    // "hourlyGold" in meta should NOT match via __proto__ for real JSON.parse output
-    // The gold slot resolves based on "hourlyGold" being a direct property of meta
-    // JSON.parse puts __proto__ as a literal own-key, not on the chain
     const cards = slotIds(ctx, "stat-card")
     // seedbonus should still resolve since there's no direct "hourlyGold" key
     expect(cards).toContain("seedbonus")

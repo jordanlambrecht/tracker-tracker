@@ -9,18 +9,7 @@ import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
-
-interface MouseholeResponse {
-  ok: boolean
-  reason: string
-  ip: string | null
-  asn: number | null
-  asOrg: string | null
-  nextUpdateAt: string | null
-  lastUpdateAt: string | null
-  lastUpdateResult: string | null
-  mamUpdated: boolean | null
-}
+import { type MouseholeStatusResponse, mouseholeStatus, stripUrlCredentials } from "@/lib/mousehole"
 
 export interface MamMouseholeCardProps {
   trackerId: number
@@ -53,7 +42,7 @@ function formatResult(msg: string): string {
 }
 
 export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardProps) {
-  const [data, setData] = useState<MouseholeResponse | null>(null)
+  const [data, setData] = useState<MouseholeStatusResponse | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState(false)
@@ -74,10 +63,10 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
           setFetchError(body?.error ?? `HTTP ${res.status}`)
           return
         }
-        const json: MouseholeResponse = await res.json()
+        const json: MouseholeStatusResponse = await res.json()
         setData(json)
         setFetchError(null)
-        nextUpdateAtRef.current = json.nextUpdateAt
+        nextUpdateAtRef.current = json.nextContactAt
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return
         if (!mountedRef.current) return
@@ -199,15 +188,36 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
 
   if (!data) return null
 
-  const isOk = data.ok
-  const isStale = !data.ok && data.reason === "needs_update"
+  const status = mouseholeStatus(data.result)
+  const isOk = status.tone === "success"
+  const isStale = status.tone === "warn"
   const countdownExpired = countdown === "00:00:00"
+  const mouseholeLink = stripUrlCredentials(mouseholeUrl)
+  // A refusal from Mousehole, or a poll or Check Now that failed after data
+  // loaded, is shown below the header so a collapsed card cannot read as healthy.
+  const notice = fetchError ?? data.stateError
+  // After a failed poll or Check Now the status is out of date, so it is greyed.
+  const pollFailed = fetchError !== null
+  const dotClass = pollFailed
+    ? "bg-muted"
+    : isOk
+      ? "bg-success animate-pulse-glow"
+      : isStale
+        ? "bg-warn"
+        : "bg-danger"
+  const labelClass = pollFailed
+    ? "text-muted"
+    : isOk
+      ? "text-success"
+      : isStale
+        ? "text-warn"
+        : "text-danger"
 
   return (
     <div className="nm-inset-sm bg-control-bg max-w-xl rounded-nm-md flex overflow-hidden">
       {/* Left: Logo (clickable, links to user's Mousehole instance) */}
       <a
-        href={mouseholeUrl}
+        href={mouseholeLink}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-center px-4 shrink-0 rounded-l-nm-md hover:bg-overlay/20 transition-colors"
@@ -233,19 +243,14 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
             className="flex items-center gap-2 cursor-pointer min-w-0"
           >
             <ChevronToggle expanded={expanded} className="text-muted" />
-            <span
-              className={clsx(
-                "inline-block w-2 h-2 rounded-full shrink-0",
-                isOk ? "bg-success animate-pulse-glow" : isStale ? "bg-warn" : "bg-danger"
-              )}
-            />
+            <span className={clsx("inline-block w-2 h-2 rounded-full shrink-0", dotClass)} />
             <span
               className={clsx(
                 "text-sm font-mono font-semibold tracking-wider uppercase",
-                isOk ? "text-success" : isStale ? "text-warn" : "text-danger"
+                labelClass
               )}
             >
-              {isOk ? "OK" : isStale ? "Stale" : "Down"}
+              {status.label}
             </span>
             <span className="text-xs font-sans text-muted">Mousehole</span>
           </button>
@@ -276,6 +281,8 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
           </div>
         </div>
 
+        {notice && <Notice message={notice} className="mt-2" />}
+
         {/* Expandable details */}
         <div
           className={clsx(
@@ -296,9 +303,9 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
             </div>
 
             {/* Last result */}
-            {data.lastUpdateResult && (
+            {data.lastMessage && (
               <div className="text-xs font-mono text-muted">
-                Last check: {formatResult(data.lastUpdateResult)}
+                Last check: {formatResult(data.lastMessage)}
               </div>
             )}
 

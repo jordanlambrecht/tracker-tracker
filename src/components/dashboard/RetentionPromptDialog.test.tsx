@@ -1,11 +1,10 @@
 // src/components/dashboard/RetentionPromptDialog.test.tsx
 //
-// The retention question moved off the account-creation form to a first-login
-// dialog, because asking how long to keep snapshots before a single snapshot
-// exists gives the user nothing to reason about.
+// The retention question is asked at first login, not at account creation,
+// because before any snapshot exists the user has nothing to reason about.
 //
 // The load-bearing behaviour is the pairing: "keep forever" must be sent as an
-// explicit answer (null) AND recorded as answered. If it were inferred from
+// explicit answer (null) and recorded as answered. If it were inferred from
 // `snapshotRetentionDays === null` the prompt could never tell "chose forever"
 // from "never asked", and would either re-ask every load or never fire.
 
@@ -62,7 +61,9 @@ describe("RetentionPrompt", () => {
     renderWithClient(<RetentionPrompt />)
 
     await waitFor(() =>
-      expect(screen.queryByText(/How long should snapshot history be kept/i)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/How long should snapshot history be kept/i)
+      ).not.toBeInTheDocument()
     )
   })
 

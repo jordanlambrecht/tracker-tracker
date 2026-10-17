@@ -15,6 +15,7 @@ import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSect
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
 import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
+import { RankStacks } from "@/components/dashboard/RankStacks"
 import { TagGroupsSection } from "@/components/dashboard/TagGroupsSection"
 import { TodayAtAGlance } from "@/components/dashboard/TodayAtAGlance"
 import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSkeleton"
@@ -82,7 +83,7 @@ export function DashboardClient({
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Two-state tab pattern: dashboardTab updates immediately (drives TabBar pill animation),
   // deferredTab updates via startTransition (drives content switch + query gating).
-  // This prevents the 350ms React reconciliation from blocking the pill's CSS transition.
+  // This keeps the content render from blocking the pill's CSS transition.
   const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(
     "tracker-stats"
   )
@@ -90,10 +91,8 @@ export function DashboardClient({
   const [, startTransition] = useTransition()
   const intervals = usePollingIntervals()
 
-  // Tag group counts share the Torrent Fleet tab's cached aggregation rather than being
-  // computed during SSR, so they cost this page nothing before first paint. Sharing the cache
-  // also means they go stale and refresh on the fleet's own schedule. Including the fleet
-  // tab's refresh button instead of being frozen until a full page reload.
+  // Tag group counts read the Torrent Fleet tab's cached aggregation, so they cost nothing
+  // before first paint and refresh on the fleet's schedule, its refresh button included.
   const { data: tagGroupBreakdowns = [], isPending: tagGroupsPending } = useQuery({
     ...fleetCachedQueryOptions,
     staleTime: intervals.clientRefetchMs,
@@ -118,6 +117,7 @@ export function DashboardClient({
   const leaderboardExpanded = isExpanded("leaderboard")
   const ecosystemStatsExpanded = isExpanded("ecosystem-stats")
   const loginTimersExpanded = isExpanded("login-timers")
+  const rankStacksExpanded = isExpanded("rank-stacks")
   const tagGroupsExpanded = isExpanded("tag-groups")
 
   if (data.loading) {
@@ -130,9 +130,6 @@ export function DashboardClient({
 
   return (
     <div className="flex flex-col gap-10 max-w-6xl mx-auto pb-12">
-      {/* Asks once, on first login, how long to keep snapshot history. Renders
-          nothing after it has been answered. */}
-
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <H1>Dashboard</H1>
@@ -204,6 +201,15 @@ export function DashboardClient({
         />
       )}
 
+      {/* Ranks */}
+      {dashSettings.settings.showRankStacks && (
+        <RankStacks
+          trackers={data.trackers}
+          expanded={rankStacksExpanded}
+          onToggleExpanded={() => sectionCollapse.toggle("rank-stacks")}
+        />
+      )}
+
       {/* Leaderboard */}
       <div className="flex flex-col gap-4">
         <SectionToggle
@@ -214,7 +220,6 @@ export function DashboardClient({
         {leaderboardExpanded && <TrackerLeaderboard trackers={data.trackers} />}
       </div>
 
-      {/* Divider */}
       <Divider />
 
       {/* Aggregate Stats */}
@@ -246,7 +251,6 @@ export function DashboardClient({
         </div>
       )}
 
-      {/* Divider */}
       <Divider />
 
       {/* Tab Switcher */}

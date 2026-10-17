@@ -1,10 +1,9 @@
 // src/app/api/trackers/test-connection/test-connection-route.test.ts
 //
-// Tests for POST /api/trackers/test-connection
-// Focuses on the three new behaviors added in the AvistaZ connection fix:
-//   1. Returns sanitized actual error instead of generic "Tracker test failed"
-//   2. Logs platform, baseUrl, and raw error in the msg field
-//   3. Wires proxy settings from appSettings (DB load -> buildProxyAgentFromSettings)
+// Tests for POST /api/trackers/test-connection: sanitized error responses,
+// raw-error logging, proxy wiring from appSettings, and both body shapes. A
+// registry slug settles URL, platform and API path; the baseUrl form is what a
+// row without a slug uses.
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -66,8 +65,8 @@ vi.mock("@/lib/logger", () => ({
 // Mock all adapters via the adapters barrel. The test-connection route calls
 // getAdapter(platform).fetchStats(...). We intercept at the adapter level so
 // we can control success vs failure per test.
-vi.mock("@/lib/adapters", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/adapters")>()
+vi.mock("@/lib/tracker-platforms", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/tracker-platforms")>()
   return {
     ...actual,
     getAdapter: vi.fn().mockReturnValue({
@@ -193,6 +192,83 @@ describe("POST /api/trackers/test-connection — input validation", () => {
 })
 
 // ---------------------------------------------------------------------------
+// Registry slug form
+// ---------------------------------------------------------------------------
+
+describe("POST /api/trackers/test-connection by registry slug", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: VALID_KEY,
+    })
+  })
+
+  it("takes the URL, platform and API path from the entry, not from the body", async () => {
+    mockDbSettings()
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      slug: "orpheus",
+      apiToken: "some-token",
+      baseUrl: "http://127.0.0.1:8080",
+      platformType: "unit3d",
+    })
+
+    const { getAdapter } = await import("@/lib/tracker-platforms")
+    const res = await POST(makeRequest({ slug: "orpheus", apiToken: "some-token" }))
+
+    expect(res.status).toBe(200)
+    expect(getAdapter).toHaveBeenCalledWith("gazelle")
+    const resolved = vi.mocked(getAdapter).mock.results[0]?.value as {
+      fetchStats: ReturnType<typeof vi.fn>
+    }
+    expect(resolved.fetchStats).toHaveBeenCalledWith(
+      "https://orpheus.network",
+      "some-token",
+      "/ajax.php",
+      expect.anything()
+    )
+  })
+
+  it("passes the slug to buildFetchOptions so the entry's auth options apply", async () => {
+    mockDbSettings()
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      slug: "orpheus",
+      apiToken: "some-token",
+    })
+
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+    await POST(makeRequest({ slug: "orpheus", apiToken: "some-token" }))
+
+    expect(buildFetchOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ registrySlug: "orpheus" })
+    )
+  })
+
+  it("returns 400 for a slug the registry does not carry", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      slug: "no-such-tracker",
+      apiToken: "some-token",
+    })
+
+    const res = await POST(makeRequest({ slug: "no-such-tracker", apiToken: "some-token" }))
+    const body = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(body.error).toBe("Unknown tracker")
+  })
+
+  it("passes no slug for a body carrying only a URL, the shape a row without one uses", async () => {
+    mockDbSettings()
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(VALID_BODY)
+
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+    await POST(makeRequest(VALID_BODY))
+
+    const [opts] = vi.mocked(buildFetchOptions).mock.calls[0]
+    expect(opts?.registrySlug).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Happy path
 // ---------------------------------------------------------------------------
 
@@ -217,6 +293,27 @@ describe("POST /api/trackers/test-connection — success", () => {
     expect(body.group).toBe("Member")
   })
 
+  it("strips a trailing slash so the adapters do not probe a doubled separator", async () => {
+    mockDbSettings()
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...VALID_BODY,
+      baseUrl: "https://avistaz.to/",
+    })
+
+    await POST(makeRequest({ ...VALID_BODY, baseUrl: "https://avistaz.to/" }))
+
+    const { getAdapter } = await import("@/lib/tracker-platforms")
+    const resolved = vi.mocked(getAdapter).mock.results[0]?.value as {
+      fetchStats: ReturnType<typeof vi.fn>
+    }
+    expect(resolved.fetchStats).toHaveBeenCalledWith(
+      "https://avistaz.to",
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
   it("does not include encryptedApiToken or raw credentials in success response", async () => {
     mockDbSettings()
 
@@ -230,7 +327,7 @@ describe("POST /api/trackers/test-connection — success", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Error response, sanitized actual error (change 1 of 3)
+// Error response, sanitized actual error
 // ---------------------------------------------------------------------------
 
 describe("POST /api/trackers/test-connection — sanitized error response", () => {
@@ -244,7 +341,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
 
   it("returns sanitized ECONNREFUSED message instead of generic fallback", async () => {
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi
         .fn()
@@ -262,7 +359,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
 
   it("returns sanitized timeout message instead of generic fallback", async () => {
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error("Request to avistaz.to timed out")),
     })
@@ -277,7 +374,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
 
   it("returns sanitized auth failure message for 401 errors", async () => {
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error("HTTP 401 Unauthorized")),
     })
@@ -293,7 +390,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
     // Use a message that only triggers the proxy branch, not an earlier branch.
     // sanitizeNetworkError checks ECONNREFUSED before proxy, so use a proxy-only phrase.
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error("Failed to connect via proxy server")),
     })
@@ -307,7 +404,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
 
   it("returns 'Tracker test failed' fallback for truly unrecognized errors", async () => {
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi
         .fn()
@@ -326,7 +423,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
   it("does not leak raw error messages or internal details to the client", async () => {
     const rawMessage = "ECONNREFUSED 104.21.0.1:443 - secret-internal-ip"
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error(rawMessage)),
     })
@@ -341,7 +438,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
 })
 
 // ---------------------------------------------------------------------------
-// Error logging, platform, baseUrl, raw error in log (change 2 of 3)
+// Error logging, platform, baseUrl, raw error in log
 // ---------------------------------------------------------------------------
 
 describe("POST /api/trackers/test-connection — error log enrichment", () => {
@@ -358,7 +455,7 @@ describe("POST /api/trackers/test-connection — error log enrichment", () => {
       platformType: "nebulance",
     })
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error("ECONNREFUSED")),
     })
@@ -376,7 +473,7 @@ describe("POST /api/trackers/test-connection — error log enrichment", () => {
       baseUrl: "https://nebulance.io",
     })
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error("ECONNREFUSED")),
     })
@@ -391,7 +488,7 @@ describe("POST /api/trackers/test-connection — error log enrichment", () => {
     const rawMsg = "Failed to connect to avistaz.to: ECONNREFUSED 104.21.0.1:443"
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(VALID_BODY)
     mockDbSettings()
-    const { getAdapter } = await import("@/lib/adapters")
+    const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error(rawMsg)),
     })
@@ -399,7 +496,7 @@ describe("POST /api/trackers/test-connection — error log enrichment", () => {
     await POST(makeRequest(VALID_BODY))
 
     const [payload] = (log.warn as ReturnType<typeof vi.fn>).mock.calls[0]
-    // The raw message (with IP, ECONNREFUSED) must appear in the log, NOT in the response
+    // The raw message (with IP, ECONNREFUSED) must appear in the log, not in the response
     expect(payload.error).toContain("ECONNREFUSED")
     expect(payload.error).toBe(rawMsg)
   })
@@ -415,7 +512,7 @@ describe("POST /api/trackers/test-connection — error log enrichment", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Proxy wiring (change 3 of 3)
+// Proxy wiring
 // ---------------------------------------------------------------------------
 
 describe("POST /api/trackers/test-connection — proxy wiring", () => {
@@ -470,12 +567,12 @@ describe("POST /api/trackers/test-connection — proxy wiring", () => {
     ;(buildProxyAgentFromSettings as ReturnType<typeof vi.fn>).mockReturnValueOnce(fakeAgent)
     mockDbSettings({ proxyEnabled: true, proxyHost: "proxy.internal" })
 
-    const { buildFetchOptions } = await import("@/lib/adapters")
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
 
     await POST(makeRequest(VALID_BODY))
 
     expect(buildFetchOptions).toHaveBeenCalledOnce()
-    const [, optsArg] = (buildFetchOptions as ReturnType<typeof vi.fn>).mock.calls[0]
+    const [optsArg] = (buildFetchOptions as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(optsArg).toMatchObject({ proxyAgent: fakeAgent })
   })
 
@@ -489,7 +586,6 @@ describe("POST /api/trackers/test-connection — proxy wiring", () => {
     // Should succeed, proxy is optional
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
-    // buildProxyAgentFromSettings should NOT have been called when settings row is absent
     expect(buildProxyAgentFromSettings).not.toHaveBeenCalled()
   })
 

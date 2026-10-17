@@ -640,6 +640,28 @@ describe("computeTodayAtAGlance — ratio weighted average", () => {
     expect(result.fleet.ratioChange as number).toBeCloseTo(0.28, 5)
   })
 
+  it("leaves an account with an infinite ratio out of the fleet ratio change", async () => {
+    const tracker1 = makeTracker(1)
+    const tracker2 = makeTracker(2)
+    const tracker3 = makeTracker(3)
+    const now = Date.now()
+    // Trackers 1 and 2 start at Infinity, so their changes are NaN and -Infinity.
+    // Only tracker 3's +0.2 is finite.
+    const snaps = [
+      makeSnapshot(1, new Date(now - 3600000), "1000000000", "0", null, Infinity),
+      makeSnapshot(2, new Date(now - 3600000), "2000000000", "0", null, Infinity),
+      makeSnapshot(3, new Date(now - 3600000), "1000000000", "1000000000", null, 1.0),
+      makeSnapshot(1, new Date(now), "2000000000", "0", null, Infinity),
+      makeSnapshot(2, new Date(now), "3200000000", "1000000000", null, 3.2),
+      makeSnapshot(3, new Date(now), "1200000000", "1000000000", null, 1.2),
+    ]
+    seedStore([tracker1, tracker2, tracker3], snaps)
+
+    const result = await computeTodayAtAGlance()
+    expect(result.fleet.ratioChange).not.toBeNull()
+    expect(result.fleet.ratioChange as number).toBeCloseTo(0.2, 5)
+  })
+
   it("returns null ratioChange when all upload deltas are zero (no progress this session)", async () => {
     const tracker = makeTracker(1)
     // Both snapshots have same uploaded bytes, delta = 0, weight = 0

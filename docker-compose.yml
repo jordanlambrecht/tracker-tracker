@@ -60,5 +60,33 @@ services:
       timeout: 3s
       retries: 5
 
+  # Mousehole keeps a MyAnonamouse seedbox IP current. Uncomment to run it
+  # beside Tracker Tracker, then enter http://mousehole:5010 and the token in
+  # the MAM tracker's settings. Needs Mousehole v0.5.0 or newer.
+  # Mousehole must reach MAM through the same network as your torrent client.
+  # This plain layout fits a client without a VPN only; with a VPN client use
+  # upstream's gluetun example (docs/docker-compose-examples in the Mousehole
+  # repo). Keep MOUSEHOLE_AUTH_TOKEN from here, list the VPN container's name in
+  # MOUSEHOLE_ALLOWED_HOSTS instead of mousehole, attach that container to this
+  # stack's network, and point the URL above at it.
+  # mousehole:
+  #   image: tmmrtn/mousehole:latest
+  #   restart: unless-stopped
+  #   container_name: mousehole
+  #   environment:
+  #     TZ: ${TZ}
+  #     MOUSEHOLE_AUTH_PASSWORD: ${MOUSEHOLE_AUTH_PASSWORD} # web UI login
+  #     # Tracker Tracker authenticates with this token; Mousehole's API refuses the password.
+  #     MOUSEHOLE_AUTH_TOKEN: ${MOUSEHOLE_AUTH_TOKEN}
+  #     # Host names Mousehole answers to. Setting this replaces the localhost default.
+  #     # The app reaches it as "mousehole", a browser on this machine as localhost;
+  #     # add any other name you open the web UI with.
+  #     MOUSEHOLE_ALLOWED_HOSTS: mousehole,localhost
+  #   ports:
+  #     - "5010:5010" # only needed to reach the Mousehole web UI from your browser
+  #   volumes:
+  #     - mousehole:/var/lib/mousehole # keeps the MAM cookie across restarts
+
 volumes:
   pgdata:
+  # mousehole:

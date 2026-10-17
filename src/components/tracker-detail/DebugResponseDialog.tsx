@@ -6,7 +6,7 @@ import { CopyButton } from "@/components/ui/ActionButtons"
 import { Dialog } from "@/components/ui/Dialog"
 import { Notice } from "@/components/ui/Notice"
 import { TabBar } from "@/components/ui/TabBar"
-import type { DebugApiCall } from "@/lib/adapters/types"
+import type { DebugApiCall } from "@/types/tracker-stats"
 
 type DebugTab = "raw" | "normalized"
 

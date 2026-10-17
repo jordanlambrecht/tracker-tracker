@@ -4,6 +4,7 @@ import type { NextConfig } from "next"
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
   { key: "X-XSS-Protection", value: "0" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

@@ -3,7 +3,7 @@
 // Functions: computeDelta, compareBigIntDesc, computePctChange,
 //            floatBytesToBigInt, signedFloatBytesToBigInt, computeBufferBytes,
 //            computeRatio, isUnixTimestampOnDate,
-//            sanitizeHost, normalizeUrl
+//            sanitizeHost, stripTrailingSlash, normalizeUrl
 
 import { localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
@@ -60,14 +60,9 @@ export function compareBigIntDesc(a: bigint, b: bigint): number {
 /**
  * Percent change from yesterday's value to today's.
  *
- * Returns null when either side is non-positive rather than printing a number
- * that means the opposite of what it says. Dividing by a negative baseline
- * inverts the sign: a buffer recovering from -100 to -50 came out as
- * "-50% vs yesterday" and a deterioration from -100 to -200 as "+100%". Buffer
- * deltas are signed, so that is not a corner case for the buffer card, it is
- * the normal reading for any account in deficit. Upload/download deltas are
- * monotonic and only reach this guard on a tracker-side counter reset, where
- * "no percentage" is also the honest answer.
+ * Null when yesterday is non-positive or today is negative. A negative baseline
+ * inverts the sign, and buffer deltas are signed, so that is a normal reading
+ * on the buffer card.
  */
 export function computePctChange(today: string, yesterday: string | null): number | null {
   if (yesterday === null) return null
@@ -85,10 +80,10 @@ export function computePctChange(today: string, yesterday: string | null): numbe
 /**
  * Converts a tracker's float byte count to a bigint, clamped at zero.
  *
- * ONLY for non-negative quantities, uploaded, downloaded, sizes. Those are
+ * Only for non-negative quantities, uploaded, downloaded, sizes. Those are
  * monotonic counters, so a negative is always a malformed API response, and the
  * clamp is the only thing stopping that from being written into the snapshots
- * table. Do NOT reach for this for buffer: buffer is conventionally SIGNED on a
+ * table. Do not reach for this for buffer: buffer is conventionally signed on a
  * private tracker and clamping it reports a deficit account as a confident
  * zero. Use `signedFloatBytesToBigInt` for that.
  */
@@ -97,14 +92,14 @@ export function floatBytesToBigInt(n: number | null | undefined): bigint {
 }
 
 /**
- * Converts a tracker's own REPORTED buffer to a bigint, sign intact.
+ * Converts a tracker's own reported buffer to a bigint, sign intact.
  *
  * Buffer on a private tracker is signed by convention, Hawke returns
  * -2627286052460 for a deficit account and Gazelle sites report negative buffer
  * too, so this deliberately has no `Math.max(0, ...)`. Never use it for
  * uploaded/downloaded/sizes; those keep `floatBytesToBigInt`'s clamp.
  *
- * `Math.trunc`, not `Math.floor`: floor rounds negatives AWAY from zero
+ * `Math.trunc`, not `Math.floor`: floor rounds negatives away from zero
  * (floor(-0.5) === -1), which would silently deepen a reported deficit.
  */
 export function signedFloatBytesToBigInt(n: number | null | undefined): bigint {
@@ -112,15 +107,8 @@ export function signedFloatBytesToBigInt(n: number | null | undefined): bigint {
 }
 
 /**
- * Buffer DERIVED from byte totals: plainly `uploaded - downloaded`.
- *
- * Deliberately unclamped. This app is a time series, and a buffer floored at
- * zero draws a flat line while an account deteriorates, visually identical to
- * holding steady at breakeven, so the chart cannot show the user getting worse.
- * A negative result is real information, not an error to be swallowed. Please
- * do not re-add a `> 0n` guard here for symmetry with `floatBytesToBigInt`:
- * that helper guards counters that cannot go negative, this one computes a
- * quantity that can.
+ * Buffer derived from byte totals, unclamped. A zero floor would draw a
+ * worsening deficit as a flat line, so a negative result is real data.
  */
 export function computeBufferBytes(uploaded: bigint, downloaded: bigint): bigint {
   return uploaded - downloaded
@@ -129,11 +117,9 @@ export function computeBufferBytes(uploaded: bigint, downloaded: bigint): bigint
 /**
  * Ratio derived from byte totals rather than a tracker's own `ratio` field.
  *
- * Sites disagree wildly on how to report an account with no downloads,
- * UNIT3D sends the string `"∞"`, Gazelle sends `-1`, MAM sends something
- * undocumented, and every one of those parses to a misleading `0`, which
- * renders as a critical ratio on a perfectly healthy account. The byte totals
- * are unambiguous everywhere, so derive from them.
+ * Sites report a zero-download ratio inconsistently, and those values parse to
+ * a misleading 0 that renders as critical. The byte totals are unambiguous, so
+ * derive from them.
  *
  * Returns `Infinity` for uploads with zero downloads. Callers serializing to
  * JSON must handle that (see `ratioIsInfinite` in the tracker serializer).
@@ -152,6 +138,17 @@ export function sanitizeHost(host: string): string {
   return host.trim().replace(/^https?:\/\//, "")
 }
 
+/**
+ * For a base URL on its way into storage. Adapters both concatenate onto it and
+ * feed it to `new URL`, and a stored trailing slash gives the first form a
+ * doubled separator. Deliberately not normalizeUrl, which also lowercases: a
+ * base URL is later joined with encoded usernames and case-sensitive paths.
+ */
+export function stripTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, "")
+}
+
+/** stripTrailingSlash plus case folding, for comparing two URLs for sameness. */
 export function normalizeUrl(url: string): string {
-  return url.replace(/\/+$/, "").toLowerCase()
+  return stripTrailingSlash(url).toLowerCase()
 }

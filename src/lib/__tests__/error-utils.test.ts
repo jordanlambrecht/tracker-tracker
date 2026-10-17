@@ -163,6 +163,41 @@ describe("sanitizeNetworkError", () => {
     ).toBe("Banned by qBittorrent after too many failed logins. It will clear on its own")
   })
 
+  // The three refusals the qBittorrent transport raises on a host that did
+  // answer. Each fell to the fallback, which isUnreachableMessage reads as a
+  // host that never answered, so the card blamed the network.
+  it("maps an oversized response body to its own message", () => {
+    expect(
+      sanitizeNetworkError("Response from qbt.local exceeded 67108864 bytes and was refused")
+    ).toBe("qBittorrent returned an oversized response")
+  })
+
+  it("maps a session cookie carrying a control character to its own message", () => {
+    expect(
+      sanitizeNetworkError("Authentication failed. Session cookie contained an unsafe character")
+    ).toBe("qBittorrent sent an unsafe session cookie")
+  })
+
+  it("maps a refused redirect to its own message", () => {
+    expect(sanitizeNetworkError("qBittorrent API error: 307 Temporary Redirect")).toBe(
+      "qBittorrent redirected the request"
+    )
+  })
+
+  // The tracker proxy transport has a cap of its own, worded differently.
+  // Through the proxy branch it arrives wrapped as a proxy failure, which the
+  // proxy rule below would otherwise turn into a connection failure.
+  it("maps the proxy transport's oversized body to its own message", () => {
+    expect(sanitizeNetworkError("Response exceeded 65536 byte limit")).toBe(
+      "Tracker returned an oversized response"
+    )
+    expect(
+      sanitizeNetworkError(
+        "Failed to connect to tracker.example via proxy: Response exceeded 65536 byte limit"
+      )
+    ).toBe("Tracker returned an oversized response")
+  })
+
   it("maps 'rate-limit' to IP ban message", () => {
     expect(sanitizeNetworkError("rate-limit exceeded")).toBe("IP temporarily banned by tracker")
   })
@@ -264,6 +299,15 @@ describe("classifyFetchError", () => {
     expect(result.message).toBe("Failed to connect to avistaz.to: fetch failed")
   })
 
+  it("never copies a bare TypeError message other than fetch failed, since undici quotes the header in it", () => {
+    const err = new TypeError(
+      'Headers.append: "uid=1; pass=SECRETHASH" is an invalid header value.'
+    )
+    const result = classifyFetchError(err, host)
+    expect(result.message).toBe("Failed to connect to avistaz.to: TypeError")
+    expect(result.message).not.toContain("SECRETHASH")
+  })
+
   it("unwraps string cause from TypeError", () => {
     const err = new TypeError("fetch failed", { cause: "connect ECONNREFUSED 10.0.0.1:443" })
     const result = classifyFetchError(err, host)
@@ -293,13 +337,9 @@ describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Adapter shape errors (issue #214). An adapter that gets a 2xx body it cannot
-// read throws "Unexpected response from <host>: ...", the wording the Gazelle,
-// BTN, GGn, MAM, Nebulance, Hawke and UNIT3D adapters share. That must reach
-// the UI as its own message rather than the generic fallback, and it must be
-// matched BEFORE the credential rule, whose /invalid/ alternation would
-// otherwise turn a tracker key literally named "invalid" into "Invalid
-// credentials".
+// Adapter shape errors (issue #214) read "Unexpected response from <host>: ...".
+// They get their own message and must match before the credential rule, whose
+// /invalid/ would turn a key named "invalid" into "Invalid credentials".
 // ---------------------------------------------------------------------------
 
 describe("sanitizeNetworkError - unexpected response shape", () => {
@@ -326,9 +366,9 @@ describe("sanitizeNetworkError - unexpected response shape", () => {
     )
   })
 
-  // parseBytes' own messages start with "Invalid", "Negative" and "Unknown".
-  // The first of those used to fall into the credential rule, so a tracker
-  // sending "" or "1,024.50 GiB" for uploaded told the user to rotate a key.
+  // parseBytes' messages start with "Invalid", "Negative" and "Unknown".
+  // "Invalid" must not reach the credential rule, or a malformed uploaded field
+  // tells the user to rotate a key.
   it("maps a byte-string parse failure to the unexpected-response message, not to credentials", () => {
     expect(sanitizeNetworkError('Invalid byte format: ""', "Poll failed")).toBe(
       "Tracker returned an unexpected response"
@@ -376,6 +416,10 @@ describe("isUnreachableMessage", () => {
     "IP temporarily banned by tracker",
     "API returned 500",
     "Unknown error",
+    "qBittorrent returned an oversized response",
+    "qBittorrent sent an unsafe session cookie",
+    "qBittorrent redirected the request",
+    "Tracker returned an oversized response",
   ])("is false for %j", (message) => {
     expect(isUnreachableMessage(message)).toBe(false)
   })

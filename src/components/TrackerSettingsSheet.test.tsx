@@ -9,13 +9,13 @@
 //
 // 2. Every write in this sheet mutates a row that lives in the shared ["trackers"] query cache,
 //    which the sidebar and the dashboard render from. That cache is not remounted by navigating
-//    home, and its only automatic repair is a poll interval measured in tens of minutes. The
-//    archive path used to leave it completely untouched, so an archived tracker kept rendering
-//    as active. These tests assert the write-through + invalidation, and that a failed archive
-//    says so instead of silently doing nothing.
+//    home, and its only automatic repair is a poll interval measured in tens of minutes. An
+//    archive that skips the cache leaves the tracker rendering as active. These tests assert the
+//    write-through + invalidation, and that a failed archive says so instead of silently doing
+//    nothing.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { localDateStr } from "@/lib/formatters"
@@ -33,6 +33,7 @@ const TRACKER: TrackerSummary = {
   id: 42,
   name: "Aither",
   baseUrl: "https://aither.cc",
+  registrySlug: null,
   platformType: "unit3d",
   isActive: true,
   lastPolledAt: null,
@@ -44,6 +45,7 @@ const TRACKER: TrackerSummary = {
   color: "#01d4ff",
   qbtTag: "aither",
   mouseholeUrl: null,
+  hasMouseholeToken: false,
   useProxy: false,
   countCrossSeedUnsatisfied: false,
   hideUnreadBadges: false,
@@ -170,6 +172,102 @@ describe("TrackerSettingsSheet last login shortcut", () => {
   })
 })
 
+describe("TrackerSettingsSheet Mousehole API token", () => {
+  const MAM: TrackerSummary = {
+    ...TRACKER,
+    platformType: "mam",
+    mouseholeUrl: "http://mousehole-test:5010",
+    hasMouseholeToken: true,
+  }
+
+  // The saved token is masked, so a value typed and then abandoned would be
+  // invisible on the next open and ride along with an unrelated save.
+  it("drops a typed token on close, so a later save leaves the saved one alone", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(MAM)
+    renderSheet({ tracker: MAM })
+
+    // The credentials row has its own Change button; the Mousehole one is second.
+    await user.click(screen.getAllByRole("button", { name: "Change" })[1])
+    await user.type(screen.getByLabelText("Mousehole API token"), "abandoned-token-7f3a")
+    await user.click(screen.getByRole("button", { name: "Close" }))
+
+    const nickname = screen.getByLabelText("Nickname")
+    await user.clear(nickname)
+    await user.type(nickname, "MAM (main)")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    expect(saveCall[1].method).toBe("PATCH")
+    expect(JSON.parse(saveCall[1].body)).not.toHaveProperty("mouseholeToken")
+  })
+
+  it("sends a typed token with the save", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(MAM)
+    renderSheet({ tracker: MAM })
+
+    await user.click(screen.getAllByRole("button", { name: "Change" })[1])
+    await user.type(screen.getByLabelText("Mousehole API token"), "fake-token-7f3a")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    expect(JSON.parse(saveCall[1].body)).toMatchObject({ mouseholeToken: "fake-token-7f3a" })
+  })
+
+  it("returns to the masked token and sends nothing after Cancel", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(MAM)
+    renderSheet({ tracker: MAM })
+
+    await user.click(screen.getAllByRole("button", { name: "Change" })[1])
+    const field = screen.getByLabelText("Mousehole API token")
+    await user.type(field, "abandoned-token-7f3a")
+    // The sheet footer has its own Cancel; the field's sits in the field's
+    // container, two levels above the input.
+    const row = field.parentElement?.parentElement as HTMLElement
+    await user.click(within(row).getByRole("button", { name: "Cancel" }))
+
+    expect(screen.queryByLabelText("Mousehole API token")).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    expect(JSON.parse(saveCall[1].body)).not.toHaveProperty("mouseholeToken")
+  })
+
+  // An empty URL clears the token on the server, so a save that leaves the URL
+  // alone must send it back unchanged.
+  it("resends the saved URL, so an unrelated save keeps the token", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(MAM)
+    renderSheet({ tracker: MAM })
+
+    const nickname = screen.getByLabelText("Nickname")
+    await user.clear(nickname)
+    await user.type(nickname, "MAM (main)")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    const body = JSON.parse(saveCall[1].body)
+    expect(body).toMatchObject({ mouseholeUrl: "http://mousehole-test:5010" })
+    expect(body).not.toHaveProperty("mouseholeToken")
+  })
+
+  it("sends an empty URL when the Mousehole URL is removed", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse({ ...MAM, mouseholeUrl: null, hasMouseholeToken: false })
+    renderSheet({ tracker: MAM })
+
+    await user.clear(screen.getByLabelText("Mousehole URL (optional)"))
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    const body = JSON.parse(saveCall[1].body)
+    expect(body).toMatchObject({ mouseholeUrl: "" })
+    expect(body).not.toHaveProperty("mouseholeToken")
+  })
+})
+
 describe("TrackerSettingsSheet shared tracker cache", () => {
   it("writes the archived row into the shared tracker cache and invalidates it", async () => {
     const user = userEvent.setup()
@@ -255,7 +353,14 @@ describe("TrackerSettingsSheet digitalcore credentials", () => {
     ...TRACKER,
     platformType: "digitalcore",
     baseUrl: "https://digitalcore.club",
+    registrySlug: null,
   }
+
+  it("labels the credential section Credentials rather than API Key", () => {
+    renderSheet({ tracker: DC_TRACKER })
+    expect(screen.getByText("Credentials")).toBeInTheDocument()
+    expect(screen.queryByText("API Key")).not.toBeInTheDocument()
+  })
 
   it("persists the browser User-Agent when the cookies are changed", async () => {
     const user = userEvent.setup()
@@ -281,6 +386,7 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
     ...TRACKER,
     platformType: "torrentleech",
     baseUrl: "https://www.torrentleech.org",
+    registrySlug: null,
   }
 
   it("includes the Alt 2FA Token in the blob only when one is entered", async () => {
@@ -315,8 +421,8 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
   })
 
   it("wipes the typed secrets when the sheet is cancelled", async () => {
-    // Closing kept the password and token in component state and re-showed
-    // both on the next Change click.
+    // Closing must clear the password and token, or the next Change click shows
+    // them again.
     const user = userEvent.setup()
     renderSheet({ tracker: TL_TRACKER })
 
@@ -328,5 +434,39 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
     await user.click(screen.getByRole("button", { name: "Change" }))
     expect(screen.getByLabelText("Password")).toHaveValue("")
     expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
+  })
+})
+
+describe("TrackerSettingsSheet registry data", () => {
+  // The row names its registry entry by slug. A stored URL that happens to
+  // match an entry is a poll address, not a key.
+  const loginHint = () => screen.queryByText(/no login-interval policy/i)
+
+  it("reads the login policy from the slug, not the stored URL", () => {
+    renderSheet({
+      tracker: { ...TRACKER, registrySlug: "aither", baseUrl: "https://moved-since.test" },
+    })
+    expect(loginHint()).toBeNull()
+  })
+
+  it("offers no registry rules to a row with no slug", () => {
+    renderSheet({ tracker: { ...TRACKER, registrySlug: null, baseUrl: "https://aither.cc" } })
+    expect(loginHint()).toBeInTheDocument()
+  })
+})
+
+describe("TrackerSettingsSheet base URL", () => {
+  // The URL is registry data copied in when the tracker was added, so the sheet
+  // neither shows a field for it nor sends one; the row keeps what the registry gave it.
+  it("offers no field for the tracker URL and sends none on save", async () => {
+    const user = userEvent.setup()
+    renderSheet()
+
+    expect(screen.queryByLabelText("Base URL")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    const [saveCall] = trackerRequests()
+    expect(saveCall[1].method).toBe("PATCH")
+    expect(JSON.parse(saveCall[1].body)).not.toHaveProperty("baseUrl")
   })
 })

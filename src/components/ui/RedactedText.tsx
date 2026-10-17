@@ -5,14 +5,26 @@ import clsx from "clsx"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { redactedLength } from "@/lib/privacy"
 
+export const REDACTED_NOTE = "Redacted, username privacy mode is enabled"
+
 interface RedactedTextProps {
   value: string | null | undefined
   color?: string
   className?: string
+  /**
+   * The mosaic explains itself on hover. A caller whose own tooltip already
+   * wraps this element passes false, or two popups open on the same spot.
+   */
+  tooltip?: boolean
 }
 
 // Renders either the real text or a visual redaction mosaic
-function RedactedText({ value, color = "var(--color-tertiary)", className }: RedactedTextProps) {
+function RedactedText({
+  value,
+  color = "var(--color-tertiary)",
+  className,
+  tooltip = true,
+}: RedactedTextProps) {
   const charCount = redactedLength(value)
 
   // Not redacted
@@ -27,26 +39,27 @@ function RedactedText({ value, color = "var(--color-tertiary)", className }: Red
     blocks.push({ id: `r${charCount}-${seed}`, opacity: 0.3 + (seed % 5) * 0.15 })
   }
 
-  return (
-    <Tooltip content="Redacted, username privacy mode is enabled">
-      <span
-        role="img"
-        className={clsx("inline-flex items-center gap-px", className)}
-        aria-label={`Redacted text, ${charCount} characters`}
-      >
-        {blocks.map((block) => (
-          <span
-            key={block.id}
-            className="inline-block rounded-sm w-[0.55em] h-[1em]"
-            style={{
-              backgroundColor: color,
-              opacity: block.opacity,
-            }}
-          />
-        ))}
-      </span>
-    </Tooltip>
+  const mosaic = (
+    <span
+      role="img"
+      className={clsx("inline-flex items-center gap-px", className)}
+      aria-label={`Redacted text, ${charCount} characters`}
+    >
+      {blocks.map((block) => (
+        <span
+          key={block.id}
+          className="inline-block rounded-sm w-[0.55em] h-[1em]"
+          style={{
+            backgroundColor: color,
+            opacity: block.opacity,
+          }}
+        />
+      ))}
+    </span>
   )
+
+  if (!tooltip) return mosaic
+  return <Tooltip content={REDACTED_NOTE}>{mosaic}</Tooltip>
 }
 
 export type { RedactedTextProps }

@@ -48,7 +48,8 @@ async function fetchClientTorrents(
   client: DownloadClientRow,
   tags: string[] | null,
   key: Buffer,
-  filter?: string
+  filter?: string,
+  signal?: AbortSignal
 ): Promise<TorrentRecord[]> {
   const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
 
@@ -57,7 +58,7 @@ async function fetchClientTorrents(
   // Skip when filter is requested. Active speeds need live qBT data.
   if (!filter && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
     if (tags === null) return getStoredTorrents(baseUrl)
-    // NOTE: this warm-path tag comparison is case-insensitive on both sides while
+    // This warm-path tag comparison is case-insensitive on both sides while
     // the cold path below hands the tag to qBT verbatim. Callers that pass
     // `tags: null` sidestep the divergence entirely by matching in application
     // code instead (see fetchAndMergeTorrents' `select`); the multi-tag fleet
@@ -77,14 +78,14 @@ async function fetchClientTorrents(
   // `filter` still goes through, so the 5s active poll stays cheap instead of
   // dragging the whole torrent list across on every tick.
   if (tags === null) {
-    return adapter.getTorrents({ filter: filter as "active" | undefined })
+    return adapter.getTorrents({ filter: filter as "active" | undefined, signal })
   }
 
   if (tags.length === 1) {
-    return adapter.getTorrents({ tag: tags[0], filter: filter as "active" | undefined })
+    return adapter.getTorrents({ tag: tags[0], filter: filter as "active" | undefined, signal })
   }
 
-  const results = await Promise.allSettled(tags.map((tag) => adapter.getTorrents({ tag })))
+  const results = await Promise.allSettled(tags.map((tag) => adapter.getTorrents({ tag, signal })))
   const allTorrents: TorrentRecord[] = []
   for (const result of results) {
     if (result.status === "fulfilled") allTorrents.push(...result.value)
@@ -110,10 +111,8 @@ async function fetchClientTorrents(
  *                 accurate, and before stripping, so it can still read the
  *                 announce URL.
  */
-/** Per-client deadline for live fetches (seconds). Keeps the UI responsive
- *  when one client is offline. The online client's data arrives immediately
- *  while the offline one is cut short after this deadline instead of waiting
- *  for the full 30s retry cycle (15s timeout x 2 attempts). */
+/** Per-client deadline for live fetches, so an offline client is cut short
+ *  instead of holding the whole response until the transport's own timeout. */
 const CLIENT_DEADLINE_MS = 5_000
 
 export async function fetchAndMergeTorrents(
@@ -139,18 +138,30 @@ export async function fetchAndMergeTorrents(
 
   const results = await Promise.allSettled(
     clients.map(async (client) => {
-      const deadline = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Client deadline exceeded")), CLIENT_DEADLINE_MS)
-      )
+      // Racing the deadline alone would release the caller and leave the work
+      // running with its socket open until the transport timeout. Aborting is
+      // what stops a stalling host.
+      const controller = new AbortController()
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort()
+          reject(new Error("Client deadline exceeded"))
+        }, CLIENT_DEADLINE_MS)
+      })
       const work = (async () => {
-        const fetched = await fetchClientTorrents(client, tags, key, filter)
+        const fetched = await fetchClientTorrents(client, tags, key, filter, controller.signal)
         return {
           clientName: client.name,
           crossSeedTags: client.crossSeedTags ?? [],
           torrents: select ? fetched.filter(select) : fetched,
         }
       })()
-      return Promise.race([work, deadline])
+      try {
+        return await Promise.race([work, deadline])
+      } finally {
+        clearTimeout(timer)
+      }
     })
   )
 

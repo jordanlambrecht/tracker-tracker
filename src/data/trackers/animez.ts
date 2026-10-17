@@ -30,11 +30,16 @@ export const animez: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Banned", requirements: "Violated site rules. Cannot access site" },
+    {
+      name: "Banned",
+      requirements: "Violated site rules. Cannot access site",
+      outsideLadder: "below",
+    },
     {
       name: "Leech",
       requirements:
         "Ratio below 1.0 or demoted. 1 download/week, torrents 7+ days old only. No uploads",
+      outsideLadder: "below",
     },
     {
       name: "Newbie",
@@ -49,11 +54,16 @@ export const animez: TrackerRegistryEntry = {
       name: "Power User",
       requirements: "Strong upload history and consistent ratio. 50 downloads/day",
     },
-    { name: "V.I.P.", requirements: "Donor, staff-promoted, or distinguished. 100 downloads/day" },
+    {
+      name: "V.I.P.",
+      requirements: "Donor, staff-promoted, or distinguished. 100 downloads/day",
+      outsideLadder: "above",
+    },
     {
       name: "Uploader",
       requirements:
         "Staff-promoted for quality and quantity of uploads. API and tag creation access",
+      outsideLadder: "above",
     },
   ],
   releaseGroups: [],

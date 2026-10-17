@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         // state needs no sentinel, and recover.cjs already reads NULL as
         // "nothing to re-key" via isPlaintextSentinel().
         encryptedCredentials: null,
+        encryptedMouseholeToken: null,
         isActive: false,
         lastError: "Emergency lockdown: API token revoked",
         updatedAt: now,

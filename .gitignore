@@ -78,3 +78,8 @@ duplicates-report.md
 docs/kb/site/
 
 tmp/
+
+# Playwright
+test-results/
+playwright-report/
+e2e/.auth/

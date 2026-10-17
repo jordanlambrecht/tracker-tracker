@@ -2,13 +2,13 @@
 //
 // Coverage for the master-password rotation handler.
 //
-// These tests use REAL crypto (deriveKey/encrypt/decrypt from @/lib/crypto)
-// because the key-derivation round trip IS the thing under test: a secret
-// encrypted under the OLD password must come back out under a key derived
-// independently from the NEW password. Only the DB, argon2 hashing, the
+// These tests use real crypto (deriveKey/encrypt/decrypt from @/lib/crypto)
+// because the key-derivation round trip is the thing under test: a secret
+// encrypted under the old password must come back out under a key derived
+// independently from the new password. Only the DB, argon2 hashing, the
 // logger and the post-commit side effects are mocked.
 //
-// Several tests deliberately PIN CURRENT BEHAVIOUR that is arguably wrong
+// Several tests deliberately pin current behaviour that is arguably wrong
 // (skip-and-continue, silent backup-code destruction, unverified session
 // key). Each is marked "PINS:" so a future intentional fix fails loudly.
 
@@ -23,7 +23,7 @@ import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
 import { POST } from "./route"
 
-// decodeKey stays REAL, mocking it to a fixed buffer would defeat the
+// decodeKey stays real, mocking it to a fixed buffer would defeat the
 // entire round trip. Only the session lookup and body parsing are faked.
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
@@ -55,6 +55,7 @@ vi.mock("@/lib/db/schema", () => ({
     name: "trackers.name",
     encryptedApiToken: "trackers.encryptedApiToken",
     encryptedCredentials: "trackers.encryptedCredentials",
+    encryptedMouseholeToken: "trackers.encryptedMouseholeToken",
   },
   downloadClients: {
     id: "downloadClients.id",
@@ -598,9 +599,9 @@ describe("POST /api/auth/change-password — session key mismatch", () => {
     // with. Those diverge whenever a session outlives a password change, which is
     // ordinary with a second signed-in device.
     //
-    // This used to commit: every decrypt failed, which the handler read as every
-    // row being corrupt, so it wrote the new hash, skipped every row and nulled
-    // all seven settings secrets, leaving them under a key nobody holds.
+    // Without the session-key guard, every decrypt fails and the handler reads
+    // every row as corrupt. It writes the new hash, skips every row and nulls all
+    // seven settings secrets, leaving the rows under a key nobody holds.
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: strangerKey.toString("hex"),
     })
@@ -635,7 +636,7 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
         id: "irc",
         title: "IRC",
         fields: [
-          { id: "irc_nick", label: "Nick", value: "jordy", secret: false },
+          { id: "irc_nick", label: "Nick", value: "tealotter", secret: false },
           { id: "irc_nickserv", label: "NickServ password", value: "hunter2" },
         ],
       },
@@ -685,7 +686,7 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
     const response = await post()
     expect(response.status).toBe(200)
 
-    // The key is present and explicitly null in BOTH the absent and the
+    // The key is present and explicitly null in both the absent and the
     // literal-null case. A truthy non-ciphertext value here is the
     // LOCKDOWN_REVOKED trap; "" would be just as bad.
     for (const write of writesTo(trackers)) {
@@ -715,7 +716,7 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
     // The token still rotates, one bad vault must not orphan the whole row.
     expect(decrypt(write.encryptedApiToken as string, newKey)).toBe("alpha-api-token")
     // NULL, not the unreadable ciphertext. The session-key guard already proved
-    // oldKey IS the current master key, so that blob is unreadable by every
+    // oldKey is the current master key, so that blob is unreadable by every
     // tool including recover.cjs; leaving it would make every later read throw.
     expect(write.encryptedCredentials).toBeNull()
   })
@@ -740,8 +741,8 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
   })
 
   it("round-trips a vault holding an EMPTY value", async () => {
-    // crypto.ts widened its decrypt bound specifically so empty plaintext
-    // survives rotation; a vault whose field is still blank is a normal state.
+    // crypto.ts's decrypt bound admits empty plaintext so it survives
+    // rotation; a vault whose field is still blank is a normal state.
     const emptyFieldVault = JSON.stringify({
       v: 1,
       sections: [
@@ -762,5 +763,70 @@ describe("POST /api/auth/change-password — tracker credential vault", () => {
 
     const written = writesTo(trackers)[0].values.encryptedCredentials as string
     expect(decrypt(written, newKey)).toBe(emptyFieldVault)
+  })
+})
+
+describe("POST /api/auth/change-password, Mousehole API token", () => {
+  const MOUSEHOLE_TOKEN = "fake-mousehole-token-7f3a"
+
+  it("re-keys the token so the NEW key opens it and the OLD key no longer can", async () => {
+    trackerRows = [
+      {
+        id: 1,
+        name: "Alpha",
+        encryptedApiToken: encrypt("alpha-api-token", oldKey),
+        encryptedMouseholeToken: encrypt(MOUSEHOLE_TOKEN, oldKey),
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+
+    const written = writesTo(trackers)[0].values.encryptedMouseholeToken as string
+    expect(decrypt(written, newKey)).toBe(MOUSEHOLE_TOKEN)
+    expect(() => decrypt(written, oldKey)).toThrow()
+    expect(written).not.toBe(trackerRows[0].encryptedMouseholeToken)
+  })
+
+  it("keeps NULL as NULL, never '' and never an encrypted empty string", async () => {
+    trackerRows = [
+      { id: 1, name: "Alpha", encryptedApiToken: encrypt("alpha-api-token", oldKey) },
+      {
+        id: 2,
+        name: "Beta",
+        encryptedApiToken: encrypt("beta-api-token", oldKey),
+        encryptedMouseholeToken: null,
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+
+    for (const write of writesTo(trackers)) {
+      expect(write.values).toHaveProperty("encryptedMouseholeToken")
+      expect(write.values.encryptedMouseholeToken).toBeNull()
+    }
+  })
+
+  it("clears a token that will not decrypt, and warns, without blocking the rotation", async () => {
+    trackerRows = [
+      {
+        id: 1,
+        name: "Alpha",
+        encryptedApiToken: encrypt("alpha-api-token", oldKey),
+        encryptedMouseholeToken: encrypt(MOUSEHOLE_TOKEN, strangerKey),
+      },
+    ]
+
+    const response = await post()
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { success: boolean; warnings: string[] }
+    expect(body.success).toBe(true)
+    expect(body.warnings.join(" ")).toContain("Mousehole API token(s) could not be re-encrypted")
+    expect(body.warnings.join(" ")).toContain("Alpha")
+
+    const write = writesTo(trackers)[0].values
+    expect(decrypt(write.encryptedApiToken as string, newKey)).toBe("alpha-api-token")
+    expect(write.encryptedMouseholeToken).toBeNull()
   })
 })

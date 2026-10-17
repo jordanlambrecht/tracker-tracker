@@ -11,22 +11,17 @@ import {
   parseTrackerId,
   type RouteContext,
   validateHexColor,
-  validateHttpUrl,
   validateJoinedAt,
   validateLastAccessAt,
   validateMaxLength,
+  validateMouseholeToken,
+  validateMouseholeUrl,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
-import {
-  LONG_STRING_MAX,
-  maxTokenLengthFor,
-  TRACKER_NAME_MAX,
-  TRACKER_TAG_MAX,
-  TRACKER_URL_MAX,
-} from "@/lib/limits"
+import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
 
@@ -67,13 +62,8 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (nameErr) return nameErr
     updates.name = body.name.trim()
   }
-  if (typeof body.baseUrl === "string") {
-    const urlLenErr = validateMaxLength(body.baseUrl, TRACKER_URL_MAX, "URL")
-    if (urlLenErr) return urlLenErr
-    const urlErr = validateHttpUrl(body.baseUrl as string)
-    if (urlErr) return urlErr
-    updates.baseUrl = (body.baseUrl as string).trim()
-  }
+  // No baseUrl: the URL is registry data copied in when the tracker was added, so
+  // an edit body carrying one, valid or hostile, is ignored.
   if (typeof body.isActive === "boolean") updates.isActive = body.isActive
   if (typeof body.color === "string") {
     const colorErr = validateHexColor(body.color)
@@ -87,15 +77,45 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
+  // Clearing the URL clears the token with it, so no token outlives its URL.
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
       const mouseholeUrlErr = validateMaxLength(trimmed, LONG_STRING_MAX, "Mousehole URL")
       if (mouseholeUrlErr) return mouseholeUrlErr
-      const mouseUrlErr = validateHttpUrl(trimmed, "Mousehole URL")
+      const mouseUrlErr = validateMouseholeUrl(trimmed)
       if (mouseUrlErr) return mouseUrlErr
     }
     updates.mouseholeUrl = trimmed || null
+    if (!trimmed) updates.encryptedMouseholeToken = null
+  }
+
+  // An empty string clears the token; a body without the key leaves it alone.
+  if (typeof body.mouseholeToken === "string") {
+    const trimmedMouseholeToken = body.mouseholeToken.trim()
+    if (trimmedMouseholeToken) {
+      const mouseholeTokenErr = validateMouseholeToken(trimmedMouseholeToken)
+      if (mouseholeTokenErr) return mouseholeTokenErr
+      // A token is only sent to the saved URL, so a token without one is refused.
+      let mouseholeUrl = typeof body.mouseholeUrl === "string" ? body.mouseholeUrl.trim() : null
+      if (mouseholeUrl === null) {
+        const [row] = await db
+          .select({ mouseholeUrl: trackers.mouseholeUrl })
+          .from(trackers)
+          .where(eq(trackers.id, trackerId))
+          .limit(1)
+        mouseholeUrl = row?.mouseholeUrl ?? ""
+      }
+      if (!mouseholeUrl) {
+        return NextResponse.json(
+          { error: "Mousehole API token needs a Mousehole URL" },
+          { status: 400 }
+        )
+      }
+    }
+    updates.encryptedMouseholeToken = trimmedMouseholeToken
+      ? encrypt(trimmedMouseholeToken, decodeKey(auth))
+      : null
   }
 
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy

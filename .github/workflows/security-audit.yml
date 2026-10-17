@@ -188,6 +188,7 @@ jobs:
 
             const auditFiles = files.filter(f =>
               f === 'scripts/security-audit.ts' ||
+              f === 'scripts/security-audit-lib.ts' ||
               f === 'src/lib/__tests__/security.test.ts'
             );
 

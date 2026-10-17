@@ -60,7 +60,10 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
     onSortModeChange: prefs.setSortMode,
   })
 
-  const existingBaseUrls = useMemo(() => trackers.map((t) => t.baseUrl), [trackers])
+  const existingSlugs = useMemo(
+    () => trackers.flatMap((t) => (t.registrySlug ? [t.registrySlug] : [])),
+    [trackers]
+  )
 
   // Reordering a stat-sorted list is meaningless (the next render just
   // re-sorts it by value), so drag is suppressed the same way `unlocked:
@@ -364,7 +367,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
           refresh()
           router.push(`/trackers/${id}`)
         }}
-        existingBaseUrls={existingBaseUrls}
+        existingSlugs={existingSlugs}
       />
 
       <ChangelogDialog open={changelogOpen} onClose={() => setChangelogOpen(false)} />
