@@ -109,7 +109,10 @@ export async function POST(request: Request) {
     number,
     { token: string; vault: string | null; mouseholeToken: string | null }
   >()
-  const clientPlaintexts = new Map<number, { username: string; password: string; apiKey: string }>()
+  const clientPlaintexts = new Map<
+    number,
+    { username: string; password: string; apiKey: string; urlPath: string }
+  >()
   const notificationPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
   const failedVaults: string[] = []
@@ -134,6 +137,7 @@ export async function POST(request: Request) {
         encryptedUsername: downloadClients.encryptedUsername,
         encryptedPassword: downloadClients.encryptedPassword,
         encryptedApiKey: downloadClients.encryptedApiKey,
+        encryptedUrlPath: downloadClients.encryptedUrlPath,
       })
       .from(downloadClients),
     db
@@ -210,6 +214,7 @@ export async function POST(request: Request) {
         // Password-auth clients store "" here, which is not ciphertext and
         // must not be handed to decrypt. It round-trips as "" below.
         apiKey: client.encryptedApiKey ? decrypt(client.encryptedApiKey, oldKey) : "",
+        urlPath: client.encryptedUrlPath ? decrypt(client.encryptedUrlPath, oldKey) : "",
       })
     } catch (err) {
       log.warn(
@@ -367,6 +372,7 @@ export async function POST(request: Request) {
             // every poll, and no amount of re-entering the new password would
             // recover it. "" stays "" (see the decrypt guard above).
             encryptedApiKey: creds.apiKey ? encrypt(creds.apiKey, newKey) : "",
+            encryptedUrlPath: creds.urlPath ? encrypt(creds.urlPath, newKey) : "",
           })
           .where(eq(downloadClients.id, id))
       }

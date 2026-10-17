@@ -90,6 +90,7 @@ const PLAIN = {
   mouseholeToken: "fake-mousehole-token-7f3a",
   clientUsername: "qbt-user",
   clientPassword: "qbt-password",
+  clientUrlPath: "/proxy/qui-client-key",
   notificationConfig: '{"webhookUrl":"https://example.com/hook"}',
   proxyPassword: "proxy-secret",
   backupPassword: "backup-secret",
@@ -233,6 +234,7 @@ function makeBackupPayload(encryptionSalt: string, ct: Ciphertexts): BackupPaylo
         useSsl: false,
         encryptedUsername: ct.clientUsername,
         encryptedPassword: ct.clientPassword,
+        encryptedUrlPath: ct.clientUrlPath,
         pollIntervalSeconds: 300,
         isDefault: true,
         crossSeedTags: ["cross-seed"],
@@ -644,6 +646,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const client = onlyInsert(recorder, "download_clients")
     expect(decrypt(client.encryptedUsername as string, currentKey)).toBe(PLAIN.clientUsername)
     expect(decrypt(client.encryptedPassword as string, currentKey)).toBe(PLAIN.clientPassword)
+    expect(decrypt(client.encryptedUrlPath as string, currentKey)).toBe(PLAIN.clientUrlPath)
     // Credentials survived, so the client stays enabled and unflagged.
     expect(client.enabled).toBe(true)
     expect(client.lastError).toBeNull()
@@ -689,6 +692,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const client = onlyInsert(recorder, "download_clients")
     expect(client.encryptedUsername).toBe(payload.downloadClients[0].encryptedUsername)
     expect(decrypt(client.encryptedPassword as string, key)).toBe(PLAIN.clientPassword)
+    expect(client.encryptedUrlPath).toBe(payload.downloadClients[0].encryptedUrlPath)
     expect(client.enabled).toBe(true)
 
     const settings = recorder.settingsUpdate
@@ -720,9 +724,13 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const client = onlyInsert(recorder, "download_clients")
     expect(client.encryptedUsername).toBe("")
     expect(client.encryptedPassword).toBe("")
-    // The download client at least gets disabled and flagged.
+    expect(client.encryptedUrlPath).toBe("")
+    // The download client at least gets disabled and flagged, naming both
+    // losses so re-entering the credentials alone does not leave the path out.
     expect(client.enabled).toBe(false)
-    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
+    expect(client.lastError).toBe(
+      "Credentials and URL path cleared during restore. Re-enter both and re-enable"
+    )
 
     const target = onlyInsert(recorder, "notification_targets")
     expect(target.encryptedConfig).toBe("")
@@ -750,6 +758,48 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(body.tokensCleared).toBe(1)
     expect(body.clientCredentialsCleared).toBe(1)
     expect(body.totpDisabledOnRestore).toBe(true)
+  })
+
+  it("names only the credentials when the lost client had no URL path", async () => {
+    const wrongBackupKey = await deriveKey(OTHER_PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(wrongBackupKey))
+    Object.assign(payload.downloadClients[0], { encryptedUrlPath: "" })
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    const client = onlyInsert(recorder, "download_clients")
+    expect(client.enabled).toBe(false)
+    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
+  })
+
+  it("disables a client whose URL path alone was cleared, and keeps its auth mode", async () => {
+    // Without its path the client would poll the bare host. Its key came back
+    // intact, so falling back to password mode would only break it further.
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    Object.assign(payload.downloadClients[0], {
+      authMethod: "apikey",
+      encryptedApiKey: encrypt("qbt_examplekey", backupKey),
+      encryptedUrlPath: encrypt(PLAIN.clientUrlPath, Buffer.alloc(32, 0x5a)),
+    })
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    const currentKey = await deriveKey(PASSWORD, SALT_B)
+    const client = onlyInsert(recorder, "download_clients")
+    expect(client.encryptedUrlPath).toBe("")
+    expect(decrypt(client.encryptedApiKey as string, currentKey)).toBe("qbt_examplekey")
+    expect(client.authMethod).toBe("apikey")
+    expect(client.enabled).toBe(false)
+    // Its credentials survived, so the message points at the path, not at them.
+    expect(client.lastError).toBe("URL path cleared during restore. Re-enter it and re-enable")
+
+    const body = await res.json()
+    expect(body.clientCredentialsCleared).toBe(1)
   })
 
   // ─── 4. Wrong master password must not write anything ────────────────────────
@@ -795,12 +845,16 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(tracker.encryptedApiToken).toBe("")
     expect(tracker.encryptedApiToken).not.toBe(payload.trackers[0].encryptedApiToken)
 
-    // The download client is disabled and flagged so the loss is actionable.
+    // The download client is disabled and flagged so the loss is actionable. The
+    // path was sealed under the same old key, so it is lost and named too.
     const client = onlyInsert(recorder, "download_clients")
     expect(client.encryptedUsername).toBe("")
     expect(client.encryptedPassword).toBe("")
+    expect(client.encryptedUrlPath).toBe("")
     expect(client.enabled).toBe(false)
-    expect(client.lastError).toBe("Credentials cleared during restore. Re-enter and re-enable")
+    expect(client.lastError).toBe(
+      "Credentials and URL path cleared during restore. Re-enter both and re-enable"
+    )
 
     // The mismatch is announced once, at the decision point.
     expect(log.warn).toHaveBeenCalledWith(

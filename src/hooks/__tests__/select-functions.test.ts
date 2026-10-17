@@ -29,6 +29,7 @@ function makeClient(overrides: Partial<SafeDownloadClient> = {}): SafeDownloadCl
     useSsl: false,
     authMethod: "password",
     hasCredentials: true,
+    hasUrlPath: false,
     pollIntervalSeconds: 300,
     isDefault: false,
     crossSeedTags: [],

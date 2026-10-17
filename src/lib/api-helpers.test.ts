@@ -2,12 +2,14 @@
 
 import { describe, expect, it } from "vitest"
 import { localDateStr } from "@/lib/formatters"
-import { CREDENTIAL_MAX } from "@/lib/limits"
+import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import {
+  validateClientHost,
   validateHttpUrl,
   validateLastAccessAt,
   validateMouseholeToken,
   validateMouseholeUrl,
+  validateUrlPath,
 } from "./api-helpers"
 
 describe("validateHttpUrl", () => {
@@ -192,6 +194,85 @@ describe("validateMouseholeToken", () => {
     await expect(response?.json()).resolves.toEqual({
       error: `Mousehole API token must be ${CREDENTIAL_MAX} characters or fewer`,
     })
+  })
+})
+
+describe("validateUrlPath", () => {
+  it("accepts a Qui client proxy path", () => {
+    expect(validateUrlPath("/qui/proxy/abc123def456")).toBeNull()
+    // Dots inside a segment are ordinary characters, not dot segments.
+    expect(validateUrlPath("/qbt/v5.2/proxy/abc123def456")).toBeNull()
+    expect(validateUrlPath("/qbt/a..b")).toBeNull()
+  })
+
+  // Every endpoint is appended to the path, so each input below would change
+  // where the request goes rather than fail on its own.
+  it("rejects anything the URL parser would rewrite", async () => {
+    for (const path of [
+      "/./",
+      "/proxy/./key",
+      "/proxy/../admin",
+      "/proxy/%2e%2e/admin",
+      "/proxy/%2E%2E/admin",
+      "/proxy\\key",
+      "/proxy/key?x=1",
+      "/proxy/key#frag",
+      "/proxy/a key",
+      "/proxy/\u0001key",
+      "/proxy/key\u007f",
+    ]) {
+      const response = validateUrlPath(path)
+      expect(response?.status, path).toBe(400)
+      await expect(response?.json()).resolves.toEqual({
+        error:
+          "URL path must be a plain path like /proxy/<key>, without spaces, ?, #, \\ or dot segments",
+      })
+    }
+  })
+
+  it("rejects a path that does not start with a slash", async () => {
+    const response = validateUrlPath("proxy/key")
+    expect(response?.status).toBe(400)
+    await expect(response?.json()).resolves.toEqual({ error: "URL path must start with /" })
+  })
+
+  it("rejects a path over the length limit", async () => {
+    const response = validateUrlPath(`/${"k".repeat(URL_PATH_MAX)}`)
+    expect(response?.status).toBe(400)
+    await expect(response?.json()).resolves.toEqual({
+      error: `URL path must be ${URL_PATH_MAX} characters or fewer`,
+    })
+  })
+
+  it("rejects a path made only of slashes", async () => {
+    for (const path of ["/", "///"]) {
+      const response = validateUrlPath(path)
+      expect(response?.status).toBe(400)
+      await expect(response?.json()).resolves.toEqual({
+        error: "URL path must not be only slashes",
+      })
+    }
+  })
+})
+
+describe("validateClientHost", () => {
+  it("accepts a hostname, an IPv4 address and a bracketed IPv6 address", () => {
+    for (const host of ["qbt.lan", "my_qbt", "192.168.1.10", "[::1]", "[fe80::1]"]) {
+      expect(validateClientHost(host), host).toBeNull()
+    }
+  })
+
+  // Each of these builds a URL like http://qui:7476:8080 that fails to parse
+  // on every poll, which the sanitizer then reports as invalid credentials.
+  it("rejects a host carrying its own port, a bare IPv6 address or stray brackets", async () => {
+    for (const host of ["qui:7476", "localhost:8080", "::1", "[1.2.3.4]", "a[b]"]) {
+      const response = validateClientHost(host)
+      expect(response?.status, host).toBe(400)
+      await expect(response?.json()).resolves.toEqual({
+        error:
+          "Host must not include a port. Use the Port field, and write an IPv6 address in brackets, like [::1]",
+      })
+    }
   })
 })
 

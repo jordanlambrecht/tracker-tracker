@@ -34,17 +34,32 @@ describe("qBittorrent transport connection errors", () => {
           new TypeError('Headers.append: "Bearer SECRETKEY" is an invalid header value.')
         )
     )
-    const attempt = login("qbt.local", 8080, false, "admin", "pw")
+    const attempt = login("qbt.local", 8080, false, "admin", "pw", "")
     await expect(attempt).rejects.toThrow(`Failed to connect to ${BASE}: TypeError`)
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.not.toThrow("SECRETKEY")
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.not.toThrow(
+      "SECRETKEY"
+    )
   })
 
   it("still reports the cause code when fetch wraps one", async () => {
     const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.toThrow(
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.toThrow(
       `Failed to connect to ${BASE}: ECONNREFUSED`
     )
+  })
+
+  it("names the client without its URL path, which can carry a proxy key", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
+
+    const err = await login("qbt.local", 8080, false, "admin", "pw", "/proxy/qui-client-key")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toContain(`Failed to connect to ${BASE}: ECONNREFUSED`)
+    expect(err?.message).not.toContain("/proxy")
+    expect(err?.message).not.toContain("qui-client-key")
   })
 })
 
@@ -62,7 +77,7 @@ describe("qBittorrent transport redirect handling", () => {
     )
     vi.stubGlobal("fetch", fetchMock)
 
-    await expect(login("qbt.local", 8080, false, "admin", "S3CR3T-PW")).rejects.toThrow(
+    await expect(login("qbt.local", 8080, false, "admin", "S3CR3T-PW", "")).rejects.toThrow(
       "qBittorrent API error: 307"
     )
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -76,11 +91,11 @@ describe("qBittorrent transport redirect handling", () => {
         .fn()
         .mockResolvedValue(new Response(null, { status: 302, headers: { Location: "/elsewhere" } }))
     )
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.toThrow(
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.toThrow(
       "qBittorrent API error: 302"
     )
     // A latched block would replay the rejection message instead of retrying.
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.toThrow(
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.toThrow(
       "qBittorrent API error: 302"
     )
   })
@@ -105,47 +120,50 @@ describe("qBittorrent session cookie validation", () => {
   it("refuses a session cookie carrying a control character", async () => {
     vi.stubGlobal("fetch", loginRespondingWith(["SID=abc\r\nX-Injected: 1; Path=/"]))
 
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.toThrow("unsafe character")
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.toThrow(
+      "unsafe character"
+    )
   })
 
   it("accepts an ordinary session cookie", async () => {
     vi.stubGlobal("fetch", loginRespondingWith(["QBT_SID_8080=abc123def456; Path=/; HttpOnly"]))
 
-    const sid = await login("qbt.local", 8080, false, "admin", "pw")
+    const sid = await login("qbt.local", 8080, false, "admin", "pw", "")
     expect(sid).toEqual({ name: "QBT_SID_8080", value: "abc123def456" })
   })
 
   it("ignores an unrelated Set-Cookie rather than failing the login", async () => {
     vi.stubGlobal("fetch", loginRespondingWith(["analytics=x; Path=/", "SID=cleanvalue; Path=/"]))
 
-    const sid = await login("qbt.local", 8080, false, "admin", "pw")
+    const sid = await login("qbt.local", 8080, false, "admin", "pw", "")
     expect(sid.value).toBe("cleanvalue")
   })
 })
+
+/** A fetch that answers every login with "Ok." and the given SID. */
+function loginOnce(sid: string) {
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    text: async () => "Ok.",
+    headers: { getSetCookie: () => [`SID=${sid}; Path=/`] },
+  } as unknown as Response)
+}
 
 describe("qBittorrent session cache keying", () => {
   // Two client rows can point at one host with different accounts. Keyed by
   // baseUrl alone, the second row rode the first row's session, so its own
   // credentials were never sent and a revoked password still polled green.
-  function loginOnce(sid: string) {
-    return vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      text: async () => "Ok.",
-      headers: { getSetCookie: () => [`SID=${sid}; Path=/`] },
-    } as unknown as Response)
-  }
-
   it("does not hand one account the session minted for another", async () => {
     const first = loginOnce("session-for-alice")
     vi.stubGlobal("fetch", first)
-    const alice = await getSession("qbt.local", 8080, false, "alice", "pw-a")
+    const alice = await getSession("qbt.local", 8080, false, "alice", "pw-a", "")
     expect(alice.sid.value).toBe("session-for-alice")
 
     const second = loginOnce("session-for-bob")
     vi.stubGlobal("fetch", second)
-    const bob = await getSession("qbt.local", 8080, false, "bob", "pw-b")
+    const bob = await getSession("qbt.local", 8080, false, "bob", "pw-b", "")
 
     // Bob must have logged in rather than reusing the cached entry.
     expect(second).toHaveBeenCalledTimes(1)
@@ -156,24 +174,45 @@ describe("qBittorrent session cache keying", () => {
     const fetchMock = loginOnce("session-once")
     vi.stubGlobal("fetch", fetchMock)
 
-    await getSession("qbt.local", 8080, false, "alice", "pw-a")
-    await getSession("qbt.local", 8080, false, "alice", "pw-a")
+    await getSession("qbt.local", 8080, false, "alice", "pw-a", "")
+    await getSession("qbt.local", 8080, false, "alice", "pw-a", "")
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it("drops every session for a host when one is invalidated", async () => {
     vi.stubGlobal("fetch", loginOnce("a"))
-    await getSession("qbt.local", 8080, false, "alice", "pw-a")
+    await getSession("qbt.local", 8080, false, "alice", "pw-a", "")
     vi.stubGlobal("fetch", loginOnce("b"))
-    await getSession("qbt.local", 8080, false, "bob", "pw-b")
+    await getSession("qbt.local", 8080, false, "bob", "pw-b", "")
 
     invalidateSession("http://qbt.local:8080")
 
     const after = loginOnce("fresh")
     vi.stubGlobal("fetch", after)
-    await getSession("qbt.local", 8080, false, "alice", "pw-a")
+    await getSession("qbt.local", 8080, false, "alice", "pw-a", "")
     expect(after).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("a login behind a URL path", () => {
+  it("posts the login under the path and hands back the path as the base URL", async () => {
+    const fetchMock = loginOnce("abc123")
+    vi.stubGlobal("fetch", fetchMock)
+
+    const session = await getSession(
+      "qbt.local",
+      8080,
+      false,
+      "admin",
+      "pw",
+      "/proxy/qui-client-key"
+    )
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "http://qbt.local:8080/proxy/qui-client-key/api/v2/auth/login"
+    )
+    expect(session.baseUrl).toBe("http://qbt.local:8080/proxy/qui-client-key")
   })
 })
 
@@ -313,7 +352,7 @@ describe("the caller's deadline on a login", () => {
     vi.stubGlobal("fetch", fetchMock)
     const caller = new AbortController()
 
-    await login("qbt.local", 8080, false, "admin", "pw", caller.signal)
+    await login("qbt.local", 8080, false, "admin", "pw", "", caller.signal)
 
     const sent = (fetchMock.mock.calls[0][1] as RequestInit).signal as AbortSignal
     expect(sent.aborted).toBe(false)
@@ -332,6 +371,7 @@ describe("the caller's deadline on a login", () => {
       false,
       "admin",
       "pw",
+      "",
       async () => "polled",
       caller.signal
     )
@@ -362,12 +402,12 @@ describe("the response body cap on the plain-text reads", () => {
 
   it("refuses a login body that runs past the cap", async () => {
     respondWith(200)
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.toThrow(REFUSAL)
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.toThrow(REFUSAL)
   })
 
   it("refuses a ban notice that runs past the cap", async () => {
     respondWith(403)
-    await expect(login("qbt.local", 8080, false, "admin", "pw")).rejects.toThrow(REFUSAL)
+    await expect(login("qbt.local", 8080, false, "admin", "pw", "")).rejects.toThrow(REFUSAL)
   })
 
   it("refuses a ban notice on a key client that runs past the cap", async () => {
@@ -391,7 +431,7 @@ describe("what the user sees when the transport refuses a response", () => {
     })
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(stream)))
 
-    const err = await login("qbt.local", 8080, false, "admin", "pw")
+    const err = await login("qbt.local", 8080, false, "admin", "pw", "")
       .then(() => null)
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
@@ -412,7 +452,7 @@ describe("what the user sees when the transport refuses a response", () => {
       } as unknown as Response)
     )
 
-    const err = await login("qbt.local", 8080, false, "admin", "pw")
+    const err = await login("qbt.local", 8080, false, "admin", "pw", "")
       .then(() => null)
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
@@ -431,10 +471,25 @@ describe("what the user sees when the transport refuses a response", () => {
         )
     )
 
-    const err = await login("qbt.local", 8080, false, "admin", "pw")
+    const err = await login("qbt.local", 8080, false, "admin", "pw", "")
       .then(() => null)
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
     expect(sanitizeNetworkError(err?.message ?? "")).toBe("qBittorrent redirected the request")
+  })
+
+  it("tells the user the API is not at this address rather than that the host went quiet", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("404 page not found", { status: 404 }))
+    )
+
+    const err = await login("qui.lan", 7476, false, "", "", "/proxi/key")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(sanitizeNetworkError(err?.message ?? "")).toBe(
+      "qBittorrent's API was not found at this address. Check the port and URL path"
+    )
   })
 })

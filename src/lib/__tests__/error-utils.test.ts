@@ -139,13 +139,23 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("ip ban detected")).toBe("IP temporarily banned by tracker")
   })
 
-  // The three qBittorrent auth outcomes below each need different user action,
-  // so they must stay distinct from each other and from the generic rules.
+  // The qBittorrent auth outcomes below each need different user action, so
+  // they must stay distinct from each other and from the generic rules.
   it("maps a blank-credential rejection to bypass guidance", () => {
     expect(
       sanitizeNetworkError("Authentication failed. qBittorrent rejected the blank credentials")
     ).toBe(
       'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
+    )
+  })
+
+  it("maps a blank login refused through a URL path to the proxy key, not the bypass", () => {
+    expect(
+      sanitizeNetworkError(
+        "Authentication failed. The login through the URL path was refused with blank credentials"
+      )
+    ).toBe(
+      "Blank login rejected through the URL path. For Qui, check the client API key in the path. Otherwise enter the qBittorrent username and password"
     )
   })
 
@@ -163,9 +173,9 @@ describe("sanitizeNetworkError", () => {
     ).toBe("Banned by qBittorrent after too many failed logins. It will clear on its own")
   })
 
-  // The three refusals the qBittorrent transport raises on a host that did
-  // answer. Each fell to the fallback, which isUnreachableMessage reads as a
-  // host that never answered, so the card blamed the network.
+  // What the qBittorrent transport raises on a host that did answer. Each fell
+  // to the fallback, which isUnreachableMessage reads as a host that never
+  // answered, so the card blamed the network.
   it("maps an oversized response body to its own message", () => {
     expect(
       sanitizeNetworkError("Response from qbt.local exceeded 67108864 bytes and was refused")
@@ -182,6 +192,18 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("qBittorrent API error: 307 Temporary Redirect")).toBe(
       "qBittorrent redirected the request"
     )
+  })
+
+  // Qui answers a wrong proxy prefix with 405 and a missing one with 404.
+  it("maps a 404 or 405 to an API that is not at this address", () => {
+    for (const raw of [
+      "qBittorrent API error: 404 Not Found",
+      "qBittorrent API error: 405 Method Not Allowed",
+    ]) {
+      expect(sanitizeNetworkError(raw)).toBe(
+        "qBittorrent's API was not found at this address. Check the port and URL path"
+      )
+    }
   })
 
   // The tracker proxy transport has a cap of its own, worded differently.

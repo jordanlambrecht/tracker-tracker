@@ -218,6 +218,9 @@ export const downloadClients = pgTable("download_clients", {
   encryptedPassword: text("encrypted_password").notNull(),
   // Encrypted qBittorrent WebUI API key. Empty string when authMethod is "password".
   encryptedApiKey: text("encrypted_api_key").default("").notNull(),
+  // Encrypted URL path prefix. Empty string when there is none. The path can
+  // carry a proxy key, so it is handled like the other credentials.
+  encryptedUrlPath: text("encrypted_url_path").default("").notNull(),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").array().default([]).notNull(),

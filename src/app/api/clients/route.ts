@@ -8,12 +8,14 @@ import {
   decodeKey,
   parseJsonBody,
   validateAuthMethod,
+  validateClientHost,
   validateIntRange,
   validateMaxLength,
   validatePort,
+  validateUrlPath,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
-import { sanitizeHost } from "@/lib/data-transforms"
+import { sanitizeHost, stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
@@ -59,6 +61,7 @@ export async function POST(request: Request) {
     pollIntervalSeconds,
     isDefault,
     crossSeedTags,
+    urlPath,
   } = body as {
     name?: string
     host?: string
@@ -72,6 +75,7 @@ export async function POST(request: Request) {
     pollIntervalSeconds?: number
     isDefault?: boolean
     crossSeedTags?: string[]
+    urlPath?: string
   }
 
   if (!name || !host) {
@@ -83,7 +87,8 @@ export async function POST(request: Request) {
     typeof host !== "string" ||
     (typeof username !== "undefined" && typeof username !== "string") ||
     (typeof password !== "undefined" && typeof password !== "string") ||
-    (typeof apiKey !== "undefined" && typeof apiKey !== "string")
+    (typeof apiKey !== "undefined" && typeof apiKey !== "string") ||
+    (typeof urlPath !== "undefined" && typeof urlPath !== "string")
   ) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
   }
@@ -120,10 +125,17 @@ export async function POST(request: Request) {
   const apiKeyErr = validateMaxLength(resolvedApiKey, CREDENTIAL_MAX, "API key")
   if (apiKeyErr) return apiKeyErr
 
+  const trimmedUrlPath = typeof urlPath === "string" ? urlPath.trim() : ""
+  const urlPathErr = validateUrlPath(trimmedUrlPath)
+  if (urlPathErr) return urlPathErr
+  const resolvedUrlPath = stripTrailingSlash(trimmedUrlPath)
+
   const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
     return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
   }
+  const clientHostErr = validateClientHost(sanitizedHost)
+  if (clientHostErr) return clientHostErr
 
   const resolvedType = typeof type === "string" ? type : "qbittorrent"
   if (!(VALID_CLIENT_TYPES as readonly string[]).includes(resolvedType)) {
@@ -154,6 +166,7 @@ export async function POST(request: Request) {
   const encryptedUsername = encrypt(resolvedUsername, key)
   const encryptedPassword = encrypt(resolvedPassword, key)
   const encryptedApiKey = resolvedApiKey ? encrypt(resolvedApiKey, key) : ""
+  const encryptedUrlPath = resolvedUrlPath ? encrypt(resolvedUrlPath, key) : ""
 
   const resolvedIsDefault = typeof isDefault === "boolean" ? isDefault : false
   const resolvedTags = Array.isArray(crossSeedTags) ? crossSeedTags : []
@@ -194,6 +207,7 @@ export async function POST(request: Request) {
           encryptedUsername,
           encryptedPassword,
           encryptedApiKey,
+          encryptedUrlPath,
           pollIntervalSeconds:
             typeof pollIntervalSeconds === "number"
               ? pollIntervalSeconds

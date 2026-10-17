@@ -217,6 +217,7 @@ export type SafeDownloadClient = Omit<
   | "encryptedUsername"
   | "encryptedPassword"
   | "encryptedApiKey"
+  | "encryptedUrlPath"
   | "cachedTorrents"
   | "cachedTorrentsAt"
   | "lastPolledAt"
@@ -225,6 +226,7 @@ export type SafeDownloadClient = Omit<
   | "updatedAt"
 > & {
   hasCredentials: boolean
+  hasUrlPath: boolean
   lastPolledAt: string | null
   errorSince: string | null
   createdAt: string

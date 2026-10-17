@@ -3,6 +3,7 @@ import "server-only"
 
 import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
+import { decryptClientUrlPath } from "./credentials"
 import { createAdapterForClient } from "./factory"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
 import { buildBaseUrl } from "./qbt/transport"
@@ -51,7 +52,10 @@ async function fetchClientTorrents(
   filter?: string,
   signal?: AbortSignal
 ): Promise<TorrentRecord[]> {
-  const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
+  // The same URL the scheduler stores under. A path that will not decrypt
+  // throws here exactly as it would building the adapter on the cold path.
+  const urlPath = decryptClientUrlPath(client, key)
+  const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl, urlPath)
 
   // Fast path: store is warm from scheduler, serve from memory.
   // Falls back to live fetch if store is stale (i.e. scheduler missed 2+ cycles).

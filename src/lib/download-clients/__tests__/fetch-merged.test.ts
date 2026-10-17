@@ -5,6 +5,7 @@
 //   makeTorrent - Build a minimal TorrentRecord for tests
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { encrypt } from "@/lib/crypto"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { fetchAndMergeTorrents } from "../fetch"
 import type { DownloadClientRow } from "../types"
@@ -66,6 +67,7 @@ function makeClient(overrides: Partial<DownloadClientRow> = {}): DownloadClientR
     encryptedUsername: "enc-admin",
     encryptedPassword: "enc-pass",
     encryptedApiKey: "",
+    encryptedUrlPath: "",
     crossSeedTags: null,
     type: "qbittorrent",
     ...overrides,
@@ -185,7 +187,7 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(buildBaseUrl).toHaveBeenCalledWith("localhost", 8080, false)
+    expect(buildBaseUrl).toHaveBeenCalledWith("localhost", 8080, false, "")
     expect(isStoreFresh).toHaveBeenCalledWith("http://localhost:8080", expect.any(Number))
   })
 
@@ -225,6 +227,54 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     )
 
     expect(result.clientCount).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A client behind a URL path
+//
+// The scheduler keys the sync store by the adapter's baseUrl, which carries
+// the path. A lookup that leaves the path off misses the store every time.
+// ---------------------------------------------------------------------------
+
+describe("fetchAndMergeTorrents — a client behind a URL path", () => {
+  const PATH_URL = "http://localhost:8080/proxy/qui-client-key"
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(buildBaseUrl).mockImplementation(
+      (host: string, port: number, ssl: boolean, urlPath: string) =>
+        `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
+    )
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
+  })
+
+  it("serves the store kept under the full path URL without building an adapter", async () => {
+    vi.mocked(isStoreFresh).mockImplementation((url: string) => url === PATH_URL)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (url: string, pred: (t: TorrentRecord) => boolean) =>
+        url === PATH_URL ? [makeTorrent("h1", { tags: "aither" })].filter(pred) : []
+    )
+    const client = makeClient({ encryptedUrlPath: encrypt("/proxy/qui-client-key", makeKey()) })
+
+    const result = await fetchAndMergeTorrents([client], ["aither"], makeKey())
+
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(result.torrents.map((t) => t.hash)).toEqual(["h1"])
+  })
+
+  it("reports a path the session key cannot decrypt as a stale session", async () => {
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    const staleKey = Buffer.alloc(32, 0xcd)
+    const client = makeClient({ encryptedUrlPath: encrypt("/proxy/qui-client-key", staleKey) })
+
+    const result = await fetchAndMergeTorrents([client], ["aither"], makeKey())
+
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(result.sessionExpired).toBe(true)
+    expect(result.clientErrors).toEqual(["Home qBT: Credential decryption failed"])
   })
 })
 

@@ -122,6 +122,7 @@ const MOCK_CLIENT = {
   useSsl: false,
   encryptedUsername: "enc-admin",
   encryptedPassword: "enc-secret",
+  encryptedUrlPath: "",
   pollIntervalSeconds: 30,
   isDefault: true,
   crossSeedTags: ["cross-seed"],
@@ -994,6 +995,7 @@ describe("heartbeat failure logging", () => {
     encryptedUsername: "enc-admin",
     encryptedPassword: "enc-secret",
     encryptedApiKey: "",
+    encryptedUrlPath: "",
     crossSeedTags: null,
     lastError: null,
   }

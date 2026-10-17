@@ -101,6 +101,7 @@ export const BACKUP_CLIENT_COLUMNS = {
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
   encryptedApiKey: downloadClients.encryptedApiKey,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -505,7 +506,9 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     assertString(c.host, `${prefix}.host`)
     // Restore is the third writer of downloadClients.host. Both API routes
     // gate it on PROXY_HOST_PATTERN; without the same gate here a restored
-    // backup could seed a host the routes would have refused.
+    // backup could seed a host the routes would have refused. Their
+    // validateClientHost is left out on purpose: it guards a mistake that only
+    // breaks polling, and here one such row would refuse the whole backup.
     if (!PROXY_HOST_PATTERN.test(c.host as string)) {
       throw new Error(`Backup validation: ${prefix}.host contains invalid characters`)
     }
@@ -524,6 +527,9 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
     if (typeof c.encryptedApiKey !== "undefined") {
       assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
+    }
+    if (typeof c.encryptedUrlPath !== "undefined") {
+      assertString(c.encryptedUrlPath, `${prefix}.encryptedUrlPath`)
     }
   }
 

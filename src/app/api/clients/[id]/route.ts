@@ -9,15 +9,22 @@ import {
   parseRouteId,
   type RouteContext,
   validateAuthMethod,
+  validateClientHost,
   validateIntRange,
   validateMaxLength,
   validatePort,
+  validateUrlPath,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
-import { sanitizeHost } from "@/lib/data-transforms"
+import { sanitizeHost, stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { type AuthMethod, VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import {
+  type AuthMethod,
+  CLIENT_CONNECTION_COLUMNS,
+  disposeClient,
+  VALID_CLIENT_TYPES,
+} from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
 import { clearFailureLogKeysForClient } from "@/lib/failure-log-gate"
 import {
@@ -42,9 +49,14 @@ export async function PATCH(request: Request, props: RouteContext) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  // Existence check before applying any updates
+  // Existence check before applying any updates. The connection columns are
+  // what an address change below has to clear the scheduler's caches under.
   const [existing] = await db
-    .select({ id: downloadClients.id })
+    .select({
+      ...CLIENT_CONNECTION_COLUMNS,
+      type: downloadClients.type,
+      crossSeedTags: downloadClients.crossSeedTags,
+    })
     .from(downloadClients)
     .where(eq(downloadClients.id, clientId))
     .limit(1)
@@ -54,7 +66,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   const updates: Record<string, unknown> = { updatedAt: new Date() }
-  // Decoded lazily, only computed when username or password update is present
+  // Decoded lazily, only when something needs the key
   let cachedKey: Buffer | null = null
   const getKey = () => {
     if (!cachedKey) cachedKey = decodeKey(auth)
@@ -74,6 +86,8 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
       return NextResponse.json({ error: "Invalid host format" }, { status: 400 })
     }
+    const clientHostErr = validateClientHost(sanitizedHost)
+    if (clientHostErr) return clientHostErr
     updates.host = sanitizedHost
   }
 
@@ -204,6 +218,16 @@ export async function PATCH(request: Request, props: RouteContext) {
       break
   }
 
+  // URL path is independent of auth mode. It is encrypted only when supplied,
+  // and omitting it leaves the stored ciphertext untouched.
+  if (typeof body.urlPath === "string") {
+    const trimmedUrlPath = body.urlPath.trim()
+    const urlPathErr = validateUrlPath(trimmedUrlPath)
+    if (urlPathErr) return urlPathErr
+    const storedUrlPath = stripTrailingSlash(trimmedUrlPath)
+    updates.encryptedUrlPath = storedUrlPath ? encrypt(storedUrlPath, getKey()) : ""
+  }
+
   if (body.isDefault === true) {
     updates.isDefault = true
   } else if (body.isDefault === false) {
@@ -217,7 +241,6 @@ export async function PATCH(request: Request, props: RouteContext) {
       }
       await tx.update(downloadClients).set(updates).where(eq(downloadClients.id, clientId))
     })
-    return NextResponse.json({ success: true })
   } catch (err) {
     log.error(
       { route: "PATCH /api/clients/[id]", clientId, error: errMsg(err) },
@@ -225,6 +248,15 @@ export async function PATCH(request: Request, props: RouteContext) {
     )
     return NextResponse.json({ error: "Failed to update download client" }, { status: 500 })
   }
+
+  // The scheduler caches a session, auth blocks and a torrent store under the
+  // client's URL, and a new address would strand them there. Best effort: a
+  // poll already in flight against the old URL can still re-create them.
+  const addressChanged = ["host", "port", "useSsl", "encryptedUrlPath"].some(
+    (column) => column in updates
+  )
+  if (addressChanged) disposeClient(existing, getKey())
+  return NextResponse.json({ success: true })
 }
 
 export async function DELETE(_request: Request, props: RouteContext) {
@@ -270,6 +302,7 @@ export async function DELETE(_request: Request, props: RouteContext) {
       }
     }
   })
+  disposeClient(target, decodeKey(auth))
 
   log.info({ route: "DELETE /api/clients/[id]", clientId }, "download client deleted")
   return NextResponse.json({ success: true })

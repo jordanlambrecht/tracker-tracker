@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { createAdapterForClient } from "@/lib/download-clients"
+import { createAdapterForClient, disposeClient } from "@/lib/download-clients"
 import { CREDENTIAL_MAX } from "@/lib/limits"
-import { PATCH } from "./[id]/route"
+import { DELETE, PATCH } from "./[id]/route"
 import { GET } from "./[id]/torrents/route"
 import { POST } from "./route"
 
@@ -43,7 +43,9 @@ const mockAdapter = {
 }
 
 vi.mock("@/lib/download-clients", () => ({
+  CLIENT_CONNECTION_COLUMNS: {},
   createAdapterForClient: vi.fn(() => mockAdapter),
+  disposeClient: vi.fn(),
   VALID_CLIENT_TYPES: ["qbittorrent", "deluge", "transmission", "rtorrent"],
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
@@ -72,6 +74,7 @@ const MOCK_CLIENT = {
   useSsl: false,
   encryptedUsername: "enc-admin",
   encryptedPassword: "enc-secret",
+  encryptedUrlPath: "",
   pollIntervalSeconds: 30,
   isDefault: true,
   crossSeedTags: ["cross-seed"],
@@ -539,6 +542,55 @@ describe("POST /api/clients", () => {
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/authMethod must be one of/)
   })
+
+  it("stores a URL path encrypted and never returns it", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        username: "admin",
+        password: "pw",
+        urlPath: "/user-example/example/proxy",
+      })
+    )
+
+    expect(res.status).toBe(201)
+    expect(inserted?.encryptedUrlPath).not.toBe("")
+    expect(JSON.stringify(inserted)).not.toContain("/user-example/example/proxy")
+    expect(
+      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
+    ).toBe("/user-example/example/proxy")
+  })
+
+  it("rejects a URL path with parent-directory segments", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        urlPath: "/user-example/../example/proxy",
+      })
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/must be a plain path/)
+  })
+
+  it("stores a URL path without its trailing slash", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", urlPath: "/qbt/" }))
+
+    expect(res.status).toBe(201)
+    expect(
+      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
+    ).toBe("/qbt")
+  })
+
+  it("rejects a host carrying its own port", async () => {
+    const res = await POST(postBody({ name: "Qui", host: "qui:7476", urlPath: "/proxy/k" }))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/Host must not include a port/)
+    expect(inserted).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -657,5 +709,102 @@ describe("PATCH /api/clients/[id] credential handling", () => {
     expect(updates).not.toHaveProperty("authMethod")
     expect(updates).not.toHaveProperty("encryptedPassword")
     expect(updates).not.toHaveProperty("encryptedApiKey")
+  })
+
+  it("encrypts a URL path when supplied", async () => {
+    const res = await PATCH(patchBody({ urlPath: "/user-example/example/proxy" }), routeProps)
+
+    expect(res.status).toBe(200)
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedUrlPath as string, key)).toBe("/user-example/example/proxy")
+  })
+
+  it("stores a URL path without its trailing slash", async () => {
+    const res = await PATCH(patchBody({ urlPath: "/qbt/" }), routeProps)
+
+    expect(res.status).toBe(200)
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedUrlPath as string, key)).toBe("/qbt")
+  })
+
+  it("leaves the stored URL path alone when the patch omits it", async () => {
+    const res = await PATCH(patchBody({ name: "Renamed" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.name).toBe("Renamed")
+    expect(updates).not.toHaveProperty("encryptedUrlPath")
+  })
+
+  it("clears a URL path when an empty string is supplied", async () => {
+    const res = await PATCH(patchBody({ urlPath: "" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.encryptedUrlPath).toBe("")
+  })
+
+  it("rejects a host carrying its own port", async () => {
+    const res = await PATCH(patchBody({ host: "qui:7476" }), routeProps)
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/Host must not include a port/)
+    expect(updates).toBeNull()
+  })
+
+  // The scheduler keys its session, auth blocks and torrent store by the
+  // client's URL, so a new address strands what was cached under the old one.
+  it("drops what was cached under the old address when the host changes", async () => {
+    const res = await PATCH(patchBody({ host: "10.0.0.5" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).toHaveBeenCalledWith(
+      expect.objectContaining({ host: "192.168.1.100" }),
+      Buffer.from(VALID_KEY, "hex")
+    )
+  })
+
+  it.each([
+    ["the URL path", { urlPath: "/proxy/new-key" }],
+    ["the port", { port: 9090 }],
+    ["SSL", { useSsl: true }],
+  ])("drops it when %s changes", async (_, patch) => {
+    const res = await PATCH(patchBody(patch), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps it when the patch leaves the address alone", async () => {
+    const res = await PATCH(
+      patchBody({ name: "Renamed", username: "admin", password: "pw" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).not.toHaveBeenCalled()
+  })
+})
+
+describe("DELETE /api/clients/[id]", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: VALID_KEY })
+    mockDbSelectClient({ ...MOCK_CLIENT, isDefault: false })
+    ;(db as unknown as { transaction: ReturnType<typeof vi.fn> }).transaction = vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({ delete: () => ({ where: async () => undefined }) })
+      )
+  })
+
+  it("drops what was cached under the deleted client's URL", async () => {
+    const res = await DELETE(new Request("http://localhost/api/clients/1", { method: "DELETE" }), {
+      params: Promise.resolve({ id: "1" }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).toHaveBeenCalledWith(
+      expect.objectContaining({ host: "192.168.1.100" }),
+      Buffer.from(VALID_KEY, "hex")
+    )
   })
 })
