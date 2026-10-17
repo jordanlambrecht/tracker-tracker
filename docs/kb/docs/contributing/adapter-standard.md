@@ -433,8 +433,8 @@ rule is aspirational when it is already green.
 test files. Two enforcers means the weaker one gets edited when it fires.
 
 **Done**, in `__tests__/conformance.test.ts`. Failures name the file and the matched text so the
-message teaches the rule. Two allowlist entries survive, each with its reason written next to it:
-DigitalCore's hand-rolled credential parser, and MAM's category sum. Adding a third means writing
+message teaches the rule. Each allowlist entry carries its reason next to it: DigitalCore's
+hand-rolled credential parser, MAM's category sum and TR4KER's null bonus. Adding one means writing
 down why, which is the whole point.
 
 ### 7.4 A null-contract test generated from the source

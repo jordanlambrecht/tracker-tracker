@@ -1,8 +1,8 @@
 // src/lib/tracker-platforms/adapters/tr4ker.ts
 //
-// Functions: tr4kerClassName, bonusBytes, Tr4kerAdapter
+// Functions: tr4kerClassName, bonusBytes, creditedTotals, pollError, Tr4kerAdapter
 
-import { computeBufferBytes, computeRatio, floatBytesToBigInt } from "@/lib/data-transforms"
+import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "../contract"
 import { adapterFetch } from "../helpers/adapter-fetch"
 import { requireBytes } from "../helpers/bytes"
@@ -26,10 +26,8 @@ interface Tr4kerApiResponse {
   last_seen_at?: string
 }
 
-// TR4KER sends a lowercased role id ("user", "uploader_herbe"). The site shows
-// a French class name, and the registry ladder matches class names exactly, so
-// map the id to the label the site displays. An unknown or absent role reports
-// "Unknown" rather than a name that reads as a real class.
+// The site shows each role id as a French class name, the name the registry
+// ladder lists. An id missing here shows as sent.
 const ROLE_LABELS: Record<string, string> = {
   user: "Membre",
   helper: "Helper",
@@ -41,18 +39,51 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Administrateur",
 }
 
-function tr4kerClassName(role: string | undefined): string {
-  const key = role?.trim().toLowerCase()
-  return key ? (ROLE_LABELS[key] ?? "Unknown") : "Unknown"
+function tr4kerClassName(role: unknown): string {
+  const id = typeof role === "string" ? role.trim() : ""
+  if (id === "") return "Unknown"
+  const key = id.toLowerCase()
+  return Object.hasOwn(ROLE_LABELS, key) ? ROLE_LABELS[key] : id
 }
 
 /**
- * Bonus credit as a bigint. TR4KER folds bonus_upload and bonus_download into
- * the ratio it displays, so they are added before the ratio is computed. An
- * absent bonus is genuinely zero: no credit was granted.
+ * A bonus figure as a bigint. TR4KER's pages add a null bonus as nothing, so
+ * null counts as no bonus; an absent key or a non-number fails the poll the way
+ * a byte total does.
  */
-function bonusBytes(value: unknown): bigint {
-  return typeof value === "number" && Number.isFinite(value) ? floatBytesToBigInt(value) : 0n
+function bonusBytes(value: unknown, field: string, hostname: string): bigint {
+  if (value === undefined) {
+    throw new Error(`Unexpected response from ${hostname}: missing ${field}`)
+  }
+  return requireBytes(value ?? 0, field, hostname)
+}
+
+/**
+ * Upload and download as TR4KER shows them, with the bonus added. The site
+ * computes its ratio from these, so the ratio and buffer follow from them.
+ */
+function creditedTotals(
+  data: Tr4kerApiResponse,
+  hostname: string
+): { uploadedBytes: bigint; downloadedBytes: bigint } {
+  return {
+    uploadedBytes:
+      requireBytes(data.uploaded, "uploaded", hostname) +
+      bonusBytes(data.bonus_upload, "bonus_upload", hostname),
+    downloadedBytes:
+      requireBytes(data.downloaded, "downloaded", hostname) +
+      bonusBytes(data.bonus_download, "bonus_download", hostname),
+  }
+}
+
+/** The message fetchStats fails the poll with for this body, or null. */
+function pollError(data: Tr4kerApiResponse, hostname: string): string | null {
+  try {
+    creditedTotals(data, hostname)
+    return null
+  } catch (err) {
+    return err instanceof Error ? err.message : "Request failed"
+  }
 }
 
 export class Tr4kerAdapter implements TrackerAdapter {
@@ -69,27 +100,14 @@ export class Tr4kerAdapter implements TrackerAdapter {
       "X-Api-Key": apiToken,
     })
 
-    // Byte totals are non-nullable on TrackerStats; an absent value must fail
-    // the poll rather than store a measured zero (adapter standard 2.1).
-    const uploadedBytes = requireBytes(data.uploaded, "uploaded", hostname)
-    const downloadedBytes = requireBytes(data.downloaded, "downloaded", hostname)
-
-    // TR4KER's profile ratio folds in the bonus credit: the site computes
-    // (uploaded + bonus_upload) / (downloaded + bonus_download). Compute the
-    // same ratio here so the app's ratio and the 0.5 minimum-ratio warning
-    // agree with the site, while the stored totals stay the raw figures the
-    // profile shows (adapter standard 2.3 allows a documented deviation).
-    const ratio = computeRatio(
-      uploadedBytes + bonusBytes(data.bonus_upload),
-      downloadedBytes + bonusBytes(data.bonus_download)
-    )
+    const { uploadedBytes, downloadedBytes } = creditedTotals(data, hostname)
 
     return {
       username: data.username ?? "",
       group: tr4kerClassName(data.role),
       uploadedBytes,
       downloadedBytes,
-      ratio,
+      ratio: computeRatio(uploadedBytes, downloadedBytes),
       bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
       seedingCount: null,
       leechingCount: null,
@@ -115,22 +133,12 @@ export class Tr4kerAdapter implements TrackerAdapter {
     const url = new URL(apiPath, baseUrl).toString()
 
     try {
-      const data = await adapterFetch<Record<string, unknown>>(url, hostname, options, {
+      const data = await adapterFetch<Tr4kerApiResponse>(url, hostname, options, {
         "X-Api-Key": apiToken,
       })
-      // fetchStats fails the poll when a byte total is absent, so reporting the
-      // same body as healthy here would hide that (adapter standard 2.6).
-      const missingBytes = data.uploaded == null || data.downloaded == null
-      return [
-        {
-          label: "User Stats",
-          endpoint: apiPath,
-          data,
-          error: missingBytes
-            ? `Unexpected response from ${hostname}: missing uploaded or downloaded`
-            : null,
-        },
-      ]
+      // A body fetchStats would fail must not read as healthy here (adapter
+      // standard 2.6).
+      return [{ label: "User Stats", endpoint: apiPath, data, error: pollError(data, hostname) }]
     } catch (err) {
       return [
         {

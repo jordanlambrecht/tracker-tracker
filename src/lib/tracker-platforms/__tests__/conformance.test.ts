@@ -87,6 +87,9 @@ describe("tracker-platforms source conformance", () => {
       // above it, so a category the response omitted contributes nothing to a
       // total that is itself null when every category is absent.
       "src/lib/tracker-platforms/adapters/mam.ts",
+      // A JSON null bonus counts as no bonus, the way TR4KER's own pages add it
+      // to the totals; an absent bonus key fails the poll before the default.
+      "src/lib/tracker-platforms/adapters/tr4ker.ts",
     ])
     // `?? 0n` is in scope: a byte total is non-nullable bigint, so an adapter that
     // cannot read one throws rather than storing a measured zero (standard 2.1).
