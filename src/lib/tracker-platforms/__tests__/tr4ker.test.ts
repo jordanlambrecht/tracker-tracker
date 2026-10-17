@@ -35,10 +35,15 @@ describe("Tr4kerAdapter", () => {
     const stats = await adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")
 
     expect(stats.username).toBe("example-user")
-    expect(stats.group).toBe("User")
+    expect(stats.group).toBe("Membre")
     expect(stats.uploadedBytes).toBe(1234567890123n)
     expect(stats.downloadedBytes).toBe(234567890123n)
-    expect(stats.ratio).toBeCloseTo(1234567890123 / 234567890123, 4)
+    // TR4KER folds the bonus into the ratio it displays, so the reported ratio
+    // is bonus-inclusive while the byte totals stay raw.
+    expect(stats.ratio).toBeCloseTo(
+      (1234567890123 + 10737418240) / (234567890123 + 1073741824),
+      4
+    )
     expect(stats.bufferBytes).toBe(1234567890123n - 234567890123n)
     expect(stats.seedbonus).toBe(4242)
     expect(stats.remoteUserId).toBe(123456)
@@ -47,19 +52,24 @@ describe("Tr4kerAdapter", () => {
     expect(stats.avatarUrl).toBeUndefined()
   })
 
-  it("title-cases the role and falls back to User when missing", async () => {
+  it("maps the role id to the site's class name and reports Unknown when absent", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
-      okResponse({ ...LIVE_RESPONSE, role: "vip" })
+      okResponse({ ...LIVE_RESPONSE, role: "uploader_herbe" })
     )
-
     const stats = await adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")
-    expect(stats.group).toBe("Vip")
+    expect(stats.group).toBe("Uploader en herbe")
+
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      okResponse({ ...LIVE_RESPONSE, role: "unmapped_role" })
+    )
+    const unmapped = await adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")
+    expect(unmapped.group).toBe("Unknown")
 
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       okResponse({ ...LIVE_RESPONSE, role: undefined })
     )
-    const fallback = await adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")
-    expect(fallback.group).toBe("User")
+    const missing = await adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")
+    expect(missing.group).toBe("Unknown")
   })
 
   it("rejects a missing byte total instead of reading it as zero", async () => {
@@ -161,5 +171,18 @@ describe("Tr4kerAdapter - fetchRaw", () => {
     expect(calls[0].data).toBeNull()
     expect(calls[0].error).toBeTruthy()
     expect(calls[0].endpoint).toBe("/api/me")
+  })
+
+  it("flags a 200 with no byte total, matching fetchStats (standard 2.6)", async () => {
+    const { uploaded: _dropped, ...body } = LIVE_RESPONSE
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(okResponse(body))
+
+    const calls = await adapter.fetchRaw("https://tr4ker.net", "token", "/api/me")
+
+    expect(calls[0].error).toBe(
+      "Unexpected response from tr4ker.net: missing uploaded or downloaded"
+    )
+    // The offending body stays in data for the debug view.
+    expect(calls[0].data).toEqual(body)
   })
 })

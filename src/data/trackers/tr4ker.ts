@@ -9,7 +9,7 @@ export const tr4ker: TrackerRegistryEntry = {
   abbreviation: "TR4K",
   url: "https://tr4ker.net",
   description:
-    "French private general tracker covering movies, TV, music, games, apps, and books. Invite-only.",
+    "French private general tracker covering movies, TV, music, games, apps, and books.",
 
   // -- Platform & API ---------------------------------------------------
   platform: "tr4ker",
@@ -38,6 +38,31 @@ export const tr4ker: TrackerRegistryEntry = {
     {
       name: "Uploader",
       requirements: "Automatic, after 7 days and 100 uploads",
+    },
+    {
+      name: "Helper",
+      requirements: "Granted by staff",
+      outsideLadder: "above",
+    },
+    {
+      name: "Contributeur",
+      requirements: "Granted by staff",
+      outsideLadder: "above",
+    },
+    {
+      name: "Team",
+      requirements: "Automatic for members of a release team",
+      outsideLadder: "above",
+    },
+    {
+      name: "Modérateur",
+      requirements: "Staff",
+      outsideLadder: "above",
+    },
+    {
+      name: "Administrateur",
+      requirements: "Staff",
+      outsideLadder: "above",
     },
   ],
   releaseGroups: [],
