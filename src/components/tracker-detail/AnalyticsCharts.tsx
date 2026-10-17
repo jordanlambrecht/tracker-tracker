@@ -81,7 +81,12 @@ export function AnalyticsCharts({
           trackerColor={tc}
           className="flex flex-col gap-4"
         >
-          <MetricChart metric="seedbonus" snapshots={snapshots} accentColor={tc} />
+          <MetricChart
+            metric="seedbonus"
+            snapshots={snapshots}
+            accentColor={tc}
+            bonusName={bonusName}
+          />
         </Card>
 
         {/* GGn Share Score chart */}

@@ -58,6 +58,7 @@ export const mytracker: TrackerRegistryEntry = {
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#000000", // hex accent color for the tracker's detail page
   logo: "", // "/tracker-logos/mytracker_logo.svg". File must exist in public/ or "" if none
+  // bonusName: "TL Points", // optional. The tracker's own name for bonus points. Omit if it says seedbonus
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "", // slug on trackerhub.xyz, if listed. "" if none

@@ -92,7 +92,10 @@ export interface TrackerRegistryEntry {
   logo?: string
   trackerHubSlug?: string
   statusPageUrl?: string
-  /** The tracker's own name for bonus points, e.g. "Yen" */
+  /**
+   * The tracker's own name for its bonus points, like TorrentLeech's "TL Points".
+   * It replaces "Seedbonus" and "BON". Read it through registryBonusName().
+   */
   bonusName?: string
   draft?: boolean
   warning?: boolean
@@ -148,6 +151,14 @@ export function registryEntryFor(tracker: {
   registrySlug: string | null
 }): TrackerRegistryEntry | undefined {
   return tracker.registrySlug ? getTrackerBySlug(tracker.registrySlug) : undefined
+}
+
+/**
+ * An entry's own name for its bonus points, or undefined for none. "" is none
+ * too: the guide's general rule has entries write "" for a field they do not use.
+ */
+export function registryBonusName(entry: TrackerRegistryEntry | undefined): string | undefined {
+  return entry?.bonusName || undefined
 }
 
 /**

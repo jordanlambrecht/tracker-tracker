@@ -26,11 +26,12 @@ bannedGroups: [] // not: bannedGroups: undefined
 warning: false // not: warning: undefined
 ```
 
-**Three exceptions:**
+**Four exceptions:**
 
 1. Omit the `stats` block entirely when you don't have real data. Don't include it with `undefined` values.
 2. `rules.fulfillmentPeriodHours`, `rules.hnrBanLimit`, and `rules.fullRulesMarkdown` are truly optional, so omit them when unknown.
 3. Platform-specific fields (`gazelleAuthStyle`, `gazelleEnrich`, `unit3dAuthStyle`) only belong in tracker files for their own platform. Don't add them to other trackers.
+4. `bonusName` is optional. Set it only when the tracker calls its bonus points something other than seedbonus.
 
 ---
 
@@ -103,6 +104,7 @@ export const mytracker: TrackerRegistryEntry = {
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#000000", // hex accent color for the tracker's detail page
   logo: "", // "/tracker-logos/mytracker_logo.svg", file must exist in public/, "" if none
+  // bonusName: "TL Points", // optional, the tracker's own name for bonus points, omit if it says seedbonus
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "", // slug on trackerhub.xyz, if listed, "" if none
@@ -366,6 +368,16 @@ Path to the tracker's logo file in `public/`. Only set this if the file exists. 
 logo: "/tracker-logos/aither_logo.svg"
 logo: "/tracker-logos/nebulance_logo.png"
 logo: ""
+```
+
+#### `bonusName`
+
+Type: `string`
+
+Optional. The tracker's own name for its bonus points. It replaces "Seedbonus" and the "BON" unit on the tracker's bonus card and chart. Omit it if the tracker calls them seedbonus or BON.
+
+```typescript
+bonusName: "TL Points"
 ```
 
 ---

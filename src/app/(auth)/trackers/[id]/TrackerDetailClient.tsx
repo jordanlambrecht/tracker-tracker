@@ -17,7 +17,7 @@ import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
-import { registryEntryFor } from "@/data/tracker-registry"
+import { registryBonusName, registryEntryFor } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { hexToRgba } from "@/lib/color-utils"
 import { computeDelta } from "@/lib/data-transforms"
@@ -339,7 +339,7 @@ export function TrackerDetailClient({
           onDaysChange={setDays}
           delta={delta}
           minimumRatio={registryEntry?.rules?.minimumRatio}
-          bonusName={registryEntry?.bonusName}
+          bonusName={registryBonusName(registryEntry)}
           statCardSlots={statCardSlots}
           progressSlots={progressSlots}
         />

@@ -35,6 +35,7 @@ import type {
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
+import { registryBonusName } from "@/data/tracker-registry"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/types/slots"
 import { metaFor } from "@/types/tracker-stats"
@@ -144,7 +145,7 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   resolve(ctx) {
     if (ctx.latestSnapshot?.seedbonus == null) return null
     if (metaFor(ctx, "ggn") || metaFor(ctx, "gazelle") || metaFor(ctx, "nebulance")) return null
-    const bonusName = ctx.registry?.bonusName
+    const bonusName = registryBonusName(ctx.registry)
     return {
       label: bonusName ?? "Seedbonus",
       value: formatCount(Math.floor(ctx.latestSnapshot.seedbonus)),

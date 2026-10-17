@@ -23,6 +23,7 @@ export const torrentleech: TrackerRegistryEntry = {
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#2ecc71",
   logo: "/tracker-logos/torrentleech_logo.png",
+  bonusName: "TL Points",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "torrent-leech",

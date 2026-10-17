@@ -70,6 +70,8 @@ interface MetricChartProps {
   accentColor?: string
   height?: number
   baselineValue?: number
+  /** The tracker's own name for its bonus points; names the seedbonus series, axis and tooltip unit. */
+  bonusName?: string
 }
 
 // ── Metric configuration map ──
@@ -109,6 +111,11 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
     getValue: (s) => s.freeleechTokens,
     isInteger: true,
   },
+}
+
+function configFor(metric: Exclude<Metric, "dailyDelta">, bonusName?: string): MetricConfig {
+  const config = METRIC_CONFIGS[metric]
+  return metric === "seedbonus" && bonusName ? { ...config, label: bonusName, unit: bonusName } : config
 }
 
 const BORDER_SOFT = CHART_THEME.gridLine
@@ -384,6 +391,7 @@ function MetricChart({
   accentColor = CHART_THEME.accent,
   height = 350,
   baselineValue,
+  bonusName,
 }: MetricChartProps) {
   const [deltaMode, setDeltaMode] = useState<DeltaMode>("bar")
   // Tracker snapshots: app bands only. A download-client outage cannot flatten
@@ -392,7 +400,7 @@ function MetricChart({
 
   const safeAccent = isValidHex(accentColor) ? accentColor : CHART_THEME.accent
 
-  const config = metric !== "dailyDelta" ? METRIC_CONFIGS[metric] : null
+  const config = metric !== "dailyDelta" ? configFor(metric, bonusName) : null
   const ratioValues = config
     ? snapshots.map((s) => config.getValue(s)).filter((v): v is number => v !== null && v > 0)
     : []
@@ -423,11 +431,11 @@ function MetricChart({
   }
 
   const baseOption =
-    metric === "dailyDelta"
+    config === null
       ? buildDailyDeltaOption(snapshots, safeAccent, deltaMode)
       : buildLineOption(
           snapshots,
-          METRIC_CONFIGS[metric],
+          config,
           safeAccent,
           metric === "ratio" ? baselineValue : undefined,
           showLogToggle ? logScale.effectiveLog : undefined
