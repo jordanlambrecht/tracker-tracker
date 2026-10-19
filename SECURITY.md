@@ -276,7 +276,7 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 
 #### Data Handling
 
-- **Encrypted fields travel as ciphertext**: `encryptedApiToken`, `encryptedCredentials`, `encryptedMouseholeToken`, `totpSecret`, `encryptedProxyPassword`, `encryptedUsername`, `encryptedPassword` are never decrypted during backup generation.
+- **Encrypted fields travel as ciphertext**: `encryptedApiToken`, `encryptedCredentials`, `encryptedMouseholeToken`, `totpSecret`, `encryptedProxyPassword`, `encryptedUsername`, `encryptedPassword`, `encryptedUrlPath` are never decrypted during backup generation.
 - **Password hash excluded**: `app_settings.password_hash` is never included in backup files. The restoring user's current password is preserved.
 - **Encryption salt included**: required to re-derive the encryption key from the master password after restore.
 - **Failed login counter reset**: `failedLoginAttempts` is always set to 0 on restore, regardless of the backup's value.
@@ -472,7 +472,7 @@ npx tsx scripts/security-audit.ts     # Static security audit (28 checks)
 - [ ] API tokens stored via `encrypt()` from `src/lib/crypto.ts`, never plaintext in the database
 - [ ] `encryptedApiToken` excluded from ALL API response objects (grep for `// SECURITY` comments)
 - [ ] `passwordHash` never included in API responses or backup exports
-- [ ] Encrypted credentials (`encryptedUsername`, `encryptedPassword`, `encryptedProxyPassword`) excluded from responses
+- [ ] Encrypted credentials (`encryptedUsername`, `encryptedPassword`, `encryptedProxyPassword`, `encryptedUrlPath`) excluded from responses
 - [ ] Password change route re-encrypts all secrets with the new derived key
 - [ ] `SESSION_SECRET` is at least 32 characters (checked at startup)
 - [ ] No secrets in `console.log`, `console.error`, or logger calls, hostnames only and never full URLs with tokens

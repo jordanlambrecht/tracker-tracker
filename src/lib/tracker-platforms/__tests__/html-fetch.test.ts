@@ -1,5 +1,6 @@
 // src/lib/tracker-platforms/__tests__/html-fetch.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
 
@@ -206,12 +207,12 @@ describe("fetchTrackerHtml - redirects", () => {
     ).rejects.toThrow("Too many redirects from ExampleTracker")
   })
 
-  it("stops on a redirect with no Location header", async () => {
+  it("stops on a redirect with no Location header, which is a malformed reply and no loop", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(redirectResponse(""))
 
     await expect(
       fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
-    ).rejects.toThrow("Too many redirects from ExampleTracker")
+    ).rejects.toThrow("Unexpected response from tracker.example: redirect with no Location")
   })
 })
 
@@ -220,7 +221,22 @@ describe("fetchTrackerHtml - errors", () => {
     vi.restoreAllMocks()
   })
 
-  it("falls back to a tracker-labelled message for an unrecognized status", async () => {
+  // The scheduler sanitizes the thrown message once, so the card text is what
+  // that one pass makes of it.
+  async function cardFor(status: number, statusText: string): Promise<string> {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status,
+      statusText,
+      headers: { get: () => null },
+    } as unknown as Response)
+    const err = await fetchTrackerHtml(BASE)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+    return sanitizeNetworkError(err?.message ?? "", "Poll failed")
+  }
+
+  it("words a failed status the way adapterFetch does", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -228,18 +244,19 @@ describe("fetchTrackerHtml - errors", () => {
       headers: { get: () => null },
     } as unknown as Response)
 
-    await expect(fetchTrackerHtml(BASE)).rejects.toThrow("ExampleTracker page fetch failed: 500")
+    await expect(fetchTrackerHtml(BASE)).rejects.toThrow(
+      "Tracker API error: 500 Internal Server Error"
+    )
   })
 
-  it("sanitizes an auth failure rather than echoing the status", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: false,
-      status: 403,
-      statusText: "Forbidden",
-      headers: { get: () => null },
-    } as unknown as Response)
+  it("names the status on the card rather than reading as Poll failed", async () => {
+    expect(await cardFor(500, "Internal Server Error")).toBe("API returned 500")
+    expect(await cardFor(503, "Service Unavailable")).toBe("API returned 503")
+  })
 
-    await expect(fetchTrackerHtml(BASE)).rejects.toThrow("Authentication failed")
+  it("reads an auth failure on the card as one", async () => {
+    expect(await cardFor(401, "Unauthorized")).toBe("Authentication failed")
+    expect(await cardFor(403, "Forbidden")).toBe("Authentication failed")
   })
 
   it("classifies a connection failure by hostname", async () => {
@@ -310,6 +327,16 @@ describe("fetchTrackerHtml - through a proxy", () => {
     proxyFetch.mockResolvedValueOnce(proxyResponse(302, "", { location: "/auth/login" }))
 
     await expect(run({})).rejects.toThrow("Session expired")
+  })
+
+  it("keeps the reason a proxied request failed, worded like the other transports", async () => {
+    proxyFetch.mockRejectedValueOnce(
+      new Error("Proxy connection ended before receiving CONNECT response")
+    )
+
+    await expect(run({})).rejects.toThrow(
+      "Failed to connect to tracker.example via proxy: Proxy connection ended before receiving CONNECT response"
+    )
   })
 
   it("refuses to follow a proxied redirect off-origin, and sends nothing there", async () => {

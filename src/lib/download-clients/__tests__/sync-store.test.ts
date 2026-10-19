@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { DeltaSyncResponse } from "@/lib/download-clients"
 import { SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
+import { log } from "@/lib/logger"
 import {
   applyMaindataUpdate,
   clearAllStores,
@@ -14,7 +15,10 @@ import {
   resetStore,
 } from "../sync-store"
 
-afterEach(() => clearAllStores())
+afterEach(() => {
+  clearAllStores()
+  vi.restoreAllMocks()
+})
 
 const BASE_URL = "http://localhost:8080"
 const BASE = BASE_URL
@@ -465,6 +469,24 @@ describe("applyMaindataUpdate torrent cap", () => {
     // A refused update is not a new revision. Advancing the rid would make the
     // next poll ask for a delta the store never applied.
     expect(getStoreRevision(BASE_URL)).toBe(1)
+  })
+
+  it("logs the refusal without the base URL, whose path can carry a proxy key", () => {
+    const pathUrl = "http://localhost:8080/proxy/qui-client-key"
+    applyMaindataUpdate(pathUrl, bulk(10, "a"))
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+
+    applyMaindataUpdate(pathUrl, {
+      rid: 99,
+      fullUpdate: true,
+      torrents: bulkTorrents(CAP + 1, "b"),
+    } as DeltaSyncResponse)
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      { held: 10, projected: CAP + 1, cap: CAP },
+      expect.any(String)
+    )
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("qui-client-key")
   })
 
   it("accepts a delta that only updates hashes it already holds", () => {

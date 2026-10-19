@@ -19,6 +19,7 @@ import { MamAdapter } from "./adapters/mam"
 import { NebulanceAdapter } from "./adapters/nebulance"
 import { RetrotoonAdapter } from "./adapters/retrotoon"
 import { TorrentleechAdapter } from "./adapters/torrentleech"
+import { Tr4kerAdapter } from "./adapters/tr4ker"
 import { Unit3dAdapter } from "./adapters/unit3d"
 import type { FetchOptions, TrackerAdapter } from "./contract"
 
@@ -35,6 +36,7 @@ const adapters: Record<string, TrackerAdapter> = {
   nebulance: new NebulanceAdapter(),
   retrotoon: new RetrotoonAdapter(),
   torrentleech: new TorrentleechAdapter(),
+  tr4ker: new Tr4kerAdapter(),
   unit3d: new Unit3dAdapter(),
 }
 

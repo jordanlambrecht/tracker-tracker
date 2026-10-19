@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest"
 import {
   classifyFetchError,
+  classifyProxyFetchError,
   isDecryptionError,
   isUnreachableMessage,
   sanitizeNetworkError,
@@ -139,13 +140,23 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("ip ban detected")).toBe("IP temporarily banned by tracker")
   })
 
-  // The three qBittorrent auth outcomes below each need different user action,
-  // so they must stay distinct from each other and from the generic rules.
+  // The qBittorrent auth outcomes below each need different user action, so
+  // they must stay distinct from each other and from the generic rules.
   it("maps a blank-credential rejection to bypass guidance", () => {
     expect(
       sanitizeNetworkError("Authentication failed. qBittorrent rejected the blank credentials")
     ).toBe(
       'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
+    )
+  })
+
+  it("maps a blank login refused through a URL path to the proxy key, not the bypass", () => {
+    expect(
+      sanitizeNetworkError(
+        "Authentication failed. The login through the URL path was refused with blank credentials"
+      )
+    ).toBe(
+      "Blank login rejected through the URL path. For Qui, check the client API key in the path. Otherwise enter the qBittorrent username and password"
     )
   })
 
@@ -163,9 +174,9 @@ describe("sanitizeNetworkError", () => {
     ).toBe("Banned by qBittorrent after too many failed logins. It will clear on its own")
   })
 
-  // The three refusals the qBittorrent transport raises on a host that did
-  // answer. Each fell to the fallback, which isUnreachableMessage reads as a
-  // host that never answered, so the card blamed the network.
+  // What the qBittorrent transport raises on a host that did answer. Each fell
+  // to the fallback, which isUnreachableMessage reads as a host that never
+  // answered, so the card blamed the network.
   it("maps an oversized response body to its own message", () => {
     expect(
       sanitizeNetworkError("Response from qbt.local exceeded 67108864 bytes and was refused")
@@ -182,6 +193,18 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("qBittorrent API error: 307 Temporary Redirect")).toBe(
       "qBittorrent redirected the request"
     )
+  })
+
+  // Qui answers a wrong proxy prefix with 405 and a missing one with 404.
+  it("maps a 404 or 405 to an API that is not at this address", () => {
+    for (const raw of [
+      "qBittorrent API error: 404 Not Found",
+      "qBittorrent API error: 405 Method Not Allowed",
+    ]) {
+      expect(sanitizeNetworkError(raw)).toBe(
+        "qBittorrent's API was not found at this address. Check the port and URL path"
+      )
+    }
   })
 
   // The tracker proxy transport has a cap of its own, worded differently.
@@ -322,6 +345,36 @@ describe("classifyFetchError", () => {
   })
 })
 
+// classifyProxyFetchError
+// ---------------------------------------------------------------------------
+
+describe("classifyProxyFetchError", () => {
+  const host = "www.torrentleech.org"
+
+  it("words proxyFetch's own deadline as a proxied timeout", () => {
+    const result = classifyProxyFetchError(new Error("Request timed out after 15000ms"), host)
+    expect(result.message).toBe("Request to www.torrentleech.org timed out (via proxy)")
+    expect(sanitizeNetworkError(result.message, "Poll failed")).toBe("Request timed out")
+  })
+
+  it("keeps the reason a proxied request could not connect", () => {
+    // A plain Error, which classifyFetchError would reduce to its name.
+    const result = classifyProxyFetchError(
+      new Error("Proxy connection ended before receiving CONNECT response"),
+      host
+    )
+    expect(result.message).toBe(
+      "Failed to connect to www.torrentleech.org via proxy: Proxy connection ended before receiving CONNECT response"
+    )
+    expect(sanitizeNetworkError(result.message, "Poll failed")).toBe("Proxy connection failed")
+  })
+
+  it("returns Unknown for non-Error values", () => {
+    const result = classifyProxyFetchError("string error", host)
+    expect(result.message).toBe("Failed to connect to www.torrentleech.org via proxy: Unknown")
+  })
+})
+
 describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
   it("lets the 2FA guidance through instead of the generic fallback", () => {
     const raw =
@@ -333,6 +386,34 @@ describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
     expect(sanitizeNetworkError("Invalid TorrentLeech credentials or Alt 2FA Token")).toBe(
       "Invalid credentials or Alt 2FA Token"
     )
+  })
+})
+
+describe("sanitizeNetworkError Cloudflare challenge", () => {
+  it("names the challenge instead of falling back to Poll failed", () => {
+    expect(
+      sanitizeNetworkError("Cloudflare challenge detected. Cookies need refreshing", "Poll failed")
+    ).toBe("Cloudflare challenge blocked the request")
+  })
+})
+
+describe("sanitizeNetworkError redirect refusals", () => {
+  // The scrapers refuse a redirect off the tracker's own origin, which would
+  // carry the session cookies to another host, and give up on a loop. The
+  // tracker answered either way, so neither may read as unreachable.
+  it("names an off-site redirect instead of falling back to Poll failed", () => {
+    const card = sanitizeNetworkError(
+      "IPTorrents redirected off-site; refusing to send credentials",
+      "Poll failed"
+    )
+    expect(card).toBe("Tracker redirected to another site")
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+
+  it("names a redirect loop instead of falling back to Poll failed", () => {
+    const card = sanitizeNetworkError("Too many redirects from FileList", "Poll failed")
+    expect(card).toBe("Tracker redirected too many times")
+    expect(isUnreachableMessage(card)).toBe(false)
   })
 })
 

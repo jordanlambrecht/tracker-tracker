@@ -28,6 +28,11 @@ describe("tryParseSiteBytes", () => {
     expect(tryParseSiteBytes("3 gib")).toBe(parseBytes("3 GiB"))
   })
 
+  it("parses petabyte totals in either system", () => {
+    expect(tryParseSiteBytes("1.5 PiB")).toBe(BigInt(1_688_849_860_263_936))
+    expect(tryParseSiteBytes("2 pb")).toBe(BigInt(2_000_000_000_000_000))
+  })
+
   it("keeps binary and decimal units distinct rather than collapsing them", () => {
     expect(tryParseSiteBytes("1 GiB")).toBe(1073741824n)
     expect(tryParseSiteBytes("1 GB")).toBe(1000000000n)

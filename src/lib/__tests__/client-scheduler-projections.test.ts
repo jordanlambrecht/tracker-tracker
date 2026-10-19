@@ -55,6 +55,7 @@ type HeartbeatRequiredFields = {
   encryptedUsername: string
   encryptedPassword: string
   encryptedApiKey: string
+  encryptedUrlPath: string
 }
 
 type DeepPollRequiredFields = HeartbeatRequiredFields & {
@@ -77,6 +78,7 @@ describe("client-scheduler column projections", () => {
       "encryptedUsername",
       "encryptedPassword",
       "encryptedApiKey",
+      "encryptedUrlPath",
     ]
     for (const key of required) {
       expect(keys).toContain(key)
@@ -96,6 +98,7 @@ describe("client-scheduler column projections", () => {
       "encryptedUsername",
       "encryptedPassword",
       "encryptedApiKey",
+      "encryptedUrlPath",
       "crossSeedTags",
       "pollIntervalSeconds",
       "lastPolledAt",
@@ -128,6 +131,7 @@ describe("client-scheduler column projections", () => {
       "encryptedUsername",
       "encryptedPassword",
       "encryptedApiKey",
+      "encryptedUrlPath",
     ]) {
       expect(keys).toContain(key)
     }

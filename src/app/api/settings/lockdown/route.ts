@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         encryptedUsername: "",
         encryptedPassword: "",
         encryptedApiKey: "",
+        encryptedUrlPath: "",
         // Back to the mode whose credentials the UI prompts for after a
         // lockdown; leaving "apikey" here would describe a key that is gone.
         authMethod: "password",

@@ -9,7 +9,7 @@
 
 import net from "node:net"
 import { HttpsProxyAgent } from "https-proxy-agent"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { proxyFetch } from "@/lib/tunnel"
 
@@ -39,5 +39,32 @@ describe("proxyFetch deadline", () => {
       proxyFetch("https://tracker.example/api/user", agent, { timeoutMs: 300 })
     ).rejects.toThrow("Request timed out after 300ms")
     expect(Date.now() - started).toBeLessThan(4000)
+  })
+})
+
+// https.request validates headers before it returns, so a value Node refuses
+// throws before req exists. A stored User-Agent carrying CR or LF still gets
+// this far, since digitalcore.ts leaves that check to the request layer. A
+// deadline armed ahead of the request would fire after the rejection and throw
+// on req outside any handler.
+describe("proxyFetch deadline when https.request throws", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("rejects a header Node refuses and leaves no timer behind", async () => {
+    const agent = new HttpsProxyAgent("http://127.0.0.1:9")
+
+    await expect(
+      proxyFetch("https://tracker.example/api/user", agent, {
+        timeoutMs: 300,
+        headers: { "User-Agent": "Mozilla/5.0\r\nX-Injected: 1" },
+      })
+    ).rejects.toMatchObject({ code: "ERR_INVALID_CHAR" })
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

@@ -2,8 +2,8 @@
 //
 // Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, isPlainObject,
 //            missingByteFields, quoteList, describeKeys, readApiKeyExpiry,
-//            unwrapUnit3dResponse, readAuthStyle, rememberAuthStyle, buildRequest,
-//            unit3dFetch, Unit3dAdapter
+//            unwrapUnit3dResponse, readUnit3dUser, readAuthStyle, rememberAuthStyle,
+//            buildRequest, unit3dFetch, Unit3dAdapter
 
 import {
   computeBufferBytes,
@@ -12,6 +12,7 @@ import {
   signedFloatBytesToBigInt,
 } from "@/lib/data-transforms"
 import { parseBytes, parseSignedBytes } from "@/lib/parser"
+import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -21,6 +22,8 @@ import type {
   Unit3dPlatformMeta,
 } from "../contract"
 import { adapterRequest } from "../helpers/adapter-fetch"
+import { presentClass } from "../helpers/class-name"
+import { pollError } from "../helpers/poll-error"
 
 /** True when a UNIT3D build reports an unbounded buffer rather than a byte value. */
 function isUnlimitedBuffer(raw: string | number): boolean {
@@ -233,6 +236,38 @@ function unwrapUnit3dResponse(data: unknown, hostname: string): UnwrappedUnit3dR
   )
 }
 
+interface Unit3dUser extends UnwrappedUnit3dResponse {
+  uploadedBytes: bigint
+  downloadedBytes: bigint
+  bufferBytes: bigint
+}
+
+/** The user body and its three byte figures, or the error fetchStats fails the poll with. */
+function readUnit3dUser(data: unknown, hostname: string): Unit3dUser {
+  const { user, apiKeyExpiresAt } = unwrapUnit3dResponse(data, hostname)
+  const uploadedBytes = toBytes(user.uploaded)
+  const downloadedBytes = toBytes(user.downloaded)
+
+  return {
+    user,
+    apiKeyExpiresAt,
+    uploadedBytes,
+    downloadedBytes,
+    // Some UNIT3D builds (i.e. Zenith) report an unlimited buffer as "∞",
+    // which parseBytes rejects. Derive it from the totals instead: the same
+    // fallback avistaz.ts uses.
+    //
+    // Otherwise parse it signed: buffer is the one field here that can
+    // legitimately arrive negative ("-1.23 TiB"), and plain parseBytes throws
+    // on a leading minus, which fails the whole poll (uploaded, downloaded
+    // and every other stat with it) instead of recording one negative value.
+    // parseBytes stays strict for every other caller.
+    bufferBytes: isUnlimitedBuffer(user.buffer)
+      ? computeBufferBytes(uploadedBytes, downloadedBytes)
+      : toSignedBytes(user.buffer),
+  }
+}
+
 export class Unit3dAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -240,36 +275,29 @@ export class Unit3dAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<TrackerStats> {
+    const trimmedToken = validateHeaderToken(apiToken)
     const hostname = new URL(baseUrl).hostname
 
-    const { user: data, apiKeyExpiresAt } = unwrapUnit3dResponse(
-      await unit3dFetch<unknown>(baseUrl, apiPath, apiToken, hostname, options),
+    const {
+      user: data,
+      apiKeyExpiresAt,
+      uploadedBytes,
+      downloadedBytes,
+      bufferBytes,
+    } = readUnit3dUser(
+      await unit3dFetch<unknown>(baseUrl, apiPath, trimmedToken, hostname, options),
       hostname
     )
 
-    const uploadedBytes = toBytes(data.uploaded)
-    const downloadedBytes = toBytes(data.downloaded)
-
     return {
       username: data.username,
-      group: data.group,
+      group: presentClass(data.group),
       uploadedBytes,
       downloadedBytes,
       // Derived from byte totals, not data.ratio. UNIT3D sends "∞" for a
       // zero-download account and parseFloat turns that into 0.
       ratio: computeRatio(uploadedBytes, downloadedBytes),
-      // Some UNIT3D builds (i.e. Zenith) report an unlimited buffer as "∞",
-      // which parseBytes rejects. Derive it from the totals instead: the same
-      // fallback avistaz.ts uses.
-      //
-      // Otherwise parse it signed: buffer is the one field here that can
-      // legitimately arrive negative ("-1.23 TiB"), and plain parseBytes throws
-      // on a leading minus, which fails the whole poll (uploaded, downloaded
-      // and every other stat with it) instead of recording one negative value.
-      // parseBytes stays strict for every other caller.
-      bufferBytes: isUnlimitedBuffer(data.buffer)
-        ? computeBufferBytes(uploadedBytes, downloadedBytes)
-        : toSignedBytes(data.buffer),
+      bufferBytes,
       seedingCount: data.seeding ?? null,
       leechingCount: data.leeching ?? null,
       seedbonus: toNumber(data.seedbonus),
@@ -290,17 +318,25 @@ export class Unit3dAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
+    const trimmedToken = validateHeaderToken(apiToken)
     const hostname = new URL(baseUrl).hostname
 
     try {
       const data = await unit3dFetch<Record<string, unknown>>(
         baseUrl,
         apiPath,
-        apiToken,
+        trimmedToken,
         hostname,
         options
       )
-      return [{ label: "User Stats", endpoint: apiPath, data, error: null }]
+      return [
+        {
+          label: "User Stats",
+          endpoint: apiPath,
+          data,
+          error: pollError(() => readUnit3dUser(data, hostname)),
+        },
+      ]
     } catch (err) {
       return [
         {

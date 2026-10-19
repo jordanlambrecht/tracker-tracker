@@ -69,6 +69,7 @@ export interface DownloadClientRow {
   encryptedUsername: string
   encryptedPassword: string
   encryptedApiKey: string
+  encryptedUrlPath: string
   crossSeedTags: string[] | null
   type: string
 }
@@ -94,8 +95,8 @@ export function assertAuthMethod(authMethod: string): AuthMethod {
  * `password` off a key client, is a compile error.
  */
 export type ClientCredentials =
-  | { authMethod: "password"; username: string; password: string }
-  | { authMethod: "apikey"; apiKey: string }
+  | { authMethod: "password"; username: string; password: string; urlPath: string }
+  | { authMethod: "apikey"; apiKey: string; urlPath: string }
 
 /**
  * Download client adapter interface. Adapters produce TorrentRecord-shaped
@@ -138,6 +139,10 @@ export interface ClientAdapter {
   /** Base URL for this client (used as sync store key). */
   readonly baseUrl: string
 
-  /** Clean up cached sessions. Called on logout or scheduler stop. */
+  /**
+   * Drop everything cached under this client's URL. Called when the client's
+   * address changes or the client is deleted. Stopping the scheduler clears
+   * every client at once instead.
+   */
   dispose(): void
 }

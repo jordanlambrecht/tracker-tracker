@@ -2,6 +2,7 @@
 
 import { parse as parseHtml } from "node-html-parser"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   extractOwnUserId,
   parseRetrotoonBonus,
@@ -353,6 +354,15 @@ describe("parseRetrotoonProfile", () => {
     expect(stats.freeleechTokens).toBe(0)
   })
 
+  it("reports no class when the Class row is missing or empty", () => {
+    for (const page of [
+      PROFILE_PAGE.replace(">Class<", ">Rank<"),
+      PROFILE_PAGE.replace(">Toon<", "><"),
+    ]) {
+      expect(parseRetrotoonProfile(page, HOST).group).toBeNull()
+    }
+  })
+
   it("derives an infinite ratio from the byte totals rather than the header's ∞", () => {
     expect(parseRetrotoonProfile(PROFILE_PAGE, HOST).ratio).toBe(Number.POSITIVE_INFINITY)
   })
@@ -418,9 +428,16 @@ describe("parseRetrotoonProfile", () => {
     expect(() => parseRetrotoonProfile(LOGIN_PAGE, HOST)).toThrow(/Session expired/)
   })
 
-  it("prefers the Cloudflare message over the generic session one", () => {
-    expect(() => parseRetrotoonProfile(CLOUDFLARE_PAGE, HOST)).toThrow(
-      /Cloudflare challenge detected/
+  it("prefers the Cloudflare message over the generic session one, and the card names it", () => {
+    let message = ""
+    try {
+      parseRetrotoonProfile(CLOUDFLARE_PAGE, HOST)
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe("Cloudflare challenge detected. Cookies need refreshing")
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Cloudflare challenge blocked the request"
     )
   })
 
@@ -431,16 +448,16 @@ describe("parseRetrotoonProfile", () => {
   })
 
   it("throws naming the uploaded total when only the Downloaded row can be read", () => {
-    // A petabyte cell sits outside tryParseSiteBytes' unit table, so the row is
+    // An exabyte cell sits outside tryParseSiteBytes' unit table, so the row is
     // present and still unreadable.
-    const page = PROFILE_PAGE.replace(">2.10 GB<", ">2.10 PB<")
+    const page = PROFILE_PAGE.replace(">2.10 GB<", ">2.10 EB<")
     expect(() => parseRetrotoonProfile(page, HOST)).toThrow(
       "Unexpected response from retrotoon.world: unreadable uploaded byte total"
     )
   })
 
   it("throws naming the downloaded total when only the Uploaded row can be read", () => {
-    const page = PROFILE_PAGE.replace(">0.00 kB<", ">1.50 PB<")
+    const page = PROFILE_PAGE.replace(">0.00 kB<", ">1.50 EB<")
     expect(() => parseRetrotoonProfile(page, HOST)).toThrow(
       "Unexpected response from retrotoon.world: unreadable downloaded byte total"
     )

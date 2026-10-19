@@ -43,11 +43,16 @@ const EMPTY_TRACKERS: string[] = []
 const BLANK_CREDENTIALS_HINT =
   'Leave both blank if qBittorrent has "Bypass authentication for clients on localhost" enabled. ' +
   "qBittorrent must see the connection as coming from loopback, so this does not apply through a " +
-  "container, port forward, or reverse proxy."
+  "container, port forward, or reverse proxy. Also leave both blank behind Qui's client proxy, " +
+  "which answers the qBittorrent login itself."
 
 const API_KEY_HINT =
   "Generate one in qBittorrent under Options → Web UI → API keys. Requires qBittorrent 5.2.0 " +
   "or newer."
+
+const URL_PATH_HINT =
+  "For a reverse proxy that serves qBittorrent under a path, or Qui's client proxy. Always " +
+  "stored encrypted."
 
 const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
   { value: "password", label: "Username & Password" },
@@ -138,6 +143,25 @@ function CredentialFields({
   )
 }
 
+/** The URL path input, shared by both forms for the same reason as CredentialFields. */
+function UrlPathField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <>
+      <Input
+        type="password"
+        label="URL Path (optional)"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="/proxy/<client API key>"
+        name="client-url-path"
+        autoComplete="off"
+        data-1p-ignore
+      />
+      <Subtext>{URL_PATH_HINT}</Subtext>
+    </>
+  )
+}
+
 const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
@@ -215,6 +239,11 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
   const [newApiKey, setNewApiKey] = useState("")
   const [credError, setCredError] = useState<string | null>(null)
 
+  const [changingUrlPath, setChangingUrlPath] = useState(false)
+  const [newUrlPath, setNewUrlPath] = useState("")
+  const [urlPathError, setUrlPathError] = useState<string | null>(null)
+  const [savingUrlPath, setSavingUrlPath] = useState(false)
+
   // A blank username/password is a valid localhost-bypass setup, so only the
   // API-key mode has anything to require.
   const canSaveCredentials = authMethod === "password" || newApiKey.trim().length > 0
@@ -268,6 +297,31 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
       setNewApiKey("")
     } catch {
       setCredError("Network error. Could not save credentials")
+    }
+  }
+
+  /** Saves a new path, or clears the saved one when given "". */
+  async function saveUrlPath(urlPath: string) {
+    setUrlPathError(null)
+    setSavingUrlPath(true)
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urlPath }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setUrlPathError(data.error || "Failed to save URL path")
+        return
+      }
+      onSaved(client.id, { ...client, hasUrlPath: urlPath.length > 0 })
+      setChangingUrlPath(false)
+      setNewUrlPath("")
+    } catch {
+      setUrlPathError("Network error. Could not save URL path")
+    } finally {
+      setSavingUrlPath(false)
     }
   }
 
@@ -368,7 +422,7 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         label="Use SSL"
         checked={draft.useSsl}
         onChange={(v) => updateDraft({ useSsl: v })}
-        description={`Connect via ${draft.useSsl ? "https" : "http"}://${draft.host}:${draft.port}`}
+        description={`Connect via ${draft.useSsl ? "https" : "http"}://${draft.host}:${draft.port}${client.hasUrlPath ? "/•••" : ""}`}
       />
 
       {draft.useSsl && draft.port === 80 && (
@@ -431,6 +485,66 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         ) : (
           <MaskedSecret onChangeClick={() => setChangingCredentials(true)} />
         )}
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* URL path. Closed until asked for, so a card without a path carries no
+          empty password field. The field has its own label, so the heading
+          titles only the closed states. */}
+      <div className="flex flex-col gap-2">
+        {changingUrlPath ? (
+          <div className="flex flex-col gap-3">
+            <UrlPathField value={newUrlPath} onChange={setNewUrlPath} />
+            <div className="flex items-center gap-2">
+              {/* Saving a blank would clear the saved path, which only Remove does. */}
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => saveUrlPath(newUrlPath.trim())}
+                disabled={!newUrlPath.trim() || savingUrlPath}
+                text={savingUrlPath ? "Saving..." : "Save Path"}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setChangingUrlPath(false)
+                  setNewUrlPath("")
+                  setUrlPathError(null)
+                }}
+                className="ghost-link"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <H2 className="uppercase tracking-wider">URL Path</H2>
+            {client.hasUrlPath ? (
+              <div className="flex items-center gap-2">
+                <MaskedSecret onChangeClick={() => setChangingUrlPath(true)} />
+                <ConfirmRemove
+                  onConfirm={() => saveUrlPath("")}
+                  variant="ghost"
+                  busy={savingUrlPath}
+                  busyLabel="Removing..."
+                />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Subtext>Not set</Subtext>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setChangingUrlPath(true)}
+                  text="Add"
+                />
+              </div>
+            )}
+          </>
+        )}
+        <Notice message={urlPathError} />
       </div>
 
       <div className="border-t border-border" />
@@ -610,6 +724,7 @@ function AddClientForm({
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [apiKey, setApiKey] = useState("")
+  const [urlPath, setUrlPath] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -637,6 +752,7 @@ function AddClientForm({
           host: host.trim(),
           port,
           ...credentials,
+          urlPath: urlPath.trim(),
           isDefault: isFirst,
         }),
       })
@@ -687,6 +803,7 @@ function AddClientForm({
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
       />
+      <UrlPathField value={urlPath} onChange={setUrlPath} />
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button

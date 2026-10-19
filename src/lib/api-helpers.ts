@@ -4,7 +4,7 @@
 //            validateHttpUrl, validateMouseholeUrl, validateMouseholeToken,
 //            validateHexColor, validatePort, validatePastDate, validateJoinedAt,
 //            validateLastAccessAt, validateIntRange, validateMaxLength,
-//            validateAuthMethod, decodeKey
+//            validateAuthMethod, validateUrlPath, validateClientHost, decodeKey
 
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
@@ -12,7 +12,7 @@ import { getSession } from "@/lib/auth"
 // credentials.ts, which is "server-only".
 import { VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
-import { CREDENTIAL_MAX } from "@/lib/limits"
+import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
 
@@ -203,6 +203,66 @@ export function validateAuthMethod(value: string): NextResponse | null {
   if (!(VALID_AUTH_METHODS as readonly string[]).includes(value)) {
     return NextResponse.json(
       { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+/**
+ * Validate an optional URL path prefix. Empty string is valid (no prefix).
+ * Every endpoint is appended to the path, so the path must come back from the
+ * URL parser exactly as typed: anything it would read as a query, a fragment,
+ * a dot segment or a separator, or would percent-encode, is refused.
+ */
+export function validateUrlPath(value: string): NextResponse | null {
+  if (value === "") return null
+  if (value.length > URL_PATH_MAX) {
+    return NextResponse.json(
+      { error: `URL path must be ${URL_PATH_MAX} characters or fewer` },
+      { status: 400 }
+    )
+  }
+  if (!value.startsWith("/")) {
+    return NextResponse.json({ error: "URL path must start with /" }, { status: 400 })
+  }
+  // The routes store the path through stripTrailingSlash, so this would save as no path.
+  if (/^\/+$/.test(value)) {
+    return NextResponse.json({ error: "URL path must not be only slashes" }, { status: 400 })
+  }
+  if (!survivesUrlParser(value)) {
+    return NextResponse.json(
+      {
+        error:
+          "URL path must be a plain path like /proxy/<key>, without spaces, ?, #, \\ or dot segments",
+      },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+function survivesUrlParser(path: string): boolean {
+  try {
+    // A query or fragment ends the pathname early, so equality covers them too.
+    return new URL(path, "http://host.invalid").pathname === path
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Validate a download client's host after sanitizeHost and the host pattern.
+ * The client URL is built as host:port, so a host the URL parser refuses there
+ * (one carrying its own port, a bare IPv6 address, stray brackets) fails every poll.
+ */
+export function validateClientHost(host: string): NextResponse | null {
+  if (!URL.canParse(`http://${host}:1`)) {
+    return NextResponse.json(
+      {
+        error:
+          "Host must not include a port. Use the Port field, and write an IPv6 address in brackets, like [::1]",
+      },
       { status: 400 }
     )
   }

@@ -117,6 +117,8 @@ export const BATCH_MEMBERS_MAX = 500
 // ─── Download Clients ─────────────────────────────────────────────────────────
 export const CROSS_SEED_TAGS_MAX = 50
 export const CROSS_SEED_TAG_MAX = 100
+/** Upper bound on a URL path prefix that may carry a proxy API key. */
+export const URL_PATH_MAX = 500
 
 // ─── File Sizes ───────────────────────────────────────────────────────────────
 export const UPLOAD_IMAGE_MAX_BYTES = 32 * 1024 * 1024
@@ -124,20 +126,22 @@ export const BACKUP_RESTORE_MAX_BYTES = 50 * 1024 * 1024
 export const AVATAR_FETCH_MAX_BYTES = 5 * 1024 * 1024
 
 /**
+ * Ceiling on torrents held per client in the sync store. The store is keyed by
+ * a hash the host chooses and is never aged out, so without this a host grows
+ * it without bound by naming new hashes every poll. The number is a guess.
+ */
+export const SYNC_STORE_MAX_TORRENTS = 100_000
+
+/**
  * Ceiling on a qBittorrent response body. The 15s timeout bounds elapsed time,
  * not bytes, so without this a host that streams slowly and forever is read
  * into memory unbounded.
  *
- * The number is a guess set well above any real library, not a measured figure.
+ * Sized so the full sync of the largest library the store holds still fits. A
+ * private-tracker torrent is about 1.7 KB in sync/maindata, and 2.5 KB leaves
+ * room for long paths and several trackers.
  */
-export const QBT_RESPONSE_MAX_BYTES = 64 * 1024 * 1024
-
-/**
- * Ceiling on torrents held per client in the sync store. The store is keyed by
- * a hash the host chooses and is never aged out, so without this a host grows
- * it without bound by naming new hashes every poll. The number is a guess too.
- */
-export const SYNC_STORE_MAX_TORRENTS = 100_000
+export const QBT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_560
 
 // ─── Image Hosting ────────────────────────────────────────────────────────────
 export const IMAGE_EXPIRATION_MIN = 60

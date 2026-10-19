@@ -76,6 +76,21 @@ describe("HawkeAdapter", () => {
     expect(stats.joinedDate).toBe("2024-12-02T00:09:58+00:00")
   })
 
+  it("reports no class when the profile carries none", async () => {
+    const { group: _dropped, ...withoutGroup } = LIVE_RESPONSE.data
+    for (const data of [
+      withoutGroup,
+      { ...LIVE_RESPONSE.data, group: "" },
+      { ...LIVE_RESPONSE.data, group: "   " },
+    ]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(okResponse({ success: true, data }))
+
+      const stats = await adapter.fetchStats("https://hawke.uno", "fake-token", "/api/profile")
+
+      expect(stats.group).toBeNull()
+    }
+  })
+
   it("preserves a negative buffer instead of clamping it to zero", async () => {
     // floatBytesToBigInt floors at 0, which would turn this deficit account's
     // -2.6 TB buffer into 0 B. The signed buffer must not go through it.
@@ -97,6 +112,43 @@ describe("HawkeAdapter", () => {
     expect(stats.ratio).not.toBeCloseTo(
       Number(LIVE_RESPONSE.data.uploaded) / Number(LIVE_RESPONSE.data.downloaded),
       4
+    )
+  })
+
+  it("reports an infinite ratio when nothing has been downloaded", async () => {
+    // What Hawke sends for such an account is not on record. 0 is the likeliest
+    // figure, and a non-zero one is there because a falsy fallback would also
+    // turn 0 into Infinity.
+    for (const reported of [0, 9999]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(
+        okResponse({
+          ...LIVE_RESPONSE,
+          data: {
+            ...LIVE_RESPONSE.data,
+            downloaded: 0,
+            ratio: reported,
+            buffer: LIVE_RESPONSE.data.uploaded,
+          },
+        })
+      )
+
+      const stats = await adapter.fetchStats("https://hawke.uno", "fake-token", "/api/profile")
+
+      expect(stats.ratio).toBe(Number.POSITIVE_INFINITY)
+    }
+  })
+
+  it("derives the ratio from the byte totals when the reported one is missing", async () => {
+    // A null ratio stored as is reads as an offline tracker.
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      okResponse({ ...LIVE_RESPONSE, data: { ...LIVE_RESPONSE.data, ratio: null } })
+    )
+
+    const stats = await adapter.fetchStats("https://hawke.uno", "fake-token", "/api/profile")
+
+    expect(stats.ratio).toBeCloseTo(
+      Number(LIVE_RESPONSE.data.uploaded) / Number(LIVE_RESPONSE.data.downloaded),
+      10
     )
   })
 

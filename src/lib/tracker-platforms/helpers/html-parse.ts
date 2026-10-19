@@ -51,10 +51,12 @@ const CANONICAL_UNITS: Record<string, string> = {
   mb: "MB",
   gb: "GB",
   tb: "TB",
+  pb: "PB",
   kib: "KiB",
   mib: "MiB",
   gib: "GiB",
   tib: "TiB",
+  pib: "PiB",
 }
 
 /**

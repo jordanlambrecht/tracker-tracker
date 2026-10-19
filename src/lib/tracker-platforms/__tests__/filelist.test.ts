@@ -1,12 +1,14 @@
 // src/lib/tracker-platforms/__tests__/filelist.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   FilelistAdapter,
   parseFilelistCredentials,
   parseFilelistProfile,
 } from "../adapters/filelist"
 import type { FileListPlatformMeta } from "../contract"
+import { SessionExpiredError } from "../helpers/errors"
 
 const VALID_TOKEN = JSON.stringify({
   cookies: "uid=4207731; pass=abc123def456",
@@ -269,6 +271,19 @@ const UNREADABLE_DOWNLOAD_PAGE = editFixture(
 // such) to reach the header "Invites N" fallback.
 const NO_INVITATIONS_ROW_PAGE = editFixture(FULL_PAGE, INVITATIONS_ROW, "")
 
+// synthetic-fixture: Class row removed (a structure edit), and separately its
+// value emptied, the two ways a page can carry no class.
+const NO_CLASS_ROW_PAGE = editFixture(
+  FULL_PAGE,
+  `<tr><td class="colhead">Class</td><td style="text-align:left;"><font color="#b8b7b7">User</font></td></tr>`,
+  ""
+)
+const EMPTY_CLASS_PAGE = editFixture(
+  FULL_PAGE,
+  `<font color="#b8b7b7">User</font></td></tr>`,
+  `<font color="#b8b7b7"></font></td></tr>`
+)
+
 // synthetic-fixture: no logged-out capture exists; minimal login-page shape
 // (takelogin.php form, no logout.php link anywhere in the body).
 const LOGIN_PAGE = `<!DOCTYPE html><html><head><title>FileList</title></head><body>
@@ -294,6 +309,11 @@ describe("parseFilelistProfile", () => {
     expect(stats.lastAccessDate).toBe("2026-08-28")
     // The fetch layer owns remoteUserId; the parser never sets it.
     expect(stats.remoteUserId).toBeUndefined()
+  })
+
+  it("reports no class when the Class row is missing or empty", () => {
+    expect(parseFilelistProfile(NO_CLASS_ROW_PAGE, HOST).group).toBeNull() // synthetic-fixture
+    expect(parseFilelistProfile(EMPTY_CLASS_PAGE, HOST).group).toBeNull() // synthetic-fixture
   })
 
   it("returns ratio 0 and a zero buffer when both totals are zero", () => {
@@ -384,15 +404,31 @@ describe("parseFilelistProfile", () => {
       `<!doctype html><html><body><script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script></body></html>`,
     ]
     for (const page of markers) {
-      expect(() => parseFilelistProfile(page, HOST)).toThrow(
-        "Cloudflare challenge detected. Cookies need refreshing"
+      let message = ""
+      try {
+        parseFilelistProfile(page, HOST)
+      } catch (err) {
+        message = err instanceof Error ? err.message : ""
+      }
+      expect(message).toBe("Cloudflare challenge detected. Cookies need refreshing")
+      expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+        "Cloudflare challenge blocked the request"
       )
     }
   })
 
-  it("throws when neither byte total is present", () => {
-    expect(() => parseFilelistProfile(HEADER_ONLY_PAGE, HOST)).toThrow(
-      "Could not find profile stats on FileList page. The page may not be authenticated"
+  it("throws when neither byte total is present, worded so the card reads it as a shape problem", () => {
+    let message = ""
+    try {
+      parseFilelistProfile(HEADER_ONLY_PAGE, HOST)
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe(
+      `Unexpected response from ${HOST}: Could not find profile stats on FileList page. The page may not be authenticated`
+    )
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
     )
   })
 
@@ -543,11 +579,44 @@ describe("FilelistAdapter.fetchStats - user-id resolution", () => {
     expect(stats.remoteUserId).toBe(4207731)
   })
 
-  it("throws without a second fetch when the bootstrap page has no profile link", async () => {
+  it("reads a login page served as the bootstrap homepage as an expired session", async () => {
+    // Checked before the id is read off it: a login page carries no logout link
+    // either, and that is a session problem, not a missing id.
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(okPage(LOGIN_PAGE))
 
     await expect(adapter.fetchStats("https://filelist.io", NO_UID_TOKEN, "")).rejects.toThrow(
-      "Could not find a profile link on the FileList homepage. The page may not be authenticated"
+      SessionExpiredError
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("names a Cloudflare challenge served as the bootstrap homepage", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      okPage(
+        `<!doctype html><html><head><title>Just a moment...</title></head><body></body></html>`
+      )
+    )
+
+    await expect(adapter.fetchStats("https://filelist.io", NO_UID_TOKEN, "")).rejects.toThrow(
+      "Cloudflare challenge detected. Cookies need refreshing"
+    )
+  })
+
+  it("throws without a second fetch when an authenticated homepage carries no id", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(okPage(`<html><body><a href="logout.php">Logout</a></body></html>`))
+
+    const err = await adapter
+      .fetchStats("https://filelist.io", NO_UID_TOKEN, "")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(
+      `Unexpected response from ${HOST}: Could not find a profile link on the FileList homepage. The page may not be authenticated`
+    )
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
     )
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
@@ -659,6 +728,16 @@ describe("FilelistAdapter.fetchRaw", () => {
 
     expect(calls).toHaveLength(1)
     expect(calls[0].data).toBeNull()
+    expect(calls[0].error).toBe("Session expired. Browser cookies need to be refreshed")
+  })
+
+  it("reports a login page on the id lookup as an expired session, as the poll does", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(okPage(LOGIN_PAGE))
+
+    const calls = await adapter.fetchRaw("https://filelist.io", NO_UID_TOKEN, "")
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].label).toBe("Home Page (user id lookup)")
     expect(calls[0].error).toBe("Session expired. Browser cookies need to be refreshed")
   })
 

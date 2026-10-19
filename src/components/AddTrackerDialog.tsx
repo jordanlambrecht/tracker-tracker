@@ -245,7 +245,9 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
   const [joinedAt, setJoinedAt] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
-  const [testResult, setTestResult] = useState<{ username: string; group: string } | null>(null)
+  const [testResult, setTestResult] = useState<{ username: string; group: string | null } | null>(
+    null
+  )
 
   const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
     setCredentials((prev) => ({ ...prev, [field]: value }))

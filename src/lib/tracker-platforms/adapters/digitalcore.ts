@@ -1,10 +1,9 @@
 // src/lib/tracker-platforms/adapters/digitalcore.ts
 //
 // Functions: parseDigitalCoreCredentials, dcFlag, dcClassNameFromId,
-//            parseJsonSafe, fetchDCJson, DigitalCoreAdapter
+//            parseJsonSafe, fetchDCJson, readStatusUser, DigitalCoreAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import type {
   DebugApiCall,
@@ -14,7 +13,9 @@ import type {
   TrackerStats,
 } from "../contract"
 import { adapterRequest } from "../helpers/adapter-fetch"
+import { requireBytes } from "../helpers/bytes"
 import { SessionExpiredError } from "../helpers/errors"
+import { pollError } from "../helpers/poll-error"
 
 // ---------------------------------------------------------------------------
 // Credential handling
@@ -109,7 +110,7 @@ export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCreden
 // Class ID mapping (from DigitalCore's Angular userClasses constant)
 // ---------------------------------------------------------------------------
 
-const DC_CLASS_MAP: Record<number, string> = {
+const DC_CLASS_MAP: Record<string, string> = {
   0: "Rogue",
   10: "Sentinel",
   20: "Viceroy",
@@ -133,8 +134,10 @@ function dcFlag<T extends string | number>(value: T | undefined, truthy: T): boo
   return value === undefined ? undefined : value === truthy
 }
 
-function dcClassNameFromId(classId: number): string {
-  return DC_CLASS_MAP[classId] ?? `Class ${classId}`
+/** An unmapped id shows as sent; with no id there is no class to show. */
+function dcClassNameFromId(classId: unknown): string | null {
+  if (classId == null || (typeof classId === "string" && classId.trim() === "")) return null
+  return DC_CLASS_MAP[String(classId)] ?? `Class ${classId}`
 }
 
 // ---------------------------------------------------------------------------
@@ -255,16 +258,31 @@ async function fetchDCJson<T>(
     )
   }
 
+  // Same wording adapterFetch throws, which sanitizeNetworkError matches on. The
+  // scheduler and the connection test sanitize it, so it is not sanitized here.
   if (!response.ok) {
-    throw new Error(
-      sanitizeNetworkError(
-        `${response.status} ${response.statusText}`,
-        `DigitalCore API error: ${response.status}`
-      )
-    )
+    throw new Error(`Tracker API error: ${response.status} ${response.statusText}`)
   }
 
   return parseJsonSafe<T>(await response.text(), parsed.pathname)
+}
+
+/** The status user and its byte totals, or the error fetchStats fails the poll with. */
+function readStatusUser(
+  data: DCStatusResponse,
+  hostname: string
+): { user: DCStatusUser; uploaded: bigint; downloaded: bigint } {
+  // A bare null body parses to null.
+  const user = data?.user
+  if (!user?.id) {
+    throw new Error(`Unexpected response from ${hostname}: missing user data`)
+  }
+
+  return {
+    user,
+    uploaded: requireBytes(user.uploaded, "uploaded", hostname),
+    downloaded: requireBytes(user.downloaded, "downloaded", hostname),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -279,22 +297,13 @@ export class DigitalCoreAdapter implements TrackerAdapter {
     options?: FetchOptions
   ): Promise<TrackerStats> {
     const creds = parseDigitalCoreCredentials(apiToken)
+    const hostname = new URL(baseUrl).hostname
 
     // Call 1: /api/v1/status (core stats)
     const statusUrl = `${baseUrl}/api/v1/status`
     const statusData = await fetchDCJson<DCStatusResponse>(statusUrl, creds, options?.proxyAgent)
 
-    const user = statusData.user
-    if (!user?.id) {
-      throw new Error("DigitalCore status response missing user data")
-    }
-
-    if (typeof user.uploaded !== "number" || typeof user.downloaded !== "number") {
-      throw new Error("DigitalCore status response missing upload/download data")
-    }
-
-    const uploaded = BigInt(Math.floor(user.uploaded))
-    const downloaded = BigInt(Math.floor(user.downloaded))
+    const { user, uploaded, downloaded } = readStatusUser(statusData, hostname)
 
     // Build baseline platformMeta from status (survives enrichment failure)
     const baseMeta: DigitalCorePlatformMeta = {
@@ -400,22 +409,26 @@ export class DigitalCoreAdapter implements TrackerAdapter {
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
     const creds = parseDigitalCoreCredentials(apiToken)
+    const hostname = new URL(baseUrl).hostname
     const calls: DebugApiCall[] = []
 
     // Call 1: Status
     let userId: number | undefined = options?.remoteUserId
     try {
       const statusUrl = `${baseUrl}/api/v1/status`
-      const statusData = await fetchDCJson<Record<string, unknown>>(
-        statusUrl,
-        creds,
-        options?.proxyAgent
-      )
-      calls.push({ label: "Status", endpoint: "/api/v1/status", data: statusData, error: null })
+      const statusData = await fetchDCJson<DCStatusResponse>(statusUrl, creds, options?.proxyAgent)
+      const statusError = pollError(() => readStatusUser(statusData, hostname))
+      calls.push({
+        label: "Status",
+        endpoint: "/api/v1/status",
+        data: statusData,
+        error: statusError,
+      })
 
-      if (!userId) {
-        const user = statusData.user as { id?: number } | undefined
-        userId = user?.id
+      // The poll stops at a status it rejects, so an id in one does not carry
+      // the profile call.
+      if (!userId && statusError === null) {
+        userId = statusData.user?.id
       }
     } catch (err) {
       calls.push({
@@ -424,7 +437,6 @@ export class DigitalCoreAdapter implements TrackerAdapter {
         data: null,
         error: err instanceof Error ? err.message : "Request failed",
       })
-      return calls
     }
 
     // Call 2: User profile
@@ -446,6 +458,15 @@ export class DigitalCoreAdapter implements TrackerAdapter {
           error: err instanceof Error ? err.message : "Request failed",
         })
       }
+    } else {
+      // readStatusUser fails a status with no id, so only a failed Status gets
+      // here.
+      calls.push({
+        label: "User Profile",
+        endpoint: "/api/v1/users",
+        data: null,
+        error: "Skipped: Status failed and no user id is cached",
+      })
     }
 
     return calls

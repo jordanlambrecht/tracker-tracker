@@ -1,7 +1,7 @@
 // src/lib/tracker-platforms/adapters/filelist.ts
 //
-// Functions: parseFilelistCredentials, parseFilelistProfile,
-//            extractUidFromCookies, extractOwnUserId, fetchHtml,
+// Functions: parseFilelistCredentials, assertAuthenticated, parseFilelistProfile,
+//            extractUidFromCookies, extractOwnUserId, fetchHtml, bootstrapError,
 //            FilelistAdapter
 
 import { parse as parseHtml } from "node-html-parser"
@@ -65,7 +65,11 @@ export function parseFilelistCredentials(apiToken: string): FilelistCredentials 
 // the owner's account uses English (single-user app).
 // ---------------------------------------------------------------------------
 
-export function parseFilelistProfile(html: string, hostname: string): TrackerStats {
+/**
+ * Every authenticated FileList page carries the header Logout link. The site
+ * redirects anonymous requests, so this guards a login page served with a 200.
+ */
+function assertAuthenticated(html: string): void {
   // Cloudflare first: a challenge body also lacks the logout link, and the
   // specific challenge message must win over the generic session-expired one.
   if (
@@ -76,12 +80,13 @@ export function parseFilelistProfile(html: string, hostname: string): TrackerSta
     throw new Error("Cloudflare challenge detected. Cookies need refreshing")
   }
 
-  // Every authenticated FileList page carries the header Logout link. The site
-  // redirects anonymous requests, but this also guards a login page served
-  // with a 200.
   if (!html.includes("logout.php")) {
     throw new SessionExpiredError("Session expired. Browser cookies need to be refreshed")
   }
+}
+
+export function parseFilelistProfile(html: string, hostname: string): TrackerStats {
+  assertAuthenticated(html)
 
   const doc = parseHtml(html)
 
@@ -91,7 +96,7 @@ export function parseFilelistProfile(html: string, hostname: string): TrackerSta
 
   let uploadedBytes: bigint | undefined
   let downloadedBytes: bigint | undefined
-  let group = ""
+  let group: string | null = null
   let seedingCount: number | null = null
   let joinedDate: string | undefined
   let lastAccessDate: string | undefined
@@ -110,7 +115,7 @@ export function parseFilelistProfile(html: string, hostname: string): TrackerSta
     } else if (label === "Downloaded") {
       downloadedBytes = tryParseSiteBytes(value) ?? downloadedBytes
     } else if (label === "Class") {
-      group = value
+      group = value || null
     } else if (label === "Join date") {
       joinedDate = datePrefix(value) ?? joinedDate
     } else if (label === "Last seen") {
@@ -143,7 +148,7 @@ export function parseFilelistProfile(html: string, hostname: string): TrackerSta
   // fallback: a page whose profile table is missing is not a profile page.
   if (uploadedBytes === undefined && downloadedBytes === undefined) {
     throw new Error(
-      "Could not find profile stats on FileList page. The page may not be authenticated"
+      `Unexpected response from ${hostname}: Could not find profile stats on FileList page. The page may not be authenticated`
     )
   }
 
@@ -262,8 +267,10 @@ function fetchHtml(
 // Adapter class
 // ---------------------------------------------------------------------------
 
-const BOOTSTRAP_ERROR =
-  "Could not find a profile link on the FileList homepage. The page may not be authenticated"
+/** The sanitizer keys on the prefix; without it the card reads "Poll failed". */
+function bootstrapError(hostname: string): string {
+  return `Unexpected response from ${hostname}: Could not find a profile link on the FileList homepage. The page may not be authenticated`
+}
 
 export class FilelistAdapter implements TrackerAdapter {
   // _apiPath is ignored: userdetails.php is intrinsic to the platform, not a
@@ -281,8 +288,12 @@ export class FilelistAdapter implements TrackerAdapter {
     let uid = options?.remoteUserId ?? extractUidFromCookies(creds.cookies)
     if (uid === undefined) {
       const homeHtml = await fetchHtml(`${baseUrl}/`, creds, options?.proxyAgent)
+      // Checked before the id is read off it: a login page served with 200
+      // carries no logout link either, and that is a session problem, not a
+      // missing id.
+      assertAuthenticated(homeHtml)
       uid = extractOwnUserId(homeHtml)
-      if (uid === undefined) throw new Error(BOOTSTRAP_ERROR)
+      if (uid === undefined) throw new Error(bootstrapError(hostname))
     }
 
     const html = await fetchHtml(`${baseUrl}/userdetails.php?id=${uid}`, creds, options?.proxyAgent)
@@ -306,8 +317,9 @@ export class FilelistAdapter implements TrackerAdapter {
     if (uid === undefined) {
       try {
         const homeHtml = await fetchHtml(`${baseUrl}/`, creds, options?.proxyAgent)
+        assertAuthenticated(homeHtml)
         uid = extractOwnUserId(homeHtml)
-        if (uid === undefined) throw new Error(BOOTSTRAP_ERROR)
+        if (uid === undefined) throw new Error(bootstrapError(hostname))
         calls.push({
           label: "Home Page (user id lookup)",
           endpoint: "/",

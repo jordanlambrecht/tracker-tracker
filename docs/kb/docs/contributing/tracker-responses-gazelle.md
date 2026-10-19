@@ -57,7 +57,7 @@ Byte values are raw integers (bytes), not formatted strings. The `id` field is t
 | TrackerStats field | Gazelle path                                                  | Type      | Notes                                                          |
 | ------------------ | ------------------------------------------------------------- | --------- | -------------------------------------------------------------- |
 | `username`         | `response.username`                                           | `string`  | Direct copy                                                    |
-| `group`            | `response.userstats.class`                                    | `string`  | Falls back to `"Unknown"`                                      |
+| `group`            | `response.userstats.class`                                    | `string`  | `null` when absent or blank                                    |
 | `uploadedBytes`    | `response.userstats.uploaded`                                 | `number`  | `BigInt(Math.floor(...))`                                      |
 | `downloadedBytes`  | `response.userstats.downloaded`                               | `number`  | `BigInt(Math.floor(...))`                                      |
 | `ratio`            | `response.userstats.ratio`                                    | `number`  | Defaults to `0` if not a number                                |

@@ -241,9 +241,17 @@ describe("validateCredentialValues cookie hygiene", () => {
 })
 
 describe("validateCredentialValues token hygiene", () => {
+  // The form shows the adapters' own check, so the pre-save message matches the
+  // one a poll would give.
   it("rejects a token carrying a line break inside it", () => {
     expect(validateCredentialValues(CREDENTIAL_FORMS.unit3d, values({ token: "abc\n123" }))).toBe(
-      "API token contains a control character. Re-copy the token with no surrounding text."
+      "Invalid API token: it contains a control character (U+000A) at position 3. Re-copy the token with no surrounding text."
+    )
+  })
+
+  it("rejects a token a browser truncated on copy", () => {
+    expect(validateCredentialValues(CREDENTIAL_FORMS.unit3d, values({ token: "abc123…" }))).toBe(
+      "Invalid API token: it contains a non-Latin-1 character (U+2026) at position 6, usually a truncation mark. Re-copy the full token."
     )
   })
 

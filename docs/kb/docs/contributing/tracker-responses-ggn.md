@@ -131,7 +131,7 @@ Gets your numeric ID. After caching as `remoteUserId`, we skip this and go strai
 | TrackerStats field | GGn path                                                                             | Type               | Notes                                                   |
 | ------------------ | ------------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------- |
 | `username`         | `response.username`                                                                  | `string`           | From user response; quick_user value used as fallback   |
-| `group`            | `response.personal.class`                                                            | `string`           | Falls back to `"Unknown"`                               |
+| `group`            | `response.personal.class`                                                            | `string`           | `null` when absent or blank                             |
 | `remoteUserId`     | `response.id`                                                                        | `number`           | Stored after first poll to skip quick_user              |
 | `uploadedBytes`    | `response.stats.uploaded`                                                            | `number`           | `BigInt(Math.floor(...))`                               |
 | `downloadedBytes`  | `response.stats.downloaded`                                                          | `number`           | `BigInt(Math.floor(...))`                               |

@@ -13,13 +13,13 @@ All adapters return `TrackerStats` defined in `src/types/tracker-stats.ts`.
 ```typescript
 interface TrackerStats {
   username: string
-  group: string
+  group: string | null
   uploadedBytes: bigint
   downloadedBytes: bigint
   ratio: number
   bufferBytes: bigint
-  seedingCount: number
-  leechingCount: number
+  seedingCount: number | null
+  leechingCount: number | null
   seedbonus: number | null
   hitAndRuns: number | null
   requiredRatio: number | null
@@ -30,7 +30,7 @@ interface TrackerStats {
   lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta
+  platformMeta?: PlatformMeta
 }
 ```
 
@@ -53,7 +53,7 @@ For a brand new platform (not just a new tracker on an existing one):
 2. Add response interface(s) at the top
 3. Update `src/types/tracker-stats.ts` with new `platformMeta` fields if needed
 4. Register in `src/lib/tracker-platforms/index.ts` (`getAdapter()` factory)
-5. Add platform to the `platform` enum in `src/lib/db/schema.ts`
+5. Add the platform to `VALID_PLATFORM_TYPES` and `DEFAULT_API_PATHS` in `src/data/platform-types.ts`
 6. Add tracker entries in `src/data/trackers/`
 7. Document the raw response shape here
 

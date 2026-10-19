@@ -208,12 +208,59 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 ---
 
+### `Cloudflare challenge blocked the request`
+
+**Cause:** Cloudflare answered with a challenge page in place of the tracker's page, and wants a browser check first.
+
+!!! success "Solution"
+
+    1. Open the tracker in the browser you copied the cookies from and pass the check.
+    2. Copy the cookies again, `cf_clearance` included where the tracker sets it, and paste them into the tracker's settings from that same browser, since Tracker Tracker records the User-Agent of the browser you save from.
+    3. TorrentLeech has no cookies to refresh. Wait a while, and raise the poll interval if the challenge keeps coming back.
+    4. If the tracker paused after repeated failures, click **Resume Polling**, then **Poll Now**.
+
+---
+
+### `Tracker redirected to another site`
+
+**Cause:** The tracker answered with a redirect to a different site. Tracker Tracker does not follow it, because that would send your session cookies to another host.
+
+!!! success "Solution"
+
+    1. Open the tracker in a browser and check whether it has moved to a new address.
+    2. If it has, open an issue with the new address so the tracker's entry can be updated.
+
+---
+
+### `Tracker redirected too many times`
+
+**Cause:** The tracker kept redirecting between its own pages without answering with one.
+
+!!! success "Solution"
+
+    1. Open the tracker in a browser and check that its pages load.
+    2. If they do, check `docker compose logs tracker-tracker-app` for the `Poll failed for tracker` line and open an issue with it.
+
+---
+
 ### Stale error banner (no pause)
 
 If you see a **Last Error** banner without "Polling Paused", a recent poll failed but not enough to trigger a pause. It clears on the next success.
 
 !!! info "No action if the last poll succeeded"
     The banner shows the most recent error even if later polls recovered. If the PulseDot is `healthy`, `warning`, or `critical`, polling already recovered.
+
+---
+
+### `Tracker returned an unexpected response`
+
+**Cause:** The tracker answered, but with something the adapter cannot read, such as a maintenance page, a login page in place of your profile, a changed page layout, or a reply missing a field the stats need.
+
+!!! success "Solution"
+
+    1. Open the tracker in a browser and check that the site is up and that you are still logged in.
+    2. Click the bug icon (**Fetch raw API response**) in the tracker's header to see the response that failed.
+    3. If the site looks normal, the tracker may have changed its pages or API. Check `docker compose logs tracker-tracker-app` for the `Poll failed for tracker` line and open an issue with it.
 
 ---
 
@@ -235,7 +282,7 @@ If you see a **Last Error** banner without "Polling Paused", a recent poll faile
 
 !!! success "Solution"
 
-    Check logs: `docker compose logs app` for a line with `Poll failed for tracker` + raw error.
+    Check logs: `docker compose logs tracker-tracker-app` for a line with `Poll failed for tracker` + raw error.
 
 ---
 

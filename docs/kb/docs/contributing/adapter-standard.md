@@ -52,8 +52,8 @@ This is the most important rule here. It has already caused shipped bugs (`9f8aa
 A run of fabricated zeroes cannot be told apart from an account that genuinely stopped seeding,
 and it corrupts every chart drawn from snapshot history.
 
-Seven `TrackerStats` fields are nullable for exactly this reason (`types.ts:15-21`):
-`seedingCount`, `leechingCount`, `seedbonus`, `hitAndRuns`, `requiredRatio`, `warned`,
+Eight `TrackerStats` fields are nullable for exactly this reason (`src/types/tracker-stats.ts`):
+`group`, `seedingCount`, `leechingCount`, `seedbonus`, `hitAndRuns`, `requiredRatio`, `warned`,
 `freeleechTokens`. `ratio` is not among them; it is derived, never read (see 2.3).
 
 | Forbidden | Why | Write instead |
@@ -63,6 +63,13 @@ Seven `TrackerStats` fields are nullable for exactly this reason (`types.ts:15-2
 | `parseInt(text, 10) \|\| 0` on scraped text | An absent row parses as `NaN`, which `\|\| 0` turns into zero | `tryParseCount(text) ?? null` |
 | `parseFloat(x) \|\| 0` for a ratio | See 2.3 | `computeRatio(uploaded, downloaded)` |
 | `x ?? 0` in a second call | Overwrites the honest `null` the first call set | `if (typeof x === "number") stats.f = x` |
+
+**An absent or blank class is `null` in `group`, never a placeholder** such as `"Unknown"` or
+`"User"`, so rank history and the rank-change alert read it as not reported. A JSON adapter that
+receives the class as text reads it through `presentClass`, and one that receives an id maps it
+through its own table, as DigitalCore and TR4KER do. IPTorrents is the one exception. Its page
+shows a VIP badge and no class, so an account without the badge is stored as `"User"`, which keeps
+VIP gained and VIP lost alerting.
 
 **A JSON `null` on the wire is data, not an absent key.** If the API declares
 `invites: number | null` and sends `null`, the tracker is stating the figure is unknown. Map it to
@@ -114,7 +121,9 @@ If your tracker exposes nothing beyond `TrackerStats`, return no meta at all.
   `---` or `Inf` for a zero-download account, and `parseFloat` turns those into `0`, the worst
   ratio the app can hold, which then fires the ratio-danger alert.
 - If you have a reason to prefer the tracker's reported ratio, the fallback must be `computeRatio`
-  and a comment must say why. Reference: `hawke.ts:124-128`.
+  and a comment must say why. An account with nothing downloaded always takes `computeRatio`,
+  whatever figure the tracker reports, since there is no quotient to report. Reference: the
+  `ratio` field in Hawke's `fetchStats` and GGn's guard in `ggn.ts`.
 - **`bufferBytes` is `computeBufferBytes(uploaded, downloaded)`**, unless the platform reports a
   signed buffer of its own, in which case say so (`hawke.ts:129-132`).
 
@@ -135,8 +144,10 @@ matches on wording. Wording is an interface, not prose.
   recognisable string. Prefix any tracker-supplied string before throwing it, or a remote body
   containing "invalid" decides the classification for you.
 - **A body that fails to parse is not a connection failure.** `classifyFetchError` applies only to
-  an error thrown by `fetch` or `proxyFetch`. Reference: `nebulance.ts:106-107`, where a
-  `SyntaxError` becomes the shape wording and only the remaining branch is classified.
+  an error thrown by `fetch`, and `classifyProxyFetchError` only to a `proxyFetch` rejection.
+  Every `json()` from `adapterRequest` already goes through `readJson` in `helpers/adapter-fetch.ts`,
+  where a `SyntaxError` becomes the shape wording and only the remaining branch is classified. An
+  adapter that parses text itself follows `parseJsonSafe` in `digitalcore.ts`.
 - **Log through `log` from `@/lib/logger`**, in the structured `log.warn({ err }, "message")`
   form, never `console`. The in-app event feed is built by parsing pino output, so a
   `console.warn` failure is invisible to the operator. Reference: `torrentleech.ts:210`.
@@ -154,10 +165,11 @@ matches on wording. Wording is an interface, not prose.
   per-account ones in `optionalFields`. Never call `JSON.parse(apiToken)` yourself.
 - **A pasted Cookie header goes through `validateCookieHeader`.** It validates a whole header. An
   individual cookie **value** you interpolate yourself is outside its scope and needs your own
-  semicolon and control-character guard.
-- **A credential interpolated into a request header must be checked for control and non-ASCII
-  characters first.** Reference: `validateMamId` (`mam.ts:83`). A token placed in a query
-  parameter or POST body relies on `URLSearchParams` encoding and needs no such check.
+  semicolon, control-character and non-Latin-1 guard, like `validateMamId` (`mam.ts:83`).
+- **A plain token sent in a request header goes through `validateHeaderToken` first**, before the
+  first request and outside `fetchRaw`'s `try`, and the header carries the value it returns. A
+  token placed in a query parameter or POST body relies on `URLSearchParams` encoding and needs no
+  such check.
 - `userAgent` is **required** for a cookie scraper, because the session is fingerprinted against
   the agent it was issued to. It is **optional** for a JSON API, where the transport supplies one.
 
@@ -168,17 +180,22 @@ must not lie.
 
 - **Return the unmodified response body in `data`** for a JSON API. Mapping is `fetchStats`'s job.
   A scraper may substitute parsed output, because the raw artifact is a whole HTML page.
-- **Apply every failure test `fetchStats` applies.** `adapterFetch` throws on a non-2xx, so the
-  only failure reaching `fetchRaw` intact is one the tracker wrapped inside an HTTP 200 body, and
-  the debug view marks a call healthy purely on `error` being null. Call `envelopeError(data)` and
-  put its result in `error`, keeping the offending body in `data`. References: `gazelle.ts:285`,
-  `ggn.ts:236`, `hawke.ts:163`. A tracker whose failure is a missing field rather than an envelope
-  flag checks for itself (`mam.ts:210-217`).
+- **Apply every failure test `fetchStats` applies.** `adapterFetch` throws on a non-2xx, so through
+  it the only failure reaching `fetchRaw` intact is one the tracker wrapped inside an HTTP 200 body
+  (an `adapterRequest` caller can read a non-2xx body too, as `nebulance.ts` does), and the debug
+  view marks a call healthy purely on `error` being null. Put every check `fetchStats` makes on a
+  200 body in one function both methods call, and in `fetchRaw` set
+  `error: pollError(() => thatFunction(data, hostname))`, keeping the body in `data`. The dialog
+  prints that body under the error. Nothing `fetchStats` does with that body afterwards may throw.
+  References: `creditedTotals` in `tr4ker.ts`, `readIndex` in `gazelle.ts`. A call whose failure
+  `fetchStats` tolerates takes its `error` from the function that decides the failure, so the
+  entry shows the reason `fetchStats` logs. Reference: `profileFailure` in `gazelle.ts`.
 - **Emit an entry for a call you skipped**, with `data: null` and a reason. A debug view that
   simply ends after one entry cannot be told from a one-call adapter.
 - **Do not abandon later calls when an earlier one fails** if a cached value can satisfy the
   dependency. `options.remoteUserId` is that cached id, and a failing first call is exactly when
-  the second call's output matters most.
+  the second call's output matters most. An id read from a body the poll rejects does not count,
+  since the poll never makes the call that id would drive.
 - **Apply the same pacing `fetchStats` applies.** The debug route runs both methods in one
   request, so a missing pause means one press issues every request back to back.
 - **Build the endpoint string first and derive the URL from it**, so the two cannot encode
@@ -197,17 +214,20 @@ it. Import it rather than writing it again.
 | `adapterFetch` | `helpers/adapter-fetch.ts` | Every JSON API request on the happy path. Applies the shared timeout, default User-Agent and proxy, throws on non-2xx. | Your own fetch, timeout, proxy branch or non-2xx message |
 | `adapterRequest` | `helpers/adapter-fetch.ts` | Same, but returns a non-2xx instead of throwing. Only when your API reports errors in the body of a non-2xx. | Reaching for this by default |
 | `fetchTrackerHtml` | `helpers/html-fetch.ts` | Every authenticated page fetch in a scraper. Handles headers, cookies, the redirect chain, the off-origin refusal. | A private fetch with a Cookie header, your own redirect following |
-| `envelopeError` | `helpers/envelope.ts` | `fetchRaw`, on every body that arrived with HTTP 200. Returns the failure a tracker signalled inside a success, or null. Covers `{status, error}` and `{success, message}`. | Your own `status !== "success"` unwrap inside `fetchRaw` |
+| `pollError` | `helpers/poll-error.ts` | `fetchRaw`, on every 200 body `fetchStats` reads. Runs the function `fetchStats` reads it with and returns the message that function throws, or null. | Restating `fetchStats`'s checks inside `fetchRaw` |
 | `normalizeWhitespace` | `helpers/html-parse.ts` | Any text you compare against a literal label. Labels carry U+00A0, which an exact match will not survive. | `value.replace(/\s+/g, " ").trim()` |
 | `datePrefix` | `helpers/html-parse.ts` | Slicing `YYYY-MM-DD` off a site-printed datetime | Your own date regex |
 | `tryParseCount` | `helpers/html-parse.ts` | Any site-printed count. The first number in the text, commas stripped, decimals and sign kept, `undefined` when there is none. | `parseInt(text, 10)` with your own `NaN` test |
 | `tryParseSiteBytes` | `helpers/html-parse.ts` | Site-printed byte totals. Strips grouping commas and canonicalises the unit, so both `1,024 kB` and `1 GiB` parse. Returns `undefined` rather than throwing. | A private `parseBytes` wrapper with its own tolerances |
 | `requireBytes` | `helpers/bytes.ts` | A byte total a JSON API is contracted to send. Throws naming the host and the field when it is absent or not a number, because both byte totals are non-nullable `bigint` and cannot hold unknown. | `floatBytesToBigInt` straight off the wire, which answers `0n` for an absent field |
+| `presentClass` | `helpers/class-name.ts` | The class a JSON API sends as text for `group`. Returns it, or `null` when it is absent, blank or not a string. | `class ?? "Unknown"`, or `class \|\| null`, which keeps a whitespace-only class |
 | `computeRatio`, `computeBufferBytes` | `@/lib/data-transforms` | `ratio` and `bufferBytes` | Reading the tracker's ratio with no `computeRatio` fallback |
 | `parseCredentialJson` | `helpers/cookie-credentials.ts` | Any credential arriving as a JSON blob | `JSON.parse(apiToken)`, shape checks, and above all the error wording |
-| `validateCookieHeader` | `helpers/cookie-credentials.ts` | A credential that is a pasted Cookie header | Prefix stripping, control-character and non-ASCII guards |
+| `validateCookieHeader` | `@/lib/tracker-credentials/cookie-header` | A credential that is a pasted Cookie header | Prefix stripping, control-character and non-ASCII guards |
+| `validateHeaderToken` | `@/lib/tracker-credentials/header-token` | A plain API token sent in a request header | Your own control-character and non-Latin-1 checks |
 | `SessionExpiredError` | `helpers/errors.ts` | Signalling that an authenticated request came back as a login page. Callers use `instanceof`. | Matching the message text |
-| `classifyFetchError` | `@/lib/error-utils` | Errors thrown by `fetch` or `proxyFetch`, only | Applying it to a `JSON.parse` failure |
+| `classifyFetchError` | `@/lib/error-utils` | Errors thrown by `fetch`, only | Applying it to a `JSON.parse` failure |
+| `classifyProxyFetchError` | `@/lib/error-utils` | A `proxyFetch` rejection, only. Keeps its reason, worded the way every tracker transport words it | Your own "via proxy" message, or `classifyFetchError`, which keeps only the error's name or code |
 | `log` | `@/lib/logger` | Every log line in the adapter layer | `console.warn`, `console.error` |
 | `metaFor` | `@/types/tracker-stats` | Narrowing `platformMeta` **outside** the adapter that produced it | `meta as XPlatformMeta` in a component |
 
@@ -280,6 +300,7 @@ dashes.
 
 - [ ] Every unreported numeric field is `null`. No `?? 0`, `|| 0` or `parseInt(...) || 0` on a
       nullable `TrackerStats` field.
+- [ ] `group` is `null` when the class is absent or blank, never a placeholder.
 - [ ] `warned` is `null` unless the response carried an actual boolean.
 - [ ] `ratio` is `computeRatio(...)`, or the reported ratio with `computeRatio` as fallback and a
       comment saying why. No `|| 0` anywhere in the ratio expression.
@@ -296,11 +317,13 @@ dashes.
 - [ ] No message contains "invalid" unless it is genuinely a credential fault.
 - [ ] I do not call `sanitizeNetworkError` myself, and I classify on `response.status` or an error
       type, never on digits in a message.
-- [ ] `classifyFetchError` is applied only to a `fetch` or `proxyFetch` rejection.
+- [ ] `classifyFetchError` is applied only to a `fetch` rejection, and `classifyProxyFetchError`
+      only to a `proxyFetch` rejection.
 - [ ] A tracker-supplied error string is prefixed before it is thrown.
 - [ ] I parse credentials with `parseCredentialJson`, and a pasted header with
       `validateCookieHeader`. I never call `JSON.parse(apiToken)`.
-- [ ] A credential I interpolate into a header is checked for control and non-ASCII characters.
+- [ ] A plain token I send in a header goes through `validateHeaderToken`, and a cookie value I
+      build myself has its own control-character and non-Latin-1 guard.
 - [ ] No credential appears in any error, log line, or debug `endpoint`, `data` or `error`.
 - [ ] Any call I make directly carries `ADAPTER_FETCH_TIMEOUT_MS`. Calls through `adapterFetch`
       and `fetchTrackerHtml` get it automatically.
@@ -310,8 +333,8 @@ dashes.
 
 - [ ] Credentials are parsed outside the `try`.
 - [ ] For a JSON API, `data` is the unmodified response body.
-- [ ] Every 200-body failure test in `fetchStats` is applied here, via `envelopeError` or an
-      explicit check, and sets `error`.
+- [ ] Every 200-body failure test in `fetchStats` lives in one function both methods call, and
+      `fetchRaw` sets `error` from it through `pollError`, keeping the body in `data`.
 - [ ] A skipped call still gets an entry with `data: null` and a reason.
 - [ ] `endpoint` is built first and the URL derived from it.
 - [ ] Any pause or backoff in `fetchStats` is applied here too.
@@ -433,8 +456,8 @@ rule is aspirational when it is already green.
 test files. Two enforcers means the weaker one gets edited when it fires.
 
 **Done**, in `__tests__/conformance.test.ts`. Failures name the file and the matched text so the
-message teaches the rule. Two allowlist entries survive, each with its reason written next to it:
-DigitalCore's hand-rolled credential parser, and MAM's category sum. Adding a third means writing
+message teaches the rule. Each allowlist entry carries its reason next to it: DigitalCore's
+hand-rolled credential parser, MAM's category sum and TR4KER's null bonus. Adding one means writing
 down why, which is the whole point.
 
 ### 7.4 A null-contract test generated from the source

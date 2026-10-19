@@ -43,6 +43,11 @@ describe("parseBytes", () => {
   it("handles TB (decimal)", () => {
     expect(parseBytes("2 TB")).toBe(BigInt(2_000_000_000_000))
   })
+
+  it("parses a petabyte total, which a long-standing account on a big tracker reaches", () => {
+    expect(parseBytes("1.5 PiB")).toBe(BigInt(1_688_849_860_263_936))
+    expect(parseBytes("2 PB")).toBe(BigInt(2_000_000_000_000_000))
+  })
 })
 
 describe("formatBytes", () => {

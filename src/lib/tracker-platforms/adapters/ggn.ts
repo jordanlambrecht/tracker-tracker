@@ -10,7 +10,8 @@ import type {
 } from "../contract"
 import { adapterFetch } from "../helpers/adapter-fetch"
 import { requireBytes } from "../helpers/bytes"
-import { envelopeError } from "../helpers/envelope"
+import { presentClass } from "../helpers/class-name"
+import { pollError } from "../helpers/poll-error"
 
 interface GGnQuickUserResponse {
   status: string
@@ -83,6 +84,41 @@ function ggnUserUrl(apiPath: string, baseUrl: string, apiToken: string, userId: 
   return url
 }
 
+/** The user's id and name from quick_user, or the error fetchStats fails the poll with. */
+function readQuickUser(
+  data: GGnQuickUserResponse,
+  hostname: string
+): { id: number; username: string } {
+  if (data.status !== "success") {
+    throw new Error(data.error?.trim() || `GGn API returned status: ${data.status}`)
+  }
+  if (!data.response?.id || !data.response.username) {
+    throw new Error(`Unexpected response from ${hostname}: missing user ID or username`)
+  }
+  return { id: data.response.id, username: data.response.username }
+}
+
+/** The user profile and its byte totals, or the error fetchStats fails the poll with. */
+function readUserStats(
+  data: GGnUserResponse,
+  hostname: string
+): { resp: NonNullable<GGnUserResponse["response"]>; uploaded: bigint; downloaded: bigint } {
+  if (data.status !== "success") {
+    throw new Error(data.error?.trim() || `GGn API returned status: ${data.status}`)
+  }
+
+  const resp = data.response
+  if (!resp?.stats) {
+    throw new Error(`Unexpected response from ${hostname}: missing stats`)
+  }
+
+  return {
+    resp,
+    uploaded: requireBytes(resp.stats.uploaded, "uploaded", hostname),
+    downloaded: requireBytes(resp.stats.downloaded, "downloaded", hostname),
+  }
+}
+
 export class GGnAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -109,15 +145,9 @@ export class GGnAdapter implements TrackerAdapter {
         options
       )
 
-      if (quickData.status !== "success") {
-        throw new Error(quickData.error ?? `GGn API returned status: ${quickData.status}`)
-      }
-      if (!quickData.response?.id || !quickData.response.username) {
-        throw new Error(`Unexpected response from ${hostname}: missing user ID or username`)
-      }
-
-      userId = quickData.response.id
-      username = quickData.response.username
+      const quickUser = readQuickUser(quickData, hostname)
+      userId = quickUser.id
+      username = quickUser.username
     }
 
     // Step 2: full user profile for detailed stats
@@ -125,17 +155,7 @@ export class GGnAdapter implements TrackerAdapter {
 
     const userData = await adapterFetch<GGnUserResponse>(userUrl.toString(), hostname, options)
 
-    if (userData.status !== "success") {
-      throw new Error(userData.error ?? `GGn API returned status: ${userData.status}`)
-    }
-
-    const resp = userData.response
-    if (!resp?.stats) {
-      throw new Error(`Unexpected response from ${hostname}: missing stats`)
-    }
-
-    const uploaded = requireBytes(resp.stats.uploaded, "uploaded", hostname)
-    const downloaded = requireBytes(resp.stats.downloaded, "downloaded", hostname)
+    const { resp, uploaded, downloaded } = readUserStats(userData, hostname)
     // GGn sends its ratio as a string or a number. An account with nothing
     // downloaded has no quotient to report, and a ratio that does not parse is no
     // figure at all, so both come from the byte totals.
@@ -163,7 +183,7 @@ export class GGnAdapter implements TrackerAdapter {
 
     return {
       username: resp.username || username,
-      group: resp.personal?.class ?? "Unknown",
+      group: presentClass(resp.personal?.class),
       remoteUserId: userId,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
@@ -204,17 +224,16 @@ export class GGnAdapter implements TrackerAdapter {
           hostname,
           options
         )
-        const bodyError = envelopeError(quickData)
+        const bodyError = pollError(() => readQuickUser(quickData, hostname))
         calls.push({
           label: "Quick User",
           endpoint: `${apiPath}?request=quick_user`,
           data: quickData,
           error: bodyError,
         })
-        // A rejected key answers 200 with no response.id, so without this the
-        // second call is skipped and the whole debug view is one green call.
-        if (bodyError) return calls
-        userId = quickData.response?.id
+        // The poll stops at a body it rejects, so an id in one does not carry
+        // the user call.
+        if (bodyError === null) userId = quickData.response?.id
       } catch (err) {
         calls.push({
           label: "Quick User",
@@ -222,7 +241,6 @@ export class GGnAdapter implements TrackerAdapter {
           data: null,
           error: err instanceof Error ? err.message : "Request failed",
         })
-        return calls
       }
     }
 
@@ -232,16 +250,12 @@ export class GGnAdapter implements TrackerAdapter {
       const endpoint = `${apiPath}?request=user&id=${userId}`
 
       try {
-        const userData = await adapterFetch<Record<string, unknown>>(
-          userUrl.toString(),
-          hostname,
-          options
-        )
+        const userData = await adapterFetch<GGnUserResponse>(userUrl.toString(), hostname, options)
         calls.push({
           label: "User Profile",
           endpoint,
           data: userData,
-          error: envelopeError(userData),
+          error: pollError(() => readUserStats(userData, hostname)),
         })
       } catch (err) {
         calls.push({
@@ -251,6 +265,15 @@ export class GGnAdapter implements TrackerAdapter {
           error: err instanceof Error ? err.message : "Request failed",
         })
       }
+    } else {
+      // readQuickUser fails a body with no id, so only a failed Quick User
+      // gets here.
+      calls.push({
+        label: "User Profile",
+        endpoint: `${apiPath}?request=user`,
+        data: null,
+        error: "Skipped: Quick User failed and no user id is cached",
+      })
     }
 
     return calls

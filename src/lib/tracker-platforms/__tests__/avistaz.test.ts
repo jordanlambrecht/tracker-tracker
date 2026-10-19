@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/__tests__/avistaz.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { AvistazAdapter, parseAvistazCredentials, parseAvistazProfile } from "../adapters/avistaz"
 import type { AvistazPlatformMeta } from "../contract"
 
@@ -119,12 +120,19 @@ describe("parseAvistazProfile", () => {
 
   it("extracts joinedDate from profile table", () => {
     const stats = parseAvistazProfile(FULL_PAGE, "testuser", "avistaz.to")
-    expect(stats.joinedDate).toContain("2026")
+    expect(stats.joinedDate).toBe("2026-02-27")
+  })
+
+  it("leaves joinedDate unset when its row holds no date", () => {
+    // "-" is what AvistaZ writes in a row it has nothing for, as in VIP Expiry.
+    const page = FULL_PAGE.replace("27 Feb 2026 07:21 pm (1 month ago)", "-")
+    const stats = parseAvistazProfile(page, "testuser", "avistaz.to")
+    expect(stats.joinedDate).toBeUndefined()
   })
 
   it("extracts lastAccessDate from private table", () => {
     const stats = parseAvistazProfile(FULL_PAGE, "testuser", "avistaz.to")
-    expect(stats.lastAccessDate).toContain("2026")
+    expect(stats.lastAccessDate).toBe("2026-03-29")
   })
 
   it("extracts platformMeta fields", () => {
@@ -157,9 +165,18 @@ describe("parseAvistazProfile", () => {
     )
   })
 
-  it("detects Cloudflare challenge and throws", () => {
+  it("detects Cloudflare challenge and throws, and the card names it", () => {
     const cfChallenge = `<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>`
-    expect(() => parseAvistazProfile(cfChallenge, "testuser", "avistaz.to")).toThrow("Cloudflare")
+    let message = ""
+    try {
+      parseAvistazProfile(cfChallenge, "testuser", "avistaz.to")
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe("Cloudflare challenge detected. The cf_clearance cookie needs refreshing")
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Cloudflare challenge blocked the request"
+    )
   })
 
   it("throws when ratio bar is missing", () => {
@@ -306,6 +323,21 @@ describe("parseAvistazProfile", () => {
     expect(stats.ratio).toBeCloseTo(4.2)
   })
 
+  it("reports no class when the page carries no class badge or a blank one", () => {
+    const page = (groupItem: string) => `<!doctype html><html><head></head><body>
+      <div class="ratio-bar"><div class="container"><ul class="list-inline">
+        <li><span class="badge-user">testuser</span></li>
+        ${groupItem}
+        <li data-toggle="tooltip" title="Upload"><i></i> 10.00 GB</li>
+        <li data-toggle="tooltip" title="Download"><i></i> 5.00 GB</li>
+      </ul></div></div>
+    </body></html>`
+
+    for (const groupItem of ["", '<li><span class="badge-user"> </span></li>']) {
+      expect(parseAvistazProfile(page(groupItem), "testuser", "avistaz.to").group).toBeNull()
+    }
+  })
+
   it("extracts all fields from AnimeZ BS5 structure (datagrid + tooltip stats)", () => {
     const animezPage = `<!doctype html><html><head></head><body>
       <span class="badge bg-secondary-lt text-secondary badge-sm">Member</span>
@@ -352,7 +384,37 @@ describe("parseAvistazProfile", () => {
     expect(stats.leechingCount).toBe(1)
     expect(stats.seedbonus).toBe(344)
     expect(stats.joinedDate).toBe("2026-02-27")
+    // "11 seconds ago" is relative, so there is no date to report.
+    expect(stats.lastAccessDate).toBeUndefined()
     expect((stats.platformMeta as { twoFactorEnabled?: boolean })?.twoFactorEnabled).toBe(true)
+  })
+})
+
+describe("parseAvistazProfile pages it cannot read", () => {
+  // The tracker answered, so the card must not read "Poll failed", which is
+  // also what a host that never answered gets.
+  it.each([
+    [
+      "no ratio bar",
+      "<html><body><p>Down for maintenance</p></body></html>",
+      "Could not find ratio bar in profile page. The page may not be authenticated",
+    ],
+    [
+      "a ratio bar with no byte totals",
+      '<html><body><div class="ratio-bar"><ul class="list-inline"></ul></div></body></html>',
+      "Could not extract upload/download bytes from AvistaZ ratio bar. The page structure may have changed.",
+    ],
+  ])("reads %s as an unexpected response", (_case, page, detail) => {
+    let message = ""
+    try {
+      parseAvistazProfile(page, "testuser", "avistaz.to")
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe(`Unexpected response from avistaz.to: ${detail}`)
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
   })
 })
 

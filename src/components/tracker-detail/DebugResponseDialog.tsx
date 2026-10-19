@@ -54,8 +54,14 @@ export function DebugResponseDialog({
       return data.apiCalls
         .map((call) => {
           const header = `── ${call.label} ── ${call.endpoint}`
-          if (call.error) return `${header}\nError: ${call.error}`
-          return `${header}\n${JSON.stringify(call.data, null, 2)}`
+          const body = JSON.stringify(call.data, null, 2)
+          if (call.error != null) {
+            // A failed call that brought a body keeps it, since the body explains the error.
+            return call.data == null
+              ? `${header}\nError: ${call.error}`
+              : `${header}\nError: ${call.error}\n${body}`
+          }
+          return `${header}\n${body}`
         })
         .join("\n\n")
     }

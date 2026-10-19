@@ -306,6 +306,19 @@ describe("Gazelle context", () => {
     const badge = map.get("badge")?.find((s) => s.id === "gazelle-unread")
     expect(badge?.props.label).toBe("3 Unread")
   })
+
+  it("resolves seedbonus, since Gazelle has no bonus card of its own", () => {
+    // Every poll now writes meta, so a meta check here would hide the card for
+    // every Gazelle tracker, including one whose meta is empty.
+    for (const meta of [gazMeta, {}]) {
+      const withBonus: SlotContext = {
+        ...ctx,
+        meta,
+        latestSnapshot: makeSnapshot({ seedbonus: 12500 }),
+      }
+      expect(slotIds(withBonus, "stat-card")).toContain("seedbonus")
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -826,6 +839,7 @@ describe("security: slot resolution does not expose secrets", () => {
       "encryptedPassword",
       "encryptedUsername",
       "encryptedApiKey",
+      "encryptedUrlPath",
       "totpSecret",
       "totpBackupCodes",
     ]

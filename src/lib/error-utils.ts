@@ -1,6 +1,7 @@
 // src/lib/error-utils.ts
 //
-// Functions: errMsg, sanitizeNetworkError, isUnreachableMessage, isDecryptionError, classifyFetchError
+// Functions: errMsg, sanitizeNetworkError, isUnreachableMessage, isDecryptionError,
+//            classifyFetchError, classifyProxyFetchError
 
 /** Extracts a string message from an unknown error value. */
 export function errMsg(err: unknown): string {
@@ -28,6 +29,9 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
   // "IP temporarily banned by tracker" and "Authentication failed").
+  if (/login through the URL path was refused/i.test(raw)) {
+    return "Blank login rejected through the URL path. For Qui, check the client API key in the path. Otherwise enter the qBittorrent username and password"
+  }
   if (/rejected the blank credentials/i.test(raw)) {
     return 'Blank credentials rejected. Enable "Bypass authentication for clients on localhost" in qBittorrent'
   }
@@ -53,6 +57,12 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/qBittorrent API error: 3\d\d/i.test(raw)) {
     return "qBittorrent redirected the request"
   }
+  // A wrong port or URL path reaches a server, or a proxy route, with no
+  // qBittorrent API behind it. Something answered, so the fallback, which reads
+  // as unreachable, would be wrong.
+  if (/qBittorrent API error: 40[45]/i.test(raw)) {
+    return "qBittorrent's API was not found at this address. Check the port and URL path"
+  }
   // The tracker proxy transport's own cap, worded differently and, through the
   // proxy branch, wrapped as a proxy failure that the rule further down would
   // otherwise read as the proxy being down.
@@ -75,6 +85,17 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/Unexpected response from|Invalid byte format|Negative byte values|Unknown unit/i.test(raw)) {
     return "Tracker returned an unexpected response"
   }
+  // The scrapers' Cloudflare challenge messages all open this way. What to do
+  // differs (fresh cookies for most, nothing to refresh for TorrentLeech), so
+  // the card names only the cause.
+  if (/Cloudflare challenge detected/i.test(raw)) {
+    return "Cloudflare challenge blocked the request"
+  }
+  // The scrapers refuse a redirect off the tracker's own origin, which would
+  // carry the session cookies to another host, and give up on a loop. The
+  // tracker answered either way, so neither is an unreachable host.
+  if (/redirected off-site/i.test(raw)) return "Tracker redirected to another site"
+  if (/Too many redirects from/i.test(raw)) return "Tracker redirected too many times"
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"
@@ -168,4 +189,18 @@ function unwrapCause(err: TypeError): { name: string; message: string; code?: st
     }
   }
   return null
+}
+
+/**
+ * Classifies a proxyFetch rejection, worded the same for every tracker
+ * transport so one sanitizer rule covers them all. proxyFetch rejects with a
+ * plain Error that carries its reason in the message, which classifyFetchError
+ * would reduce to the error's name or code.
+ */
+export function classifyProxyFetchError(err: unknown, hostname: string): Error {
+  if (err instanceof Error && err.message.includes("timed out")) {
+    return new Error(`Request to ${hostname} timed out (via proxy)`)
+  }
+  const detail = err instanceof Error ? err.message : "Unknown"
+  return new Error(`Failed to connect to ${hostname} via proxy: ${detail}`)
 }

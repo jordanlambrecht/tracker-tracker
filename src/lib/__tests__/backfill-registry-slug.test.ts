@@ -125,6 +125,13 @@ describe("backfillRegistrySlugs", () => {
     expect(setCalls).toHaveLength(2)
   })
 
+  it("runs again when forced, for rows a restore wrote after boot", async () => {
+    await backfillRegistrySlugs()
+    await backfillRegistrySlugs({ force: true })
+
+    expect(vi.mocked(db.select)).toHaveBeenCalledTimes(2)
+  })
+
   it("logs a failed select and does not throw it into boot", async () => {
     mockSelect(Promise.reject(new Error("connection refused")))
 

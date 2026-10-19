@@ -57,6 +57,7 @@ export * from "./seedpool"
 export * from "./skipthecommercials"
 export * from "./sportscult"
 export * from "./torrentleech"
+export * from "./tr4ker"
 export * from "./tvvault"
 export * from "./uhdbits"
 export * from "./uploadcx"
@@ -118,6 +119,7 @@ import { seedpool } from "./seedpool"
 import { skipthecommercials } from "./skipthecommercials"
 import { sportscult } from "./sportscult"
 import { torrentleech } from "./torrentleech"
+import { tr4ker } from "./tr4ker"
 import { tvvault } from "./tvvault"
 import { uhdbits } from "./uhdbits"
 import { uploadcx } from "./uploadcx"
@@ -180,6 +182,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   skipthecommercials,
   sportscult,
   torrentleech,
+  tr4ker,
   tvvault,
   uhdbits,
   uploadcx,

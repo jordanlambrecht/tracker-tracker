@@ -129,7 +129,7 @@ All module-level singletons (cron tasks, DB client, qBT SID cache) must be store
 
 - All `fetch()` calls must include a timeout: `fetch(url, { signal: AbortSignal.timeout(15_000) })`. This is a CI-blocking security audit check.
 - URLs from user input must be validated with `validateHttpUrl()` before use in `fetch()`.
-- Error messages must not contain full URLs (which may include API tokens). Use `sanitizeNetworkError()`.
+- Error messages must not contain full URLs (which may include API tokens). Name the hostname instead. `sanitizeNetworkError()` runs once, at the scheduler and route boundary, never inside an adapter.
 
 ## Validation
 

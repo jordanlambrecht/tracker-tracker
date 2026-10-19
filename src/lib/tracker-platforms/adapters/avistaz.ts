@@ -6,7 +6,7 @@
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { localDateStr } from "@/lib/formatters"
+import { trackerDateStr } from "@/lib/formatters"
 import { parseBytes } from "@/lib/parser"
 import { validateCookieHeader } from "@/lib/tracker-credentials/cookie-header"
 import type {
@@ -145,7 +145,9 @@ export function parseAvistazProfile(
   // ── Ratio bar ──────────────────────────────────────────────────────────────
   const ratioBar = doc.querySelector("div.ratio-bar")
   if (!ratioBar) {
-    throw new Error("Could not find ratio bar in profile page. The page may not be authenticated")
+    throw new Error(
+      `Unexpected response from ${hostname}: Could not find ratio bar in profile page. The page may not be authenticated`
+    )
   }
 
   const items = Array.from(ratioBar.querySelectorAll("ul.list-inline > li"))
@@ -157,13 +159,11 @@ export function parseAvistazProfile(
   // Group: BS3 has two badge-user spans (username, group) in the ratio bar.
   // BS5 puts the group in a separate badge element elsewhere on the page.
   const groupSpans = ratioBar.querySelectorAll("span.badge-user")
-  let group = "Unknown"
-  if (groupSpans.length >= 2) {
-    group = groupSpans[1].textContent?.trim() ?? "Unknown"
-  } else {
-    const badgeEl = doc.querySelector(".badge.bg-secondary-lt, .badge-extra.badge-sm")
-    if (badgeEl) group = badgeEl.textContent?.trim() ?? "Unknown"
-  }
+  const groupEl =
+    groupSpans.length >= 2
+      ? groupSpans[1]
+      : doc.querySelector(".badge.bg-secondary-lt, .badge-extra.badge-sm")
+  const group = groupEl?.textContent?.trim() || null
 
   // Upload / download / seeding / leeching / bonus from tooltip-titled items
   // undefined until a row is actually read, so "the ratio bar had no Upload
@@ -203,7 +203,7 @@ export function parseAvistazProfile(
   // A brand new account, whose items read 0 B, is not.
   if (uploadedBytes === undefined && downloadedBytes === undefined) {
     throw new Error(
-      "Could not extract upload/download bytes from AvistaZ ratio bar. The page structure may have changed."
+      `Unexpected response from ${hostname}: Could not extract upload/download bytes from AvistaZ ratio bar. The page structure may have changed.`
     )
   }
   // One side readable and the other not is a page-shape change, not an account
@@ -245,15 +245,17 @@ export function parseAvistazProfile(
   const userIdMatch = userIdText.match(/(\d+)/)
   const remoteUserId = userIdMatch ? parseInt(userIdMatch[1], 10) : undefined
 
+  // trackerDateStr returns undefined for text that is no date, such as AnimeZ's
+  // relative Last Seen, where formatting it would write "Invalid Date".
   const joinedRaw = field("Joined", "Member Since")
     .replace(/\s*\(.*\)/, "")
     .trim()
-  const joinedDate = joinedRaw ? localDateStr(new Date(joinedRaw)) : undefined
+  const joinedDate = joinedRaw ? trackerDateStr(joinedRaw) : undefined
 
   const lastAccessRaw = field("Last Access", "Last Seen")
     .replace(/\s*\(.*\)/, "")
     .trim()
-  const lastAccessDate = lastAccessRaw ? localDateStr(new Date(lastAccessRaw)) : undefined
+  const lastAccessDate = lastAccessRaw ? trackerDateStr(lastAccessRaw) : undefined
 
   // ── Private account-detail rows ────────────────────────────────────────────
   const donorText = field("Donor")

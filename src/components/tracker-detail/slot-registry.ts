@@ -144,7 +144,7 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   priority: 10,
   resolve(ctx) {
     if (ctx.latestSnapshot?.seedbonus == null) return null
-    if (metaFor(ctx, "ggn") || metaFor(ctx, "gazelle") || metaFor(ctx, "nebulance")) return null
+    if (metaFor(ctx, "ggn") || metaFor(ctx, "nebulance")) return null
     const bonusName = registryBonusName(ctx.registry)
     return {
       label: bonusName ?? "Seedbonus",

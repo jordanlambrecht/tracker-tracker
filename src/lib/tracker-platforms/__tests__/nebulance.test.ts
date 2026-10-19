@@ -133,6 +133,24 @@ describe("NebulanceAdapter", () => {
     expect(stats.group).toBe("Member")
   })
 
+  it("reports no class when Class is absent or blank, even beside a SubClass", async () => {
+    for (const overrides of [
+      { Class: undefined },
+      { Class: undefined, SubClass: "VIP" },
+      { Class: "", SubClass: "VIP" },
+      { Class: "   ", SubClass: "VIP" },
+    ]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockNebulanceResponse(overrides),
+      } as Response)
+
+      const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
+
+      expect(stats.group).toBeNull()
+    }
+  })
+
   // A deficit account must report its actual shortfall, not 0.
   it("calculates a negative buffer when downloaded exceeds uploaded", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
@@ -176,6 +194,18 @@ describe("NebulanceAdapter", () => {
     const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
 
     expect(stats.ratio).toBe(0)
+  })
+
+  it("stores the ratio unrounded, so a figure just under a minimum stays under it", async () => {
+    // Rounded to 2dp, 0.596 would store as 0.6 and pass Anthelion's 0.6 minimum.
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockNebulanceResponse({ Uploaded: 596, Downloaded: 1000 }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://nebulance.io", "fake-api-key", "/api.php")
+
+    expect(stats.ratio).toBe(0.596)
   })
 
   it("handles non-zero HnR count", async () => {
@@ -539,22 +569,63 @@ describe("NebulanceAdapter.fetchRaw", () => {
     // A null error is what marks a call healthy in the debug view, so an error
     // body rendered as a success was the whole defect.
     expect(calls).toHaveLength(1)
-    expect(calls[0].data).toBeNull()
-    expect(calls[0].error).toContain("401")
+    expect(calls[0].data).toEqual({ error: "bad key" })
+    expect(calls[0].error).toBe("Tracker API error: 401 bad key")
+  })
+
+  it("shows a non-2xx error body under the message the poll fails with", async () => {
+    const body = { error: { code: 401, message: "Invalid API key" } }
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      json: async () => body,
+    } as Response)
+
+    const err = await adapter
+      .fetchStats("https://nebulance.io", "bad-key", "/api.php")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+    const calls = await adapter.fetchRaw("https://nebulance.io", "bad-key", "/api.php")
+
+    expect(err?.message).toBe("Tracker API error: 401 Invalid API key")
+    expect(calls[0].error).toBe("Tracker API error: 401 Invalid API key")
+    // The status text says only Unauthorized. The body says why.
+    expect(calls[0].data).toEqual(body)
+  })
+
+  it("names every parameter the request sent except the key", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => mockNebulanceResponse(),
+    } as Response)
+
+    const calls = await adapter.fetchRaw("https://nebulance.io", "my-api-key", "/api.php", {
+      remoteUserId: 9001,
+    })
+
+    expect(calls[0].endpoint).toBe("/api.php?action=user&method=getuserinfo&type=id&user=9001")
+    // Read off the request itself, so a parameter added there and not here fails.
+    const sent = new URL(fetchSpy.mock.calls[0][0] as string)
+    sent.searchParams.delete("api_key")
+    expect(calls[0].endpoint).toBe(`${sent.pathname}${sent.search}`)
   })
 
   it("returns the body on a successful call", async () => {
+    const body = mockNebulanceResponse()
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
       statusText: "OK",
-      json: async () => ({ response: { Username: "seedqueen" } }),
+      json: async () => body,
     } as Response)
 
     const calls = await adapter.fetchRaw("https://nebulance.io", "good-key", "/api.php")
 
     expect(calls[0].error).toBeNull()
-    expect(calls[0].data).not.toBeNull()
+    expect(calls[0].data).toEqual(body)
   })
 })
 
@@ -578,9 +649,25 @@ describe("NebulanceAdapter.fetchRaw body-level errors", () => {
     const calls = await adapter.fetchRaw("https://nebulance.io", "key", "/api.php")
 
     expect(calls).toHaveLength(1)
-    expect(calls[0].error).toContain("bad api key")
+    expect(calls[0].error).toBe("Unexpected response from nebulance.io: bad api key")
     // The offending body is kept so the tab can still show what arrived.
     expect(calls[0].data).not.toBeNull()
+  })
+
+  it("reports a user record with no byte totals as the poll does", async () => {
+    for (const body of [{ response: { Username: "seedqueen" } }, { Username: "someone", ID: 1 }]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => body,
+      } as Response)
+
+      const calls = await adapter.fetchRaw("https://nebulance.io", "key", "/api.php")
+
+      expect(calls[0].error).toBe("Unexpected response from nebulance.io: missing Uploaded")
+      expect(calls[0].data).toEqual(body)
+    }
   })
 
   it("still reports a healthy call as healthy", async () => {
@@ -588,7 +675,8 @@ describe("NebulanceAdapter.fetchRaw body-level errors", () => {
       ok: true,
       status: 200,
       statusText: "OK",
-      json: async () => ({ Username: "someone", ID: 1 }),
+      // Flat, the other shape fetchStats reads.
+      json: async () => mockNebulanceResponse().response,
     } as unknown as Response)
 
     const calls = await adapter.fetchRaw("https://nebulance.io", "key", "/api.php")
@@ -640,5 +728,19 @@ describe("NebulanceAdapter error wording is an interface", () => {
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
     expect(sanitizeNetworkError(err?.message ?? "")).toBe("Tracker returned an unexpected response")
+  })
+
+  it("reads a page served with 200 the same way in the poll and the debug call", async () => {
+    // A fresh Response per call, since a body that was already read fails the
+    // second read for the wrong reason.
+    vi.spyOn(global, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response("<!DOCTYPE html><html><body>Maintenance</body></html>"))
+    )
+
+    await expect(adapter.fetchStats("https://nebulance.io", "key", "/api.php")).rejects.toThrow(
+      "Unexpected response from nebulance.io: body was not JSON"
+    )
+    const calls = await adapter.fetchRaw("https://nebulance.io", "key", "/api.php")
+    expect(calls[0].error).toBe("Unexpected response from nebulance.io: body was not JSON")
   })
 })

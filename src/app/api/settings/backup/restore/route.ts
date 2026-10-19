@@ -17,6 +17,7 @@ import {
 import { decrypt, deriveKey, reencrypt } from "@/lib/crypto"
 import { stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
+import { backfillRegistrySlugs } from "@/lib/db/backfill-registry-slug"
 import {
   appCoverageGaps,
   appSettings,
@@ -84,6 +85,7 @@ function backupCiphertexts(payload: BackupPayload): string[] {
       (c as Record<string, unknown>).encryptedUsername,
       (c as Record<string, unknown>).encryptedPassword,
       (c as Record<string, unknown>).encryptedApiKey,
+      (c as Record<string, unknown>).encryptedUrlPath,
     ]),
     ...(Array.isArray(payload.notificationTargets)
       ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
@@ -123,6 +125,18 @@ function reencryptField(
     )
     return ""
   }
+}
+
+// What a restore lost for one download client, or null when it came back whole.
+// A stale backup key loses the credentials and the path together, and naming
+// only the credentials would leave the client polling the bare host once re-enabled.
+function clientRestoreError(credentialsCleared: boolean, urlPathCleared: boolean): string | null {
+  if (credentialsCleared && urlPathCleared) {
+    return "Credentials and URL path cleared during restore. Re-enter both and re-enable"
+  }
+  if (credentialsCleared) return "Credentials cleared during restore. Re-enter and re-enable"
+  if (urlPathCleared) return "URL path cleared during restore. Re-enter it and re-enable"
+  return null
 }
 
 export async function POST(request: Request) {
@@ -436,7 +450,7 @@ export async function POST(request: Request) {
             apiPath: fields.apiPath as string,
             platformType: fields.platformType as string,
             // Absent from backups taken before the column existed. The restore
-            // does not derive it from baseUrl; the startup backfill fills null rows.
+            // does not derive it from baseUrl; the backfill after the commit does.
             registrySlug: (fields.registrySlug as string | null) ?? null,
             encryptedApiToken: apiToken,
             encryptedCredentials: credentials,
@@ -485,10 +499,12 @@ export async function POST(request: Request) {
         let encUsername: string
         let encPassword: string
         let encApiKey: string
+        let encUrlPath: string
         if (canPassThrough) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
           encApiKey = (fields.encryptedApiKey as string) || ""
+          encUrlPath = (fields.encryptedUrlPath as string) || ""
         } else if (canReencrypt) {
           encUsername = reencryptField(
             fields.encryptedUsername as string,
@@ -510,22 +526,35 @@ export async function POST(request: Request) {
                 `downloadClient '${fields.name}' apiKey`
               )
             : ""
+          encUrlPath = fields.encryptedUrlPath
+            ? reencryptField(
+                fields.encryptedUrlPath as string,
+                backupKey,
+                currentKey,
+                `downloadClient '${fields.name}' urlPath`
+              )
+            : ""
         } else {
           encUsername = ""
           encPassword = ""
           encApiKey = ""
+          encUrlPath = ""
         }
 
         // Only the columns the client's own mode reads decide whether it came
         // back usable. A password client legitimately has no API key.
         const credentialsCleared =
           clientAuthMethod === "apikey" ? !encApiKey : !encUsername || !encPassword
+        // A path lost in re-encryption would leave the client polling the bare
+        // host. It is disabled like a cleared credential, but keeps its mode.
+        const urlPathCleared = Boolean(fields.encryptedUrlPath) && !encUrlPath
+        const disabledOnRestore = credentialsCleared || urlPathCleared
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
             name: fields.name as string,
             type: fields.type as string,
-            enabled: credentialsCleared ? false : (fields.enabled as boolean),
+            enabled: disabledOnRestore ? false : (fields.enabled as boolean),
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
@@ -536,6 +565,7 @@ export async function POST(request: Request) {
             encryptedUsername: encUsername,
             encryptedPassword: encPassword,
             encryptedApiKey: encApiKey,
+            encryptedUrlPath: encUrlPath,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: Array.isArray(fields.crossSeedTags)
@@ -551,15 +581,13 @@ export async function POST(request: Request) {
                     return []
                   }
                 })(),
-            lastError: credentialsCleared
-              ? "Credentials cleared during restore. Re-enter and re-enable"
-              : null,
+            lastError: clientRestoreError(credentialsCleared, urlPathCleared),
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
           .returning({ id: downloadClients.id })
         clientIdMap.set(oldId, inserted.id)
-        if (credentialsCleared) clientCredentialsCleared++
+        if (disabledOnRestore) clientCredentialsCleared++
       }
 
       // Insert tagGroups
@@ -993,6 +1021,10 @@ export async function POST(request: Request) {
     if (backupKey.length > 0) backupKey.fill(0)
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
   }
+
+  // The boot-time backfill ran long before these rows existed, so a tracker from
+  // a backup older than registry_slug would poll without its registry options.
+  await backfillRegistrySlugs({ force: true })
 
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
   // Restarting here means a direct API caller does not depend on a page load to

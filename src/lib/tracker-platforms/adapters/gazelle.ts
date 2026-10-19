@@ -1,9 +1,10 @@
 // src/lib/tracker-platforms/adapters/gazelle.ts
 //
-// Functions: gazelleAuthHeader, GazelleAdapter
+// Functions: gazelleAuthHeader, readIndex, profileFailure, GazelleAdapter
 
 import { computeBufferBytes, computeRatio, signedFloatBytesToBigInt } from "@/lib/data-transforms"
 import { log } from "@/lib/logger"
+import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -13,7 +14,8 @@ import type {
 } from "../contract"
 import { adapterFetch } from "../helpers/adapter-fetch"
 import { requireBytes } from "../helpers/bytes"
-import { envelopeError } from "../helpers/envelope"
+import { presentClass } from "../helpers/class-name"
+import { pollError } from "../helpers/poll-error"
 
 interface GazelleUserStats {
   uploaded: number
@@ -108,7 +110,46 @@ interface GazelleUserResponse {
  * registry's auth style pins.
  */
 function gazelleAuthHeader(apiToken: string, options?: FetchOptions): string {
-  return options?.authStyle === "raw" ? apiToken : `token ${apiToken}`
+  const trimmedToken = validateHeaderToken(apiToken)
+  return options?.authStyle === "raw" ? trimmedToken : `token ${trimmedToken}`
+}
+
+/** The index response and its byte totals, or the error fetchStats fails the poll with. */
+function readIndex(
+  data: GazelleIndexResponse,
+  hostname: string
+): {
+  response: NonNullable<GazelleIndexResponse["response"]>
+  uploaded: bigint
+  downloaded: bigint
+} {
+  if (data.status !== "success") {
+    throw new Error(data.error?.trim() || `Gazelle API returned status: ${data.status}`)
+  }
+
+  const response = data.response
+  if (!response) {
+    throw new Error(`Unexpected response from ${hostname}: missing response`)
+  }
+
+  const userStats = response.userstats
+  if (!userStats) {
+    throw new Error(`Unexpected response from ${hostname}: missing userstats`)
+  }
+
+  return {
+    response,
+    uploaded: requireBytes(userStats.uploaded, "uploaded", hostname),
+    downloaded: requireBytes(userStats.downloaded, "downloaded", hostname),
+  }
+}
+
+/** Why a profile reply carries no profile, or null when it does. */
+function profileFailure(data: GazelleUserResponse, hostname: string): string | null {
+  if (data.status !== "success") {
+    return data.error?.trim() || `Gazelle API returned status: ${data.status}`
+  }
+  return data.response ? null : `Unexpected response from ${hostname}: missing response`
 }
 
 export class GazelleAdapter implements TrackerAdapter {
@@ -128,26 +169,12 @@ export class GazelleAdapter implements TrackerAdapter {
       Authorization: authHeader,
     })
 
-    if (data.status !== "success") {
-      throw new Error(data.error ?? `Gazelle API returned status: ${data.status}`)
-    }
-
-    const response = data.response
-    if (!response) {
-      throw new Error(`Unexpected response from ${hostname}: missing response`)
-    }
-
+    const { response, uploaded, downloaded } = readIndex(data, hostname)
     const userStats = response.userstats
-    if (!userStats) {
-      throw new Error(`Unexpected response from ${hostname}: missing userstats`)
-    }
-
-    const uploaded = requireBytes(userStats.uploaded, "uploaded", hostname)
-    const downloaded = requireBytes(userStats.downloaded, "downloaded", hostname)
 
     const stats: TrackerStats = {
       username: response.username,
-      group: userStats.class ?? "Unknown",
+      group: presentClass(userStats.class),
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
       // Derived from byte totals. Gazelle reports -1 for infinite ratio.
@@ -173,6 +200,10 @@ export class GazelleAdapter implements TrackerAdapter {
     if (response.id) {
       stats.remoteUserId = response.id
     }
+
+    // Built from this poll's reads and always returned, so a failed profile call
+    // clears the profile fields instead of the scheduler keeping the last poll's.
+    let meta: GazellePlatformMeta = {}
 
     // Enrichment: fetch full user profile for ranks, community, warned, etc.
     if (options?.enrich) {
@@ -200,7 +231,7 @@ export class GazelleAdapter implements TrackerAdapter {
             if (typeof enriched.leechingCount === "number")
               stats.leechingCount = enriched.leechingCount
             if (enriched.avatarUrl) stats.avatarUrl = enriched.avatarUrl
-            stats.platformMeta = enriched.platformMeta
+            meta = enriched.platformMeta
           }
         } catch (err) {
           // Enrichment failure is non-fatal; core stats from index still
@@ -210,14 +241,11 @@ export class GazelleAdapter implements TrackerAdapter {
       }
     }
 
-    // Merge index-level data (notifications, tokens) into platformMeta
-    if (response.notifications || response.giftTokens != null || response.meritTokens != null) {
-      const meta = (stats.platformMeta as GazellePlatformMeta) ?? {}
-      if (response.notifications) meta.notifications = response.notifications
-      if (typeof response.giftTokens === "number") meta.giftTokens = response.giftTokens
-      if (typeof response.meritTokens === "number") meta.meritTokens = response.meritTokens
-      stats.platformMeta = meta
-    }
+    // Index-level data (notifications, tokens)
+    if (response.notifications) meta.notifications = response.notifications
+    if (typeof response.giftTokens === "number") meta.giftTokens = response.giftTokens
+    if (typeof response.meritTokens === "number") meta.meritTokens = response.meritTokens
+    stats.platformMeta = meta
 
     return stats
   }
@@ -235,21 +263,25 @@ export class GazelleAdapter implements TrackerAdapter {
     // Call 1: Index
     const indexUrl = new URL(apiPath, baseUrl)
     indexUrl.searchParams.set("action", "index")
-    let indexData: Record<string, unknown> | null = null
+    let userId = options?.remoteUserId
 
     try {
-      indexData = await adapterFetch<Record<string, unknown>>(
+      const indexData = await adapterFetch<GazelleIndexResponse>(
         indexUrl.toString(),
         hostname,
         options,
         { Authorization: authHeader }
       )
+      const indexError = pollError(() => readIndex(indexData, hostname))
       calls.push({
         label: "Index",
         endpoint: `${apiPath}?action=index`,
         data: indexData,
-        error: envelopeError(indexData),
+        error: indexError,
       })
+      // The poll stops at an index it rejects, so an id in one does not carry
+      // the profile call.
+      if (indexError === null) userId ??= indexData.response?.id
     } catch (err) {
       calls.push({
         label: "Index",
@@ -257,12 +289,9 @@ export class GazelleAdapter implements TrackerAdapter {
         data: null,
         error: err instanceof Error ? err.message : "Request failed",
       })
-      return calls
     }
 
     // Call 2: User Profile (enrichment)
-    const indexResponse = indexData?.response as { id?: number } | undefined
-    const userId = options?.remoteUserId ?? indexResponse?.id
     if (userId) {
       // The same pause fetchStats takes. The debug route runs both methods in
       // one request, so skipping it here means one press issues every call back
@@ -274,7 +303,7 @@ export class GazelleAdapter implements TrackerAdapter {
       const endpoint = `${apiPath}?action=user&id=${userId}`
 
       try {
-        const userData = await adapterFetch<Record<string, unknown>>(
+        const userData = await adapterFetch<GazelleUserResponse>(
           userUrl.toString(),
           hostname,
           options,
@@ -284,7 +313,7 @@ export class GazelleAdapter implements TrackerAdapter {
           label: "User Profile",
           endpoint,
           data: userData,
-          error: envelopeError(userData),
+          error: profileFailure(userData, hostname),
         })
       } catch (err) {
         calls.push({
@@ -294,6 +323,17 @@ export class GazelleAdapter implements TrackerAdapter {
           error: err instanceof Error ? err.message : "Request failed",
         })
       }
+    } else {
+      // readIndex does not require the id, so a healthy index can lack one.
+      calls.push({
+        label: "User Profile",
+        endpoint: `${apiPath}?action=user`,
+        data: null,
+        error:
+          calls[0].error === null
+            ? "Skipped: Index carried no user id"
+            : "Skipped: Index failed and no user id is cached",
+      })
     }
 
     return calls
@@ -326,9 +366,15 @@ export class GazelleAdapter implements TrackerAdapter {
       Authorization: authHeader,
     })
 
-    if (data.status !== "success" || !data.response) return null
-
+    const failure = profileFailure(data, hostname)
     const resp = data.response
+    if (failure !== null || !resp) {
+      // The poll keeps its core stats either way, so this line is the only trace
+      // of a profile call that came back without a profile.
+      log.warn({ hostname, reason: failure }, "gazelle: enrichment returned no profile")
+      return null
+    }
+
     const meta: GazellePlatformMeta = {
       donor: resp.personal?.donor,
       enabled: resp.personal?.enabled,

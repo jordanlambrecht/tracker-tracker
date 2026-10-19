@@ -96,6 +96,20 @@ describe("MamAdapter - parsing", () => {
     expect(stats.warned).toBeNull()
   })
 
+  it("reports no class when the response carries none", async () => {
+    for (const classname of [undefined, "", "   "]) {
+      mockFetch({ classname })
+
+      const stats = await adapter.fetchStats(
+        "https://www.myanonamouse.net",
+        "a1b2c3a1b2c3a1b2c3a1b2c3a1b2c3a1",
+        "/jsonLoad.php"
+      )
+
+      expect(stats.group).toBeNull()
+    }
+  })
+
   it("aggregates seedingCount from sSat + seedHnr + seedUnsat + upAct", async () => {
     mockFetch()
 

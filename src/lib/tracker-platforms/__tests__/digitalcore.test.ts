@@ -637,6 +637,32 @@ describe("DigitalCoreAdapter.fetchStats - class ID mapping", () => {
 
     expect(stats.group).toBe("Class 99")
   })
+
+  it("maps a class id sent as text the way it maps the number", async () => {
+    // The status types the id as a number, but nothing enforces that on the
+    // wire, and the lookup has always found "20" as well as 20.
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(mockResponse(mockStatusResponse({ class: "20" })))
+      .mockResolvedValueOnce(mockResponse(mockUserProfileResponse()))
+
+    const stats = await adapter.fetchStats("https://digitalcore.club", validToken, "")
+
+    expect(stats.group).toBe("Viceroy")
+  })
+
+  it("reports no class when the status response carries no class id", async () => {
+    // JSON.stringify drops an undefined key and keeps a null one, so this
+    // covers an omitted id and a JSON null, and a blank id is no id either.
+    for (const classId of [undefined, null, "", "  "]) {
+      vi.spyOn(global, "fetch")
+        .mockResolvedValueOnce(mockResponse(mockStatusResponse({ class: classId })))
+        .mockResolvedValueOnce(mockResponse(mockUserProfileResponse()))
+
+      const stats = await adapter.fetchStats("https://digitalcore.club", validToken, "")
+
+      expect(stats.group).toBeNull()
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -861,8 +887,41 @@ describe("DigitalCoreAdapter.fetchStats - HTTP error handling", () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(mockErrorResponse(503))
 
     await expect(adapter.fetchStats("https://digitalcore.club", validToken, "")).rejects.toThrow(
-      "503"
+      "Tracker API error: 503"
     )
+  })
+
+  it("leaves a failed status for the scheduler to classify once", async () => {
+    // Sanitized here as well, "Authentication failed" and "API returned N" would
+    // read "Poll failed" after the scheduler's pass.
+    for (const [status, card] of [
+      [503, "API returned 503"],
+      [403, "Authentication failed"],
+    ] as const) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(mockErrorResponse(status))
+      const err = await adapter
+        .fetchStats("https://digitalcore.club", validToken, "")
+        .then(() => null)
+        .catch((e: unknown) => (e instanceof Error ? e : null))
+      expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(card)
+    }
+  })
+
+  it("keeps the reason phrase, which reads a proxy that wants its own login as a proxy fault", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 407,
+      statusText: "Proxy Authentication Required",
+      text: async () => "",
+    } as Response)
+
+    const err = await adapter
+      .fetchStats("https://digitalcore.club", validToken, "")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("Tracker API error: 407 Proxy Authentication Required")
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
   })
 
   it("throws with sanitized message on network failure", async () => {
@@ -882,24 +941,37 @@ describe("DigitalCoreAdapter.fetchStats - HTTP error handling", () => {
     )
   })
 
-  it("throws when status response is missing user data", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(mockResponse({ user: null, settings: {} }))
-
-    await expect(adapter.fetchStats("https://digitalcore.club", validToken, "")).rejects.toThrow(
-      "missing user data"
-    )
-  })
-
-  it("throws when status response is missing upload/download fields", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(
-      mockResponse({
+  // The tracker answered, so the card must not read "Poll failed", which is
+  // also what a host that never answered gets.
+  it.each([
+    ["no user data", { user: null, settings: {} }, "missing user data"],
+    [
+      "no byte totals",
+      {
         user: { id: 1, username: "dcuser", class: 20, uploaded: undefined, downloaded: undefined },
         settings: {},
-      })
-    )
+      },
+      "missing uploaded",
+    ],
+    [
+      "a byte total that is not a number",
+      {
+        user: { id: 1, username: "dcuser", class: 20, uploaded: "12 GB", downloaded: 0 },
+        settings: {},
+      },
+      "non-numeric uploaded",
+    ],
+  ])("reads a status response with %s as an unexpected response", async (_case, body, detail) => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(mockResponse(body))
 
-    await expect(adapter.fetchStats("https://digitalcore.club", validToken, "")).rejects.toThrow(
-      "missing upload/download data"
+    const err = await adapter
+      .fetchStats("https://digitalcore.club", validToken, "")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(`Unexpected response from digitalcore.club: ${detail}`)
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
     )
   })
 })
@@ -938,8 +1010,16 @@ describe("DigitalCoreAdapter.fetchStats - non-JSON response handling", () => {
         "<html><head><title>Just a moment...</title></head><body>Checking your browser</body></html>",
     } as Response)
 
-    await expect(adapter.fetchStats("https://digitalcore.club", validToken, "")).rejects.toThrow(
-      "HTML instead of JSON"
+    const err = await adapter
+      .fetchStats("https://digitalcore.club", validToken, "")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toContain("HTML instead of JSON")
+    // A shape problem, not the challenge card: an HTML body here could as well
+    // be a maintenance page.
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
     )
   })
 
@@ -1043,15 +1123,80 @@ describe("DigitalCoreAdapter.fetchRaw", () => {
     expect(calls[1].error).toBeNull()
   })
 
-  it("returns only the status entry (with error) when status call fails", async () => {
+  it("records a failed status call and skips the profile it has no id for", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("network failure"))
 
     const calls = await adapter.fetchRaw("https://digitalcore.club", validToken, "")
 
-    expect(calls).toHaveLength(1)
+    expect(calls).toHaveLength(2)
     expect(calls[0].label).toBe("Status")
     expect(calls[0].data).toBeNull()
     expect(calls[0].error).toMatch(/network failure|Failed to connect/)
+    // A view that ends after one entry cannot be told from a one-call adapter.
+    expect(calls[1]).toEqual({
+      label: "User Profile",
+      endpoint: "/api/v1/users",
+      data: null,
+      error: "Skipped: Status failed and no user id is cached",
+    })
+  })
+
+  it("skips the profile when a status the poll rejects leaves no id", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(mockResponse({ user: null, settings: {} }))
+
+    const calls = await adapter.fetchRaw("https://digitalcore.club", validToken, "")
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(calls[0].error).toBe("Unexpected response from digitalcore.club: missing user data")
+    expect(calls[1]).toEqual({
+      label: "User Profile",
+      endpoint: "/api/v1/users",
+      data: null,
+      error: "Skipped: Status failed and no user id is cached",
+    })
+  })
+
+  it("does not take the profile id from a status the poll rejects", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValue(mockResponse({ user: { id: 54321, username: "dcuser" } }))
+
+    const calls = await adapter.fetchRaw("https://digitalcore.club", validToken, "")
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(calls[0].error).toBe("Unexpected response from digitalcore.club: missing uploaded")
+    expect(calls[1].error).toBe("Skipped: Status failed and no user id is cached")
+  })
+
+  it("still calls the profile after a failed status request, when the id is cached", async () => {
+    const profile = mockUserProfileResponse()
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(mockErrorResponse(502))
+      .mockResolvedValueOnce(mockResponse(profile))
+
+    const calls = await adapter.fetchRaw("https://digitalcore.club", validToken, "", {
+      remoteUserId: 54321,
+    })
+
+    expect(calls).toHaveLength(2)
+    expect(calls[0].error).toBe("Tracker API error: 502 Error 502")
+    expect(calls[1]).toEqual({
+      label: "User Profile",
+      endpoint: "/api/v1/users/54321",
+      data: profile,
+      error: null,
+    })
+  })
+
+  it("records a null status body as one failed Status entry", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(mockResponse(null))
+
+    const calls = await adapter.fetchRaw("https://digitalcore.club", validToken, "")
+
+    expect(calls.map((c) => c.label)).toEqual(["Status", "User Profile"])
+    expect(calls[0].error).toBe("Unexpected response from digitalcore.club: missing user data")
   })
 
   it("captures error on user profile call when that call fails", async () => {
@@ -1077,6 +1222,21 @@ describe("DigitalCoreAdapter.fetchRaw", () => {
     })
 
     expect(calls[1].endpoint).toBe("/api/v1/users/77777")
+  })
+
+  it("still calls the profile after a status the poll rejects, when the id is cached", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(mockResponse({ user: null, settings: {} }))
+      .mockResolvedValueOnce(mockResponse(mockUserProfileResponse()))
+
+    const calls = await adapter.fetchRaw("https://digitalcore.club", validToken, "", {
+      remoteUserId: 54321,
+    })
+
+    expect(calls).toHaveLength(2)
+    expect(calls[0].error).toBe("Unexpected response from digitalcore.club: missing user data")
+    expect(calls[1].label).toBe("User Profile")
+    expect(calls[1].error).toBeNull()
   })
 
   it("throws immediately on invalid credentials before any fetch", async () => {

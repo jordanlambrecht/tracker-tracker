@@ -3,7 +3,7 @@
 // Functions: buildHtmlHeaders, fetchFailure, getHtmlViaProxy, getHtml, isRedirect,
 //            followRedirectChain, fetchTrackerHtml
 
-import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
+import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import type { FetchOptions } from "../contract"
 import { SessionExpiredError } from "./errors"
@@ -33,7 +33,7 @@ const ACCEPT_HTML = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q
 export interface TrackerHtmlRequest {
   url: string
   cookies: string
-  /** Tracker display name, used in sanitized error messages. */
+  /** Tracker display name, used in the redirect error messages. */
   label: string
   /** Thrown when an authenticated request is bounced to a login page. */
   sessionExpiredMessage: string
@@ -56,10 +56,14 @@ function buildHtmlHeaders(cookies: string, userAgent?: string): Record<string, s
   }
 }
 
-function fetchFailure(label: string, status: number, statusText: string): Error {
-  return new Error(
-    sanitizeNetworkError(`${status} ${statusText}`, `${label} page fetch failed: ${status}`)
-  )
+/**
+ * Same wording adapterFetch throws, which sanitizeNetworkError matches on. The
+ * scheduler and the connection test sanitize it once, and sanitizing it here as
+ * well would turn "Authentication failed" and "API returned N" into "Poll
+ * failed".
+ */
+function fetchFailure(status: number, statusText: string): Error {
+  return new Error(`Tracker API error: ${status} ${statusText}`)
 }
 
 /**
@@ -94,13 +98,7 @@ async function getHtmlViaProxy(
       timeoutMs: ADAPTER_FETCH_TIMEOUT_MS,
     })
   } catch (err) {
-    // Worded exactly as adapter-fetch words it, so one sanitizer rule covers
-    // both transports instead of the HTML one falling through to "Poll failed".
-    if (err instanceof Error && err.message.includes("timed out")) {
-      throw new Error(`Request to ${hostname} timed out (via proxy)`)
-    }
-    const detail = err instanceof Error ? err.message : "Unknown"
-    throw new Error(`Failed to connect to ${hostname} via proxy: ${detail}`)
+    throw classifyProxyFetchError(err, hostname)
   }
   return {
     ok: result.ok,
@@ -166,8 +164,14 @@ async function followRedirectChain(
 
     const location = current.location()
     if (loginPattern.test(location)) throw new SessionExpiredError(sessionExpiredMessage)
-    // A redirect with no Location is malformed and cannot be followed.
-    if (!location || hop === maxHops) break
+    // A redirect with no Location is malformed and cannot be followed. It is not
+    // a loop, so it must not read as one on the card.
+    if (!location) {
+      throw new Error(
+        `Unexpected response from ${new URL(fromUrl).hostname}: redirect with no Location`
+      )
+    }
+    if (hop === maxHops) break
 
     const nextUrl = new URL(location, currentUrl)
     // `headers` carries the user's tracker session cookie. Location is chosen by
@@ -191,8 +195,8 @@ async function followRedirectChain(
 
 /**
  * Fetches an authenticated HTML page, honoring the user's proxy when one is
- * configured. Errors are sanitized so a URL carrying a token never reaches a
- * log or an API response.
+ * configured. No error it throws names the URL, so a token carried in one never
+ * reaches a log or an API response.
  */
 export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<string> {
   const { url, cookies, label, sessionExpiredMessage, userAgent, proxyAgent, followRedirects } =
@@ -218,7 +222,7 @@ export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<str
     throw new SessionExpiredError(sessionExpiredMessage)
   }
 
-  if (!response.ok) throw fetchFailure(label, response.status, response.statusText)
+  if (!response.ok) throw fetchFailure(response.status, response.statusText)
 
   return response.text()
 }

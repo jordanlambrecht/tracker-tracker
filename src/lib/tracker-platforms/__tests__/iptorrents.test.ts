@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/__tests__/iptorrents.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { IptorrentsAdapter, parseIptCredentials, parseIptProfile } from "../adapters/iptorrents"
 
 const STATS_HTML = `
@@ -179,9 +180,46 @@ describe("parseIptProfile", () => {
     expect(() => parseIptProfile(loginRedirect, HOSTNAME)).toThrow("Session expired")
   })
 
-  it("detects a Cloudflare challenge and throws", () => {
+  it("detects a Cloudflare challenge and throws, and the card names it", () => {
     const cfChallenge = `<!doctype html><html><head><title>Just a moment...</title></head><body></body></html>`
-    expect(() => parseIptProfile(cfChallenge, HOSTNAME)).toThrow("Cloudflare")
+    let message = ""
+    try {
+      parseIptProfile(cfChallenge, HOSTNAME)
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe("Cloudflare challenge detected. Cookies need refreshing")
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Cloudflare challenge blocked the request"
+    )
+  })
+})
+
+describe("parseIptProfile pages it cannot read", () => {
+  // The tracker answered, so the card must not read "Poll failed", which is
+  // also what a host that never answered gets.
+  it.each([
+    [
+      "no stats bar",
+      "<html><body><p>Down for maintenance</p></body></html>",
+      "Could not find stats bar on IPTorrents page. The page may not be authenticated",
+    ],
+    [
+      "a stats bar with no byte totals",
+      '<html><body><div class="stats"></div></body></html>',
+      "Could not extract upload/download bytes from the IPTorrents stats bar. The page structure may have changed.",
+    ],
+  ])("reads %s as an unexpected response", (_case, page, detail) => {
+    let message = ""
+    try {
+      parseIptProfile(page, HOSTNAME)
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe(`Unexpected response from ${HOSTNAME}: ${detail}`)
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
   })
 })
 

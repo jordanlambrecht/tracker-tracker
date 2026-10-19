@@ -29,6 +29,7 @@ const CREDENTIALS: Record<string, string> = {
   nebulance: CANARY,
   btn: CANARY,
   hawke: CANARY,
+  tr4ker: CANARY,
   mam: CANARY,
   avistaz: cookieBlob({ username: "someone" }),
   filelist: cookieBlob(),
@@ -65,6 +66,15 @@ const adapterSource = (platform: string) =>
  */
 const JSON_BLOB_PLATFORMS = new Set(
   PLATFORMS.filter((p) => /parseCredentialJson|JSON\.parse\(apiToken/.test(adapterSource(p)))
+)
+
+/**
+ * Platforms that put a plain token in a request header, read from the sources
+ * for the same reason as the blob set. An adapter that skips the guard drops out
+ * of this set, but the malformed-credential case below still catches it.
+ */
+const HEADER_TOKEN_PLATFORMS = new Set(
+  PLATFORMS.filter((p) => /validateHeaderToken\(apiToken\)/.test(adapterSource(p)))
 )
 
 const pathFor = (platform: string) => DEFAULT_API_PATHS[platform] ?? "/"
@@ -187,15 +197,20 @@ describe("every registered adapter", () => {
         }
       })
 
-      it("does not leak a malformed credential through undici header validation", async () => {
-        // A token carrying a control character makes undici throw a TypeError
-        // whose message quotes the whole header, credential included.
-        // classifyFetchError refuses to trust that message (error-utils.ts),
-        // but only a test says so for all thirteen at once.
-        const dirty = CREDENTIALS[platform].replace(CANARY, `${CANARY}\\r\\nX: 1`)
+      it("keeps a malformed credential out of every request header and every surface", async () => {
+        // A credential carrying a control character must be refused before it
+        // reaches a header (standard 2.5). If one ever got there, undici would
+        // throw a TypeError quoting the whole header, credential included, and
+        // classifyFetchError refuses to trust that message. A plain token gets
+        // a real CR LF; a blob gets the JSON escape, which its parser decodes.
+        const injected = JSON_BLOB_PLATFORMS.has(platform) ? "\\r\\nX: 1" : "\r\nX: 1"
+        const dirty = CREDENTIALS[platform].replace(CANARY, `${CANARY}${injected}`)
+        const sentHeaders: string[] = []
         vi.spyOn(global, "fetch").mockImplementation(((...args: unknown[]) => {
           const init = args[1] as { headers?: Record<string, string> } | undefined
+          // Recorded as passed. Headers would throw on the very value under test.
           const quoted = JSON.stringify(init?.headers ?? {})
+          sentHeaders.push(quoted)
           // What undici actually does: name the offending header value.
           return Promise.reject(new TypeError(`Headers.append: "${quoted}" is invalid`))
         }) as unknown as typeof fetch)
@@ -211,6 +226,7 @@ describe("every registered adapter", () => {
           .then((c) => surfaces.push(surfaceOf(c)))
           .catch((e: unknown) => surfaces.push(surfaceOf(e)))
 
+        expect(sentHeaders.join("\n")).not.toContain(CANARY)
         expect(surfaces.join("\n")).not.toContain(CANARY)
       })
       if (JSON_BLOB_PLATFORMS.has(platform)) {
@@ -229,6 +245,33 @@ describe("every registered adapter", () => {
           await expect(
             getAdapter(platform).fetchRaw(BASE_URL, "not-a-json-blob", pathFor(platform))
           ).rejects.toThrow()
+        })
+      }
+      if (HEADER_TOKEN_PLATFORMS.has(platform)) {
+        it("sends the trimmed token, since https.request refuses a stored line break", async () => {
+          const sent: string[] = []
+          vi.spyOn(global, "fetch").mockImplementation(((...args: unknown[]) => {
+            const init = args[1] as { headers?: Record<string, string> } | undefined
+            sent.push(...Object.values(init?.headers ?? {}))
+            return Promise.reject(new TypeError("fetch failed"))
+          }) as unknown as typeof fetch)
+
+          const adapter = getAdapter(platform)
+          await adapter.fetchStats(BASE_URL, `  ${CANARY}\n`, pathFor(platform)).catch(() => null)
+          await adapter.fetchRaw(BASE_URL, `  ${CANARY}\n`, pathFor(platform))
+
+          const carrying = sent.filter((value) => value.includes(CANARY))
+          expect(carrying.length).toBeGreaterThan(1)
+          for (const value of carrying) expect(value).toMatch(new RegExp(`(^| )${CANARY}$`))
+        })
+
+        it("throws on a malformed token rather than reporting it as a call", async () => {
+          const fetchSpy = vi.spyOn(global, "fetch")
+
+          await expect(
+            getAdapter(platform).fetchRaw(BASE_URL, `${CANARY}\r\nX: 1`, pathFor(platform))
+          ).rejects.toThrow("Invalid API token")
+          expect(fetchSpy).not.toHaveBeenCalled()
         })
       }
     })

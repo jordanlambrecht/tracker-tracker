@@ -1,8 +1,9 @@
 // src/lib/tracker-platforms/adapters/hawke.ts
 //
-// Functions: unwrapEnvelope, HawkeAdapter
+// Functions: unwrapEnvelope, readProfile, HawkeAdapter
 
 import { computeBufferBytes, computeRatio, signedFloatBytesToBigInt } from "@/lib/data-transforms"
+import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -12,7 +13,8 @@ import type {
 } from "../contract"
 import { adapterFetch } from "../helpers/adapter-fetch"
 import { requireBytes } from "../helpers/bytes"
-import { envelopeError } from "../helpers/envelope"
+import { presentClass } from "../helpers/class-name"
+import { pollError } from "../helpers/poll-error"
 
 // ---------------------------------------------------------------------------
 // Hawke is not UNIT3D. Its profile is GET /api/profile with a Bearer key,
@@ -67,6 +69,19 @@ function unwrapEnvelope(body: HawkeEnvelope, hostname: string): HawkeProfile {
   return body.data
 }
 
+/** The profile and its byte totals, or the error fetchStats fails the poll with. */
+function readProfile(
+  body: HawkeEnvelope,
+  hostname: string
+): { data: HawkeProfile; uploadedBytes: bigint; downloadedBytes: bigint } {
+  const data = unwrapEnvelope(body, hostname)
+  return {
+    data,
+    uploadedBytes: requireBytes(data.uploaded, "uploaded", hostname),
+    downloadedBytes: requireBytes(data.downloaded, "downloaded", hostname),
+  }
+}
+
 export class HawkeAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -74,19 +89,17 @@ export class HawkeAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<TrackerStats> {
+    const trimmedToken = validateHeaderToken(apiToken)
     const hostname = new URL(baseUrl).hostname
     const url = new URL(apiPath, baseUrl).toString()
 
     // Bearer only. Hawke has no legacy query-param form, so none of UNIT3D's
     // probe-and-remember auth machinery applies here.
     const body = await adapterFetch<HawkeEnvelope>(url, hostname, options, {
-      Authorization: `Bearer ${apiToken}`,
+      Authorization: `Bearer ${trimmedToken}`,
     })
 
-    const data = unwrapEnvelope(body, hostname)
-
-    const uploadedBytes = requireBytes(data.uploaded, "uploaded", hostname)
-    const downloadedBytes = requireBytes(data.downloaded, "downloaded", hostname)
+    const { data, uploadedBytes, downloadedBytes } = readProfile(body, hostname)
 
     // All optional on HawkePlatformMeta, so an absent warning count or
     // permission flag stays undefined rather than defaulting.
@@ -101,13 +114,15 @@ export class HawkeAdapter implements TrackerAdapter {
 
     return {
       username: data.username,
-      group: data.group,
+      group: presentClass(data.group),
       uploadedBytes,
       downloadedBytes,
-      // Hawke reports a numeric ratio without infinity. Use it, otherwise derive.
-      ratio: Number.isFinite(data.ratio)
-        ? data.ratio
-        : computeRatio(uploadedBytes, downloadedBytes),
+      // Keep Hawke's reported figure, which it rounds, unless nothing has been
+      // downloaded (no quotient to report) or it is not a finite number.
+      ratio:
+        downloadedBytes === 0n || !Number.isFinite(data.ratio)
+          ? computeRatio(uploadedBytes, downloadedBytes)
+          : data.ratio,
       // Hawke reports a signed buffer that goes negative on a deficit. A
       // non-finite value falls back to the derived buffer, since
       // BigInt(Math.trunc(NaN)) throws.
@@ -135,14 +150,22 @@ export class HawkeAdapter implements TrackerAdapter {
     apiPath: string,
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
+    const trimmedToken = validateHeaderToken(apiToken)
     const hostname = new URL(baseUrl).hostname
     const url = new URL(apiPath, baseUrl).toString()
 
     try {
-      const data = await adapterFetch<Record<string, unknown>>(url, hostname, options, {
-        Authorization: `Bearer ${apiToken}`,
+      const data = await adapterFetch<HawkeEnvelope>(url, hostname, options, {
+        Authorization: `Bearer ${trimmedToken}`,
       })
-      return [{ label: "Profile", endpoint: apiPath, data, error: envelopeError(data) }]
+      return [
+        {
+          label: "Profile",
+          endpoint: apiPath,
+          data,
+          error: pollError(() => readProfile(data, hostname)),
+        },
+      ]
     } catch (err) {
       return [
         {

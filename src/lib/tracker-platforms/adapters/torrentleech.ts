@@ -7,7 +7,7 @@
 import { randomBytes, scrypt } from "node:crypto"
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { classifyFetchError } from "@/lib/error-utils"
+import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { parseBytes } from "@/lib/parser"
@@ -143,6 +143,7 @@ async function login(
 
   let setCookieHeaders: string[]
   let loginStatus: number
+  let loginStatusText: string
   let readBody: () => Promise<string>
   try {
     if (proxyAgent) {
@@ -158,6 +159,7 @@ async function login(
       const raw = res.headers["set-cookie"]
       setCookieHeaders = Array.isArray(raw) ? raw : raw ? [raw] : []
       loginStatus = res.status
+      loginStatusText = res.statusText
       readBody = () => res.text()
     } else {
       const response = await fetch(loginUrl, {
@@ -169,10 +171,12 @@ async function login(
       })
       setCookieHeaders = response.headers.getSetCookie?.() ?? []
       loginStatus = response.status
+      loginStatusText = response.statusText
       readBody = () => response.text()
     }
   } catch (err) {
-    throw classifyFetchError(err, new URL(baseUrl).hostname)
+    const hostname = new URL(baseUrl).hostname
+    throw proxyAgent ? classifyProxyFetchError(err, hostname) : classifyFetchError(err, hostname)
   }
 
   const cookiePairs = setCookieHeaders
@@ -202,6 +206,20 @@ async function login(
         // failure with a body read error, but leave a trace of it.
         log.warn({ err: readErr }, "torrentleech: could not read login response body")
       }
+    }
+
+    // A challenge, a proxy refusal, a 429 and a 5xx are no verdict on the
+    // credentials, and TL sets tluid on a refused login too, so none of them may
+    // reach the cookie check below. The challenge is matched before the status,
+    // since one can come with a 503, and only on its own markers, because a
+    // login form can embed the Turnstile script that parseTlProfile also matches.
+    if (html.includes("<title>Just a moment...</title>") || html.includes("cf_chl_opt")) {
+      throw new Error("Cloudflare challenge detected on the TorrentLeech login page")
+    }
+    // Same wording adapterFetch throws, which sanitizeNetworkError matches on. A
+    // 407 is the proxy asking for its own credentials.
+    if (loginStatus === 407 || loginStatus === 429 || loginStatus >= 500) {
+      throw new Error(`Tracker API error: ${loginStatus} ${loginStatusText}`)
     }
 
     const looksLikeLoginPage =
@@ -309,7 +327,7 @@ export function parseTlProfile(html: string, username: string, hostname: string)
 
   if (!uploadedText && !downloadedText) {
     throw new Error(
-      "Could not find profile stats on TorrentLeech page. The page may not be authenticated"
+      `Unexpected response from ${hostname}: Could not find profile stats on TorrentLeech page. The page may not be authenticated`
     )
   }
   // One side readable and the other not is a page-shape change, not an account
@@ -356,11 +374,10 @@ export function parseTlProfile(html: string, username: string, hostname: string)
       }
     }
   }
-  if (!group) group = "User"
 
   return {
     username,
-    group,
+    group: group || null,
     uploadedBytes,
     downloadedBytes,
     // Derived from byte totals, not the page's ratio cell. TorrentLeech
@@ -383,8 +400,9 @@ export function parseTlProfile(html: string, username: string, hostname: string)
 // ---------------------------------------------------------------------------
 
 /**
- * No User-Agent is sent: the session cookie comes from our own login POST, not
- * from a browser, so claiming a browser UA would be inconsistent with it.
+ * No browser User-Agent is sent, here or on the login POST. The session cookie
+ * comes from our own login POST, not from a browser, so claiming a browser UA
+ * would be inconsistent with it.
  */
 function fetchHtml(
   url: string,

@@ -107,7 +107,7 @@ describe("BtnAdapter", () => {
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
 
     expect(stats.username).toBe("minimal")
-    expect(stats.group).toBe("Unknown")
+    expect(stats.group).toBeNull()
     expect(stats.uploadedBytes).toBe(100n)
     expect(stats.downloadedBytes).toBe(50n)
     expect(stats.seedbonus).toBeNull()
@@ -245,20 +245,62 @@ describe("BtnAdapter", () => {
     expect(stats.downloadedBytes).toBe(0n)
   })
 
-  it("carries the same Infinity ratio into the debug payload", async () => {
+  it("returns the JSON-RPC body unmodified on a successful call", async () => {
+    const body = {
+      id: 1,
+      result: { UserID: "1", Username: "seeder", Upload: "1000", Download: "0" },
+    }
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({
-        id: 1,
-        result: { UserID: "1", Username: "seeder", Upload: "1000", Download: "0" },
-      }),
+      json: async () => body,
     } as Response)
 
     const calls = await adapter.fetchRaw("https://broadcasthe.net", "fake-api-key", API_PATH)
 
     expect(calls[0].error).toBeNull()
-    expect(calls[0].data).toMatchObject({ ratio: Infinity })
+    // What BTN sent, not the mapped stats the Normalized tab already shows.
+    expect(calls[0].data).toEqual(body)
+  })
+
+  it.each([
+    [
+      "a JSON-RPC error",
+      { jsonrpc: "2.0", id: 1, error: { code: -32001, message: "API key not found" } },
+      "API key not found",
+    ],
+    [
+      "a JSON-RPC error with a blank message",
+      { jsonrpc: "2.0", id: 1, error: { code: -32001, message: "   " } },
+      "BTN API returned an error with no message",
+    ],
+    [
+      "a reply with no result",
+      { jsonrpc: "2.0", id: 1 },
+      "Unexpected response from api.broadcasthe.net: missing result",
+    ],
+    [
+      "a renamed byte total",
+      { id: 1, result: { UserID: "1", Username: "testuser", Uploaded: "1000", Download: "500" } },
+      "Unexpected response from api.broadcasthe.net: blank Upload value",
+    ],
+  ])("fails the debug call on %s with the poll's message", async (_label, body, message) => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => body,
+    } as Response)
+
+    const err = await adapter
+      .fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+    const calls = await adapter.fetchRaw("https://broadcasthe.net", "fake-api-key", API_PATH)
+
+    expect(err?.message).toBe(message)
+    expect(calls[0].error).toBe(message)
+    // Kept so the dialog prints the body that broke the poll under the message.
+    expect(calls[0].data).toEqual(body)
   })
 
   it("throws 'Invalid BTN API key' on 401", async () => {
@@ -409,6 +451,53 @@ describe("BtnAdapter - documented vs observed field names", () => {
 
     const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
     expect(stats.group).toBe("Power User")
+  })
+
+  it("skips a blank Class for the documented Title", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 1,
+        result: {
+          UserID: "9900001",
+          Username: "testuser",
+          Upload: "1000",
+          Download: "500",
+          Class: "",
+          Title: "Power User",
+        },
+      }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
+    expect(stats.group).toBe("Power User")
+  })
+
+  it("reports no class when Class and Title are both absent or blank", async () => {
+    for (const fields of [
+      { Title: "" },
+      { Class: "", Title: "" },
+      { Class: "   ", Title: "   " },
+    ]) {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 1,
+          result: {
+            UserID: "9900001",
+            Username: "testuser",
+            Upload: "1000",
+            Download: "500",
+            ...fields,
+          },
+        }),
+      } as Response)
+
+      const stats = await adapter.fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
+      expect(stats.group).toBeNull()
+    }
   })
 
   it("reports hitAndRuns as unknown when the undocumented HnR key is absent", async () => {

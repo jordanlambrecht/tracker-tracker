@@ -10,6 +10,8 @@ import type {
 } from "../contract"
 import { adapterFetch } from "../helpers/adapter-fetch"
 import { requireBytes } from "../helpers/bytes"
+import { presentClass } from "../helpers/class-name"
+import { pollError } from "../helpers/poll-error"
 
 interface MamSnatchCategory {
   name: string
@@ -113,6 +115,21 @@ function validateMamId(token: string): string {
   return trimmed
 }
 
+/** The byte totals from a jsonLoad body, or the error fetchStats fails the poll with. */
+function readJsonLoad(
+  data: MamJsonLoadResponse,
+  hostname: string
+): { uploaded: bigint; downloaded: bigint } {
+  // A body with no username is read as a rejected mam_id.
+  if (!data.username) {
+    throw new Error(`Unexpected response from ${hostname}: missing username`)
+  }
+  return {
+    uploaded: requireBytes(data.uploaded_bytes, "uploaded_bytes", hostname),
+    downloaded: requireBytes(data.downloaded_bytes, "downloaded_bytes", hostname),
+  }
+}
+
 export class MamAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -130,12 +147,7 @@ export class MamAdapter implements TrackerAdapter {
       Cookie: `mam_id=${mamId}`,
     })
 
-    if (!data.username) {
-      throw new Error(`Unexpected response from ${hostname}: missing username`)
-    }
-
-    const uploaded = requireBytes(data.uploaded_bytes, "uploaded_bytes", hostname)
-    const downloaded = requireBytes(data.downloaded_bytes, "downloaded_bytes", hostname)
+    const { uploaded, downloaded } = readJsonLoad(data, hostname)
     const snatch: MamSnatchSummary = { ...data, ...data.snatch_summary }
 
     // A missing category really is none in that category, but every category
@@ -169,7 +181,7 @@ export class MamAdapter implements TrackerAdapter {
 
     return {
       username: data.username,
-      group: data.classname ?? "Unknown",
+      group: presentClass(data.classname),
       remoteUserId: data.uid,
       uploadedBytes: uploaded,
       downloadedBytes: downloaded,
@@ -204,16 +216,14 @@ export class MamAdapter implements TrackerAdapter {
     const endpoint = `${apiPath}?snatch_summary&notif`
 
     try {
-      const data = await adapterFetch<Record<string, unknown>>(url.toString(), hostname, options, {
+      const data = await adapterFetch<MamJsonLoadResponse>(url.toString(), hostname, options, {
         Cookie: `mam_id=${mamId}`,
       })
-      // fetchStats treats a body with no username as a rejected mam_id, so
-      // reporting it as a healthy call here would hide exactly that.
       calls.push({
         label: "User Stats",
         endpoint,
         data,
-        error: data.username ? null : `Unexpected response from ${hostname}: missing username`,
+        error: pollError(() => readJsonLoad(data, hostname)),
       })
     } catch (err) {
       calls.push({

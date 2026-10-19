@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/__tests__/torrentleech.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTlCredentials, parseTlProfile, TorrentleechAdapter } from "../adapters/torrentleech"
 import { SessionExpiredError } from "../helpers/errors"
 
@@ -126,12 +127,12 @@ describe("parseTlProfile", () => {
     expect(parseTlProfile(noBadge, "testuser", TL_HOSTNAME).group).toBe("Registered")
   })
 
-  it("defaults the class to User when the page carries neither", () => {
+  it("reports no class when the page carries neither", () => {
     const noClass = `<!doctype html><html><body>${NAV_HTML}${PROFILE_HTML.replace(
       "label-user-class",
       "x"
     ).replace("<td>Class</td>", "<td>Rank</td>")}</body></html>`
-    expect(parseTlProfile(noClass, "testuser", TL_HOSTNAME).group).toBe("User")
+    expect(parseTlProfile(noClass, "testuser", TL_HOSTNAME).group).toBeNull()
   })
 
   it("counts torrents from the parenthesised figure, not the size beside it", () => {
@@ -210,9 +211,18 @@ describe("parseTlProfile", () => {
     expect(() => parseTlProfile(loginPage, "testuser", TL_HOSTNAME)).toThrow("Session expired")
   })
 
-  it("detects Cloudflare challenge and throws", () => {
+  it("detects Cloudflare challenge and throws, and the card names it", () => {
     const cfChallenge = `<!doctype html><html><head><title>Just a moment...</title></head><body></body></html>`
-    expect(() => parseTlProfile(cfChallenge, "testuser", TL_HOSTNAME)).toThrow("Cloudflare")
+    let message = ""
+    try {
+      parseTlProfile(cfChallenge, "testuser", TL_HOSTNAME)
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe("Cloudflare challenge detected. The TorrentLeech session needs refreshing")
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Cloudflare challenge blocked the request"
+    )
   })
 
   it("throws when profile stats are missing (unauthenticated page)", () => {
@@ -252,6 +262,27 @@ describe("parseTlProfile", () => {
     expect(stats.uploadedBytes).toBe(0n)
     expect(stats.downloadedBytes).toBe(5_250_000_000n)
     expect(stats.ratio).toBe(0)
+  })
+
+  it("reads a page with no profile stats as an unexpected response", () => {
+    // The tracker answered, so the card must not read "Poll failed", which is
+    // also what a host that never answered gets.
+    let message = ""
+    try {
+      parseTlProfile(
+        "<html><body><p>Down for maintenance</p></body></html>",
+        "testuser",
+        TL_HOSTNAME
+      )
+    } catch (err) {
+      message = err instanceof Error ? err.message : ""
+    }
+    expect(message).toBe(
+      `Unexpected response from ${TL_HOSTNAME}: Could not find profile stats on TorrentLeech page. The page may not be authenticated`
+    )
+    expect(sanitizeNetworkError(message, "Poll failed")).toBe(
+      "Tracker returned an unexpected response"
+    )
   })
 })
 
@@ -533,6 +564,135 @@ describe("TorrentleechAdapter.fetchStats", () => {
     expect(stats.username).toBe("testuser")
   })
 
+  // The card text comes from matching the message, and "Invalid credentials"
+  // would send the user off to change a password that works.
+  it.each([
+    [500, "Internal Server Error", "API returned 500"],
+    [503, "Service Unavailable", "API returned 503"],
+    [429, "Too Many Requests", "API returned 429"],
+  ])(
+    "reports a %i on the login by its status, not as a refused login",
+    async (status, statusText, card) => {
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(
+        setCookieResponse([], {
+          ok: false,
+          status,
+          statusText,
+          text: async () => "<html><h1>Down for maintenance</h1></html>",
+        } as Partial<Response>)
+      )
+
+      const err = await adapter
+        .fetchStats("https://www.torrentleech.org", validToken, "")
+        .then(() => null)
+        .catch((e: unknown) => (e instanceof Error ? e : null))
+
+      expect(err?.message).toBe(`Tracker API error: ${status} ${statusText}`)
+      expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(card)
+    }
+  )
+
+  it("reports a proxy that wants its own credentials as a proxy problem", async () => {
+    const { proxyFetch } = await import("@/lib/tunnel")
+    // https-proxy-agent hands a refused CONNECT back as the response.
+    vi.mocked(proxyFetch).mockResolvedValueOnce({
+      ok: false,
+      status: 407,
+      statusText: "Proxy Authentication Required",
+      headers: {},
+      json: async () => ({}),
+      text: async () => "<html><h1>407 Proxy Authentication Required</h1></html>",
+      buffer: async () => Buffer.from(""),
+    })
+
+    const err = await adapter
+      .fetchStats("https://www.torrentleech.org", validToken, "", { proxyAgent: {} as never })
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("Tracker API error: 407 Proxy Authentication Required")
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
+  })
+
+  it("does not cache a session cookie that arrived with a server error", async () => {
+    // TorrentLeech sets tluid on a refused login too, so the cookie proves
+    // nothing when the status says the site never reached a verdict.
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      setCookieResponse(["tluid=abc123; Path=/"], {
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        text: async () => "<html><h1>Down for maintenance</h1></html>",
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Tracker API error: 503")
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Tracker API error: 503")
+
+    // Two logins and no profile fetch, so nothing was cached between the polls.
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    for (const [url] of fetchSpy.mock.calls) {
+      expect(String(url)).toBe("https://www.torrentleech.org/user/account/login/")
+    }
+  })
+
+  it("names a Cloudflare challenge on the login instead of blaming the credentials", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse([], {
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        text: async () =>
+          `<!doctype html><html><head><title>Just a moment...</title></head><body><form action="/user/account/login/?__cf_chl_f_tk=x"></form></body></html>`,
+      } as Partial<Response>)
+    )
+
+    const err = await adapter
+      .fetchStats("https://www.torrentleech.org", validToken, "")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("Cloudflare challenge detected on the TorrentLeech login page")
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(
+      "Cloudflare challenge blocked the request"
+    )
+  })
+
+  it("names a challenge by its other marker, and ahead of a 503 status", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse([], {
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        text: async () => "<html><body><script>window._cf_chl_opt = {}</script></body></html>",
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Cloudflare challenge detected on the TorrentLeech login page")
+  })
+
+  it("still blames the credentials when the refused login form embeds a Turnstile widget", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      setCookieResponse(["tluid=abc123; Path=/"], {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () =>
+          `<form name="login-form"><script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script></form>`,
+      } as Partial<Response>)
+    )
+
+    await expect(
+      adapter.fetchStats("https://www.torrentleech.org", validToken, "")
+    ).rejects.toThrow("Invalid TorrentLeech credentials")
+  })
+
   it("sends the login POST through the proxy when one is configured", async () => {
     const { proxyFetch } = await import("@/lib/tunnel")
     const proxySpy = vi.mocked(proxyFetch)
@@ -633,6 +793,38 @@ describe("TorrentleechAdapter.fetchStats", () => {
     await expect(
       adapter.fetchStats("https://www.torrentleech.org", validToken, "")
     ).rejects.toThrow("Failed to connect to www.torrentleech.org: ECONNREFUSED")
+  })
+
+  it("words a proxied login timeout the way the other proxied requests do", async () => {
+    const { proxyFetch } = await import("@/lib/tunnel")
+    vi.mocked(proxyFetch).mockRejectedValueOnce(new Error("Request timed out after 15000ms"))
+
+    const err = await adapter
+      .fetchStats("https://www.torrentleech.org", validToken, "", { proxyAgent: {} as never })
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("Request to www.torrentleech.org timed out (via proxy)")
+    const card = sanitizeNetworkError(err?.message ?? "", "Poll failed")
+    expect(card).toBe("Request timed out")
+    expect(isUnreachableMessage(card)).toBe(true)
+  })
+
+  it("keeps the proxy's reason when a proxied login cannot connect", async () => {
+    const { proxyFetch } = await import("@/lib/tunnel")
+    vi.mocked(proxyFetch).mockRejectedValueOnce(
+      new Error("Proxy connection ended before receiving CONNECT response")
+    )
+
+    const err = await adapter
+      .fetchStats("https://www.torrentleech.org", validToken, "", { proxyAgent: {} as never })
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(
+      "Failed to connect to www.torrentleech.org via proxy: Proxy connection ended before receiving CONNECT response"
+    )
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
   })
 
   it("reuses the cached session instead of logging in on every poll", async () => {

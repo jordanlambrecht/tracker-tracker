@@ -2,7 +2,8 @@
 //
 // One-time repair for tracker rows created before trackers.registry_slug
 // existed. Called once per server start, next to the scheduler recovery, and
-// idempotent, so after the first boot on the new schema it costs one query.
+// idempotent, so after the first boot on the new schema it costs one query. A
+// restore calls it again, forced, for the rows an older backup brings back.
 
 import { eq, isNull } from "drizzle-orm"
 import {
@@ -36,9 +37,11 @@ function registryByHostname(): Map<string, TrackerRegistryEntry> {
  *
  * A row on a host the registry does not carry is a custom site, not a mistake:
  * it is left exactly as it is, slug still null, and keeps polling its own URL.
+ *
+ * `force` skips the once-per-process latch, for rows written after boot.
  */
-export async function backfillRegistrySlugs(): Promise<void> {
-  if (g.__registrySlugBackfilled) return
+export async function backfillRegistrySlugs(options?: { force?: boolean }): Promise<void> {
+  if (g.__registrySlugBackfilled && !options?.force) return
 
   try {
     // Three columns, never the token: nothing here needs a credential.

@@ -118,7 +118,7 @@ export function parseRetrotoonProfile(html: string, hostname: string): TrackerSt
 
   let uploadedBytes: bigint | undefined
   let downloadedBytes: bigint | undefined
-  let group = ""
+  let group: string | null = null
   let joinedDate: string | undefined
   let lastAccessDate: string | undefined
   let seedbonus: number | null = null
@@ -151,7 +151,7 @@ export function parseRetrotoonProfile(html: string, hostname: string): TrackerSt
     } else if (label === "Downloaded") {
       downloadedBytes = tryParseSiteBytes(value) ?? downloadedBytes
     } else if (label === "Class") {
-      group = value
+      group = value || null
     } else if (label === "Join date") {
       joinedDate = datePrefix(value) ?? joinedDate
     } else if (label === "Last seen") {

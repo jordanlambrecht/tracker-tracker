@@ -9,7 +9,9 @@ import type { PlatformType } from "@/data/platform-types"
 
 export interface TrackerStats {
   username: string
-  group: string
+  // null when the response carries no class. A placeholder such as "Unknown"
+  // reads as a real class, so rank history and the rank-change alert act on it.
+  group: string | null
   uploadedBytes: bigint
   downloadedBytes: bigint
   ratio: number
