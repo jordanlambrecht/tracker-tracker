@@ -1,0 +1,3128 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the self-hosted private tracker stats dashboard">
+      
+      
+      
+        <link rel="canonical" href="https://jordanlambrecht.github.io/tracker-tracker/contributing/adapter-standard/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Tracker adapter standard - Tracker Tracker Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="cyan" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tracker-adapter-standard" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Tracker Tracker Docs" class="md-header__button md-logo" aria-label="Tracker Tracker Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tracker Tracker Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tracker adapter standard
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jordanlambrecht/tracker-tracker" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jordanlambrecht/tracker-tracker
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tracker Tracker Docs" class="md-nav__button md-logo" aria-label="Tracker Tracker Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tracker Tracker Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jordanlambrecht/tracker-tracker" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jordanlambrecht/tracker-tracker
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/first-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/docker-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Docker Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trackers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trackers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../trackers/adding-a-tracker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a Tracker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/proxies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proxy Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/backups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backups & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/download-clients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download Clients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/tag-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tag Groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/qbitmanage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    qbitmanage Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/webhooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Webhooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/transit-papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transit Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/password-recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lost Master Password
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/stats-explained/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stats Explained
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/platform-differences/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform Differences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adding-a-tracker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a Tracker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slot-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bento Grid Slot System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracker API Responses
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tracker API Responses
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracker-responses/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracker-responses-unit3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UNIT3D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracker-responses-gazelle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gazelle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracker-responses-ggn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GGn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracker-responses-mam/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MAM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3_6" id="__nav_7_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Individual Trackers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Individual Trackers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/aither/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aither
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/alpharatio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaRatio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/animebytes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AnimeBytes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/anthelion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anthelion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/blutopia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blutopia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/broadcasthenet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BroadcasTheNet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/concertos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concertos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/digitalcore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DigitalCore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/empornium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Empornium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/fearnopeer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FearNoPeer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/gazellegames/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GazelleGames
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/greatposterwall/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Great Poster Wall
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/lst/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/morethantv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MoreThanTV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/nebulance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nebulance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/oldtoons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OldToons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/onlyencodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OnlyEncodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/orpheus/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orpheus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/passthepopcorn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PassThePopcorn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/phoenixproject/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phoenix Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/racing4everyone/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Racing4Everyone
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/redacted/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REDacted
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/seedpool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Seed Pool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/reelflix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reelflix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/skipthecommercials/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SkipTheCommercials
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trackers/uploadcx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upload.cx
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-an-adapter-is-and-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What an adapter is, and is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-required-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The required contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. The required contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-the-null-versus-zero-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 The null versus zero rule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-the-rule-does-not-stop-at-platformmeta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 The rule does not stop at platformMeta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-derived-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Derived values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Credentials
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-fetchraw-and-the-debug-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 fetchRaw and the debug view
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-shared-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Shared helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-naming-and-file-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Naming and file shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-pre-submit-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Pre-submit checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-known-outstanding-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Known outstanding work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6a-calls-made-without-documented-intent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6a. Calls made without documented intent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-what-can-be-enforced-mechanically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. What can be enforced mechanically
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. What can be enforced mechanically">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-let-the-type-system-carry-the-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Let the type system carry the rule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-a-shared-behavioural-contract-test-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 A shared behavioural contract test (done)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-a-source-text-conformance-test-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 A source-text conformance test (done)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-a-null-contract-test-generated-from-the-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 A null-contract test generated from the source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75-biome-rules-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 Biome rules (done)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#76-targeted-helper-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.6 Targeted helper tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#77-verify-the-functions-header-or-drop-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.7 Verify the Functions: header, or drop it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#78-what-still-needs-a-human" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.8 What still needs a human
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/jordanlambrecht/tracker-tracker/edit/main/docs/kb/docs/contributing/adapter-standard.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="tracker-adapter-standard">Tracker adapter standard<a class="headerlink" href="#tracker-adapter-standard" title="Permanent link">&para;</a></h1>
+<p>What a tracker adapter must do, written from what the thirteen existing adapters actually do. If
+you are adding a <strong>site</strong>, you probably want <a href="../adding-a-tracker/">adding-a-tracker.md</a> instead;
+most new sites need a data file and no code at all.</p>
+<blockquote>
+<p><code>src/data/trackers/</code> says what a tracker <strong>is</strong>. <code>src/lib/tracker-platforms/</code> says how it is <strong>polled</strong>.
+If your change is a site, it is one file in <code>src/data/trackers/</code> and you never open <code>src/lib</code>.
+If your change is a new way to poll, it is one file in <code>src/lib/tracker-platforms/adapters/</code>, and the shared code
+it may call lives in <code>src/lib/tracker-platforms/helpers/</code>.</p>
+</blockquote>
+<hr />
+<h2 id="1-what-an-adapter-is-and-is-not">1. What an adapter is, and is not<a class="headerlink" href="#1-what-an-adapter-is-and-is-not" title="Permanent link">&para;</a></h2>
+<p>An adapter turns one tracker <strong>protocol</strong> into a <code>TrackerStats</code>. It is not the place for facts
+about a site. Those live in <code>src/data/trackers/</code>, one file per site, as plain data: name, URL,
+ratio rules, user classes, content categories, logo. That folder holds 55 entries plus
+<code>_template.ts</code> and the <code>index.ts</code> barrel.</p>
+<p><strong>One adapter usually serves many sites.</strong> <code>unit3d</code> serves 19, <code>gazelle</code> 9, <code>avistaz</code> 5,
+<code>nebulance</code> 2. The other nine adapters serve one site each today, but that is a fact about the
+world, not a licence to hardcode. If your site runs a platform that already has an adapter, you
+are adding a data file.</p>
+<p><strong>Per-site variation is configuration, not a branch.</strong> <code>buildFetchOptions</code> in
+<code>src/lib/tracker-platforms/index.ts</code> reads <code>unit3dAuthStyle</code>, <code>gazelleAuthStyle</code>, <code>gazelleEnrich</code> and
+<code>nebulanceAuthParam</code> off the registry entry and passes them in <code>options</code>. No family adapter
+contains a hostname test, and none should gain one.</p>
+<hr />
+<h2 id="2-the-required-contract">2. The required contract<a class="headerlink" href="#2-the-required-contract" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">TrackerAdapter</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nx">fetchStats</span><span class="p">(</span><span class="nx">baseUrl</span><span class="p">,</span><span class="w"> </span><span class="nx">apiToken</span><span class="p">,</span><span class="w"> </span><span class="nx">apiPath</span><span class="p">,</span><span class="w"> </span><span class="nx">options</span><span class="o">?</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">TrackerStats</span><span class="o">&gt;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nx">fetchRaw</span><span class="p">(</span><span class="nx">baseUrl</span><span class="p">,</span><span class="w"> </span><span class="nx">apiToken</span><span class="p">,</span><span class="w"> </span><span class="nx">apiPath</span><span class="p">,</span><span class="w"> </span><span class="nx">options</span><span class="o">?</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">DebugApiCall</span><span class="p">[]</span><span class="o">&gt;</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>All thirteen implement both. <code>fetchRaw</code> is still declared optional at
+<code>src/lib/tracker-platforms/contract.ts</code>; treat it as required.</p>
+<h3 id="21-the-null-versus-zero-rule">2.1 The null versus zero rule<a class="headerlink" href="#21-the-null-versus-zero-rule" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong><code>null</code> means the tracker does not report this figure. <code>0</code> means the tracker reported zero.
+Never write a literal <code>0</code>, <code>false</code> or <code>true</code> into a field because the response did not carry
+one.</strong></p>
+</blockquote>
+<p>This is the most important rule here. It has already caused shipped bugs (<code>9f8aaa5</code>, <code>c83f96c</code>).
+A run of fabricated zeroes cannot be told apart from an account that genuinely stopped seeding,
+and it corrupts every chart drawn from snapshot history.</p>
+<p>Eight <code>TrackerStats</code> fields are nullable for exactly this reason (<code>src/types/tracker-stats.ts</code>):
+<code>group</code>, <code>seedingCount</code>, <code>leechingCount</code>, <code>seedbonus</code>, <code>hitAndRuns</code>, <code>requiredRatio</code>, <code>warned</code>,
+<code>freeleechTokens</code>. <code>ratio</code> is not among them; it is derived, never read (see 2.3).</p>
+<table>
+<thead>
+<tr>
+<th>Forbidden</th>
+<th>Why</th>
+<th>Write instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>field: value ?? 0</code></td>
+<td>Absent becomes a measured zero</td>
+<td><code>value ?? null</code></td>
+</tr>
+<tr>
+<td><code>warned: x?.warned ?? false</code></td>
+<td>Absent becomes a reassurance the user is not warned</td>
+<td><code>typeof x === "boolean" ? x : null</code></td>
+</tr>
+<tr>
+<td><code>parseInt(text, 10) \|\| 0</code> on scraped text</td>
+<td>An absent row parses as <code>NaN</code>, which <code>\|\| 0</code> turns into zero</td>
+<td><code>tryParseCount(text) ?? null</code></td>
+</tr>
+<tr>
+<td><code>parseFloat(x) \|\| 0</code> for a ratio</td>
+<td>See 2.3</td>
+<td><code>computeRatio(uploaded, downloaded)</code></td>
+</tr>
+<tr>
+<td><code>x ?? 0</code> in a second call</td>
+<td>Overwrites the honest <code>null</code> the first call set</td>
+<td><code>if (typeof x === "number") stats.f = x</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>An absent or blank class is <code>null</code> in <code>group</code>, never a placeholder</strong> such as <code>"Unknown"</code> or
+<code>"User"</code>, so rank history and the rank-change alert read it as not reported. A JSON adapter that
+receives the class as text reads it through <code>presentClass</code>, and one that receives an id maps it
+through its own table, as DigitalCore and TR4KER do. IPTorrents is the one exception. Its page
+shows a VIP badge and no class, so an account without the badge is stored as <code>"User"</code>, which keeps
+VIP gained and VIP lost alerting.</p>
+<p><strong>A JSON <code>null</code> on the wire is data, not an absent key.</strong> If the API declares
+<code>invites: number | null</code> and sends <code>null</code>, the tracker is stating the figure is unknown. Map it to
+<code>null</code> in <code>TrackerStats</code> and <code>undefined</code> in <code>platformMeta</code>. Never to <code>0</code>.</p>
+<p><strong>Byte totals are never coalesced.</strong> Both are non-nullable <code>bigint</code>, so an absent or unreadable
+total cannot be reported as unknown and has to fail the poll. A JSON adapter gets that from
+<code>requireBytes</code> (3). A scraper throws when both totals are missing (the page is not a profile)
+and again when exactly one is unreadable, with the <code>Unexpected response from &lt;host&gt;:</code>
+prefix, the way <code>parseRetrotoonProfile</code> and <code>parseFilelistProfile</code> do. <code>?? 0n</code> on a byte total
+is a violation and the conformance test flags it.</p>
+<p><strong>One shape that looks like a violation and is not.</strong> Say so in a comment so a reviewer does not
+"fix" it: <code>|| 0</code> on a value that came out of a <code>\d+</code> capture. Unreachable. Delete it rather than
+explain it.</p>
+<p><strong>A secondary or enrichment call may only raise a field from <code>null</code> to a value</strong>, never coalesce
+an absent one down to a literal. Reference: <code>gazelle.ts:205-206</code>, guarding with
+<code>typeof enriched.leechingCount === "number"</code>.</p>
+<h3 id="22-the-rule-does-not-stop-at-platformmeta">2.2 The rule does not stop at platformMeta<a class="headerlink" href="#22-the-rule-does-not-stop-at-platformmeta" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A count the response omitted is <strong><code>undefined</code></strong>, and its key is omitted. Assign conditionally
+  (<code>filelist.ts:172-175</code>) or coalesce with <code>?? undefined</code>.</li>
+<li>A boolean the response did not carry is <strong>absent</strong>, not <code>false</code> and not <code>true</code>. Capability flags
+  gate what the UI tells a user they may do, and <code>tracker-events.ts</code> fires on a true-to-false
+  transition, so a fabricated <code>false</code> invents a revocation and a fabricated <code>true</code> hides a real
+  one. References: <code>hawke.ts:106-117</code>, <code>avistaz.ts:303-318</code>.</li>
+<li>A flag parsed out of HTML must come from a <strong>positive match on both spellings</strong>, never from the
+  absence of one word. <code>avistaz.ts:313</code> guards the missing row but still derives <code>!== "no"</code>, so a
+  site renaming the value to "Disabled" would report a revoked right as granted.</li>
+<li><code>platformMeta</code> is <code>JSON.stringify</code>ed into the trackers row. <code>bigint</code> does not survive JSON, so
+  store byte figures as <code>number</code>. Undefined members are dropped, which is what makes
+  omit-when-absent work end to end.</li>
+<li><strong>Declare every optional-on-the-wire field optional in your meta interface.</strong> A required
+  <code>number</code> forces the adapter to invent a zero in order to compile, which is a defect in the type,
+  not in the adapter.</li>
+</ul>
+<p><strong>Return meta on every successful poll</strong>, built from what you read this poll. The scheduler only
+writes meta when the key is present, so omitting it leaves the previous poll's JSON in the
+database indefinitely, and a field that disappears upstream must be allowed to clear. Reference:
+<code>unit3d.ts:299-302</code>, which returns an object even when its one member is absent and says why.</p>
+<p>If your tracker exposes nothing beyond <code>TrackerStats</code>, return no meta at all.</p>
+<h3 id="23-derived-values">2.3 Derived values<a class="headerlink" href="#23-derived-values" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>ratio</code> is <code>computeRatio(uploadedBytes, downloadedBytes)</code>.</strong> Sites render an infinity glyph,
+  <code>---</code> or <code>Inf</code> for a zero-download account, and <code>parseFloat</code> turns those into <code>0</code>, the worst
+  ratio the app can hold, which then fires the ratio-danger alert.</li>
+<li>If you have a reason to prefer the tracker's reported ratio, the fallback must be <code>computeRatio</code>
+  and a comment must say why. An account with nothing downloaded always takes <code>computeRatio</code>,
+  whatever figure the tracker reports, since there is no quotient to report. Reference: the
+  <code>ratio</code> field in Hawke's <code>fetchStats</code> and GGn's guard in <code>ggn.ts</code>.</li>
+<li><strong><code>bufferBytes</code> is <code>computeBufferBytes(uploaded, downloaded)</code></strong>, unless the platform reports a
+  signed buffer of its own, in which case say so (<code>hawke.ts:129-132</code>).</li>
+</ul>
+<h3 id="24-errors">2.4 Errors<a class="headerlink" href="#24-errors" title="Permanent link">&para;</a></h3>
+<p>Adapter errors are sanitized by <code>sanitizeNetworkError</code> before a user sees them, and the sanitizer
+matches on wording. Wording is an interface, not prose.</p>
+<ul>
+<li><strong>A payload that could not be read</strong> starts with <code>`Unexpected response from ${host}: `</code>,
+  naming the hostname. Documented at <code>unit3d.ts:187-189</code>. This is what makes the card say "Tracker
+  returned an unexpected response" rather than "Poll failed". It applies to scrapers too.</li>
+<li><strong>Never put the word "invalid" in a message unless it really is a credential problem.</strong> The
+  sanitizer maps <code>/Credentials.*missing|invalid/i</code> to "Invalid credentials", so any message
+  containing "invalid" anywhere will send the user to re-enter a working key.</li>
+<li><strong>Do not call <code>sanitizeNetworkError</code> yourself.</strong> Throw the raw shape and let the caller classify.</li>
+<li><strong>Do not classify by matching digits or words in a message.</strong> Read <code>response.status</code>, or check
+  the error type. <code>helpers/errors.ts</code> records why <code>SessionExpiredError</code> is a class rather than a
+  recognisable string. Prefix any tracker-supplied string before throwing it, or a remote body
+  containing "invalid" decides the classification for you.</li>
+<li><strong>A body that fails to parse is not a connection failure.</strong> <code>classifyFetchError</code> applies only to
+  an error thrown by <code>fetch</code>, and <code>classifyProxyFetchError</code> only to a <code>proxyFetch</code> rejection.
+  Every <code>json()</code> from <code>adapterRequest</code> already goes through <code>readJson</code> in <code>helpers/adapter-fetch.ts</code>,
+  where a <code>SyntaxError</code> becomes the shape wording and only the remaining branch is classified. An
+  adapter that parses text itself follows <code>parseJsonSafe</code> in <code>digitalcore.ts</code>.</li>
+<li><strong>Log through <code>log</code> from <code>@/lib/logger</code></strong>, in the structured <code>log.warn({ err }, "message")</code>
+  form, never <code>console</code>. The in-app event feed is built by parsing pino output, so a
+  <code>console.warn</code> failure is invisible to the operator. Reference: <code>torrentleech.ts:210</code>.</li>
+<li>A <code>SessionExpiredError</code> from any call aborts the poll. Every other secondary-call failure is
+  logged and leaves its fields <code>null</code>.</li>
+</ul>
+<h3 id="25-credentials">2.5 Credentials<a class="headerlink" href="#25-credentials" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Never write a credential into an <code>Error</code>, a log line, or a <code>DebugApiCall</code> <code>endpoint</code>, <code>data</code>
+  or <code>error</code>.</strong> The debug route scrubs only <code>data</code>; the rest depends on adapter discipline. No
+  adapter leaks today, and that is worth keeping true.</li>
+<li><strong>Parse the credential blob outside the <code>try</code></strong> in <code>fetchRaw</code>, so a bad blob throws to the route
+  instead of becoming a call entry. Reference: <code>filelist.ts:287-288</code>.</li>
+<li><strong>A JSON blob is parsed with <code>parseCredentialJson</code></strong>, declaring required fields in <code>fields</code> and
+  per-account ones in <code>optionalFields</code>. Never call <code>JSON.parse(apiToken)</code> yourself.</li>
+<li><strong>A pasted Cookie header goes through <code>validateCookieHeader</code>.</strong> It validates a whole header. An
+  individual cookie <strong>value</strong> you interpolate yourself is outside its scope and needs your own
+  semicolon, control-character and non-Latin-1 guard, like <code>validateMamId</code> (<code>mam.ts:83</code>).</li>
+<li><strong>A plain token sent in a request header goes through <code>validateHeaderToken</code> first</strong>, before the
+  first request and outside <code>fetchRaw</code>'s <code>try</code>, and the header carries the value it returns. A
+  token placed in a query parameter or POST body relies on <code>URLSearchParams</code> encoding and needs no
+  such check.</li>
+<li><code>userAgent</code> is <strong>required</strong> for a cookie scraper, because the session is fingerprinted against
+  the agent it was issued to. It is <strong>optional</strong> for a JSON API, where the transport supplies one.</li>
+</ul>
+<h3 id="26-fetchraw-and-the-debug-view">2.6 fetchRaw and the debug view<a class="headerlink" href="#26-fetchraw-and-the-debug-view" title="Permanent link">&para;</a></h3>
+<p><code>fetchRaw</code> powers the debug dialog. It is the screen someone opens when a poll is failing, so it
+must not lie.</p>
+<ul>
+<li><strong>Return the unmodified response body in <code>data</code></strong> for a JSON API. Mapping is <code>fetchStats</code>'s job.
+  A scraper may substitute parsed output, because the raw artifact is a whole HTML page.</li>
+<li><strong>Apply every failure test <code>fetchStats</code> applies.</strong> <code>adapterFetch</code> throws on a non-2xx, so through
+  it the only failure reaching <code>fetchRaw</code> intact is one the tracker wrapped inside an HTTP 200 body
+  (an <code>adapterRequest</code> caller can read a non-2xx body too, as <code>nebulance.ts</code> does), and the debug
+  view marks a call healthy purely on <code>error</code> being null. Put every check <code>fetchStats</code> makes on a
+  200 body in one function both methods call, and in <code>fetchRaw</code> set
+  <code>error: pollError(() =&gt; thatFunction(data, hostname))</code>, keeping the body in <code>data</code>. The dialog
+  prints that body under the error. Nothing <code>fetchStats</code> does with that body afterwards may throw.
+  References: <code>creditedTotals</code> in <code>tr4ker.ts</code>, <code>readIndex</code> in <code>gazelle.ts</code>. A call whose failure
+  <code>fetchStats</code> tolerates takes its <code>error</code> from the function that decides the failure, so the
+  entry shows the reason <code>fetchStats</code> logs. Reference: <code>profileFailure</code> in <code>gazelle.ts</code>.</li>
+<li><strong>Emit an entry for a call you skipped</strong>, with <code>data: null</code> and a reason. A debug view that
+  simply ends after one entry cannot be told from a one-call adapter.</li>
+<li><strong>Do not abandon later calls when an earlier one fails</strong> if a cached value can satisfy the
+  dependency. <code>options.remoteUserId</code> is that cached id, and a failing first call is exactly when
+  the second call's output matters most. An id read from a body the poll rejects does not count,
+  since the poll never makes the call that id would drive.</li>
+<li><strong>Apply the same pacing <code>fetchStats</code> applies.</strong> The debug route runs both methods in one
+  request, so a missing pause means one press issues every request back to back.</li>
+<li><strong>Build the endpoint string first and derive the URL from it</strong>, so the two cannot encode
+  differently. Reference: <code>torrentleech.ts:470-475</code>.</li>
+<li><code>label</code> is Title Case and names what the call fetches.</li>
+</ul>
+<hr />
+<h2 id="3-shared-helpers">3. Shared helpers<a class="headerlink" href="#3-shared-helpers" title="Permanent link">&para;</a></h2>
+<p>Everything in <code>src/lib/tracker-platforms/helpers/</code> exists because at least two adapters had already written
+it. Import it rather than writing it again.</p>
+<table>
+<thead>
+<tr>
+<th>Helper</th>
+<th>File</th>
+<th>Use it for</th>
+<th>Do not hand-roll</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>adapterFetch</code></td>
+<td><code>helpers/adapter-fetch.ts</code></td>
+<td>Every JSON API request on the happy path. Applies the shared timeout, default User-Agent and proxy, throws on non-2xx.</td>
+<td>Your own fetch, timeout, proxy branch or non-2xx message</td>
+</tr>
+<tr>
+<td><code>adapterRequest</code></td>
+<td><code>helpers/adapter-fetch.ts</code></td>
+<td>Same, but returns a non-2xx instead of throwing. Only when your API reports errors in the body of a non-2xx.</td>
+<td>Reaching for this by default</td>
+</tr>
+<tr>
+<td><code>fetchTrackerHtml</code></td>
+<td><code>helpers/html-fetch.ts</code></td>
+<td>Every authenticated page fetch in a scraper. Handles headers, cookies, the redirect chain, the off-origin refusal.</td>
+<td>A private fetch with a Cookie header, your own redirect following</td>
+</tr>
+<tr>
+<td><code>pollError</code></td>
+<td><code>helpers/poll-error.ts</code></td>
+<td><code>fetchRaw</code>, on every 200 body <code>fetchStats</code> reads. Runs the function <code>fetchStats</code> reads it with and returns the message that function throws, or null.</td>
+<td>Restating <code>fetchStats</code>'s checks inside <code>fetchRaw</code></td>
+</tr>
+<tr>
+<td><code>normalizeWhitespace</code></td>
+<td><code>helpers/html-parse.ts</code></td>
+<td>Any text you compare against a literal label. Labels carry U+00A0, which an exact match will not survive.</td>
+<td><code>value.replace(/\s+/g, " ").trim()</code></td>
+</tr>
+<tr>
+<td><code>datePrefix</code></td>
+<td><code>helpers/html-parse.ts</code></td>
+<td>Slicing <code>YYYY-MM-DD</code> off a site-printed datetime</td>
+<td>Your own date regex</td>
+</tr>
+<tr>
+<td><code>tryParseCount</code></td>
+<td><code>helpers/html-parse.ts</code></td>
+<td>Any site-printed count. The first number in the text, commas stripped, decimals and sign kept, <code>undefined</code> when there is none.</td>
+<td><code>parseInt(text, 10)</code> with your own <code>NaN</code> test</td>
+</tr>
+<tr>
+<td><code>tryParseSiteBytes</code></td>
+<td><code>helpers/html-parse.ts</code></td>
+<td>Site-printed byte totals. Strips grouping commas and canonicalises the unit, so both <code>1,024 kB</code> and <code>1 GiB</code> parse. Returns <code>undefined</code> rather than throwing.</td>
+<td>A private <code>parseBytes</code> wrapper with its own tolerances</td>
+</tr>
+<tr>
+<td><code>requireBytes</code></td>
+<td><code>helpers/bytes.ts</code></td>
+<td>A byte total a JSON API is contracted to send. Throws naming the host and the field when it is absent or not a number, because both byte totals are non-nullable <code>bigint</code> and cannot hold unknown.</td>
+<td><code>floatBytesToBigInt</code> straight off the wire, which answers <code>0n</code> for an absent field</td>
+</tr>
+<tr>
+<td><code>presentClass</code></td>
+<td><code>helpers/class-name.ts</code></td>
+<td>The class a JSON API sends as text for <code>group</code>. Returns it, or <code>null</code> when it is absent, blank or not a string.</td>
+<td><code>class ?? "Unknown"</code>, or <code>class \|\| null</code>, which keeps a whitespace-only class</td>
+</tr>
+<tr>
+<td><code>computeRatio</code>, <code>computeBufferBytes</code></td>
+<td><code>@/lib/data-transforms</code></td>
+<td><code>ratio</code> and <code>bufferBytes</code></td>
+<td>Reading the tracker's ratio with no <code>computeRatio</code> fallback</td>
+</tr>
+<tr>
+<td><code>parseCredentialJson</code></td>
+<td><code>helpers/cookie-credentials.ts</code></td>
+<td>Any credential arriving as a JSON blob</td>
+<td><code>JSON.parse(apiToken)</code>, shape checks, and above all the error wording</td>
+</tr>
+<tr>
+<td><code>validateCookieHeader</code></td>
+<td><code>@/lib/tracker-credentials/cookie-header</code></td>
+<td>A credential that is a pasted Cookie header</td>
+<td>Prefix stripping, control-character and non-ASCII guards</td>
+</tr>
+<tr>
+<td><code>validateHeaderToken</code></td>
+<td><code>@/lib/tracker-credentials/header-token</code></td>
+<td>A plain API token sent in a request header</td>
+<td>Your own control-character and non-Latin-1 checks</td>
+</tr>
+<tr>
+<td><code>SessionExpiredError</code></td>
+<td><code>helpers/errors.ts</code></td>
+<td>Signalling that an authenticated request came back as a login page. Callers use <code>instanceof</code>.</td>
+<td>Matching the message text</td>
+</tr>
+<tr>
+<td><code>classifyFetchError</code></td>
+<td><code>@/lib/error-utils</code></td>
+<td>Errors thrown by <code>fetch</code>, only</td>
+<td>Applying it to a <code>JSON.parse</code> failure</td>
+</tr>
+<tr>
+<td><code>classifyProxyFetchError</code></td>
+<td><code>@/lib/error-utils</code></td>
+<td>A <code>proxyFetch</code> rejection, only. Keeps its reason, worded the way every tracker transport words it</td>
+<td>Your own "via proxy" message, or <code>classifyFetchError</code>, which keeps only the error's name or code</td>
+</tr>
+<tr>
+<td><code>log</code></td>
+<td><code>@/lib/logger</code></td>
+<td>Every log line in the adapter layer</td>
+<td><code>console.warn</code>, <code>console.error</code></td>
+</tr>
+<tr>
+<td><code>metaFor</code></td>
+<td><code>@/types/tracker-stats</code></td>
+<td>Narrowing <code>platformMeta</code> <strong>outside</strong> the adapter that produced it</td>
+<td><code>meta as XPlatformMeta</code> in a component</td>
+</tr>
+</tbody>
+</table>
+<p>The interface an adapter implements is <code>contract.ts</code> at the module root. Adapters import it as
+<code>../contract</code>; helpers import it the same way.</p>
+<p><strong>The count parser is settled.</strong> <code>tryParseCount</code> returns <code>undefined</code>, not <code>null</code>, because
+<code>platformMeta</code> is <code>JSON.stringify</code>ed into the trackers row: an undefined member is dropped, a null
+one is stored. A null-returning parser would write the key back on every poll and defeat
+omit-when-absent (2.2). <code>TrackerStats</code> fields coalesce with <code>?? null</code> where they are assigned.</p>
+<p>Four private number parsers remain. Each reads a different input shape, so folding them in would
+break them:</p>
+<ul>
+<li><code>ratioBarNumber</code> (<code>avistaz.ts</code>) scans ratio-bar items with a label regex.</li>
+<li><code>parenCount</code> (<code>torrentleech.ts</code>) reads the number inside parentheses.</li>
+<li><code>trailingCount</code> (<code>torrentleech.ts</code>) reads the <strong>last</strong> number in a cell; <code>tryParseCount</code> takes
+  the first.</li>
+<li><code>toNumber</code> (<code>unit3d.ts</code>) reads a JSON field that may already be a number. Passing one to
+  <code>tryParseCount</code> throws.</li>
+</ul>
+<p>All four return <code>null</code> because each value goes straight into a <code>TrackerStats</code> field (2.1). Reach
+for <code>tryParseCount</code> unless you are in one of those four shapes.</p>
+<p><strong>One helper that does not exist yet.</strong> If you need it, promote it into <code>helpers/html-parse.ts</code>
+rather than adding another private copy:</p>
+<ul>
+<li>The <strong>Cloudflare challenge predicate</strong>. The same three-condition test is copied in all five
+  scrapers, and three of them already throw the identical message.</li>
+</ul>
+<hr />
+<h2 id="4-naming-and-file-shape">4. Naming and file shape<a class="headerlink" href="#4-naming-and-file-shape" title="Permanent link">&para;</a></h2>
+<p><strong>Settled, not open questions.</strong> Line 1 is the file's own path comment. The class is last,
+exported, and declares <code>fetchStats</code> before <code>fetchRaw</code>. The <code>fetchRaw</code> catch fallback is
+byte-identical everywhere: <code>err instanceof Error ? err.message : "Request failed"</code>. All five
+scrapers name their transport wrapper <code>fetchHtml</code>. Tests use <code>vi.spyOn(global, "fetch")</code> with
+<code>vi.restoreAllMocks()</code> in <code>beforeEach</code>, and there are no skipped or <code>.only</code> tests.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Dominant</th>
+<th>Deviation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Class name flattens the filename</td>
+<td>11 of 13</td>
+<td><code>GGnAdapter</code> and <code>DigitalCoreAdapter</code> keep the site's real casing. Do not rename them; the names are public. New adapters flatten.</td>
+</tr>
+<tr>
+<td>Helpers are module-scope functions</td>
+<td>12 of 13</td>
+<td><code>gazelle.ts</code> puts one helper on the class as a <code>private async</code> that never touches <code>this</code>, so it cannot be unit-tested directly.</td>
+</tr>
+<tr>
+<td>A prefix predicts the failure mode</td>
+<td>Mixed</td>
+<td><code>parse*</code> throws, <code>tryParse*</code> returns <code>undefined</code>. Whatever it is called, "not reported" must reach <code>TrackerStats</code> as <code>null</code>.</td>
+</tr>
+<tr>
+<td>Label lookups compare exactly on normalized text</td>
+<td>filelist, retrotoon</td>
+<td>A bare <code>.includes(label)</code> matches any cell containing it, so "Last Access IP" satisfies a "Last Access" lookup. Normalize, then compare exactly, or anchor the regex.</td>
+</tr>
+<tr>
+<td>Ignoring the persisted <code>_apiPath</code></td>
+<td>7 adapters</td>
+<td>When the path is intrinsic to the platform, ignore <code>_apiPath</code> so a stale persisted value self-heals, and say so in one comment naming <strong>your</strong> intrinsic path.</td>
+</tr>
+<tr>
+<td>Date shape</td>
+<td>No convention</td>
+<td>Emit one shape and say which. The scheduler preserves a bare <code>YYYY-MM-DD</code> exactly as printed (<code>trackerDateStr</code>). Adapters still emit three shapes.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The <code>Functions:</code> file header.</strong> 10 of 13 adapters carry one and 4 of those are already wrong.
+Either generate and verify it in CI (7.7) or drop it. A manifest that is wrong half the time is
+worse than none, because a contributor trusts it and writes a duplicate helper. The path comment
+on line 1 stays either way.</p>
+<p><strong>Comments.</strong> <code>filelist.ts</code> is the calibration reference. A comment states the constraint the
+current code must satisfy. It does not narrate what the code used to do; git records that. No em
+dashes.</p>
+<hr />
+<h2 id="5-pre-submit-checklist">5. Pre-submit checklist<a class="headerlink" href="#5-pre-submit-checklist" title="Permanent link">&para;</a></h2>
+<p><strong>Scope</strong></p>
+<ul>
+<li>[ ] Every fact about the site is in <code>src/data/trackers/&lt;slug&gt;.ts</code>, not in the adapter.</li>
+<li>[ ] My site is not already served by <code>unit3d</code>, <code>gazelle</code>, <code>avistaz</code> or <code>nebulance</code>.</li>
+<li>[ ] Per-site variation is read from <code>options</code>, backed by a registry flag. No hostname branch.</li>
+</ul>
+<p><strong>The contract</strong></p>
+<ul>
+<li>[ ] Every unreported numeric field is <code>null</code>. No <code>?? 0</code>, <code>|| 0</code> or <code>parseInt(...) || 0</code> on a
+      nullable <code>TrackerStats</code> field.</li>
+<li>[ ] <code>group</code> is <code>null</code> when the class is absent or blank, never a placeholder.</li>
+<li>[ ] <code>warned</code> is <code>null</code> unless the response carried an actual boolean.</li>
+<li>[ ] <code>ratio</code> is <code>computeRatio(...)</code>, or the reported ratio with <code>computeRatio</code> as fallback and a
+      comment saying why. No <code>|| 0</code> anywhere in the ratio expression.</li>
+<li>[ ] I never coalesce a byte total; a missing or unreadable one throws with the <code>Unexpected response from</code> prefix.</li>
+<li>[ ] In <code>platformMeta</code>, an omitted figure is <code>undefined</code> and its key absent. No fabricated
+      booleans. Byte figures are <code>number</code>.</li>
+<li>[ ] My meta interface declares every optional-on-the-wire field optional.</li>
+<li>[ ] <code>platformMeta</code> is returned on every successful poll, not guarded on emptiness.</li>
+<li>[ ] A secondary call only raises a field from <code>null</code> to a value.</li>
+</ul>
+<p><strong>Errors and credentials</strong></p>
+<ul>
+<li>[ ] Every "could not read the payload" error begins with <code>Unexpected response from &lt;host&gt;:</code>.</li>
+<li>[ ] No message contains "invalid" unless it is genuinely a credential fault.</li>
+<li>[ ] I do not call <code>sanitizeNetworkError</code> myself, and I classify on <code>response.status</code> or an error
+      type, never on digits in a message.</li>
+<li>[ ] <code>classifyFetchError</code> is applied only to a <code>fetch</code> rejection, and <code>classifyProxyFetchError</code>
+      only to a <code>proxyFetch</code> rejection.</li>
+<li>[ ] A tracker-supplied error string is prefixed before it is thrown.</li>
+<li>[ ] I parse credentials with <code>parseCredentialJson</code>, and a pasted header with
+      <code>validateCookieHeader</code>. I never call <code>JSON.parse(apiToken)</code>.</li>
+<li>[ ] A plain token I send in a header goes through <code>validateHeaderToken</code>, and a cookie value I
+      build myself has its own control-character and non-Latin-1 guard.</li>
+<li>[ ] No credential appears in any error, log line, or debug <code>endpoint</code>, <code>data</code> or <code>error</code>.</li>
+<li>[ ] Any call I make directly carries <code>ADAPTER_FETCH_TIMEOUT_MS</code>. Calls through <code>adapterFetch</code>
+      and <code>fetchTrackerHtml</code> get it automatically.</li>
+<li>[ ] I log through <code>log</code> from <code>@/lib/logger</code>. There is no <code>console.</code> in my file.</li>
+</ul>
+<p><strong>fetchRaw</strong></p>
+<ul>
+<li>[ ] Credentials are parsed outside the <code>try</code>.</li>
+<li>[ ] For a JSON API, <code>data</code> is the unmodified response body.</li>
+<li>[ ] Every 200-body failure test in <code>fetchStats</code> lives in one function both methods call, and
+      <code>fetchRaw</code> sets <code>error</code> from it through <code>pollError</code>, keeping the body in <code>data</code>.</li>
+<li>[ ] A skipped call still gets an entry with <code>data: null</code> and a reason.</li>
+<li>[ ] <code>endpoint</code> is built first and the URL derived from it.</li>
+<li>[ ] Any pause or backoff in <code>fetchStats</code> is applied here too.</li>
+</ul>
+<p><strong>Shape and tests</strong></p>
+<ul>
+<li>[ ] Line 1 is my file's path comment. The class is last and declares <code>fetchStats</code> then
+      <code>fetchRaw</code>.</li>
+<li>[ ] I import the shared helpers rather than re-implementing them.</li>
+<li>[ ] Label lookups normalize whitespace and compare exactly, or use an anchored regex.</li>
+<li>[ ] A colocated <code>&lt;name&gt;.test.ts</code> exists with one <code>describe("XAdapter.fetchRaw")</code> block.</li>
+<li>[ ] <strong>Every field I hardcode to <code>null</code> has a matching <code>expect(stats.f).toBeNull()</code>.</strong></li>
+<li>[ ] A test omits the source key entirely for any coalescing path I kept.</li>
+<li>[ ] A timeout rejection is asserted to produce a message naming my tracker's host.</li>
+<li>[ ] My fixture states where it came from and on what date.</li>
+<li>[ ] No em dash, no <code>.only</code>, no <code>.skip</code>.</li>
+<li>[ ] <code>pnpm tsc</code> and <code>pnpm test:run</code> pass. Both block CI.</li>
+<li>[ ] <code>biome check .</code> reports nothing new. The tree currently carries 0 errors and 12 warnings;
+      compare against that baseline.</li>
+</ul>
+<hr />
+<h2 id="6-known-outstanding-work">6. Known outstanding work<a class="headerlink" href="#6-known-outstanding-work" title="Permanent link">&para;</a></h2>
+<p>Short and current. Everything else the audit found is fixed, and most of what was here is now
+enforced by section 7 rather than remembered.</p>
+<ol>
+<li><strong>Adapters still emit three different date shapes.</strong> The scheduler no longer corrupts a bare
+   date, so this is now consistency rather than correctness. Pick one shape and say which.</li>
+<li><strong><code>digitalcore.ts</code> still hand-rolls its credential parser.</strong> Allowlisted in the conformance
+   test with its reason: its messages and cookie-injection guards differ deliberately from
+   <code>parseCredentialJson</code>. Reconciling the wording would let the allowlist entry go.</li>
+</ol>
+<h2 id="6a-calls-made-without-documented-intent">6a. Calls made without documented intent<a class="headerlink" href="#6a-calls-made-without-documented-intent" title="Permanent link">&para;</a></h2>
+<p>Most of the rules above were recovered from comments the original authors left at the site that
+invented them. Where a reason was written down it was followed, and where a deviation was
+deliberate it was declared rather than removed: DigitalCore's hand-rolled credential parser is
+allowlisted in the conformance test, BTN's fixed API host is declared in the contract test's
+registry, AvistaZ's <code>strictParseBytes</code> still throws where its siblings return undefined, and MAM's
+<code>?? 0</code> inside a guarded sum is allowlisted.</p>
+<p>These, by contrast, were changed on a consistency argument with no evidence either way. They are
+recorded here so the next person inherits the reasoning instead of re-deriving it, and so anyone
+who knows the original intent can say so.</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>What was inferred</th>
+<th>The tradeoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gazelle takes the 1500ms pause in <code>fetchRaw</code> too</td>
+<td>That its absence was an oversight</td>
+<td>The debug route runs <code>fetchRaw</code> and <code>fetchStats</code> in one request, so one press issued four calls back to back at a site strict enough to need a pause between two of them. The cost is 1.5s of extra latency on an interactive screen, and a fast debug view may have been the point.</td>
+</tr>
+<tr>
+<td>GGn's <code>enabled</code> is <code>undefined</code> when absent, not <code>true</code></td>
+<td>That defaulting in two directions from one missing object was incoherent</td>
+<td><code>enabled ?? true</code> may have been deliberate optimism: better to assume an account works than to show a false disabled badge on a response that merely omitted the field.</td>
+</tr>
+<tr>
+<td>FileList and RetroToon return <code>platformMeta</code> even when empty</td>
+<td>That the guard was an oversight</td>
+<td><code>unit3d.ts</code> documents the always-return choice and its reason; these two carried no comment. But it is a tradeoff, not a pure fix: a page that parses yet yields no meta now clears the stored values instead of keeping the last known good.</td>
+</tr>
+<tr>
+<td>DigitalCore's enrichment guards <code>leechingCount</code></td>
+<td>That it should match Gazelle's identical guard</td>
+<td>Unresolved contradiction: the comment at the first call says DigitalCore reports no leeching count at all, while the enrichment reads one from the profile endpoint. One of the two is wrong and the code does not say which. <code>peersLeecher</code> may mean peers leeching from your seeds rather than torrents you are leeching.</td>
+</tr>
+<tr>
+<td>BTN's <code>HnR</code> is <code>null</code> when unparseable, not <code>0</code></td>
+<td>That a present-but-unparseable count is a tracker fault</td>
+<td>Marginal. The field was already null-guarded for absence; this only changes the case where BTN sends something that is not a number.</td>
+</tr>
+</tbody>
+</table>
+<p>The pattern worth remembering: where a decision was written down it was found, and where it was
+not, intent was inferred from consistency. Consistency is a weaker signal than it looks. If you
+make a call like these, leave the comment.</p>
+<h2 id="7-what-can-be-enforced-mechanically">7. What can be enforced mechanically<a class="headerlink" href="#7-what-can-be-enforced-mechanically" title="Permanent link">&para;</a></h2>
+<p>This is the part that matters for a crowdsourced surface. Review attention does not scale, and
+four of ten drifted <code>Functions:</code> headers are the proof. Two precedents already exist:
+<code>src/data/__tests__/tracker-registry.test.ts</code> is a CI conformance test that reads the crowdsourced
+data files and fails the PR on a bad entry, and <code>biome.json</code> already carries an error-level
+<code>noRestrictedImports</code> with a scoped <code>overrides</code> block.</p>
+<p>Ordered by value per unit of effort.</p>
+<h3 id="71-let-the-type-system-carry-the-rule">7.1 Let the type system carry the rule<a class="headerlink" href="#71-let-the-type-system-carry-the-rule" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Enforces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fetchRaw?</code> becomes <code>fetchRaw</code> on <code>TrackerAdapter</code> (<code>types.ts:308</code>)</td>
+<td>An adapter without a debug path stops compiling. All 13 already implement it, so this is free.</td>
+</tr>
+<tr>
+<td><code>platformMeta?: PlatformMeta</code> instead of restating the ten-member union</td>
+<td>A new meta type can no longer be added to one list and missed in the other.</td>
+</tr>
+<tr>
+<td><code>PlatformMetaMap</code> keyed <code>Partial&lt;Record&lt;PlatformType, ...&gt;&gt;</code></td>
+<td>An unknown platform key fails to compile, where today it is silent.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Done.</strong> <code>fetchRaw</code> is required, the ten-member union is declared once, a compile-time assertion
+rejects a meta registered under a platform that does not exist, and <code>GazelleCommunity</code>'s comment
+counts are optional, so no type forces a fabricated zero.</p>
+<h3 id="72-a-shared-behavioural-contract-test-done">7.2 A shared behavioural contract test (done)<a class="headerlink" href="#72-a-shared-behavioural-contract-test-done" title="Permanent link">&para;</a></h3>
+<p>One file iterating <code>VALID_PLATFORM_TYPES</code> minus <code>custom</code> through <code>getAdapter</code>. Per adapter:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>How</th>
+<th>Catches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>No credential leak</strong></td>
+<td>Build a credential containing a unique canary. Mock <code>fetch</code> to reject and to return 401. Assert no <code>label</code>, <code>endpoint</code>, <code>error</code> or thrown message contains the canary.</td>
+<td>The rule that today depends entirely on adapter discipline. The most valuable check here.</td>
+</tr>
+<tr>
+<td><strong>Timeout names the host</strong></td>
+<td>Mock <code>fetch</code> to reject with a <code>TimeoutError</code>. Assert the message contains the hostname.</td>
+<td>All 13 at once.</td>
+</tr>
+<tr>
+<td><strong><code>fetchRaw</code> shape</strong></td>
+<td>Every entry has a string <code>label</code>, a string <code>endpoint</code>, and an <code>error</code> that is a string or null.</td>
+<td>Structural drift in the debug contract.</td>
+</tr>
+<tr>
+<td><strong>Title Case label</strong></td>
+<td><code>/^[A-Z]/</code> on every label.</td>
+<td>Future repeats.</td>
+</tr>
+<tr>
+<td><strong>Bad credentials throw</strong></td>
+<td>Pass a malformed blob to <code>fetchRaw</code>, assert it rejects rather than resolving with a call list.</td>
+<td>The "parse outside the try" rule, currently unanimous and unprotected.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Done</strong>, in <code>__tests__/adapters.contract.test.ts</code>. It iterates <code>VALID_PLATFORM_TYPES</code> through
+<code>getAdapter</code>, so a new adapter inherits every rule without anyone remembering to write these cases
+again. Adding an adapter without adding a credential to its fixture registry fails the first case,
+which is deliberate: that registry is the one place a contributor declares what their adapter needs
+to be driven. It found two BTN divergences on its first run.</p>
+<h3 id="73-a-source-text-conformance-test-done">7.3 A source-text conformance test (done)<a class="headerlink" href="#73-a-source-text-conformance-test-done" title="Permanent link">&para;</a></h3>
+<p>Same shape as <code>tracker-registry.test.ts</code>, over <code>src/lib/tracker-platforms/</code>:</p>
+<p>No counts here on purpose. <code>__tests__/conformance.test.ts</code> computes them on every run, and a
+number written down goes stale the moment someone fixes something, telling the next contributor a
+rule is aspirational when it is already green.</p>
+<table>
+<thead>
+<tr>
+<th>Assertion</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line 1 equals <code>//</code> plus the file's own path</td>
+<td>A unanimous convention, locked in.</td>
+</tr>
+<tr>
+<td>No U+2014</td>
+<td>Prose review cannot see an em dash reliably. Covers the test files too.</td>
+</tr>
+<tr>
+<td>No banned word</td>
+<td>Locked in at zero cost.</td>
+</tr>
+<tr>
+<td>No <code>JSON.parse(apiToken</code> outside <code>helpers/</code></td>
+<td>Scoped to <code>adapters/</code>, where <code>parseCredentialJson</code> is the only sanctioned route.</td>
+</tr>
+<tr>
+<td><code>/\?\?\s*(0\|false\|true)\b/</code> against a small allowlist</td>
+<td>The null versus zero rule. The allowlist is the point: adding a coalescing default means adding a line with a reason, which turns a silent choice into a reviewable one. <code>?? 0n</code> is in scope: a byte total is never coalesced.</td>
+</tr>
+<tr>
+<td>Each <code>&lt;name&gt;.test.ts</code> calls <code>.fetchRaw(</code></td>
+<td>Every adapter's debug path is exercised somewhere.</td>
+</tr>
+<tr>
+<td>Every logic-bearing file in <code>helpers/</code> has a colocated test</td>
+<td><code>errors.ts</code> is declaration-only and exempt.</td>
+</tr>
+<tr>
+<td>The <code>Functions:</code> header lists every function the file declares</td>
+<td>Closes 7.7 for the files that carry a header.</td>
+</tr>
+<tr>
+<td><code>adapters/</code> holds adapters and nothing else</td>
+<td>The layout rule itself.</td>
+</tr>
+</tbody>
+</table>
+<p><code>console.</code> is not in the list. Biome owns it (7.5), at error level across the module including the
+test files. Two enforcers means the weaker one gets edited when it fires.</p>
+<p><strong>Done</strong>, in <code>__tests__/conformance.test.ts</code>. Failures name the file and the matched text so the
+message teaches the rule. Each allowlist entry carries its reason next to it: DigitalCore's
+hand-rolled credential parser, MAM's category sum and TR4KER's null bonus. Adding one means writing
+down why, which is the whole point.</p>
+<h3 id="74-a-null-contract-test-generated-from-the-source">7.4 A null-contract test generated from the source<a class="headerlink" href="#74-a-null-contract-test-generated-from-the-source" title="Permanent link">&para;</a></h3>
+<p>For each adapter, parse the source for fields assigned a literal <code>null</code> in the returned
+<code>TrackerStats</code>, then assert the colocated test contains a matching <code>expect(...).toBeNull()</code>. Most
+adapters already comply, so it starts mostly green, and it makes "a contributor changes
+<code>requiredRatio: null</code> to <code>requiredRatio: 0</code> and the suite stays green" impossible. Regex over both
+files, no AST needed.</p>
+<h3 id="75-biome-rules-done">7.5 Biome rules (done)<a class="headerlink" href="#75-biome-rules-done" title="Permanent link">&para;</a></h3>
+<p><code>biome.json</code> already uses <code>overrides</code> with <code>includes</code>, so scoping is a two-block edit.</p>
+<ul>
+<li><code>suspicious/noConsole</code> at error level, scoped to <code>src/lib/tracker-platforms/**</code>.</li>
+<li><code>style/noRestrictedImports</code> scoped to <code>src/lib/tracker-platforms/adapters/*.ts</code> (adapters only, not <code>helpers/</code>),
+  banning a direct <code>@/lib/tunnel</code> import with a message pointing at <code>adapterFetch</code> and
+  <code>fetchTrackerHtml</code>. One current exception, <code>torrentleech.ts</code>, which calls <code>proxyFetch</code> directly
+  for its login POST, so it needs its own override entry. That exception being visible in
+  <code>biome.json</code> is itself the documentation.</li>
+</ul>
+<p><strong>Done.</strong> <code>noConsole</code> is an error across the module, and <code>noRestrictedImports</code> bans a direct
+<code>@/lib/tunnel</code> import from <code>adapters/*.ts</code> with <code>torrentleech.ts</code> declared as its own override. The
+<code>$schema</code> is bumped to 2.5.10 to match the installed version.</p>
+<h3 id="76-targeted-helper-tests">7.6 Targeted helper tests<a class="headerlink" href="#76-targeted-helper-tests" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Done:</strong> <code>helpers/html-parse.test.ts</code> now exists and drives both unit families through
+  <code>tryParseSiteBytes</code>. Its absence is why the binary-unit defect stayed invisible.</li>
+<li><strong>Done:</strong> a date-shape test pins that a bare <code>YYYY-MM-DD</code> survives unchanged.</li>
+<li>Add an assertion to <code>helpers/html-fetch.test.ts</code> that <code>proxyFetch</code> receives
+  <code>timeoutMs: ADAPTER_FETCH_TIMEOUT_MS</code>, so the two transports cannot drift.</li>
+</ul>
+<h3 id="77-verify-the-functions-header-or-drop-it">7.7 Verify the <code>Functions:</code> header, or drop it<a class="headerlink" href="#77-verify-the-functions-header-or-drop-it" title="Permanent link">&para;</a></h3>
+<p><strong>Done</strong>, in <code>__tests__/conformance.test.ts</code>. It fails on any function the header omits. A file
+with no header is left alone, so dropping the header still complies.</p>
+<p>It only catches omissions. A name left in the header after its function is deleted passes, so that
+edit is still by hand.</p>
+<h3 id="78-what-still-needs-a-human">7.8 What still needs a human<a class="headerlink" href="#78-what-still-needs-a-human" title="Permanent link">&para;</a></h3>
+<p>State these plainly so review attention goes where it is actually needed: whether a site is really
+a new platform or a fork of an existing one; whether a selector is stable or incidental to one
+page render; whether a fixture was captured or hand-rebuilt; and whether a comment states a
+present constraint or narrates history.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "navigation.expand", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
