@@ -21,6 +21,7 @@ export * from "./cinemaz"
 export * from "./concertos"
 export * from "./darkpeers"
 export * from "./digitalcore"
+export * from "./dreadvault"
 export * from "./empornium"
 export * from "./exoticaz"
 export * from "./fearnopeer"
@@ -30,6 +31,7 @@ export * from "./greatposterwall"
 export * from "./hawkeuno"
 export * from "./hdbits"
 export * from "./hdtorrents"
+export * from "./infinityhd"
 export * from "./iptorrents"
 export * from "./lst"
 export * from "./luminarr"
@@ -46,11 +48,16 @@ export * from "./privatehd"
 export * from "./racing4everyone"
 export * from "./redacted"
 export * from "./reelflix"
+export * from "./retromoviesclub"
+export * from "./retrotoon"
+export * from "./rockethd"
 export * from "./secretcinema"
+export * from "./seedcore"
 export * from "./seedpool"
 export * from "./skipthecommercials"
 export * from "./sportscult"
 export * from "./torrentleech"
+export * from "./tr4ker"
 export * from "./tvvault"
 export * from "./uhdbits"
 export * from "./uploadcx"
@@ -76,6 +83,7 @@ import { cinemaz } from "./cinemaz"
 import { concertos } from "./concertos"
 import { darkpeers } from "./darkpeers"
 import { digitalcore } from "./digitalcore"
+import { dreadvault } from "./dreadvault"
 import { empornium } from "./empornium"
 import { exoticaz } from "./exoticaz"
 import { fearnopeer } from "./fearnopeer"
@@ -85,6 +93,7 @@ import { greatposterwall } from "./greatposterwall"
 import { hawkeuno } from "./hawkeuno"
 import { hdbits } from "./hdbits"
 import { hdtorrents } from "./hdtorrents"
+import { infinityhd } from "./infinityhd"
 import { iptorrents } from "./iptorrents"
 import { lst } from "./lst"
 import { luminarr } from "./luminarr"
@@ -101,11 +110,16 @@ import { privatehd } from "./privatehd"
 import { racing4everyone } from "./racing4everyone"
 import { redacted } from "./redacted"
 import { reelflix } from "./reelflix"
+import { retromoviesclub } from "./retromoviesclub"
+import { retrotoon } from "./retrotoon"
+import { rockethd } from "./rockethd"
 import { secretcinema } from "./secretcinema"
+import { seedcore } from "./seedcore"
 import { seedpool } from "./seedpool"
 import { skipthecommercials } from "./skipthecommercials"
 import { sportscult } from "./sportscult"
 import { torrentleech } from "./torrentleech"
+import { tr4ker } from "./tr4ker"
 import { tvvault } from "./tvvault"
 import { uhdbits } from "./uhdbits"
 import { uploadcx } from "./uploadcx"
@@ -132,6 +146,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   concertos,
   darkpeers,
   digitalcore,
+  dreadvault,
   empornium,
   exoticaz,
   fearnopeer,
@@ -141,6 +156,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   hawkeuno,
   hdbits,
   hdtorrents,
+  infinityhd,
   iptorrents,
   lst,
   luminarr,
@@ -157,11 +173,16 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   racing4everyone,
   redacted,
   reelflix,
+  retromoviesclub,
+  retrotoon,
+  rockethd,
   secretcinema,
+  seedcore,
   seedpool,
   skipthecommercials,
   sportscult,
   torrentleech,
+  tr4ker,
   tvvault,
   uhdbits,
   uploadcx,

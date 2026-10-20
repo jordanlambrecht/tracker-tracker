@@ -43,6 +43,11 @@ describe("parseBytes", () => {
   it("handles TB (decimal)", () => {
     expect(parseBytes("2 TB")).toBe(BigInt(2_000_000_000_000))
   })
+
+  it("parses a petabyte total, which a long-standing account on a big tracker reaches", () => {
+    expect(parseBytes("1.5 PiB")).toBe(BigInt(1_688_849_860_263_936))
+    expect(parseBytes("2 PB")).toBe(BigInt(2_000_000_000_000_000))
+  })
 })
 
 describe("formatBytes", () => {
@@ -107,7 +112,7 @@ describe("parseBytes - infinity values", () => {
   // parseBytes is a strict byte parser and stays that way: "unlimited" and
   // "zero bytes" are different facts and must not collapse into one value.
   // Trackers that report an unbounded buffer (i.e. Zenith's UNIT3D build)
-  // are handled in the adapter that knows what it means — see
+  // are handled in the adapter that knows what it means. See
   // isUnlimitedBuffer in src/lib/adapters/unit3d.ts.
   it.each(["∞", "-∞", "Inf", "-Inf", "inf", "INF"])("rejects %s", (value) => {
     expect(() => parseBytes(value)).toThrow()

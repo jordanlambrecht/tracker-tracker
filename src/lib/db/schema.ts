@@ -42,7 +42,7 @@ export const appSettings = pgTable("app_settings", {
    * When the user was asked to choose a retention policy. NULL means never asked.
    *
    * A separate column is required because `snapshotRetentionDays` cannot carry
-   * this: NULL there means "keep forever", which is a legitimate CHOICE as well
+   * this: NULL there means "keep forever", which is a legitimate choice as well
    * as the never-configured default. Without this marker the two are
    * indistinguishable and the prompt would either never fire or fire forever.
    */
@@ -74,11 +74,11 @@ export const appSettings = pgTable("app_settings", {
    * Opt-in gate for the per-tracker credential vault (`trackers.encrypted_credentials`).
    *
    * DEFAULT FALSE, deliberately. The vault stores passkeys and NickServ passwords,
-   * so it is a feature the user turns ON knowingly rather than one that quietly
+   * so it is a feature the user turns on knowingly rather than one that quietly
    * exists on every install.
    *
-   * This flag gates the ROUTES, not the data. Turning it off makes
-   * GET/PUT/reveal under /api/trackers/[id]/credentials return 403; it does NOT
+   * This flag gates the routes, not the data. Turning it off makes
+   * GET/PUT/reveal under /api/trackers/[id]/credentials return 403; it does not
    * delete, clear or orphan an existing vault. The column keeps being re-keyed by
    * change-password, keeps riding along in backups, and becomes readable again
    * the moment the toggle goes back on. A gate that destroyed data on toggle-off
@@ -94,20 +94,23 @@ export const trackers = pgTable("trackers", {
   baseUrl: text("base_url").notNull(),
   apiPath: varchar("api_path", { length: 255 }).default("/api/user").notNull(),
   platformType: varchar("platform_type", { length: 50 }).default("unit3d").notNull(),
+  // Which registry entry this row is. NULL for a pre-registry custom site, which
+  // keeps polling by its stored URL with no registry data. Set from the preset when
+  // the tracker is added, and backfilled once at startup for older rows.
+  registrySlug: varchar("registry_slug", { length: 100 }),
   encryptedApiToken: text("encrypted_api_token").notNull(),
   /**
    * The tracker credential vault: base64(iv[12] + authTag[16] + AES-256-GCM(json))
-   * of a TrackerCredentialVault, sealed under the MASTER KEY.
+   * of a TrackerCredentialVault, sealed under the master key.
    *
-   * INVARIANT: NULL OR CIPHERTEXT. NOTHING ELSE.
-   * NULL means "no vault" and is the ONLY empty state. Never write "", never
+   * INVARIANT: NULL or ciphertext. Nothing else.
+   * NULL means "no vault" and is the only empty state. Never write "", never
    * write a marker string like "LOCKDOWN_REVOKED". A truthy non-ciphertext value
-   * sails past `if (row.encryptedCredentials)` and is handed to decrypt(), which
-   * is precisely the trap that produced the LOCKDOWN_REVOKED incident. TEXT and
+   * passes `if (row.encryptedCredentials)` and is handed to decrypt(). TEXT and
    * not jsonb because the value is an opaque blob with nothing queryable in it.
    * recover.cjs's isPlaintextSentinel() already treats null as "leave alone".
    *
-   * EVERY LIFECYCLE SITE THAT MUST HANDLE THIS COLUMN.
+   * Every lifecycle site that must handle this column.
    * An encrypted column not registered in all five is silently orphaned by the
    * next password change. If you add a column here, add it in all of them:
    *   1. src/app/api/auth/change-password/route.ts. Decrypt with the old key and
@@ -118,7 +121,7 @@ export const trackers = pgTable("trackers", {
    *      that helper returns "" on failure and "" would break the invariant).
    *   4. src/lib/nuke.ts. Scrubbed to NULL.
    *   5. src/app/api/settings/lockdown/route.ts. Revoked to NULL, not a marker.
-   * src/lib/backup.ts needs NO change: its tracker export is a bare
+   * src/lib/backup.ts needs no change: its tracker export is a bare
    * `db.select().from(trackers)`, so the column rides along automatically.
    */
   encryptedCredentials: text("encrypted_credentials"),
@@ -134,6 +137,10 @@ export const trackers = pgTable("trackers", {
   remoteUserId: integer("remote_user_id"),
   platformMeta: text("platform_meta"),
   mouseholeUrl: text("mousehole_url"),
+  // Mousehole's MOUSEHOLE_AUTH_TOKEN, sealed under the master key. Same
+  // invariant and the same five lifecycle sites as encryptedCredentials above,
+  // so NULL or ciphertext, never "" or a marker.
+  encryptedMouseholeToken: text("encrypted_mousehole_token"),
   avatarData: text("avatar_data"),
   avatarMimeType: varchar("avatar_mime_type", { length: 50 }),
   avatarCachedAt: timestamp("avatar_cached_at"),
@@ -211,6 +218,9 @@ export const downloadClients = pgTable("download_clients", {
   encryptedPassword: text("encrypted_password").notNull(),
   // Encrypted qBittorrent WebUI API key. Empty string when authMethod is "password".
   encryptedApiKey: text("encrypted_api_key").default("").notNull(),
+  // Encrypted URL path prefix. Empty string when there is none. The path can
+  // carry a proxy key, so it is handled like the other credentials.
+  encryptedUrlPath: text("encrypted_url_path").default("").notNull(),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").array().default([]).notNull(),
@@ -319,13 +329,11 @@ export const dismissedAlerts = pgTable(
 //   email    → { host: string, port: number, username: string, password: string, from: string, to: string }
 //
 // scope stores a PostgreSQL integer array of tracker IDs this target applies to.
-// null means "all trackers". Using integer[] lets the application read it as
-// number[] without a JSON.parse step and keeps backups trivially serializable.
+// null means "all trackers".
 //
 // thresholds stores a typed JSONB object for event-specific numeric limits:
 //   { ratioDropDelta?: number, bufferMilestoneBytes?: number }
-// null means "use application defaults for all thresholds". Adding a new
-// threshold type requires no schema migration, only application code changes.
+// null means "use application defaults for all thresholds".
 
 export const notificationTargets = pgTable("notification_targets", {
   id: serial("id").primaryKey(),
@@ -383,18 +391,11 @@ export const notificationTargets = pgTable("notification_targets", {
 // Per-target / per-tracker / per-event cooldown tracking.
 // Each row answers: "when did target T last fire event E for tracker X?"
 //
-// This lives in its own table rather than as columns on notificationTargets
-// because a single target can watch N trackers, each firing M event types
-// independently. Collapsing this into notificationTargets would require one
-// timestamp column per event type per tracker, which is unbounded.
-//
 // Writes use INSERT ... ON CONFLICT DO UPDATE (upsert) keyed on the unique
 // constraint (target_id, tracker_id, event_type).
 //
 // snoozedUntil: application-controlled "do not re-alert until" timestamp.
-// Set by the dispatcher after firing; checked before dispatching. Lets you
-// implement per-event cooldown windows (e.g. "don't re-alert on ratio drop
-// for this tracker for 6 hours") without additional schema columns.
+// Set by the dispatcher after firing; checked before dispatching.
 
 export const notificationDeliveryState = pgTable(
   "notification_delivery_state",
@@ -404,13 +405,11 @@ export const notificationDeliveryState = pgTable(
     targetId: integer("target_id").notNull(),
 
     // null = global event not tied to a specific tracker (reserved for future use).
-    // All currently planned events are per-tracker, so this will almost always
-    // be non-null. Stored as integer rather than FK to avoid cascade complexity
-    // when trackers are deleted. Stale rows are inert and cheap to prune.
+    // Stored as integer rather than FK to avoid cascade complexity when trackers
+    // are deleted. Stale rows are inert and cheap to prune.
     trackerId: integer("tracker_id"),
 
     // Discriminator: "ratio_drop" | "hit_and_run" | "tracker_down" | "buffer_milestone"
-    // varchar(50) gives room for future event type names without truncation risk.
     eventType: varchar("event_type", { length: 50 }).notNull(),
 
     lastNotifiedAt: timestamp("last_notified_at").notNull(),
@@ -438,18 +437,9 @@ export const notificationDeliveryState = pgTable(
   ]
 )
 
-// Daily checkpoint tables for "Today At A Glance" feature.
-//
-// These tables store end-of-day snapshots to compute daily deltas
-// (e.g. how much was uploaded/downloaded today).
-//
-// trackerDailyCheckpoints: one row per tracker per calendar day, capturing the
-// final metric values recorded that day. snapshotCount reflects how many raw
-// snapshots were taken during the day, giving confidence in the reading quality.
-//
-// torrentDailyCheckpoints: one row per (client, torrent hash, calendar day),
-// recording the starting uploaded/downloaded values for the day. Delta is
-// computed at query time as (current − start).
+// Daily checkpoints for Today At A Glance. A tracker row holds the day's final
+// values and how many snapshots fed them; a torrent row holds the day's starting
+// values, and the delta is computed at query time.
 
 export const trackerDailyCheckpoints = pgTable(
   "tracker_daily_checkpoints",

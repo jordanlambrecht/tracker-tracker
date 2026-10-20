@@ -15,15 +15,15 @@ The **PulseDot** next to each tracker name indicates polling status:
 
 | State      | Color | Meaning                                                                            |
 | ---------- | ----- | ---------------------------------------------------------------------------------- |
-| `healthy`  | Cyan  | Ratio ≥ 2.0 — polling normally                                                     |
-| `warning`  | Amber | Ratio between 1.0 and 2.0 — a thin buffer                                          |
-| `no-seeds` | Red   | Zero active seeds — nothing is uploading, whatever the ratio says                  |
+| `healthy`  | Cyan  | Ratio ≥ 2.0, polling normally                                                      |
+| `warning`  | Amber | Ratio between 1.0 and 2.0, a thin buffer                                           |
+| `no-seeds` | Red   | Zero active seeds, nothing is uploading, whatever the ratio says                   |
 | `critical` | Red   | Ratio < 1.0, or the tracker has warned your account                                |
 | `error`    | Red   | The last poll failed, but polling has not paused yet                               |
 | `paused`   | Red   | Polling has been automatically suspended after repeated failures                   |
 | `offline`  | Gray  | No snapshot data exists yet (tracker was just added, or all snapshots were pruned) |
 
-When a tracker matches more than one row, the most severe state wins: `critical` outranks `no-seeds`, which outranks `warning`. So a tracker with a 1.4 ratio and nothing seeding shows `no-seeds` — the ratio band alone would not tell you that you need to start seeding.
+When a tracker matches more than one row, the most severe state wins: `critical` outranks `no-seeds`, which outranks `warning`. So a tracker with a 1.4 ratio and nothing seeding shows `no-seeds`, because the ratio band alone would not tell you that you need to start seeding.
 
 ---
 
@@ -31,7 +31,7 @@ When a tracker matches more than one row, the most severe state wins: `critical`
 
 Stats only change when Tracker Tracker captures a new snapshot. If your ratio, upload, or seeding count looks stale, work through this checklist.
 
-### Step 1 — Check the poll interval
+### Step 1. Check the poll interval
 
 Go to **Settings → General** and check **Tracker Poll Interval** (15–1440 minutes).
 
@@ -40,11 +40,11 @@ If it's 240, stats update every 4 hours. That's normal.
 !!! info "Fastest update rate"
     15 minutes is the fastest. Stats won't update more often, even with page reloads.
 
-### Step 2 — Check if polling is running
+### Step 2. Check if polling is running
 
 Look at the PulseDot next to the tracker name. If it's `paused` or `error`, fix that first before worrying about stale stats. See [Automatic Poll Pausing](#automatic-poll-pausing) below for guidance.
 
-### Step 3 — Trigger an immediate poll
+### Step 3. Trigger an immediate poll
 
 Don't wait for the next scheduled poll.
 
@@ -54,7 +54,7 @@ Don't wait for the next scheduled poll.
 
 If Poll Now returns an error, the Poll Error Banner will show the reason.
 
-### Step 4 — Check the chart time range
+### Step 4. Check the chart time range
 
 Charts show data over your selected range. A narrow range hides changes.
 
@@ -62,11 +62,11 @@ Charts show data over your selected range. A narrow range hides changes.
 - Try a broader range (30 or 90 days) to see historical data.
 - If only today is selected, you'll only see today's snapshots.
 
-### Step 5 — Confirm snapshots are recording
+### Step 5. Confirm snapshots are recording
 
 If Poll Now works but charts don't move, hard-refresh first (`Cmd+Shift+R` on Mac, `Ctrl+Shift+R` on Windows/Linux).
 
-Then check the **Last Polled** timestamp on the tracker detail page — it should match your most recent poll.
+Then check the **Last Polled** timestamp on the tracker detail page. It should match your most recent poll.
 
 If Last Polled updated but the chart didn't, the API returned the same values. That's normal.
 
@@ -129,10 +129,11 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 !!! success "Solution"
 
-    1. Check the base URL for typos.
-    2. Test: `nslookup <tracker-hostname>` from your Docker host.
-    3. If using VPN or custom DNS, add `dns:` to `docker-compose.yml` if needed.
-    4. Update the base URL if the domain changed.
+    1. Test: `nslookup <tracker-hostname>` from your Docker host.
+    2. If using VPN or custom DNS, add `dns:` to `docker-compose.yml` if needed.
+    3. If the tracker moved to a new domain, update Tracker Tracker. The address comes from
+       the built-in tracker registry, so a domain change ships as a release. If no release
+       carries it yet, open an issue naming the tracker.
 
 ---
 
@@ -154,9 +155,9 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 !!! success "Solution"
 
-    1. Check the base URL port if the tracker uses a non-standard one.
-    2. Verify the scheme (`https://` vs `http://`).
-    3. Confirm the tracker loads in a browser.
+    1. Confirm the tracker loads in a browser at the address shown on its detail page.
+    2. If it only loads on a different port or scheme, the registry entry is out of date:
+       open an issue naming the tracker.
 
 ---
 
@@ -189,7 +190,7 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 !!! success "Solution"
 
-    1. Wait for the ban to expire — typically minutes to hours.
+    1. Wait for the ban to expire, typically minutes to hours.
     2. Increase **Poll Interval** in **Settings → General** to 60 minutes (or higher for sensitive trackers).
     3. Resume polling after the ban clears.
 
@@ -201,9 +202,44 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 !!! success "Solution"
 
-    1. Check **Settings → Proxy** — verify host, port, type, username, password.
+    1. Check **Settings → Proxy** and verify host, port, type, username, and password.
     2. Confirm the proxy is running and reachable.
     3. Or disable **Use Proxy** in tracker settings.
+
+---
+
+### `Cloudflare challenge blocked the request`
+
+**Cause:** Cloudflare answered with a challenge page in place of the tracker's page, and wants a browser check first.
+
+!!! success "Solution"
+
+    1. Open the tracker in the browser you copied the cookies from and pass the check.
+    2. Copy the cookies again, `cf_clearance` included where the tracker sets it, and paste them into the tracker's settings from that same browser, since Tracker Tracker records the User-Agent of the browser you save from.
+    3. TorrentLeech has no cookies to refresh. Wait a while, and raise the poll interval if the challenge keeps coming back.
+    4. If the tracker paused after repeated failures, click **Resume Polling**, then **Poll Now**.
+
+---
+
+### `Tracker redirected to another site`
+
+**Cause:** The tracker answered with a redirect to a different site. Tracker Tracker does not follow it, because that would send your session cookies to another host.
+
+!!! success "Solution"
+
+    1. Open the tracker in a browser and check whether it has moved to a new address.
+    2. If it has, open an issue with the new address so the tracker's entry can be updated.
+
+---
+
+### `Tracker redirected too many times`
+
+**Cause:** The tracker kept redirecting between its own pages without answering with one.
+
+!!! success "Solution"
+
+    1. Open the tracker in a browser and check that its pages load.
+    2. If they do, check `docker compose logs tracker-tracker-app` for the `Poll failed for tracker` line and open an issue with it.
 
 ---
 
@@ -216,6 +252,18 @@ If you see a **Last Error** banner without "Polling Paused", a recent poll faile
 
 ---
 
+### `Tracker returned an unexpected response`
+
+**Cause:** The tracker answered, but with something the adapter cannot read, such as a maintenance page, a login page in place of your profile, a changed page layout, or a reply missing a field the stats need.
+
+!!! success "Solution"
+
+    1. Open the tracker in a browser and check that the site is up and that you are still logged in.
+    2. Click the bug icon (**Fetch raw API response**) in the tracker's header to see the response that failed.
+    3. If the site looks normal, the tracker may have changed its pages or API. Check `docker compose logs tracker-tracker-app` for the `Poll failed for tracker` line and open an issue with it.
+
+---
+
 ### `API returned <status code>`
 
 **Cause:** API returned an unexpected status. E.g., 429 = rate limit, 500/503 = server error.
@@ -223,7 +271,7 @@ If you see a **Last Error** banner without "Polling Paused", a recent poll faile
 !!! success "Solution"
 
     - **429:** Increase poll interval and wait.
-    - **500 / 503:** Tracker having issues — wait and retry.
+    - **500 / 503:** Tracker having issues, so wait and retry.
     - **Other:** Check tracker's status page or forums.
 
 ---
@@ -234,7 +282,7 @@ If you see a **Last Error** banner without "Polling Paused", a recent poll faile
 
 !!! success "Solution"
 
-    Check logs: `docker compose logs app` for a line with `Poll failed for tracker` + raw error.
+    Check logs: `docker compose logs tracker-tracker-app` for a line with `Poll failed for tracker` + raw error.
 
 ---
 
@@ -256,7 +304,7 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ---
 
-### `Session expired` (qBittorrent — auto-handled)
+### `Session expired` (qBittorrent, auto-handled)
 
 **Cause:** Session expired (HTTP 403). We re-authenticate automatically on next request.
 
@@ -302,7 +350,7 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ---
 
-### HTTP 429 — Too many failed login attempts
+### HTTP 429: Too many failed login attempts
 
 **Cause:** Auto-lockout triggered after too many failed attempts.
 
@@ -322,7 +370,7 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ---
 
-### TOTP — Invalid code
+### TOTP: Invalid code
 
 **Cause:** Code incorrect or expired (valid 30s). Clock drift invalidates codes.
 
@@ -334,7 +382,7 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ---
 
-### TOTP — Lost authenticator / no backup codes
+### TOTP: Lost authenticator / no backup codes
 
 **Cause:** No access to authenticator app and no backup codes.
 

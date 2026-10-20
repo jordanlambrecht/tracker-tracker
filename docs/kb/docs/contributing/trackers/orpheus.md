@@ -18,9 +18,9 @@ Standard Gazelle setup with no quirks. Like REDacted, it's built on the What.CD 
 
 ## Slots
 
-**Profile Card:** username · group (no avatar or join date — no enrichment)
+**Profile Card:** username · group (no avatar or join date, no enrichment)
 
-**Badges:** `warned` (conditional — always `false` without enrichment)
+**Badges:** `warned` (conditional, always `false` without enrichment)
 
 **Stat Cards:** `seedbonus`, `login-deadline` (loginIntervalDays: 120)
 

@@ -15,7 +15,9 @@ import {
   validateBackupJson,
 } from "@/lib/backup"
 import { decrypt, deriveKey, reencrypt } from "@/lib/crypto"
+import { stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
+import { backfillRegistrySlugs } from "@/lib/db/backfill-registry-slug"
 import {
   appCoverageGaps,
   appSettings,
@@ -44,6 +46,7 @@ import {
 } from "@/lib/limits"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
+import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
 
 const BATCH_SIZE = 500
@@ -77,10 +80,12 @@ function backupCiphertexts(payload: BackupPayload): string[] {
     // Nullable, and absent entirely from backups written before the vault
     // existed. The typeof/length filter at the bottom drops both cases.
     ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedCredentials),
+    ...payload.trackers.map((t) => (t as Record<string, unknown>).encryptedMouseholeToken),
     ...payload.downloadClients.flatMap((c) => [
       (c as Record<string, unknown>).encryptedUsername,
       (c as Record<string, unknown>).encryptedPassword,
       (c as Record<string, unknown>).encryptedApiKey,
+      (c as Record<string, unknown>).encryptedUrlPath,
     ]),
     ...(Array.isArray(payload.notificationTargets)
       ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
@@ -120,6 +125,18 @@ function reencryptField(
     )
     return ""
   }
+}
+
+// What a restore lost for one download client, or null when it came back whole.
+// A stale backup key loses the credentials and the path together, and naming
+// only the credentials would leave the client polling the bare host once re-enabled.
+function clientRestoreError(credentialsCleared: boolean, urlPathCleared: boolean): string | null {
+  if (credentialsCleared && urlPathCleared) {
+    return "Credentials and URL path cleared during restore. Re-enter both and re-enable"
+  }
+  if (credentialsCleared) return "Credentials cleared during restore. Re-enter and re-enable"
+  if (urlPathCleared) return "URL path cleared during restore. Re-enter it and re-enable"
+  return null
 }
 
 export async function POST(request: Request) {
@@ -260,8 +277,8 @@ export async function POST(request: Request) {
   )
 
   // Step 6: Derive encryption keys for token re-encryption.
-  // The backup's encryptionSalt may differ from the current instance's salt (e.g. after a
-  // nuke + re-setup). We derive the backup key from masterPassword + backupSalt, and the
+  // The backup's encryptionSalt may differ from the current instance's salt (after a
+  // nuke and re-setup). We derive the backup key from masterPassword + backupSalt, and the
   // current key from masterPassword + currentSalt. Matching salts make the two keys identical.
   const backupSalt = payload.settings.encryptionSalt as string
   const currentSalt = currentSettings.encryptionSalt
@@ -282,9 +299,9 @@ export async function POST(request: Request) {
 
   const canReencrypt = backupKey.length === 32
 
-  // Matching salts prove the two KEYS are identical. They do not prove that key is the one
+  // Matching salts prove the two keys are identical. They do not prove that key is the one
   // this backup's ciphertext was written with: POST /api/auth/change-password re-encrypts
-  // every field under a new key while REUSING the existing encryptionSalt. A backup taken
+  // every field under a new key while reusing the existing encryptionSalt. A backup taken
   // before such a change therefore carries a matching salt and old-key ciphertext, and
   // copying it through verbatim would fill the DB with credentials nothing can decrypt.
   // So probe one field first, and only pass ciphertext through once the key is proven.
@@ -302,7 +319,7 @@ export async function POST(request: Request) {
         canPassThrough = false
         log.warn(
           { event: "restore_stale_ciphertext" },
-          "Backup predates a master password change — credentials that cannot be re-encrypted will be cleared"
+          "Backup predates a master password change, so credentials that cannot be re-encrypted will be cleared"
         )
       }
     }
@@ -310,11 +327,8 @@ export async function POST(request: Request) {
 
   // Step 6b: Dry run. Report what a real restore would preserve, and stop.
   //
-  // This MUST stay above stopScheduler(), which is the first side effect in the
-  // handler. Everything above it is parsing, authorisation and key derivation; a
-  // dry run therefore touches nothing. It shares this code path deliberately: a
-  // separate preflight endpoint would re-implement the parsing and drift from the
-  // restore it claims to predict, so the two would eventually disagree.
+  // This must stay above stopScheduler(), the first side effect, so a dry run
+  // touches nothing.
   if (dryRun) {
     const ciphertexts = backupCiphertexts(payload)
     let recoverable = 0
@@ -389,11 +403,9 @@ export async function POST(request: Request) {
         if (apiToken) tokensPreserved++
         else if (fields.encryptedApiToken) tokensCleared++
 
-        // The credential vault. Every branch ends at a string or NULL and never
-        // at "": reencryptField() returns "" on failure and on empty input, and
-        // storing "" would break this column's NULL-or-ciphertext invariant by
-        // putting a truthy non-ciphertext value where decrypt() can reach it.
-        // Backups predating the vault have no such key at all and land on null.
+        // The credential vault. Every branch ends at ciphertext or null, never "":
+        // reencryptField() returns "" on failure or empty input, and this column
+        // holds only null or ciphertext. Backups predating the vault land on null.
         let credentials: string | null
         if (canPassThrough) {
           credentials = (fields.encryptedCredentials as string) || null
@@ -409,30 +421,64 @@ export async function POST(request: Request) {
           credentials = null
         }
 
+        // The Mousehole API token, under the vault's null-or-ciphertext rule.
+        let mouseholeToken: string | null
+        if (canPassThrough) {
+          mouseholeToken = (fields.encryptedMouseholeToken as string) || null
+        } else if (canReencrypt) {
+          mouseholeToken =
+            reencryptField(
+              (fields.encryptedMouseholeToken as string | null | undefined) ?? "",
+              backupKey,
+              currentKey,
+              `tracker '${fields.name}' mouseholeToken`
+            ) || null
+        } else {
+          mouseholeToken = null
+        }
+
+        // The export selects the whole tracker row minus five runtime fields, so
+        // a column missing from this list travels in the file and never comes
+        // back. restore-route.test.ts derives the required set from the schema.
         const [inserted] = await tx
           .insert(trackers)
           .values({
             name: fields.name as string,
-            baseUrl: fields.baseUrl as string,
+            // Backups predate the write-time strip and carry whatever was
+            // stored then, so a restore is a write path like any other.
+            baseUrl: stripTrailingSlash((fields.baseUrl as string).trim()),
             apiPath: fields.apiPath as string,
             platformType: fields.platformType as string,
+            // Absent from backups taken before the column existed. The restore
+            // does not derive it from baseUrl; the backfill after the commit does.
+            registrySlug: (fields.registrySlug as string | null) ?? null,
             encryptedApiToken: apiToken,
             encryptedCredentials: credentials,
             isActive: fields.isActive as boolean,
+            // The only record that the user paused this tracker: pollAllTrackers
+            // drops it through getPauseState, and pruneOldSnapshots spares its
+            // history. Dropped, a restore silently resumes and then prunes.
+            userPausedAt: fields.userPausedAt ? new Date(fields.userPausedAt as string) : null,
             color: (fields.color as string | null) ?? null,
             qbtTag: (fields.qbtTag as string | null) ?? null,
             remoteUserId: (fields.remoteUserId as number | null) ?? null,
             platformMeta: (fields.platformMeta as string | null) ?? null,
+            mouseholeUrl: (fields.mouseholeUrl as string | null) ?? null,
+            encryptedMouseholeToken: mouseholeToken,
             avatarData: (fields.avatarData as string | null) ?? null,
+            avatarMimeType: (fields.avatarMimeType as string | null) ?? null,
             avatarCachedAt: fields.avatarCachedAt
               ? new Date(fields.avatarCachedAt as string)
               : null,
             avatarRemoteUrl: (fields.avatarRemoteUrl as string | null) ?? null,
             useProxy: fields.useProxy as boolean,
             countCrossSeedUnsatisfied: (fields.countCrossSeedUnsatisfied as boolean) ?? false,
+            hideUnreadBadges: (fields.hideUnreadBadges as boolean) ?? false,
             isFavorite: (fields.isFavorite as boolean) ?? false,
             sortOrder: (fields.sortOrder as number | null) ?? null,
             joinedAt: (fields.joinedAt as string | null) ?? null,
+            lastAccessAt: (fields.lastAccessAt as string | null) ?? null,
+            profileUrl: (fields.profileUrl as string | null) ?? null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
@@ -453,10 +499,12 @@ export async function POST(request: Request) {
         let encUsername: string
         let encPassword: string
         let encApiKey: string
+        let encUrlPath: string
         if (canPassThrough) {
           encUsername = (fields.encryptedUsername as string) || ""
           encPassword = (fields.encryptedPassword as string) || ""
           encApiKey = (fields.encryptedApiKey as string) || ""
+          encUrlPath = (fields.encryptedUrlPath as string) || ""
         } else if (canReencrypt) {
           encUsername = reencryptField(
             fields.encryptedUsername as string,
@@ -478,22 +526,35 @@ export async function POST(request: Request) {
                 `downloadClient '${fields.name}' apiKey`
               )
             : ""
+          encUrlPath = fields.encryptedUrlPath
+            ? reencryptField(
+                fields.encryptedUrlPath as string,
+                backupKey,
+                currentKey,
+                `downloadClient '${fields.name}' urlPath`
+              )
+            : ""
         } else {
           encUsername = ""
           encPassword = ""
           encApiKey = ""
+          encUrlPath = ""
         }
 
         // Only the columns the client's own mode reads decide whether it came
         // back usable. A password client legitimately has no API key.
         const credentialsCleared =
           clientAuthMethod === "apikey" ? !encApiKey : !encUsername || !encPassword
+        // A path lost in re-encryption would leave the client polling the bare
+        // host. It is disabled like a cleared credential, but keeps its mode.
+        const urlPathCleared = Boolean(fields.encryptedUrlPath) && !encUrlPath
+        const disabledOnRestore = credentialsCleared || urlPathCleared
         const [inserted] = await tx
           .insert(downloadClients)
           .values({
             name: fields.name as string,
             type: fields.type as string,
-            enabled: credentialsCleared ? false : (fields.enabled as boolean),
+            enabled: disabledOnRestore ? false : (fields.enabled as boolean),
             host: fields.host as string,
             port: fields.port as number,
             useSsl: fields.useSsl as boolean,
@@ -504,6 +565,7 @@ export async function POST(request: Request) {
             encryptedUsername: encUsername,
             encryptedPassword: encPassword,
             encryptedApiKey: encApiKey,
+            encryptedUrlPath: encUrlPath,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: Array.isArray(fields.crossSeedTags)
@@ -519,15 +581,13 @@ export async function POST(request: Request) {
                     return []
                   }
                 })(),
-            lastError: credentialsCleared
-              ? "Credentials cleared during restore — re-enter and re-enable"
-              : null,
+            lastError: clientRestoreError(credentialsCleared, urlPathCleared),
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
           .returning({ id: downloadClients.id })
         clientIdMap.set(oldId, inserted.id)
-        if (credentialsCleared) clientCredentialsCleared++
+        if (disabledOnRestore) clientCredentialsCleared++
       }
 
       // Insert tagGroups
@@ -576,6 +636,9 @@ export async function POST(request: Request) {
           shareScore: (fields.shareScore as number | null) ?? null,
           username: (fields.username as string | null) ?? null,
           group: (fields.group as string | null) ?? null,
+          // Same whole-row export as the trackers insert above. Dropped, every
+          // restored snapshot loses the Manual badge PollLog keys on.
+          isManual: (fields.isManual as boolean) ?? false,
         })
       }
       await batchInsert(tx, trackerSnapshots, snapshotRows)
@@ -583,7 +646,7 @@ export async function POST(request: Request) {
       // Batch insert trackerOutages (remap trackerId). Must follow the tracker
       // insert above so the FK resolves; rows whose tracker did not survive the
       // restore are dropped as orphans, exactly like snapshots. These explain
-      // the snapshots just written — dropping them would restore the flat
+      // the snapshots just written, because dropping them would restore the flat
       // stretches with no reason attached.
       if (Array.isArray(payload.trackerOutages) && payload.trackerOutages.length > 0) {
         const outageRows: Record<string, unknown>[] = []
@@ -744,25 +807,23 @@ export async function POST(request: Request) {
           }
 
           const configCleared = !encryptedConfig
+          // Derived from NOTIFY_TOGGLE_KEYS, which a test pins to the schema, so a new
+          // toggle column restores with no edit here.
+          const toggles = Object.fromEntries(
+            NOTIFY_TOGGLE_KEYS.map((key) => [key, (fields[key] as boolean) ?? false])
+          ) as Record<(typeof NOTIFY_TOGGLE_KEYS)[number], boolean>
+
           await tx.insert(notificationTargets).values({
             name: fields.name as string,
             type: fields.type as string,
             enabled: configCleared ? false : (fields.enabled as boolean),
             encryptedConfig,
-            notifyRatioDrop: (fields.notifyRatioDrop as boolean) ?? false,
-            notifyHitAndRun: (fields.notifyHitAndRun as boolean) ?? false,
-            notifyTrackerDown: (fields.notifyTrackerDown as boolean) ?? false,
-            notifyBufferMilestone: (fields.notifyBufferMilestone as boolean) ?? false,
-            notifyWarned: (fields.notifyWarned as boolean) ?? false,
-            notifyRatioDanger: (fields.notifyRatioDanger as boolean) ?? false,
-            notifyZeroSeeding: (fields.notifyZeroSeeding as boolean) ?? false,
-            notifyRankChange: (fields.notifyRankChange as boolean) ?? false,
-            notifyAnniversary: (fields.notifyAnniversary as boolean) ?? false,
+            ...toggles,
             thresholds: (fields.thresholds as Record<string, unknown> | null) ?? null,
             includeTrackerName: (fields.includeTrackerName as boolean) ?? true,
             scope: (fields.scope as number[] | null) ?? null,
             lastDeliveryError: configCleared
-              ? "Config cleared during restore — re-enter and re-enable"
+              ? "Config cleared during restore. Re-enter and re-enable"
               : null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
@@ -885,7 +946,7 @@ export async function POST(request: Request) {
         totpDisabledOnRestore = true
       }
 
-      // Update appSettings in place. NEVER delete + re-insert.
+      // Update appSettings in place. Never delete + re-insert.
       await tx
         .update(appSettings)
         .set({
@@ -930,18 +991,14 @@ export async function POST(request: Request) {
           encryptedImgbbApiKey,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
           dashboardSettings: (payload.settings.dashboardSettings as string | null) ?? null,
-          // Restored, because this .set() is an ALLOWLIST and an omitted column
-          // is simply left at whatever the restoring install already had. On a
-          // fresh install that defaults to OFF. A user restoring a backup would
-          // find their credential sheet showing "storage is turned off" and
-          // reasonably conclude the restore had lost their passkeys. It has not:
-          // trackers.encrypted_credentials restores intact either way. This just
-          // stops disaster recovery from looking like data loss.
-          // Backups predating this column have no key and restore as OFF, which
-          // is the correct fail-closed default.
+          // Restored because this .set() names its columns and an omitted one keeps
+          // the restoring install's value, off on a fresh install. Vault credentials
+          // restore intact either way, but a sheet showing storage off reads as lost
+          // passkeys. Backups predating this column restore as off, the fail-closed
+          // default.
           credentialVaultEnabled: (payload.settings.credentialVaultEnabled as boolean) ?? false,
-          // passwordHash: NEVER updated from backup
-          // encryptionSalt: NEVER updated from backup
+          // passwordHash: never updated from backup
+          // encryptionSalt: never updated from backup
           encryptedSchedulerKey: null,
         })
         .where(eq(appSettings.id, currentSettingsId))
@@ -965,10 +1022,13 @@ export async function POST(request: Request) {
     if (currentKey !== backupKey && currentKey.length > 0) currentKey.fill(0)
   }
 
+  // The boot-time backfill ran long before these rows existed, so a tracker from
+  // a backup older than registry_slug would poll without its registry options.
+  await backfillRegistrySlugs({ force: true })
+
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
-  // The session survives a restore, so (auth)/layout.tsx would also revive polling on the
-  // next authenticated page load (but only if a browser loads one). Restarting here keeps
-  // the route self-contained for direct API callers instead of relying on that.
+  // Restarting here means a direct API caller does not depend on a page load to
+  // revive polling.
   // encryptedSchedulerKey stays null (see scheduler-key-store.ts:54-58): polling runs now,
   // but will not survive a process restart until the next login re-persists the key.
   ensureSchedulerRunning(auth.encryptionKey)
@@ -976,7 +1036,7 @@ export async function POST(request: Request) {
   if (totpDisabledOnRestore) {
     log.warn(
       { event: "restore_totp_cleared" },
-      "TOTP secret could not be re-encrypted — 2FA has been disabled"
+      "TOTP secret could not be re-encrypted, so 2FA has been disabled"
     )
   }
 

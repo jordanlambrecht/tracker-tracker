@@ -141,3 +141,28 @@ describe("nuke — trackers.encryptedCredentials", () => {
     expect(values.encryptedApiToken).toMatch(/^[0-9a-f]{128}$/)
   })
 })
+
+// trackers.encrypted_mousehole_token is nullable under the same rule, and is
+// cleared by the same two paths.
+describe("emergency lockdown clears trackers.encryptedMouseholeToken", () => {
+  it("writes NULL, never the API token's marker", async () => {
+    const response = await LockdownPOST(
+      new Request("http://localhost/api/settings/lockdown", { method: "POST" })
+    )
+    expect(response.status).toBe(200)
+
+    const values = trackerVaultWrite()
+    expect(values).toHaveProperty("encryptedMouseholeToken")
+    expect(values.encryptedMouseholeToken).toBeNull()
+  })
+})
+
+describe("nuke scrubs trackers.encryptedMouseholeToken", () => {
+  it("writes NULL, never a random hex blob", async () => {
+    await scrubAndDeleteAll()
+
+    const values = trackerVaultWrite()
+    expect(values).toHaveProperty("encryptedMouseholeToken")
+    expect(values.encryptedMouseholeToken).toBeNull()
+  })
+})

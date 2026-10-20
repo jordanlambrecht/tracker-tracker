@@ -106,7 +106,7 @@ describe("parseCachedTorrents", () => {
   // slimTorrentForCache now stores a derived announce host as `tracker` (issue #152).
   // Rows written before that change have no such key, and they stay in the jsonb
   // column until the scheduler's next successful deep poll rewrites them. They must
-  // keep parsing — isQbtTorrent spot-checks hash/name/state/size/ratio only, so the
+  // keep parsing, isQbtTorrent spot-checks hash/name/state/size/ratio only, so the
   // new field is not part of the validated shape in either direction.
   describe("cached rows predating the stored announce host", () => {
     it("parses an old row that has no tracker key at all", () => {
@@ -228,7 +228,7 @@ describe("parseCachedTorrents", () => {
 
   describe("only first element checked", () => {
     it("returns all elements when first is valid, even if later elements are malformed", () => {
-      // parseCachedTorrents only validates index 0 — subsequent items pass through unchecked
+      // parseCachedTorrents only validates index 0, subsequent items pass through unchecked
       const malformed = { hash: "bad", missing_name: true }
       const result = parseCachedTorrents([VALID_TORRENT, malformed])
       expect(result).toHaveLength(2)

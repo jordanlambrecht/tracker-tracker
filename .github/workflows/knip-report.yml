@@ -104,7 +104,18 @@ jobs:
             echo 'Report generation failed. Run `pnpm knip` locally.' >> knip-report.md
           fi
 
+      - name: Add report to job summary
+        run: |
+          if [ -f knip-report.md ]; then
+            cat knip-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Knip report was not generated.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # A pull_request run from a fork gets a read-only GITHUB_TOKEN, so posting a
+      # comment returns 403 and fails the job. The report is in the job summary above.
       - name: Post PR Comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: knip-report
@@ -112,4 +123,4 @@ jobs:
 
       - name: Log result
         if: steps.knip.outputs.has_issues == 'true'
-        run: echo "Knip found issues. See PR comment for details."
+        run: echo "Knip found issues. See the job summary for details."

@@ -2,7 +2,7 @@
 //
 // Exports: SLOT_DEFINITIONS, renderSlotElement, AnySlotDefinition
 // Slot IDs defined:
-//   stat-card: login-deadline, gold, snatched-nebulance, seedbonus, ggn-share-score-card,
+//   stat-card: login-deadline, api-key-expiry, gold, snatched-nebulance, seedbonus, ggn-share-score-card,
 //              gazelle-tokens, perfect-flacs, snatched-gazelle, torrents-uploaded,
 //              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments,
 //              mam-wedges, mam-completed, mam-tracker-errors
@@ -30,13 +30,15 @@ import {
 import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
+  StatCardDeadlineProps,
   StatCardRow,
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
-import { metaFor } from "@/lib/adapters/types"
+import { registryBonusName } from "@/data/tracker-registry"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/types/slots"
+import { metaFor } from "@/types/tracker-stats"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
 import { GgnAchievementProgress } from "./platform/GgnAchievementProgress"
 import type { GgnBuffsDisplayProps } from "./platform/GgnBuffsDisplay"
@@ -142,11 +144,12 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   priority: 10,
   resolve(ctx) {
     if (ctx.latestSnapshot?.seedbonus == null) return null
-    if (metaFor(ctx, "ggn") || metaFor(ctx, "gazelle") || metaFor(ctx, "nebulance")) return null
+    if (metaFor(ctx, "ggn") || metaFor(ctx, "nebulance")) return null
+    const bonusName = registryBonusName(ctx.registry)
     return {
-      label: "Seedbonus",
+      label: bonusName ?? "Seedbonus",
       value: formatCount(Math.floor(ctx.latestSnapshot.seedbonus)),
-      unit: "BON",
+      unit: bonusName ? undefined : "BON",
       accentColor: ctx.accentColor,
       icon: icon16(StarIcon),
     }
@@ -365,11 +368,13 @@ const gazelleCommentsSlot: SlotDefinition<StatCardStackedProps> = {
     return {
       type: "stacked" as const,
       title: "Comments",
+      // A build that omits one of these reports it as unknown, not as zero,
+      // so show the same dash the other slots use rather than inventing a 0.
       rows: [
-        { label: "Torrent", value: c.torrentComments },
-        { label: "Artist", value: c.artistComments },
-        { label: "Collage", value: c.collageComments },
-        { label: "Request", value: c.requestComments },
+        { label: "Torrent", value: c.torrentComments ?? "—" },
+        { label: "Artist", value: c.artistComments ?? "—" },
+        { label: "Collage", value: c.collageComments ?? "—" },
+        { label: "Request", value: c.requestComments ?? "—" },
       ],
       accentColor: ctx.accentColor,
     }
@@ -395,6 +400,32 @@ const loginDeadlineSlot: SlotDefinition<LoginDeadlineCardProps> = {
       // header and dashboard login timers already link to. Undefined when
       // unset so the button is omitted instead of pointing nowhere.
       loginUrl: ctx.tracker.baseUrl || undefined,
+    }
+  },
+}
+
+// The API key's own deadline, reported by LST's UNIT3D fork (issue #214). A
+// lapsed key fails every poll until it is replaced, so it gets
+// the same countdown treatment as the login deadline, right beside it.
+const API_KEY_EXPIRY_WINDOW_DAYS = 30
+
+const apiKeyExpirySlot: SlotDefinition<StatCardDeadlineProps> = {
+  id: "api-key-expiry",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardDeadlineProps>,
+  priority: 31,
+  span: 2,
+  resolve(ctx) {
+    const expiresAt = metaFor(ctx, "unit3d")?.apiKeyExpiresAt
+    if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime())) return null
+    return {
+      type: "deadline",
+      title: "API Key Expiry",
+      deadlineAt: expiresAt,
+      windowDays: API_KEY_EXPIRY_WINDOW_DAYS,
+      accentColor: ctx.accentColor,
+      tooltip:
+        "When this tracker's API key stops working. Generate a new key on the tracker before then and paste it into the tracker settings.",
     }
   },
 }
@@ -967,6 +998,7 @@ const dcHeartsBadgeSlot: SlotDefinition<SlotBadgeProps> = {
 export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   // stat-card slots
   loginDeadlineSlot,
+  apiKeyExpirySlot,
   goldSlot,
   snatchedNebulanceSlot,
   seedbonusSlot,

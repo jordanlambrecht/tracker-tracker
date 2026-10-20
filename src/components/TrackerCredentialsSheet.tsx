@@ -3,23 +3,15 @@
 // The tracker credential vault, as a side sheet. Sibling of
 // TrackerSettingsSheet.tsx and built on the same Sheet primitive.
 //
-// ── THE THREE THINGS THAT MAKE THIS SHEET DIFFERENT ──────────────────────────
+// Secret values never reach the browser. An unrevealed field is held as
+// `value: null`, and draftToInput omits it so the server keeps what is stored.
+// Without that, renaming a section would blank every secret on save.
 //
-// 1. IT EDITS WHAT IT CANNOT SEE. Secret values are never sent to the browser.
-//    A field the user has not revealed is held as `value: null`, which
-//    serializes to an OMITTED `value`, which the server reads as "keep what is
-//    stored". Without that, renaming a section would blank every secret in the
-//    vault behind a successful-looking save.
-//
-// 2. IT OPENS EVEN WHEN THE FEATURE IS OFF. A 403 from the API is not an error
-//    state. It is the opt-in gate. The sheet explains the feature and links
-//    straight to the Settings toggle that turns it on. Hiding the feature with
-//    no route to enabling it is the failure mode.
-//
-// 3. COPY DOES NOT REVEAL. See CredentialFieldRow.
+// A 403 carrying credentialVaultDisabled is the opt-in gate, not an error.
+// Copying a secret does not reveal it; see CredentialFieldRow.
 //
 // ── REGISTRY DEFAULTS ────────────────────────────────────────────────────────
-// They seed a NEW vault and nothing else. Once a vault exists, the user's
+// They seed a new vault and nothing else. Once a vault exists, the user's
 // sections and fields are the entire truth. The registry is never consulted
 // again. See draftFromView() for why re-merging later means the app argues
 // with the user about their own data.
@@ -39,7 +31,7 @@ import {
   TrashIcon,
 } from "@/components/ui/Icons"
 import { getDefaultCredentialFields } from "@/data/tracker-credential-defaults"
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor } from "@/data/tracker-registry"
 import {
   type DraftField,
   type DraftVault,
@@ -59,8 +51,8 @@ export interface TrackerCredentialsSheetProps {
   open: boolean
   trackerId: number
   trackerName: string
-  /** Used only to pick the registry defaults that seed a brand-new vault. */
-  trackerBaseUrl: string
+  /** The registry entry this row names, used only to seed a brand-new vault. */
+  trackerRegistrySlug: string | null
   onClose: () => void
 }
 
@@ -68,7 +60,7 @@ export function TrackerCredentialsSheet({
   open,
   trackerId,
   trackerName,
-  trackerBaseUrl,
+  trackerRegistrySlug,
   onClose,
 }: TrackerCredentialsSheetProps) {
   const [status, setStatus] = useState<SheetStatus>("loading")
@@ -100,7 +92,7 @@ export function TrackerCredentialsSheet({
 
       if (res.status === 403) {
         const body = (await res.json().catch(() => ({}))) as { credentialVaultDisabled?: boolean }
-        // A FIELD, not a message match: the gate is a first-class state and the
+        // A field, not a message match: the gate is a first-class state and the
         // wording of the error is free to change.
         if (body.credentialVaultDisabled) {
           setStatus("gated")
@@ -116,24 +108,25 @@ export function TrackerCredentialsSheet({
       }
 
       const body = (await res.json()) as { vault: TrackerCredentialVaultView | null }
-      // draftFromView consults these ONLY when `vault` is null. An unrecognised
-      // baseUrl falls to `custom`, which getDefaultCredentialFields deliberately
-      // leaves out of its platform map so it lands on the universal fallback.
-      const registryEntry = findRegistryEntry(trackerBaseUrl)
+      // draftFromView consults these only when `vault` is null. A row naming no
+      // registry entry falls to `custom`, which getDefaultCredentialFields
+      // deliberately leaves out of its platform map so it lands on the
+      // universal fallback.
+      const registryEntry = registryEntryFor({ registrySlug: trackerRegistrySlug })
       const seeded = draftFromView(
         body.vault,
         getDefaultCredentialFields(registryEntry ?? { platform: "custom" })
       )
       setDraft(seeded)
-      // A seeded-from-defaults vault is NOT a pending change: opening the sheet
+      // A seeded-from-defaults vault is not a pending change: opening the sheet
       // and closing it again must neither prompt to discard nor write anything.
       setOriginal(seeded)
       setStatus("ready")
     } catch {
-      setLoadError("Network error — could not load credentials")
+      setLoadError("Network error. Could not load credentials")
       setStatus("error")
     }
-  }, [trackerId, trackerBaseUrl])
+  }, [trackerId, trackerRegistrySlug])
 
   useEffect(() => {
     if (!open) return
@@ -158,7 +151,7 @@ export function TrackerCredentialsSheet({
     // Focus once the body has content. Focusing while it says "Loading" moves
     // the user somewhere about to be replaced.
     //
-    // ONCE PER OPEN, and the latch enforces this. Saving re-runs load(), which
+    // Once per open, and the latch enforces this. Saving re-runs load(), which
     // cycles status ready → loading → ready. Without the latch, every save
     // yanks focus out of the input and drops it on the container.
     if (open && status !== "loading" && !hasFocusedRef.current) {
@@ -169,7 +162,7 @@ export function TrackerCredentialsSheet({
 
   // ── Close, with the unsaved-changes interception ────────────────────────────
 
-  // Backdrop click, the X button and Escape ALL funnel through Sheet's onClose,
+  // Backdrop click, the X button and Escape all funnel through Sheet's onClose,
   // so intercepting here covers every route out of the sheet.
   const handleClose = useCallback(() => {
     if (saving) return
@@ -260,7 +253,7 @@ export function TrackerCredentialsSheet({
     setDraft((prev) => ({ sections: [...prev.sections, newDraftSection()] }))
   }, [])
 
-  /** ARRAY ORDER IS DISPLAY ORDER, so reordering really is just a splice. */
+  /** Array order is display order, so reordering really is just a splice. */
   const moveSection = useCallback((index: number, delta: -1 | 1) => {
     setDraft((prev) => {
       const target = index + delta
@@ -307,7 +300,7 @@ export function TrackerCredentialsSheet({
       // actually stored before the user reveals anything against it.
       await load()
     } catch {
-      setSaveError("Network error — credentials were not saved")
+      setSaveError("Network error. Credentials were not saved")
     } finally {
       setSaving(false)
     }
@@ -340,25 +333,20 @@ export function TrackerCredentialsSheet({
     <Sheet
       open={open}
       onClose={handleClose}
-      title={`Credentials — ${trackerName}`}
+      title={`Credentials for ${trackerName}`}
       busy={saving}
       footer={footer}
     >
       {/* tabIndex={-1} is the sheet's initial focus target: focus is sent here on
           open so Escape and Tab start from inside the dialog rather than at the
-          top of the document. -1 keeps it out of the tab ORDER while still being
+          top of the document. -1 keeps it out of the tab order while still being
           programmatically focusable. */}
       <div ref={bodyRef} tabIndex={-1} className="flex flex-col gap-5 p-6 pb-8 focus:outline-none">
         {/* Live region, mounted empty so a later update is announced. A region
             appearing with its text is often missed. Carries testid because
             Notice renders role="status" for warn variant. Role alone is not
             unique. */}
-        <p
-          data-testid="credential-announcer"
-          role="status"
-          aria-live="polite"
-          className="sr-only"
-        >
+        <p data-testid="credential-announcer" role="status" aria-live="polite" className="sr-only">
           {announcement}
         </p>
 
@@ -369,19 +357,25 @@ export function TrackerCredentialsSheet({
         {status === "error" && (
           <div className="flex flex-col gap-3">
             <Notice variant="danger" box message={loadError ?? "Could not load credentials"} />
-            <Button variant="secondary" size="sm" onClick={load} text="Try again" className="self-start" />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={load}
+              text="Try again"
+              className="self-start"
+            />
           </div>
         )}
 
-        {/* The opt-in gate. The sheet opens and explains itself. The owner's
-            requirement is a route to enabling the feature, not hiding it. */}
+        {/* The opt-in gate: the sheet explains the feature and links to the
+            toggle that turns it on. */}
         {status === "gated" && (
           <div className="flex flex-col gap-4">
             <h3 id={headingId} className="text-sm font-sans font-semibold text-primary">
               Credential storage is turned off
             </h3>
             <p className="text-sm font-sans text-secondary leading-relaxed">
-              Private trackers hand out a pile of per-user secrets — API keys, RSS passkeys, IRC
+              Private trackers hand out a pile of per-user secrets: API keys, RSS passkeys, IRC
               logins, announce URLs. Turn this on to keep {trackerName}&apos;s in one place,
               encrypted with your master password and shown only when you ask.
             </p>
@@ -391,7 +385,7 @@ export function TrackerCredentialsSheet({
             />
             {/* A real link, not a button with a router push: the target is a
                 different page and users expect to be able to middle-click it.
-                The href is IMPORTED from the settings section that owns the
+                The href is imported from the settings section that owns the
                 anchor, so renaming that section cannot silently rot this link
                 into a no-op scroll. */}
             <Link
@@ -413,7 +407,12 @@ export function TrackerCredentialsSheet({
                 onConfirm={discardAndClose}
                 onCancel={() => setConfirmingDiscard(false)}
                 additionalActions={
-                  <Button size="sm" variant="primary" onClick={handleSave} text="Save and keep editing" />
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleSave}
+                    text="Save and keep editing"
+                  />
                 }
               />
             )}

@@ -6,7 +6,7 @@
 // This module used to build the connection string at module scope, so merely
 // IMPORTING it threw when no database was configured. `next build` imports every
 // route module to collect page data, and 102 files import this one, so a build
-// with no DATABASE_URL died on whichever route Next happened to reach first —
+// with no DATABASE_URL died on whichever route Next happened to reach first,
 // with a stack pointing at that arbitrary route rather than at the real cause.
 // The Dockerfile worked around it by setting a throwaway DATABASE_URL purely so
 // the build could evaluate modules; that workaround is no longer required.
@@ -21,7 +21,7 @@
 // `db` is imported by 102 modules as a value. Exporting a function instead would
 // mean touching every one of them, and every future caller would have to
 // remember which form this module uses. The Proxy keeps the import site
-// identical — `db.select(...)` still reads as a plain object — while moving the
+// identical, `db.select(...)` still reads as a plain object, while moving the
 // work to the first property access.
 //
 // Only the `get` trap is implemented, deliberately. Nothing in the codebase
@@ -52,7 +52,7 @@ function createDb() {
 
   // Reuse the Postgres connection across HMR reloads in development. The pool
   // lives on globalThis rather than in module scope precisely because module
-  // scope is what HMR throws away — without this, every reload would open
+  // scope is what HMR throws away, without this, every reload would open
   // another pool and leak the old one.
   const g = globalThis as typeof globalThis & { __dbClient?: ReturnType<typeof postgres> }
   const client =

@@ -20,7 +20,7 @@ describe("isDiscordConfig", () => {
   })
 
   it("returns true for a SlackConfig because both share the webhookUrl shape", () => {
-    // This is the documented limitation — callers must additionally check target.type
+    // This is the documented limitation, callers must additionally check target.type
     const config: NotificationConfig = { webhookUrl: "https://hooks.slack.com/services/T/B/X" }
     expect(isDiscordConfig(config)).toBe(true)
   })
@@ -48,7 +48,7 @@ describe("isDiscordConfig", () => {
   })
 
   it("returns true for an empty string webhookUrl (shape check only, not content)", () => {
-    // isDiscordConfig validates shape, not URL validity — that is validateNotificationConfig's job
+    // isDiscordConfig validates shape, not URL validity, that is validateNotificationConfig's job
     const config: NotificationConfig = { webhookUrl: "" }
     expect(isDiscordConfig(config)).toBe(true)
   })

@@ -12,19 +12,19 @@ const IMAGE_HOSTS = [
     key: "ptpimg" as const,
     label: "PTPImg",
     field: "ptpimgApiKey",
-    description: "ptpimg.me — required by PTP, accepted by most trackers.",
+    description: "ptpimg.me, required by PTP and accepted by most trackers.",
   },
   {
     key: "oeimg" as const,
     label: "OnlyImage",
     field: "oeimgApiKey",
-    description: "onlyimage.org — used by OnlyEncodes and other trackers.",
+    description: "onlyimage.org, used by OnlyEncodes and other trackers.",
   },
   {
     key: "imgbb" as const,
     label: "ImgBB",
     field: "imgbbApiKey",
-    description: "imgbb.com — widely accepted free image host.",
+    description: "imgbb.com, a widely accepted free image host.",
   },
 ] as const
 

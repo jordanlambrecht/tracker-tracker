@@ -7,7 +7,6 @@
 // evidence and decides the coverage policy: how far back and forward records are
 // allowed to speak.
 
-
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate } from "@/lib/api-helpers"
@@ -64,10 +63,7 @@ export async function GET(request: Request) {
   if (trackerIdRaw !== null) {
     const parsed = Number(trackerIdRaw)
     if (!Number.isInteger(parsed) || parsed < 1) {
-      return NextResponse.json(
-        { error: "trackerId must be a positive integer" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "trackerId must be a positive integer" }, { status: 400 })
     }
     trackerId = parsed
   }
@@ -117,9 +113,7 @@ export async function GET(request: Request) {
         .limit(1),
       // Same one-bucket reach-back as the app gaps, for the same reason. An
       // unknown id simply returns nothing, so no existence check is needed.
-      trackerId === null
-        ? Promise.resolve([])
-        : getTrackerOutages(trackerId, from - BUCKET_MS, to),
+      trackerId === null ? Promise.resolve([]) : getTrackerOutages(trackerId, from - BUCKET_MS, to),
     ])
 
     // Every enabled client gets an entry even with zero buckets, so it forces the
@@ -134,7 +128,6 @@ export async function GET(request: Request) {
         fail: b.fail,
       })
     }
-
 
     // Upper bound is the end of the last flushed bucket. The in-flight bucket is
     // still accumulating in memory, so treating it as observed would band the

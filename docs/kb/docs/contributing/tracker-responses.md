@@ -2,24 +2,24 @@
 
 This section shows the raw JSON responses from each tracker platform's API and how the adapter maps those fields to the shared `TrackerStats` interface. Use it when adding a new tracker or debugging why a field isn't mapping correctly.
 
-Source of truth: `src/lib/adapters/`
+Source of truth: `src/lib/tracker-platforms/adapters/`
 
 ---
 
 ## TrackerStats Interface
 
-All adapters return `TrackerStats` defined in `src/lib/adapters/types.ts`.
+All adapters return `TrackerStats` defined in `src/types/tracker-stats.ts`.
 
 ```typescript
 interface TrackerStats {
   username: string
-  group: string
+  group: string | null
   uploadedBytes: bigint
   downloadedBytes: bigint
   ratio: number
   bufferBytes: bigint
-  seedingCount: number
-  leechingCount: number
+  seedingCount: number | null
+  leechingCount: number | null
   seedbonus: number | null
   hitAndRuns: number | null
   requiredRatio: number | null
@@ -30,7 +30,7 @@ interface TrackerStats {
   lastAccessDate?: string
   shareScore?: number
   avatarUrl?: string
-  platformMeta?: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | MamPlatformMeta
+  platformMeta?: PlatformMeta
 }
 ```
 
@@ -49,11 +49,11 @@ Fields marked `null` indicate the tracker doesn't expose that data. We return `n
 
 For a brand new platform (not just a new tracker on an existing one):
 
-1. Create `src/lib/adapters/{platform}.ts` implementing `TrackerAdapter`
+1. Create `src/lib/tracker-platforms/adapters/{platform}.ts` implementing `TrackerAdapter`
 2. Add response interface(s) at the top
-3. Update `src/lib/adapters/types.ts` with new `platformMeta` fields if needed
-4. Register in `src/lib/adapters/index.ts` (`getAdapter()` factory)
-5. Add platform to the `platform` enum in `src/lib/db/schema.ts`
+3. Update `src/types/tracker-stats.ts` with new `platformMeta` fields if needed
+4. Register in `src/lib/tracker-platforms/index.ts` (`getAdapter()` factory)
+5. Add the platform to `VALID_PLATFORM_TYPES` and `DEFAULT_API_PATHS` in `src/data/platform-types.ts`
 6. Add tracker entries in `src/data/trackers/`
 7. Document the raw response shape here
 

@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { getTrackerBySlug } from "@/data/tracker-registry"
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -111,7 +112,7 @@ vi.mock("@/lib/db/schema", () => ({
   notificationDeliveryState: {},
   clientUptimeBuckets: {},
   appCoverageGaps: {},
-  // appLiveness is absent on purpose — restore must never touch it.
+  // appLiveness is absent on purpose, restore must never touch it.
 }))
 
 vi.mock("@/lib/backup", () => ({
@@ -205,8 +206,19 @@ vi.mock("@/lib/privacy-db", () => ({
   createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 
+// The create route takes the address, platform and API path from the registry
+// entry the posted slug names, so these validation tests need a slug that
+// resolves before they can reach the field each one is about.
 vi.mock("@/data/tracker-registry", () => ({
-  findRegistryEntry: vi.fn(),
+  registryEntryFor: vi.fn(),
+  getTrackerBySlug: vi.fn(() => ({
+    slug: "example-tracker",
+    name: "Example",
+    url: "https://example-tracker.test",
+    platform: "unit3d",
+    apiPath: "/api/user",
+    color: "#00d4ff",
+  })),
 }))
 
 vi.mock("@/lib/notifications/validate", () => ({
@@ -816,7 +828,7 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
     expect(res.status).toBe(401)
   })
 
-  // Transit papers routes — stashed, uncomment when restored
+  // Transit papers routes, stashed, uncomment when restored
   // it("GET /api/trackers/[id]/report returns 401", async () => {
   //   const req = makeRequest("http://localhost/api/trackers/1/report")
   //   const res = await ReportGET(req, { params: MOCK_PARAMS })
@@ -829,15 +841,6 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   //   expect(res.status).toBe(401)
   // })
 })
-
-// ---------------------------------------------------------------------------
-// 2. Public endpoint documentation
-// ---------------------------------------------------------------------------
-
-// NOTE: POST /api/verify-report and /api/verify-report/fetch-image are
-// intentionally public endpoints. They use in-memory rate limiting instead of
-// authentication. Moderators verify reports without needing an account.
-// Do NOT add authenticate() to these routes.
 
 // ---------------------------------------------------------------------------
 // 3. Encrypted tokens never leak in API responses
@@ -943,7 +946,7 @@ describe("Token leakage prevention", () => {
   it("GET /api/trackers/[id] does not include encryptedApiToken or apiPath in response", async () => {
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
 
-    // DB row with secrets present — the route's .select() projection must strip them
+    // DB row with secrets present, the route's .select() projection must strip them
     const trackerRow = {
       id: 1,
       name: "TestTracker",
@@ -963,7 +966,7 @@ describe("Token leakage prevention", () => {
       remoteUserId: null,
       platformMeta: null,
       createdAt: new Date(),
-      // Secrets that MUST NOT appear in the response
+      // Secrets that must not appear in the response
       encryptedApiToken: "SECRET_API_TOKEN_CIPHERTEXT",
       apiPath: "/api/user",
     }
@@ -998,7 +1001,7 @@ describe("Token leakage prevention", () => {
     expect(json).not.toContain("SECRET_API_TOKEN_CIPHERTEXT")
     expect(json).not.toContain("encryptedApiToken")
     expect(json).not.toContain("apiPath")
-    // Verify slot-critical fields ARE present
+    // Verify slot-critical fields are present
     expect(body).toHaveProperty("lastAccessAt")
     expect(body).toHaveProperty("platformMeta")
     expect(body).toHaveProperty("platformType")
@@ -1038,7 +1041,7 @@ describe("Token leakage prevention", () => {
   })
 
   it("GET /api/settings does not include encrypted image hosting keys in response", async () => {
-    // Mock fetchSettings — GET /api/settings calls fetchSettings() which uses
+    // Mock fetchSettings, GET /api/settings calls fetchSettings() which uses
     // settingsColumns (a projected select). The serializer converts ciphertext
     // column values to booleans via !!value before they leave the server.
     const mockLimit = vi.fn().mockResolvedValue([
@@ -1152,44 +1155,57 @@ describe("Input validation: POST /api/trackers", () => {
   // "rejects missing required fields", "rejects oversized name", and
   // "rejects invalid URL format" are covered in tracker-routes.test.ts
 
-  it("rejects invalid platform type", async () => {
+  it("rejects a slug the registry does not carry", async () => {
+    vi.mocked(getTrackerBySlug).mockReturnValueOnce(undefined)
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       name: "Test",
-      baseUrl: "https://example.com",
+      slug: "not-a-tracker",
       apiToken: "valid-token",
-      platformType: "unknown-platform",
     })
     const req = makeRequest("http://localhost/api/trackers", {}, "POST")
     const res = await POST(req)
     expect(res.status).toBe(400)
+    expect(db.insert).not.toHaveBeenCalled()
   })
 
-  it("rejects javascript: scheme in baseUrl (XSS prevention)", async () => {
+  // The address is registry data keyed by the slug, so a URL in the body cannot
+  // point a new row anywhere: it is not read, and the registry URL is stored.
+  it("stores the registry URL, not a javascript: baseUrl from the body (XSS prevention)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       name: "Test",
+      slug: "example-tracker",
       baseUrl: "javascript:alert(1)",
       apiToken: "valid-token",
     })
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1, name: "Test" }])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
     const req = makeRequest("http://localhost/api/trackers", {}, "POST")
     const res = await POST(req)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(201)
+    expect(mockValues.mock.calls[0][0]).toMatchObject({ baseUrl: "https://example-tracker.test" })
   })
 
-  it("rejects data: scheme in baseUrl (SSRF prevention)", async () => {
+  it("stores the registry URL, not a data: baseUrl from the body (SSRF prevention)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       name: "Test",
+      slug: "example-tracker",
       baseUrl: "data:text/html,<script>alert(1)</script>",
       apiToken: "valid-token",
     })
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 1, name: "Test" }])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
     const req = makeRequest("http://localhost/api/trackers", {}, "POST")
     const res = await POST(req)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(201)
+    expect(mockValues.mock.calls[0][0]).toMatchObject({ baseUrl: "https://example-tracker.test" })
   })
 
   it("rejects non-hex color value (injection prevention)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       name: "Test",
-      baseUrl: "https://example.com",
+      slug: "example-tracker",
       apiToken: "valid-token",
       color: "red;background:blue",
     })
@@ -1201,7 +1217,7 @@ describe("Input validation: POST /api/trackers", () => {
   it("accepts valid hex color", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       name: "Test",
-      baseUrl: "https://example.com",
+      slug: "example-tracker",
       apiToken: "valid-token",
       color: "#00d4ff",
     })
@@ -1234,7 +1250,7 @@ describe("Input validation: additional field constraints", () => {
   it("rejects oversized qbtTag (>100 chars)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       name: "Test",
-      baseUrl: "https://example.com",
+      slug: "example-tracker",
       apiToken: "valid-token",
       qbtTag: "a".repeat(101),
     })
@@ -1320,7 +1336,7 @@ describe("Input validation: additional field constraints", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 6. Crypto round-trip integrity — covered by src/lib/crypto.test.ts
+// 6. Crypto round-trip integrity, covered by src/lib/crypto.test.ts
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -1356,7 +1372,7 @@ describe("Encryption key zeroing", () => {
     const { stopTrackerPolling, _getSchedulerKeyForTest } =
       await vi.importActual<typeof import("@/lib/tracker-scheduler")>("@/lib/tracker-scheduler")
 
-    // Ensure clean state
+    // Start from a stopped scheduler
     stopTrackerPolling()
     expect(_getSchedulerKeyForTest()).toBeNull()
     // Should not throw
@@ -1632,7 +1648,7 @@ describe("Backup restore authenticated flows", () => {
 })
 
 // ---------------------------------------------------------------------------
-// 9. Backup/restore round-trip for new notify* columns
+// 9. Backup/restore round-trip for the notify* columns older backups lack
 // ---------------------------------------------------------------------------
 
 describe("Backup restore: new notify* column round-trip", () => {
@@ -1688,7 +1704,7 @@ describe("Backup restore: new notify* column round-trip", () => {
     const { deriveKey } = await import("@/lib/crypto")
 
     vi.mocked(authenticate).mockResolvedValue({ encryptionKey: "a".repeat(64) })
-    // deriveKey is cleared by clearAllMocks() — restore it so key derivation succeeds
+    // deriveKey is cleared by clearAllMocks(), restore it so key derivation succeeds
     vi.mocked(deriveKey).mockResolvedValue(Buffer.from("a".repeat(32)))
 
     vi.mocked(db.select).mockReturnValue({
@@ -1706,7 +1722,7 @@ describe("Backup restore: new notify* column round-trip", () => {
     vi.mocked(verifyPassword).mockResolvedValue(true)
     vi.mocked(validateBackupJson).mockImplementation(() => undefined)
 
-    // Backup payload includes a notificationTarget with all 5 new notify* flags set to true
+    // Backup payload with notifyWarned through notifyAnniversary set to true
     const backupWithNotifyFlags = {
       ...BASE_BACKUP,
       notificationTargets: [
@@ -1764,12 +1780,12 @@ describe("Backup restore: new notify* column round-trip", () => {
     const req = createRestoreRequest(JSON.stringify(backupWithNotifyFlags), "correct_password")
     await POST(req)
 
-    // Find the insert call for notificationTargets (it should include the 5 new flags)
+    // Find the notificationTargets insert
     const ntInsert = insertedValues.find(
       (v) => typeof v === "object" && v !== null && "notifyWarned" in v
     )
 
-    // The insert must have preserved all 5 new notify* columns as true
+    // The insert keeps all five flags true
     expect(ntInsert).toBeDefined()
     expect(ntInsert?.notifyWarned).toBe(true)
     expect(ntInsert?.notifyRatioDanger).toBe(true)
@@ -1802,7 +1818,7 @@ describe("Backup restore: new notify* column round-trip", () => {
     vi.mocked(verifyPassword).mockResolvedValue(true)
     vi.mocked(validateBackupJson).mockImplementation(() => undefined)
 
-    // Older backup: notificationTarget missing all 5 new notify* fields
+    // Older backup whose notificationTarget lacks notifyWarned through notifyAnniversary
     const olderBackup = {
       ...BASE_BACKUP,
       notificationTargets: [
@@ -1816,7 +1832,7 @@ describe("Backup restore: new notify* column round-trip", () => {
           notifyHitAndRun: false,
           notifyTrackerDown: true,
           notifyBufferMilestone: false,
-          // notifyWarned, notifyRatioDanger, notifyZeroSeeding, notifyRankChange, notifyAnniversary — absent
+          // notifyWarned, notifyRatioDanger, notifyZeroSeeding, notifyRankChange, notifyAnniversary, absent
           thresholds: null,
           includeTrackerName: true,
           scope: null,
@@ -1861,7 +1877,7 @@ describe("Backup restore: new notify* column round-trip", () => {
         (v as Record<string, unknown>).name === "Legacy Discord"
     )
 
-    // All 5 new columns must default to false when absent from the backup payload
+    // Each flag absent from the backup must default to false
     expect(ntInsert).toBeDefined()
     expect(ntInsert?.notifyWarned).toBe(false)
     expect(ntInsert?.notifyRatioDanger).toBe(false)
@@ -2117,7 +2133,7 @@ describe("Backup restore security hardening", () => {
     expect(res.status).toBe(500)
     const data = await res.json()
     expect(data.error).toContain("derive encryption keys")
-    // Must NOT start the destructive transaction
+    // Must not start the destructive transaction
     expect(db.transaction).not.toHaveBeenCalled()
   })
 

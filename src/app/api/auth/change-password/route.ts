@@ -3,9 +3,9 @@
 // Functions: POST
 //
 // Changes the master password and re-encrypts all encrypted fields
-// (tracker API tokens, tracker credential vaults, download client credentials, proxy password,
-// backup password, TOTP secrets, image host API keys, notification
-// target configs) inside a single transaction.
+// (tracker API tokens, tracker credential vaults, Mousehole API tokens, download
+// client credentials, proxy password, backup password, TOTP secrets, image host
+// API keys, notification target configs) inside a single transaction.
 // Requires an active session and the current password for verification.
 
 import { timingSafeEqual } from "node:crypto"
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     await recordFailedAttempt(settings.id, settings)
     log.warn(
       { route: "POST /api/auth/change-password" },
-      "password change rejected — incorrect current password"
+      "password change rejected: incorrect current password"
     )
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
   }
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   if (!timingSafeEqual(oldKey, keyFromPassword)) {
     log.warn(
       { route: "POST /api/auth/change-password" },
-      "password change aborted — session key does not match the current password"
+      "password change aborted: session key does not match the current password"
     )
     return NextResponse.json(
       { error: "Your session is out of date. Sign in again before changing your password." },
@@ -105,14 +105,18 @@ export async function POST(request: Request) {
   // without ever being JSON.parsed or shape-guarded, exactly like the
   // notification configs below. A rotation is not the place to start rejecting
   // stored shapes: a vault written by a newer build must survive it untouched.
-  const trackerPlaintexts = new Map<number, { token: string; vault: string | null }>()
+  const trackerPlaintexts = new Map<
+    number,
+    { token: string; vault: string | null; mouseholeToken: string | null }
+  >()
   const clientPlaintexts = new Map<
     number,
-    { username: string; password: string; apiKey: string }
+    { username: string; password: string; apiKey: string; urlPath: string }
   >()
   const notificationPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
   const failedVaults: string[] = []
+  const failedMouseholeTokens: string[] = []
   const failedClients: string[] = []
   const failedNotifications: string[] = []
 
@@ -123,6 +127,7 @@ export async function POST(request: Request) {
         name: trackers.name,
         encryptedApiToken: trackers.encryptedApiToken,
         encryptedCredentials: trackers.encryptedCredentials,
+        encryptedMouseholeToken: trackers.encryptedMouseholeToken,
       })
       .from(trackers),
     db
@@ -132,6 +137,7 @@ export async function POST(request: Request) {
         encryptedUsername: downloadClients.encryptedUsername,
         encryptedPassword: downloadClients.encryptedPassword,
         encryptedApiKey: downloadClients.encryptedApiKey,
+        encryptedUrlPath: downloadClients.encryptedUrlPath,
       })
       .from(downloadClients),
     db
@@ -181,7 +187,23 @@ export async function POST(request: Request) {
       }
     }
 
-    trackerPlaintexts.set(tracker.id, { token, vault })
+    // Same disposition as the vault. NULL stays NULL, and an unreadable token
+    // is cleared so the user can re-enter it.
+    let mouseholeToken: string | null = null
+    if (tracker.encryptedMouseholeToken) {
+      try {
+        mouseholeToken = decrypt(tracker.encryptedMouseholeToken, oldKey)
+      } catch (err) {
+        log.warn(
+          { trackerId: tracker.id, error: String(err) },
+          "Failed to decrypt Mousehole API token during password change, clearing it"
+        )
+        mouseholeToken = null
+        failedMouseholeTokens.push(tracker.name)
+      }
+    }
+
+    trackerPlaintexts.set(tracker.id, { token, vault, mouseholeToken })
   }
 
   for (const client of allClients) {
@@ -192,6 +214,7 @@ export async function POST(request: Request) {
         // Password-auth clients store "" here, which is not ciphertext and
         // must not be handed to decrypt. It round-trips as "" below.
         apiKey: client.encryptedApiKey ? decrypt(client.encryptedApiKey, oldKey) : "",
+        urlPath: client.encryptedUrlPath ? decrypt(client.encryptedUrlPath, oldKey) : "",
       })
     } catch (err) {
       log.warn(
@@ -332,6 +355,8 @@ export async function POST(request: Request) {
             // and untestable; writing null states outright that NULL survives a
             // password change as NULL, and never as encrypt("") or "".
             encryptedCredentials: plain.vault === null ? null : encrypt(plain.vault, newKey),
+            encryptedMouseholeToken:
+              plain.mouseholeToken === null ? null : encrypt(plain.mouseholeToken, newKey),
           })
           .where(eq(trackers.id, id))
       }
@@ -347,6 +372,7 @@ export async function POST(request: Request) {
             // every poll, and no amount of re-entering the new password would
             // recover it. "" stays "" (see the decrypt guard above).
             encryptedApiKey: creds.apiKey ? encrypt(creds.apiKey, newKey) : "",
+            encryptedUrlPath: creds.urlPath ? encrypt(creds.urlPath, newKey) : "",
           })
           .where(eq(downloadClients.id, id))
       }
@@ -396,6 +422,11 @@ export async function POST(request: Request) {
       `${failedVaults.length} tracker credential vault(s) could not be re-encrypted and were cleared: ${failedVaults.join(", ")}. Re-enter those credentials.`
     )
   }
+  if (failedMouseholeTokens.length > 0) {
+    warnings.push(
+      `${failedMouseholeTokens.length} Mousehole API token(s) could not be re-encrypted and were cleared: ${failedMouseholeTokens.join(", ")}. Re-enter them in tracker settings.`
+    )
+  }
   if (failedClients.length > 0) {
     warnings.push(
       `Could not re-encrypt ${failedClients.length} client credential(s). Re-enter them manually.`
@@ -409,7 +440,7 @@ export async function POST(request: Request) {
   if (totpDisabled) {
     log.warn(
       { route: "POST /api/auth/change-password" },
-      "TOTP disabled during password change — re-encryption failed"
+      "TOTP disabled during password change: re-encryption failed"
     )
     warnings.push("TOTP could not be re-encrypted and was disabled. Re-enroll 2FA after login.")
   }

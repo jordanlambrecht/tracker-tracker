@@ -11,14 +11,14 @@
 
 ## Notes
 
-GGn needs its own adapter — not the standard Gazelle one. Here's what makes it different:
+GGn needs its own adapter, not the standard Gazelle one. Here's what makes it different:
 
 - Auth uses a query parameter (`?key=TOKEN`), not a header.
 - The first poll does two requests: first hits `?request=quick_user&key=TOKEN` to get your numeric user ID, then `?request=user&id=X&key=TOKEN` to grab the full stats. After that, we skip the ID lookup and go straight to `request=user`.
 - Currency is called `gold` here (not `bonusPoints` or `seedbonus`), but we map it to `seedbonus` in the dashboard.
 - `stats.ratio` comes back as a string like `"0.99699"`, not a number. The adapter converts it.
 - Seeding and leeching counts depend on your paranoia level and might be `null`.
-- `freeleechTokens` is always `null` — GGn doesn't expose those via the API.
+- `freeleechTokens` is always `null`, because GGn doesn't expose those via the API.
 
 See the [GGn platform page](../tracker-responses-ggn.md) for the full field mapping.
 

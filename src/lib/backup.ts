@@ -26,6 +26,7 @@ import {
 import { log } from "@/lib/logger"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
+import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import packageJson from "../../package.json"
 
@@ -100,6 +101,7 @@ export const BACKUP_CLIENT_COLUMNS = {
   encryptedUsername: downloadClients.encryptedUsername,
   encryptedPassword: downloadClients.encryptedPassword,
   encryptedApiKey: downloadClients.encryptedApiKey,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -111,7 +113,6 @@ export const BACKUP_CLIENT_COLUMNS = {
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
-  // Parallel fetch with all tables independent
   const [
     [rawSettings],
     rawTrackers,
@@ -140,26 +141,18 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     // sitting next to it, and a restored history without its explanations reads
     // as "these zeroes were real".
     //
-    // app_liveness DELIBERATELY DOES NOT!
-    // It is a single mutable row whose whole meaning is "the live process was
-    // here at this instant". Restoring a months-old lastSeenAt would make the
-    // very next touchAppLiveness() measure the distance to now and write one
-    // enormous fabricated outage across every chart. The ledger must always be
-    // rebuilt by the running process, never carried in from a file. Do not add
-    // it to this list.
+    // app_liveness stays out. It is one mutable row meaning "the live process
+    // was here at this instant", and restoring an old lastSeenAt would make the
+    // next touchAppLiveness() write one enormous fabricated outage across every
+    // chart.
     db.select().from(appCoverageGaps).orderBy(appCoverageGaps.id),
-    // tracker_outages travels for the same reason app_coverage_gaps does: it
-    // explains the tracker snapshots restored beside it. Without it a restore
-    // hands back the flat stretches with every explanation cascade-deleted,
-    // which is exactly the "these zeroes were real" reading this feature exists
-    // to prevent. Unlike app_liveness it is pure closed history, so carrying it
-    // in from a file can never fabricate an outage.
+    // tracker_outages travels for the same reason as app_coverage_gaps, and as
+    // closed history it cannot fabricate an outage on restore.
     db.select().from(trackerOutages).orderBy(trackerOutages.id),
     db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id),
     db.select().from(notificationTargets).orderBy(notificationTargets.id),
   ])
 
-  // appSettings — exclude: id, passwordHash, failedLoginAttempts, encryptedSchedulerKey, createdAt
   const settingsPayload: Record<string, unknown> = {}
   if (rawSettings) {
     const {
@@ -175,7 +168,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     }
   }
 
-  // trackers — exclude transient runtime state
+  // trackers, exclude transient runtime state
   const trackersPayload = rawTrackers.map((t) => {
     const {
       lastPolledAt: _lpa,
@@ -191,7 +184,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
   const snapshotsPayload = rawSnapshots.map((s) => serializeRow(s as Record<string, unknown>))
   const rolesPayload = rawRoles.map((r) => serializeRow(r as Record<string, unknown>))
 
-  // downloadClients — cachedTorrents/cachedTorrentsAt/lastPolledAt/lastError excluded at query level
+  // downloadClients, cachedTorrents/cachedTorrentsAt/lastPolledAt/lastError excluded at query level
   const clientsPayload = rawClients.map((c) => serializeRow(c as Record<string, unknown>))
 
   const tagGroupsPayload = rawTagGroups.map((g) => serializeRow(g as Record<string, unknown>))
@@ -390,7 +383,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       assertValidIso(o.endedAt, `${prefix}.endedAt`)
       assertString(o.reason, `${prefix}.reason`)
       // Closed intervals only, same as coverage gaps. A zero-length row is
-      // legitimate here (one observed failure) so only INVERSION is rejected.
+      // legitimate here (one observed failure) so only inversion is rejected.
       if (new Date(o.endedAt).getTime() < new Date(o.startedAt).getTime()) {
         throw new Error(`Backup validation: ${prefix}.endedAt must not precede startedAt`)
       }
@@ -407,7 +400,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       assertValidIso(cg.startedAt, `${prefix}.startedAt`)
       assertValidIso(cg.endedAt, `${prefix}.endedAt`)
       assertString(cg.reason, `${prefix}.reason`)
-      // Closed intervals only — an inverted or open-ended gap would band the
+      // Closed intervals only, an inverted or open-ended gap would band the
       // chart backwards or band the present.
       if (new Date(cg.endedAt).getTime() < new Date(cg.startedAt).getTime()) {
         throw new Error(`Backup validation: ${prefix}.endedAt must not precede startedAt`)
@@ -464,7 +457,14 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)
-    // Empty token is valid — happens after a restore clears encrypted fields
+    // Empty token is valid, happens after a restore clears encrypted fields
+
+    // Optional: backups predating the column carry no slug, and a pre-registry
+    // custom site legitimately carries null. Only the type is checked here;
+    // registryEntryFor returns undefined for an unknown slug on read.
+    if (t.registrySlug !== null && t.registrySlug !== undefined) {
+      assertString(t.registrySlug, `${prefix}.registrySlug`)
+    }
 
     if (t.color !== null && t.color !== undefined) {
       assertString(t.color, `${prefix}.color`)
@@ -504,6 +504,14 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     const prefix = `downloadClients[${i}]`
 
     assertString(c.host, `${prefix}.host`)
+    // Restore is the third writer of downloadClients.host. Both API routes
+    // gate it on PROXY_HOST_PATTERN; without the same gate here a restored
+    // backup could seed a host the routes would have refused. Their
+    // validateClientHost is left out on purpose: it guards a mistake that only
+    // breaks polling, and here one such row would refuse the whole backup.
+    if (!PROXY_HOST_PATTERN.test(c.host as string)) {
+      throw new Error(`Backup validation: ${prefix}.host contains invalid characters`)
+    }
 
     assertNumber(c.port, `${prefix}.port`)
     if (!isValidPort(c.port)) {
@@ -511,14 +519,17 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
-    // Empty credentials are valid — happens after a restore clears encrypted fields
+    // Empty credentials are valid, happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
 
     // Both absent in backups written before API-key auth existed, so these are
-    // presence-guarded — but when present they are read as strings and must be.
+    // presence-guarded, but when present they are read as strings and must be.
     if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
     if (typeof c.encryptedApiKey !== "undefined") {
       assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
+    }
+    if (typeof c.encryptedUrlPath !== "undefined") {
+      assertString(c.encryptedUrlPath, `${prefix}.encryptedUrlPath`)
     }
   }
 
@@ -539,7 +550,7 @@ export async function encryptBackupPayload(
   payload: BackupPayload,
   password: string
 ): Promise<EncryptedBackupEnvelope> {
-  const encryptionSalt = generateSalt() // Generate random salt per backup
+  const encryptionSalt = generateSalt()
   const encryptionKey = await deriveKey(password, encryptionSalt)
   const jsonString = JSON.stringify(payload)
   const ciphertext = encrypt(jsonString, encryptionKey)
@@ -567,7 +578,7 @@ export function decryptBackupPayload(
     parsed = JSON.parse(jsonString)
   } catch {
     throw new Error(
-      "Failed to parse decrypted backup — data may be corrupted or the wrong key was used"
+      "Failed to parse decrypted backup. The data may be corrupted, or the wrong key was used"
     )
   }
   validateBackupJson(parsed)

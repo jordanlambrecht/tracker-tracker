@@ -213,7 +213,7 @@ describe("notification delivery circuit breaker", () => {
       "connect ECONNREFUSED 192.168.1.100:443",
       "Delivery failed"
     )
-    // Raw IP/port details must not leak through — sanitizeNetworkError maps ECONNREFUSED → "Connection refused"
+    // Raw IP/port details must not leak through, sanitizeNetworkError maps ECONNREFUSED → "Connection refused"
     expect(result.error).not.toBe("connect ECONNREFUSED 192.168.1.100:443")
     expect(result.error).toBe("Connection refused")
   })

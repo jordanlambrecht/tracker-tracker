@@ -8,7 +8,7 @@ import { AboutSection } from "@/components/settings/AboutSection"
 // Sponsor links
 //
 // Both destinations must be offered, both must open safely, and neither may
-// pull in a third-party script/iframe/remote image — this app has to work on an
+// pull in a third-party script/iframe/remote image, this app has to work on an
 // air-gapped LAN, and a remote badge would phone home on every settings visit.
 // ---------------------------------------------------------------------------
 

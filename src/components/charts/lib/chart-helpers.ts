@@ -21,7 +21,7 @@ import {
   formatChartTimestamp,
 } from "./theme"
 
-/** Locale-formatted number with fixed decimal places — used in chart tooltips and axis labels */
+/** Locale-formatted number with fixed decimal places, used in chart tooltips and axis labels */
 export function fmtNum(v: number, decimals = 2): string {
   return v.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
@@ -282,7 +282,7 @@ export function adaptiveDotSize(count: number, thresholds: [number, number] = [1
 
 /**
  * Standard time-axis xAxis config.
- * Uses ECharts cascading label formatter for automatic granularity —
+ * Uses ECharts cascading label formatter for automatic granularity.
  * ECharts picks month/day/hour format based on the visible data range.
  */
 export function buildTimeXAxis(overrides?: Record<string, unknown>): Record<string, unknown> {
@@ -313,7 +313,7 @@ export function insideZoom(dataPointCount: number, minPoints = 14): EChartsOptio
 }
 
 /**
- * Shared donut chart shell — common radius, border, emphasis, and label config.
+ * Shared donut chart shell with common radius, border, emphasis, and label config.
  * Consumers provide `data`, `label` overrides, and optional extras.
  */
 export function buildDonutShell(overrides?: {

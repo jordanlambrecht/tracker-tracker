@@ -16,7 +16,7 @@
 // snapshot taken while an account was in deficit stored a confident 0 instead of
 // the shortfall. This is a time-series app, and that is the worst possible
 // failure for one: a buffer chart floored at zero draws a FLAT LINE while the
-// account deteriorates — pixel-identical to holding steady at breakeven. The
+// account deteriorates, pixel-identical to holding steady at breakeven. The
 // operator watching that chart to see whether they are recovering was shown a
 // graph that could not render them getting worse.
 //
@@ -29,45 +29,45 @@
 //     buffer = 0  AND  downloaded > uploaded
 //
 // A zero buffer on an account that is level or in surplus is a genuine zero and
-// is never touched. A NULL buffer means "not measured" and is never touched —
+// is never touched. A NULL buffer means "not measured" and is never touched.
 // `= 0` excludes NULL by SQL semantics, which is the behaviour we want, not an
 // oversight. For a candidate row, `uploaded - downloaded` is the repair.
 //
 // How good that repair is depends on which adapter wrote the row, and the
-// difference is NOT cosmetic — it decides whether a platform is rewritten at
+// difference is NOT cosmetic, because it decides whether a platform is rewritten at
 // all. Every classification below was read off the adapter source and its git
 // history, not assumed:
 //
-//   EXACT — avistaz, btn, digitalcore, ggn, iptorrents, mam, nebulance,
+//   EXACT: avistaz, btn, digitalcore, ggn, iptorrents, mam, nebulance,
 //   torrentleech. These only ever produced buffer via computeBufferBytes, so
 //   buffer WAS defined as uploaded - downloaded. Removing the clamp reconstructs
 //   the original value exactly. There is nothing approximate about these rows.
 //
-//   ESTIMATE — gazelle. Gazelle has two paths and both clamped, so every
+//   ESTIMATE: gazelle. Gazelle has two paths and both clamped, so every
 //   candidate row really is clamp-fired; what is uncertain is which value the
 //   clamp ate. fetchStats derives the buffer (exact), but on registry-enriched
 //   sites fetchRaw OVERWRITES it with Gazelle's own reported buffer, which
 //   freeleech and bonus-point spending untie from uploaded - downloaded. The
 //   snapshot does not record which path produced it and enrichment can fail for
-//   individual polls, so the split cannot be recovered per row — the whole
+//   individual polls, so the split cannot be recovered per row. The whole
 //   platform is reported as an estimate and the operator is told why.
 //
-//   SKIPPED, NEVER CLAMPED — hawke. The adapter has hand-rolled signed
+//   SKIPPED, NEVER CLAMPED: hawke. The adapter has hand-rolled signed
 //   arithmetic since its first commit (aec545d) and never called either clamping
 //   helper. A Hawke row matching the predicate therefore did NOT come from a
 //   clamp: the tracker itself reported a buffer of exactly 0. Rewriting it would
 //   fabricate a deficit that Hawke never sent.
 //
-//   SKIPPED, AMBIGUOUS — unit3d. Before the fix, a UNIT3D deficit did not clamp,
+//   SKIPPED, AMBIGUOUS: unit3d. Before the fix, a UNIT3D deficit did not clamp,
 //   it THREW: buffer arrives as a formatted string and parseBytes rejects a
 //   leading minus, which failed the entire poll, so no row was written at all.
 //   A stored UNIT3D zero is therefore most plausibly a genuine "0 B" the tracker
-//   clamped at its own end — unrecoverable by any client — with only the rare
+//   clamped at its own end (unrecoverable by any client) with only the rare
 //   "unlimited buffer" build reaching computeBufferBytes. The two are
 //   indistinguishable in the snapshot, so these rows are counted and reported
 //   but never rewritten.
 //
-//   SKIPPED, UNKNOWN — any platform_type this script does not know. Reported by
+//   SKIPPED, UNKNOWN: any platform_type this script does not know. Reported by
 //   name so an adapter added after this script is not silently repaired under
 //   assumptions that were never checked for it.
 //
@@ -88,10 +88,10 @@
 //
 // No `-it`: unlike tt-recover this prompts for nothing, so it runs fine
 // non-interactively. `docker exec` does not run the entrypoint, so it also does
-// not inherit the DATABASE_URL the entrypoint builds — that is rebuilt from
+// not inherit the DATABASE_URL the entrypoint builds. That is rebuilt from
 // POSTGRES_* below, exactly as src/lib/db/index.ts does.
 //
-// Run it only on an image that already carries the signed-buffer fix — which is
+// Run it only on an image that already carries the signed-buffer fix, which is
 // the image this script ships in, so pulling it is sufficient. Backfilling
 // against the old code would repair history and then let the very next poll
 // write a fresh clamped zero on top of it.
@@ -107,7 +107,7 @@
 // /app/package.json carries no "type" field, so /app is CommonJS.
 //
 // Its ONE external require is postgres, which is bundled into the server chunks
-// and has no /app/node_modules entry of its own — the Dockerfile copies the
+// and has no /app/node_modules entry of its own, so the Dockerfile copies the
 // complete package in for the CLIs, and the comment there records why. It is at
 // module scope so `tt-backfill-buffer --help` fails loudly if that ever stops
 // resolving; the smoke step in .github/workflows/docker.yml asserts it on every
@@ -125,7 +125,7 @@
 
 "use strict"
 
-// Deliberately at module scope — see "WHY THIS FILE IS PLAIN COMMONJS" above.
+// Deliberately at module scope. See "WHY THIS FILE IS PLAIN COMMONJS" above.
 const postgres = require("postgres")
 
 // ─── pure core: platform classification ─────────────────────────────────────
@@ -144,7 +144,7 @@ const BUCKET_UNKNOWN = "unknown-platform"
 /**
  * Every platform this script knows, and what its buffer history is worth.
  *
- * Derived by reading each adapter in src/lib/adapters/ — see "WHAT IT REPAIRS"
+ * Derived by reading each adapter in src/lib/adapters/. See "WHAT IT REPAIRS"
  * above for the per-platform reasoning. An adapter added later lands in
  * BUCKET_UNKNOWN and is skipped, which is the safe default: the wrong entry here
  * either fabricates history or leaves it broken, and neither is detectable after
@@ -169,9 +169,9 @@ const SKIP_REASONS = {
   [BUCKET_NEVER_CLAMPED]:
     "this adapter has always stored buffer signed, so a 0 here is the tracker's own 0, not a clamp",
   [BUCKET_AMBIGUOUS]:
-    "a deficit used to fail the whole poll rather than clamp, so a stored 0 is most likely the tracker's own clamp — unrecoverable",
+    "a deficit used to fail the whole poll rather than clamp, so a stored 0 is most likely the tracker's own clamp, which is unrecoverable",
   [BUCKET_UNKNOWN]:
-    "unrecognised platform_type — this script has not reasoned about how its adapter wrote buffer",
+    "unrecognised platform_type, so this script has not reasoned about how its adapter wrote buffer",
 }
 
 function classifyPlatform(platformType) {
@@ -192,7 +192,7 @@ function isRepairable(bucket) {
  *
  * tracker_snapshots is the time series itself. tracker_daily_checkpoints is the
  * end-of-day rollup behind Today At A Glance, which computes yesterday's buffer
- * delta as (yesterday - dayBefore) — two clamped zeroes there report a deficit
+ * delta as (yesterday - dayBefore), and two clamped zeroes there report a deficit
  * that is deepening as a change of exactly nothing.
  *
  * src/lib/__tests__/backfill-buffer.test.ts asserts these names against the live
@@ -243,7 +243,7 @@ function toBigIntOrNull(value) {
  *
  * The three rejections are the whole safety story of this script:
  *
- *   buffer IS NULL      never measured — no clamp ran, nothing to repair
+ *   buffer IS NULL      never measured, no clamp ran, nothing to repair
  *   buffer !== 0        either already signed, or a real surplus
  *   downloaded <= up    a genuine zero: an account exactly at breakeven, or one
  *                       that has only ever been in surplus. The clamp cannot
@@ -273,8 +273,8 @@ function repairedBufferBytes(row) {
 /**
  * Normalise a polled_at timestamp or a checkpoint_date to YYYY-MM-DD.
  *
- * The two tables' date columns come back differently — timestamp as a Date,
- * date as a string — and the summary only ever shows a range, so both collapse
+ * The two tables' date columns come back differently (timestamp as a Date,
+ * date as a string) and the summary only ever shows a range, so both collapse
  * to a plain day string that also sorts lexicographically.
  */
 function toDateKey(value) {
@@ -294,7 +294,7 @@ const BYTE_UNITS = [
  * Render a signed byte count for the summary, e.g. "-2.39 TiB".
  *
  * Scales on the ABSOLUTE value and re-attaches the sign, so a deficit reads as a
- * large negative number rather than being flattened into the byte unit — the
+ * large negative number rather than being flattened into the byte unit, the
  * same shape src/lib/formatters.ts uses, for the same reason. Division stays in
  * bigint (Number() on a byte count past 2^53 is the precision loss this repo
  * bans); the two decimal places come from a 100x scale-up before the divide.
@@ -386,7 +386,7 @@ const EXIT_INCONSISTENT = 2
 const out = (s) => process.stdout.write(s)
 const err = (s) => process.stderr.write(s)
 
-const HELP = `tt-backfill-buffer — repair historical buffer values flattened to zero
+const HELP = `tt-backfill-buffer - repair historical buffer values flattened to zero
 
   Before the signed-buffer fix, an account in deficit recorded a buffer of
   exactly 0 instead of its shortfall, so the buffer chart drew a flat line while
@@ -394,8 +394,8 @@ const HELP = `tt-backfill-buffer — repair historical buffer values flattened t
 
       buffer = 0 AND downloaded > uploaded   ->   buffer = uploaded - downloaded
 
-  Rows whose zero is genuine — breakeven, or an account that has only ever been
-  in surplus — are never touched, and neither is a NULL (unmeasured) buffer.
+  Rows whose zero is genuine (breakeven, or an account that has only ever been
+  in surplus) are never touched, and neither is a NULL (unmeasured) buffer.
 
   Trackers whose adapter never clamped, or where a clamped zero cannot be told
   apart from one the tracker itself reported, are counted and named but NOT
@@ -484,10 +484,14 @@ function printPerTable(entry) {
  */
 function printTrackerLines(entries) {
   for (const entry of entries) {
-    out(`  - ${entry.trackerName} (${entry.platformType}, #${entry.trackerId}) — ${entry.total} row(s)\n`)
+    out(
+      `  - ${entry.trackerName} (${entry.platformType}, #${entry.trackerId}): ${entry.total} row(s)\n`
+    )
     printPerTable(entry)
     if (entry.deepest !== null) {
-      out(`      deepest repaired buffer: ${formatSignedBytes(entry.deepest)} (${entry.deepest} bytes)\n`)
+      out(
+        `      deepest repaired buffer: ${formatSignedBytes(entry.deepest)} (${entry.deepest} bytes)\n`
+      )
     }
   }
 }
@@ -530,7 +534,7 @@ async function main() {
 
     // 1. Find every clamp-fired row, in both tables.
     //
-    //    The predicate runs in SQL so only candidates cross the wire — this is a
+    //    The predicate runs in SQL so only candidates cross the wire, because this is a
     //    time series and selecting it whole would be gratuitous. Every returned
     //    row is then re-checked with isClampedRow(), the same pure function the
     //    tests cover, so the tested logic really is the logic that gates the
@@ -596,12 +600,14 @@ async function main() {
     const estimate = summary.filter((e) => e.bucket === BUCKET_ESTIMATE)
     const skipped = summary.filter((e) => !isRepairable(e.bucket))
 
-    out(`Found ${candidates.length} row(s) where the clamp fired, across ${summary.length} tracker(s).\n`)
+    out(
+      `Found ${candidates.length} row(s) where the clamp fired, across ${summary.length} tracker(s).\n`
+    )
     out("Only rows with buffer = 0 AND downloaded > uploaded are considered; a genuine\n")
     out("zero (breakeven or surplus) and a NULL (unmeasured) buffer are never candidates.\n\n")
 
     if (exact.length > 0) {
-      out(`── EXACT — ${totalRows(exact)} row(s) on ${exact.length} tracker(s) ──\n`)
+      out(`── EXACT: ${totalRows(exact)} row(s) on ${exact.length} tracker(s) ──\n`)
       out("These adapters computed buffer as uploaded - downloaded and nothing else, so\n")
       out("removing the clamp reconstructs the original value exactly.\n")
       printTrackerLines(exact)
@@ -609,22 +615,26 @@ async function main() {
     }
 
     if (estimate.length > 0) {
-      out(`── ESTIMATE — ${totalRows(estimate)} row(s) on ${estimate.length} tracker(s) ──\n`)
+      out(`── ESTIMATE: ${totalRows(estimate)} row(s) on ${estimate.length} tracker(s) ──\n`)
       out("Platform(s): ")
       out(`${[...new Set(estimate.map((e) => e.platformType))].sort().join(", ")}\n`)
       out("These trackers can report their OWN buffer, which freeleech and bonus-point\n")
       out("spending untie from uploaded - downloaded. The clamp destroyed the reported\n")
       out("value and the snapshot does not record which path wrote the row, so\n")
-      out("uploaded - downloaded is the best available estimate — right for the derived\n")
+      out("uploaded - downloaded is the best available estimate, right for the derived\n")
       out("polls, approximate for the enriched ones, and NOT the original number.\n")
       printTrackerLines(estimate)
       out("\n")
     }
 
     if (skipped.length > 0) {
-      out(`── SKIPPED — ${totalRows(skipped)} row(s) on ${skipped.length} tracker(s), NOT rewritten ──\n`)
+      out(
+        `── SKIPPED: ${totalRows(skipped)} row(s) on ${skipped.length} tracker(s), NOT rewritten ──\n`
+      )
       for (const entry of skipped) {
-        out(`  - ${entry.trackerName} (${entry.platformType}, #${entry.trackerId}) — ${entry.total} row(s)\n`)
+        out(
+          `  - ${entry.trackerName} (${entry.platformType}, #${entry.trackerId}): ${entry.total} row(s)\n`
+        )
         out(`      ${SKIP_REASONS[entry.bucket]}\n`)
         // No "deepest" line here on purpose: for a skipped tracker that number
         // is a value this script has just decided NOT to write, and printing it
@@ -632,7 +642,7 @@ async function main() {
         printPerTable(entry)
       }
       out("\n  These zeroes are left exactly as they are. For them the true historical\n")
-      out("  value is gone and no arithmetic here can bring it back — inventing one\n")
+      out("  value is gone and no arithmetic here can bring it back, and inventing one\n")
       out("  would put a deficit in the chart that the tracker never reported.\n\n")
     }
 
@@ -642,7 +652,7 @@ async function main() {
 
     if (eligibleIds.length === 0) {
       out(
-        "Nothing is eligible for repair — every affected tracker is in the skipped\n" +
+        "Nothing is eligible for repair. Every affected tracker is in the skipped\n" +
           "group above. Nothing was changed.\n\n"
       )
       return EXIT_OK
@@ -653,7 +663,7 @@ async function main() {
 
     if (!args.apply) {
       out(
-        "\nDRY RUN — nothing was written.\n\n" +
+        "\nDRY RUN. Nothing was written.\n\n" +
           "  Take a dump first if you have not:\n" +
           "    docker exec tracker-tracker-db sh -c 'pg_dump -U \"$POSTGRES_USER\" tracker_tracker' > backup.sql\n\n" +
           "  Then commit:\n" +
@@ -664,7 +674,7 @@ async function main() {
 
     // 3. One transaction across both tables. The UPDATE restates the predicate
     //    rather than listing row ids, so the plan above and the write cannot
-    //    drift apart between the SELECT and the UPDATE — and with the clamp gone
+    //    drift apart between the SELECT and the UPDATE, and with the clamp gone
     //    from the code, nothing can produce a new matching row in between.
     let applied = 0
     await sql.begin(async (tx) => {
@@ -680,13 +690,13 @@ async function main() {
       }
     })
 
-    out(`\n[ok] COMMITTED — ${applied} row(s) updated.\n`)
+    out(`\n[ok] COMMITTED: ${applied} row(s) updated.\n`)
 
     if (applied !== plannedRows) {
       out(
         `\n[!!] The plan expected ${plannedRows} row(s) and ${applied} were written.\n` +
           "     The transaction committed and every written row satisfied the same\n" +
-          "     predicate, so nothing is corrupt — but the counts should match. Re-run\n" +
+          "     predicate, so nothing is corrupt, but the counts should match. Re-run\n" +
           "     the dry run to confirm nothing is left, and check whether a poll landed\n" +
           "     while this was running.\n"
       )
@@ -694,7 +704,7 @@ async function main() {
 
     out(
       "\n  Buffer history now shows deficits as the negative numbers they were.\n" +
-        "  Charts read from the same rows, so a reload is enough — no restart needed.\n"
+        "  Charts read from the same rows, so a reload is enough, with no restart needed.\n"
     )
     if (estimate.length > 0) {
       out(

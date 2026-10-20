@@ -3,6 +3,7 @@
 
 import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
+import { formatOrdinal } from "@/lib/formatters"
 import type { GazelleRanks } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -65,7 +66,7 @@ function PercentileRadarChart({ ranks, accentColor }: PercentileRadarChartProps)
         borderColor: accentColor,
         formatter: (params: { value: number[] }) => {
           return AXIS_LABELS.map(({ label }, i) =>
-            chartTooltipRow(accentColor, label, `${params.value[i]}th`)
+            chartTooltipRow(accentColor, label, formatOrdinal(params.value[i]))
           ).join("<br/>")
         },
       }),

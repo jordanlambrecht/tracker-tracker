@@ -249,7 +249,7 @@ describe("validateTrackerCredentialVault — ids", () => {
       { id: "api", title: "API", fields: [field({ id: "api_key" }), field({ id: "api_key" })] },
     ])
     expect(validateTrackerCredentialVault(v)).toMatch(
-      /Duplicate field id "api_key" — field ids must be unique across the whole vault/
+      /Duplicate field id "api_key"\. Field ids must be unique across the whole vault/
     )
   })
 

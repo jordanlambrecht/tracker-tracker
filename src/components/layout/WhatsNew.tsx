@@ -88,7 +88,7 @@ export function WhatsNew() {
  * localStorage was cleared or first install), only show the latest release
  * to avoid dumping the entire history.
  */
-function parseMissedReleases(content: string, lastSeen: string | null): string[] {
+export function parseMissedReleases(content: string, lastSeen: string | null): string[] {
   const lines = content.split("\n")
   const items: string[] = []
   let collecting = false
@@ -106,11 +106,13 @@ function parseMissedReleases(content: string, lastSeen: string | null): string[]
     }
     if (!collecting) continue
 
-    const match = line.match(/^\*\s+(?:\*\*[^*]+\*\*\s*)?(.+)/)
+    const match = line.match(/^[*-]\s+(?:\*\*[^*]+\*\*\s*)?(.+)/)
     if (match) {
       items.push(match[1].replace(/\*\*/g, "").replace(/`/g, "").trim())
     }
   }
 
-  return items
+  // A breaking change appears twice in its release, under BREAKING CHANGES and
+  // under its own type, and the dialog keys each item by its text.
+  return [...new Set(items)]
 }

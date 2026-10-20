@@ -147,7 +147,7 @@ function OutageBandsProvider({ children, trackerId }: OutageBandsProviderProps) 
  * Because the two are mutually exclusive, tracker and qBT bands can never
  * co-render, which is why "tracker vs qBT precedence" needs no answer: bands
  * follow the chart's DATA SOURCE and each explains only the source it belongs
- * to. App bands need no tiebreak either — they are subtracted out of both
+ * to. App bands need no tiebreak either, because they are subtracted out of both
  * upstream in computeOutageBands, so an app outage always wins by REMOVING the
  * narrower claim rather than by painting over it.
  *
@@ -155,7 +155,7 @@ function OutageBandsProvider({ children, trackerId }: OutageBandsProviderProps) 
  * kind, so, to be explicit: those are DIFFERENT AXES that happen to share a
  * word. The left side is where this chart's numbers come from; the right side is
  * what went down. The line asserts "a tracker-sourced chart may show
- * tracker-outage bands" — a claim, not a tautology.
+ * tracker-outage bands", a claim rather than a tautology.
  */
 function useOutageBands(source: ChartDataSource): ChartOutageBands {
   const value = useContext(OutageBandsContext)

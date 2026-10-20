@@ -16,7 +16,7 @@ describe("getImageHostAdapter", () => {
   })
 
   it("throws for unknown host", () => {
-    // @ts-expect-error — testing runtime guard
+    // @ts-expect-error, testing runtime guard
     expect(() => getImageHostAdapter("unknown")).toThrow("Unknown image host")
   })
 })

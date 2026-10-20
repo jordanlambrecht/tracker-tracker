@@ -1,10 +1,19 @@
 version: 2
 updates:
+  # One pull request for all minor and patch bumps. Separate ones conflict on the
+  # lockfile once the first merges, and five open ones block every new version update.
   - package-ecosystem: "npm"
     directory: "/"
     target-branch: "development"
     schedule:
       interval: "daily"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -17,3 +26,10 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

@@ -28,9 +28,8 @@ describe("toVaultView", () => {
   })
 
   it("treats `secret` ABSENT as secret — the fail-closed default", () => {
-    // This is the whole reason isFieldSecret() exists. `Boolean(field.secret)`
-    // on an absent flag is false, which would render a NickServ password in
-    // cleartext; the accessor inverts that to fail closed.
+    // `Boolean(field.secret)` is false on an absent flag and would render a
+    // NickServ password in cleartext. isFieldSecret() reads absent as secret.
     const view = toVaultView(vault([{ id: "k", label: "Key", value: "s3cret" }]))
     const field = view.sections[0].fields[0]
     expect(field.secret).toBe(true)
@@ -39,12 +38,12 @@ describe("toVaultView", () => {
   })
 
   it("keeps the value only when `secret` is literally false", () => {
-    const view = toVaultView(vault([{ id: "n", label: "Nick", value: "jordy", secret: false }]))
+    const view = toVaultView(vault([{ id: "n", label: "Nick", value: "tealotter", secret: false }]))
     expect(view.sections[0].fields[0]).toEqual({
       id: "n",
       label: "Nick",
       secret: false,
-      value: "jordy",
+      value: "tealotter",
     })
   })
 
@@ -61,8 +60,8 @@ describe("toVaultView", () => {
   })
 
   it("does not echo unknown extra keys to the client", () => {
-    // Unknown additive keys round-trip through STORAGE untouched — that is the
-    // no-migration contract — but they have no business on the wire, and a
+    // Unknown additive keys round-trip through storage untouched, that is the
+    // no-migration contract, but they have no business on the wire, and a
     // future key holding something sensitive must not leak by default.
     const withExtras = {
       v: 1,

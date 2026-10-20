@@ -3,28 +3,22 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { CHART_THEME } from "@/components/charts/lib/theme"
-import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/lib/adapters"
+import { getTrackerBySlug } from "@/data/tracker-registry"
 import {
   authenticate,
   decodeKey,
   parseJsonBody,
   validateHexColor,
-  validateHttpUrl,
   validateJoinedAt,
   validateMaxLength,
+  validateMouseholeToken,
+  validateMouseholeUrl,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
-import {
-  LONG_STRING_MAX,
-  maxTokenLengthFor,
-  TRACKER_NAME_MAX,
-  TRACKER_TAG_MAX,
-  TRACKER_URL_MAX,
-} from "@/lib/limits"
+import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerListForDashboard } from "@/lib/server-data"
 
@@ -48,48 +42,48 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, baseUrl, apiToken, platformType, color, qbtTag, mouseholeUrl, joinedAt } = body as {
-    name?: string
-    baseUrl?: string
-    apiToken?: string
-    platformType?: string
-    color?: string
-    qbtTag?: string
-    mouseholeUrl?: string
-    joinedAt?: string
-  }
+  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } =
+    body as {
+      name?: string
+      slug?: string
+      apiToken?: string
+      color?: string
+      qbtTag?: string
+      mouseholeUrl?: string
+      mouseholeToken?: string
+      joinedAt?: string
+    }
 
   if (
     typeof name !== "string" ||
-    typeof baseUrl !== "string" ||
+    typeof slug !== "string" ||
     typeof apiToken !== "string" ||
     !name.trim() ||
-    !baseUrl.trim() ||
+    !slug.trim() ||
     !apiToken.trim()
   ) {
     return NextResponse.json(
-      { error: "name, baseUrl, and apiToken are required strings" },
+      { error: "name, slug, and apiToken are required strings" },
       { status: 400 }
     )
   }
 
+  // Address, platform and API path are registry data keyed by the slug, so a
+  // body cannot point a new row at a site its slug does not own.
+  const entry = getTrackerBySlug(slug.trim())
+  if (!entry) {
+    return NextResponse.json({ error: "Unknown tracker" }, { status: 400 })
+  }
+
   const trimmedName = name.trim()
-  const trimmedBaseUrl = baseUrl.trim()
   const trimmedApiToken = apiToken.trim()
-  const platform = typeof platformType === "string" ? platformType : "unit3d"
 
   const nameErr = validateMaxLength(trimmedName, TRACKER_NAME_MAX, "Name")
   if (nameErr) return nameErr
 
-  const urlLenErr = validateMaxLength(trimmedBaseUrl, TRACKER_URL_MAX, "URL")
-  if (urlLenErr) return urlLenErr
-
-  const maxTokenLength = maxTokenLengthFor(platform)
+  const maxTokenLength = maxTokenLengthFor(entry.platform)
   const tokenErr = validateMaxLength(trimmedApiToken, maxTokenLength, "API token")
   if (tokenErr) return tokenErr
-
-  const urlErr = validateHttpUrl(trimmedBaseUrl)
-  if (urlErr) return urlErr
 
   if (typeof color === "string") {
     const colorErr = validateHexColor(color)
@@ -101,20 +95,29 @@ export async function POST(request: Request) {
     if (qbtTagErr) return qbtTagErr
   }
 
-  if (typeof mouseholeUrl === "string" && mouseholeUrl.trim()) {
-    const mouseholeUrlErr = validateMaxLength(mouseholeUrl.trim(), LONG_STRING_MAX, "Mousehole URL")
+  const trimmedMouseholeUrl = typeof mouseholeUrl === "string" ? mouseholeUrl.trim() : ""
+  if (trimmedMouseholeUrl) {
+    const mouseholeUrlErr = validateMaxLength(trimmedMouseholeUrl, LONG_STRING_MAX, "Mousehole URL")
     if (mouseholeUrlErr) return mouseholeUrlErr
-    const mouseUrlErr = validateHttpUrl(mouseholeUrl.trim(), "Mousehole URL")
+    const mouseUrlErr = validateMouseholeUrl(trimmedMouseholeUrl)
     if (mouseUrlErr) return mouseUrlErr
+  }
+
+  const trimmedMouseholeToken = typeof mouseholeToken === "string" ? mouseholeToken.trim() : ""
+  if (trimmedMouseholeToken) {
+    const mouseholeTokenErr = validateMouseholeToken(trimmedMouseholeToken)
+    if (mouseholeTokenErr) return mouseholeTokenErr
+    if (!trimmedMouseholeUrl) {
+      return NextResponse.json(
+        { error: "Mousehole API token needs a Mousehole URL" },
+        { status: 400 }
+      )
+    }
   }
 
   if (typeof joinedAt === "string" && joinedAt) {
     const joinedAtErr = validateJoinedAt(joinedAt)
     if (joinedAtErr) return joinedAtErr
-  }
-
-  if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
-    return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
   }
 
   try {
@@ -125,14 +128,15 @@ export async function POST(request: Request) {
       .insert(trackers)
       .values({
         name: trimmedName,
-        baseUrl: trimmedBaseUrl,
-        apiPath: DEFAULT_API_PATHS[platform] ?? "/api/user",
+        registrySlug: entry.slug,
+        baseUrl: entry.url,
+        apiPath: entry.apiPath,
         encryptedApiToken,
-        platformType: platform,
-        color: (color as string) || CHART_THEME.accent,
+        platformType: entry.platform,
+        color: color || entry.color,
         qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
-        mouseholeUrl:
-          typeof mouseholeUrl === "string" && mouseholeUrl.trim() ? mouseholeUrl.trim() : null,
+        mouseholeUrl: trimmedMouseholeUrl || null,
+        encryptedMouseholeToken: trimmedMouseholeToken ? encrypt(trimmedMouseholeToken, key) : null,
         joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
       })
       .returning()

@@ -2,7 +2,7 @@
 //
 // Issues #154 and #172: an account with uploads and zero downloads has a
 // mathematically infinite ratio. JSON cannot carry Infinity, so `ratio` arrives
-// as null and every point was filtered out — the Ratio chart rendered a bare
+// as null and every point was filtered out, the Ratio chart rendered a bare
 // grid that looked exactly like having no data at all, for precisely the
 // accounts those issues were filed about.
 //
@@ -12,8 +12,12 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
+const optionSpy = vi.fn()
 vi.mock("@/components/charts/lib/ChartECharts", () => ({
-  ChartECharts: () => <div data-testid="chart" />,
+  ChartECharts: (props: { option: unknown }) => {
+    optionSpy(props.option)
+    return <div data-testid="chart" />
+  },
 }))
 
 import { MetricChart } from "@/components/charts/MetricChart"
@@ -78,5 +82,30 @@ describe("MetricChart — ratio", () => {
 
     expect(screen.getByTestId("chart")).toBeInTheDocument()
     expect(screen.queryByText(/Ratio is infinite/i)).not.toBeInTheDocument()
+  })
+})
+
+describe("MetricChart seedbonus naming", () => {
+  const points = [
+    snap({ polledAt: "2026-08-01T00:00:00.000Z", seedbonus: 100 }),
+    snap({ polledAt: "2026-08-02T00:00:00.000Z", seedbonus: 150 }),
+  ]
+  const lastOption = () =>
+    optionSpy.mock.calls.at(-1)?.[0] as { series: Array<{ name: string }>; yAxis: { name: string } }
+
+  it("names the series and axis with the tracker's own bonus name", () => {
+    optionSpy.mockClear()
+    render(<MetricChart metric="seedbonus" snapshots={points} bonusName="TL Points" />)
+
+    expect(lastOption().series[0].name).toBe("TL Points")
+    expect(lastOption().yAxis.name).toBe("TL Points")
+  })
+
+  it("keeps Seedbonus in BON without one", () => {
+    optionSpy.mockClear()
+    render(<MetricChart metric="seedbonus" snapshots={points} />)
+
+    expect(lastOption().series[0].name).toBe("Seedbonus")
+    expect(lastOption().yAxis.name).toBe("BON")
   })
 })

@@ -122,13 +122,12 @@ function sanitizeLogDetail(line: PinoLine): string | null {
     parts.push(entityName)
   }
 
-  // Include action if present (e.g., "paused", "resumed")
+  // Include action if present ("paused", "resumed")
   if (line.action) parts.push(String(line.action))
 
-  // Include route context
   if (line.route) parts.push(String(line.route))
 
-  // Include IP field — always redacted immediately
+  // Include IP field, always redacted immediately
   if (line.ip && typeof line.ip === "string") {
     parts.push(`ip=[redacted]`)
   }
@@ -138,8 +137,7 @@ function sanitizeLogDetail(line: PinoLine): string | null {
     parts.push(sanitizeNetworkError(line.msg, redactIps(line.msg)))
   }
 
-  // Redact any IP that leaked through from other fields
-  const raw = parts.length > 0 ? parts.join(" — ") : null
+  const raw = parts.length > 0 ? parts.join(" · ") : null
   return raw ? redactIps(raw) : null
 }
 
@@ -212,7 +210,7 @@ export function snapshotToEvent(row: SnapshotRow): SystemEvent {
     title: "Poll succeeded",
     detail: [row.trackerName, `↑ ${upGib} GiB`, `↓ ${downGib} GiB`, ratioStr]
       .filter(Boolean)
-      .join(" — "),
+      .join(" · "),
     trackerId: row.trackerId,
     trackerName: row.trackerName ?? null,
     source: "db",
@@ -239,7 +237,7 @@ export function backupToEvent(row: BackupRow): SystemEvent {
     title: `Backup ${row.status}`,
     detail: [row.frequency, row.encrypted ? "encrypted" : null, formatBytesNum(row.sizeBytes)]
       .filter(Boolean)
-      .join(" — "),
+      .join(" · "),
     trackerId: null,
     trackerName: null,
     source: "db",
@@ -257,15 +255,12 @@ export function mergeAndSort(
 ): SystemEvent[] {
   let combined = [...dbEvents, ...logEvents]
 
-  // Filter by category
   if (category !== "all") {
     combined = combined.filter((e) => e.category === category)
   }
 
-  // Sort reverse chronological
   combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-  // Paginate
   return combined.slice(offset, offset + limit)
 }
 

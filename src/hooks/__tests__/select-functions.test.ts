@@ -6,8 +6,7 @@
 //   selectActiveTrackers  (useDashboardData.ts)
 //   selectClientsForAlerts (useDashboardData.ts)
 //
-// These selectors are passed to TanStack Query's `select` option. They must be
-// pure: same input always produces the same output, no side effects.
+// These selectors are passed to TanStack Query's `select` option. They must be pure.
 
 import { describe, expect, it } from "vitest"
 import { selectClientIdName } from "@/components/dashboard/FleetDashboard"
@@ -30,6 +29,7 @@ function makeClient(overrides: Partial<SafeDownloadClient> = {}): SafeDownloadCl
     useSsl: false,
     authMethod: "password",
     hasCredentials: true,
+    hasUrlPath: false,
     pollIntervalSeconds: 300,
     isDefault: false,
     crossSeedTags: [],
@@ -47,6 +47,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     id: 1,
     name: "Tracker A",
     baseUrl: "https://example.com",
+    registrySlug: null,
     platformType: "unit3d",
     isActive: true,
     lastPolledAt: null,
@@ -58,6 +59,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     color: "#00d4ff",
     qbtTag: null,
     mouseholeUrl: null,
+    hasMouseholeToken: false,
     hideUnreadBadges: false,
     useProxy: false,
     countCrossSeedUnsatisfied: false,

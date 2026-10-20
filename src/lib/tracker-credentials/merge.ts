@@ -94,7 +94,7 @@ function isSectionInput(value: unknown): value is TrackerCredentialSectionInput 
  * Same tolerance/strictness split as the stored guard: unknown extra keys are
  * ALLOWED through (additive optional keys must survive a round trip), `v` is
  * PINNED (an unknown version is a shape this code has never seen). Slug rules,
- * lengths and id uniqueness are NOT checked here — they run in validate.ts on
+ * lengths and id uniqueness are NOT checked here, they run in validate.ts on
  * the merged result, so they are enforced against the bytes actually stored.
  */
 export function isTrackerCredentialVaultInput(

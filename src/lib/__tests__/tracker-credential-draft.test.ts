@@ -3,8 +3,8 @@
 // The sheet's editing rules, tested without rendering anything.
 //
 // The rule worth the most here is the three-way distinction a draft field can be
-// in — HELD (`value: "abc"`), HELD-AND-EMPTY (`value: ""`), and NOT HELD
-// (`value: null`) — and that only the last one serializes to an omitted `value`.
+// in, HELD (`value: "abc"`), HELD-AND-EMPTY (`value: ""`), and NOT HELD
+// (`value: null`), and that only the last one serializes to an omitted `value`.
 // Collapse any two of those and either secrets get wiped on every edit or the
 // Clear button stops working.
 
@@ -19,7 +19,10 @@ import {
   newDraftSection,
   slugifyCredentialId,
 } from "@/lib/tracker-credentials/draft"
-import { isCredentialSlug, validateTrackerCredentialVault } from "@/lib/tracker-credentials/validate"
+import {
+  isCredentialSlug,
+  validateTrackerCredentialVault,
+} from "@/lib/tracker-credentials/validate"
 import type { TrackerCredentialVaultView } from "@/lib/tracker-credentials/view"
 
 const VIEW: TrackerCredentialVaultView = {
@@ -29,7 +32,7 @@ const VIEW: TrackerCredentialVaultView = {
       id: "irc",
       title: "IRC",
       fields: [
-        { id: "irc_nick", label: "Nick", secret: false, value: "jordy" },
+        { id: "irc_nick", label: "Nick", secret: false, value: "tealotter" },
         { id: "irc_nickserv", label: "NickServ password", secret: true, hasValue: true },
         { id: "unset", label: "Unset", secret: true, hasValue: false },
       ],
@@ -82,7 +85,7 @@ describe("draftFromView", () => {
 
   it("holds the value of a field marked public", () => {
     const draft = draftFromView(VIEW, DEFAULTS)
-    expect(draft.sections[0].fields[0]).toMatchObject({ value: "jordy", shown: true })
+    expect(draft.sections[0].fields[0]).toMatchObject({ value: "tealotter", shown: true })
   })
 
   it("distinguishes a stored-but-empty secret from a stored one", () => {
@@ -102,11 +105,7 @@ describe("draftFromView", () => {
     // The documented policy. A later change to the registry must not resurrect a
     // field the user deleted, nor overwrite a label they renamed.
     const draft = draftFromView(VIEW, DEFAULTS)
-    expect(draft.sections[0].fields.map((f) => f.id)).toEqual([
-      "irc_nick",
-      "irc_nickserv",
-      "unset",
-    ])
+    expect(draft.sections[0].fields.map((f) => f.id)).toEqual(["irc_nick", "irc_nickserv", "unset"])
     expect(draft.sections.flatMap((s) => s.fields).some((f) => f.id === "api_key")).toBe(false)
   })
 
@@ -209,7 +208,7 @@ describe("draftToValidationVault", () => {
   })
 
   it("substitutes empty for values the client does not hold", () => {
-    // Which makes the SIZE limits an under-estimate here. That is deliberate and
+    // Which makes the size limits an under-estimate here. That is deliberate and
     // documented: the server re-validates the merged vault, and that check is
     // the authoritative one.
     const draft = draftFromView(VIEW, DEFAULTS)

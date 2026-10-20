@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   // Run Argon2 + scrypt in parallel. Both depend only on password + settings, not each other.
   // Argon2 always runs to normalize timing (prevents username oracle).
-  // scrypt runs even on failure — improves timing normalization and is acceptable
+  // scrypt runs even on failure, which improves timing normalization and is acceptable
   // for a single-user app with rate limiting.
   let passwordOk: boolean
   let key: Buffer
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   const keyHex = key.toString("hex")
 
   // If TOTP is enrolled, return a pending token instead of a full session.
-  // Don't reset the counter yet — TOTP verification is still pending.
+  // Don't reset the counter yet, because TOTP verification is still pending.
   if (settings.totpSecret) {
     log.info({ event: "login_totp_pending", ip: clientIp }, "Password verified, awaiting TOTP")
     try {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // No TOTP — login fully successful, reset failed attempts
+  // No TOTP, so login is fully successful; reset failed attempts
   await resetFailedAttempts(settings.id)
   try {
     await createSession(keyHex, settings.sessionTimeoutMinutes)
