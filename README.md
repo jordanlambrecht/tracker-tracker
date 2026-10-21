@@ -52,7 +52,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | Seedpool              | UNIT3D    | ✅ Verified            |                                                   |
 | Upload.cx             | UNIT3D    | ✅ Verified            |                                                   |
 | Yu-Scene              | UNIT3D    | ✅ Verified            |                                                   |
-| Zenith                | UNIT3D    | 🟡 Unverified          |                                                   |
+| Zenith                | UNIT3D    | ✅ Verified            |                                                   |
 | IPTorrents            | IPTorrents| 🟡 Unverified          | Session-cookie scraper, no public API              |
 | TorrentLeech          | TorrentLeech | 🟡 Unverified       | Username/password login, no public API             |
 | Portugas              | UNIT3D    | 📋 Draft               | API endpoint unavailable on this custom build     |
