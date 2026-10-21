@@ -9,7 +9,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import { RankProgress } from "@/components/dashboard/RankProgress"
-import type { TrackerUserClass } from "@/data/tracker-registry"
+import type { TrackerRankPath, TrackerUserClass } from "@/data/tracker-registry"
 import type { Snapshot } from "@/types/api"
 
 const classes: TrackerUserClass[] = [
@@ -129,6 +129,35 @@ function renderChange(from: string, to: string) {
   )
 }
 
+const zenithClasses: TrackerUserClass[] = [
+  { name: "User" },
+  { name: "Explorer" },
+  { name: "Bulker", path: "upload" },
+  { name: "Force", path: "upload" },
+  { name: "Climber", path: "seedsize" },
+  { name: "Builder", path: "seedsize" },
+]
+
+const zenithPaths: TrackerRankPath[] = [
+  { id: "upload", label: "Upload path" },
+  { id: "seedsize", label: "Seedsize path" },
+]
+
+function renderPathChange(from: string, to: string) {
+  return render(
+    <RankProgress
+      userClasses={zenithClasses}
+      rankPaths={zenithPaths}
+      currentRank={null}
+      snapshots={[
+        { ...baseSnapshot, group: from },
+        { ...baseSnapshot, polledAt: "2026-08-14T12:00:00.000Z", group: to },
+      ]}
+      accentColor="#00d4ff"
+    />
+  )
+}
+
 describe("RankProgress timeline direction", () => {
   it("reads a drop from the top rung into a below state as a demotion", () => {
     renderChange("Archivist", "Parked")
@@ -161,5 +190,29 @@ describe("RankProgress timeline direction", () => {
     expect(screen.getByText("Member")).toBeInTheDocument()
     expect(screen.queryByText("▲")).not.toBeInTheDocument()
     expect(screen.queryByText("▼")).not.toBeInTheDocument()
+  })
+
+  it("reads a move from the shared prefix into a branch as a promotion", () => {
+    renderPathChange("Explorer", "Bulker")
+    expect(screen.getByText("▲")).toBeInTheDocument()
+    expect(screen.queryByText("▼")).not.toBeInTheDocument()
+  })
+
+  it("reads a drop inside a branch as a demotion", () => {
+    renderPathChange("Force", "Bulker")
+    expect(screen.getByText("▼")).toBeInTheDocument()
+    expect(screen.queryByText("▲")).not.toBeInTheDocument()
+  })
+
+  it("reads a move between branches as neither promotion nor demotion", () => {
+    renderPathChange("Bulker", "Climber")
+    expect(screen.queryByText("▲")).not.toBeInTheDocument()
+    expect(screen.queryByText("▼")).not.toBeInTheDocument()
+  })
+
+  it("reads a move from a branch back to the shared prefix as a demotion", () => {
+    renderPathChange("Bulker", "Explorer")
+    expect(screen.getByText("▼")).toBeInTheDocument()
+    expect(screen.queryByText("▲")).not.toBeInTheDocument()
   })
 })

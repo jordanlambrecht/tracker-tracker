@@ -83,11 +83,61 @@ function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
   return changes
 }
 
-function classifyDirection(
+type RankLocation =
+  { kind: "shared"; index: number } | { kind: "path"; pathId: string; index: number }
+
+function locateRank(name: string, userClasses: TrackerUserClass[]): RankLocation | null {
+  const match = userClasses.find(
+    (userClass) => !userClass.outsideLadder && userClass.name.toLowerCase() === name.toLowerCase()
+  )
+  if (!match) return null
+
+  const siblings = match.path
+    ? userClasses.filter((userClass) => !userClass.outsideLadder && userClass.path === match.path)
+    : userClasses.filter((userClass) => !userClass.outsideLadder && !userClass.path)
+  const index = siblings.findIndex(
+    (userClass) => userClass.name.toLowerCase() === name.toLowerCase()
+  )
+  if (index < 0) return null
+
+  return match.path ? { kind: "path", pathId: match.path, index } : { kind: "shared", index }
+}
+
+/**
+ * Shared classes come before every branch, so crossing the fork is a step in
+ * either direction. A move between two different branches is neither: there is
+ * no shared ordering between them.
+ */
+function classifyForestDirection(
   from: string,
   to: string,
   userClasses: TrackerUserClass[]
 ): "promotion" | "demotion" | "unknown" {
+  const first = locateRank(from, userClasses)
+  const second = locateRank(to, userClasses)
+  if (!first || !second) return "unknown"
+
+  if (first.kind === "shared" && second.kind === "shared") {
+    if (first.index === second.index) return "unknown"
+    return second.index > first.index ? "promotion" : "demotion"
+  }
+  if (first.kind === "path" && second.kind === "path") {
+    if (first.pathId !== second.pathId || first.index === second.index) return "unknown"
+    return second.index > first.index ? "promotion" : "demotion"
+  }
+  return first.kind === "shared" ? "promotion" : "demotion"
+}
+
+function classifyDirection(
+  from: string,
+  to: string,
+  userClasses: TrackerUserClass[],
+  rankPaths?: TrackerRankPath[]
+): "promotion" | "demotion" | "unknown" {
+  if (rankPaths && rankPaths.length > 0) {
+    return classifyForestDirection(from, to, userClasses)
+  }
+
   // An above class is granted or bought rather than earned, so a move into or
   // out of one is neither a promotion nor a demotion.
   const isAbove = (name: string) =>
@@ -459,7 +509,7 @@ function RankProgress({
     from: change.from,
     to: change.to,
     date: change.date,
-    direction: classifyDirection(change.from, change.to, userClasses),
+    direction: classifyDirection(change.from, change.to, userClasses, rankPaths),
   }))
 
   const milestone = checkAnniversaryMilestone(joinedAt)
