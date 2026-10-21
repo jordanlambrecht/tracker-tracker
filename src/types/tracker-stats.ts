@@ -273,6 +273,38 @@ export interface AnimeBytesPlatformMeta {
   freeleechUntil?: number
 }
 
+/**
+ * V3X reports the ratio floor and the H&R limit in the same payload.
+ */
+export interface V3xPlatformMeta {
+  /** Hard ratio floor; downloads block below it. */
+  ratioFloor?: number
+  /** Ratio the site starts warning at. */
+  ratioWarnAt?: number
+  /** Site's own health label for the current ratio ("ok", ...). */
+  ratioLevel?: string
+  /** Active H&R limit before sanctions. */
+  hnrMax?: number
+  /** Total seed time in seconds. */
+  seedTimeSeconds?: number
+  /** Real downloaded bytes, before credits. */
+  downloadedReal?: number
+  /** Gamification level. */
+  level?: number
+  /** Total XP. */
+  xp?: number
+  /** Prestige stars after a level-100 reset. */
+  prestige?: number
+  /** XP earned inside the current level. */
+  xpInto?: number
+  /** XP the current level needs in total. */
+  xpNeed?: number
+  /** Consecutive daily logins. */
+  loginStreak?: number
+  /** Consecutive days with a seed. */
+  seedStreak?: number
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -287,6 +319,7 @@ export type PlatformMeta =
   | RetrotoonPlatformMeta
   | C411PlatformMeta
   | AnimeBytesPlatformMeta
+  | V3xPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -302,6 +335,7 @@ export interface PlatformMetaMap {
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
   animebytes: AnimeBytesPlatformMeta
+  v3x: V3xPlatformMeta
 }
 
 /**
