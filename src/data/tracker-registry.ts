@@ -26,6 +26,13 @@ export interface RankPerk {
   label: string
 }
 
+/** One branch of a rank ladder that splits after a shared prefix. */
+export interface TrackerRankPath {
+  id: string
+  label: string
+  description?: string
+}
+
 export interface TrackerUserClass {
   name: string
   requirements?: string
@@ -42,6 +49,11 @@ export interface TrackerUserClass {
    * than inferred from the name.
    */
   outsideLadder?: "above" | "below"
+  /**
+   * Id of the branch this class belongs to when the ladder splits. Unset on
+   * the shared prefix; requires the entry to declare `rankPaths`.
+   */
+  path?: string
 }
 
 export interface TrackerRules {
@@ -76,6 +88,8 @@ export interface TrackerRegistryEntry {
   specialty: string
   contentCategories: string[]
   userClasses: TrackerUserClass[]
+  /** Optional branches for ladders that split after a shared prefix. */
+  rankPaths?: TrackerRankPath[]
   releaseGroups: (string | ReleaseGroup)[]
   notableMembers: string[]
   bannedGroups?: string[]

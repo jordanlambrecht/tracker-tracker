@@ -107,3 +107,46 @@ export function validateDefunct(tracker: Partial<TrackerRegistryEntry>): {
 }
 
 export { normalizeUrl as normalizeTrackerUrl } from "@/lib/data-transforms"
+
+/**
+ * A class can only point at a declared path, and a split needs a shared
+ * prefix and at least two branches. A half-declared split renders as a broken
+ * ladder, so undeclared ids are errors and thin splits are warnings.
+ */
+export function validateRankPaths(tracker: Partial<TrackerRegistryEntry>): {
+  errors: string[]
+  warnings: string[]
+} {
+  const errors: string[] = []
+  const warnings: string[] = []
+  const paths = tracker.rankPaths ?? []
+  const classes = tracker.userClasses ?? []
+  const pathIds = new Set(paths.map((path) => path.id))
+  const withPath = classes.filter((userClass) => userClass.path)
+
+  if (paths.length === 0) {
+    if (withPath.length > 0) {
+      errors.push("userClasses use path but rankPaths is empty")
+    }
+    return { errors, warnings }
+  }
+
+  if (withPath.length === 0) warnings.push("rankPaths declared but no class uses a path")
+  if (!classes.some((userClass) => !userClass.outsideLadder && !userClass.path)) {
+    warnings.push("rankPaths declared but there is no shared prefix")
+  }
+  if (paths.length < 2) warnings.push("rankPaths has fewer than two branches")
+
+  for (const userClass of withPath) {
+    if (!pathIds.has(userClass.path as string)) {
+      errors.push(`class "${userClass.name}" uses undeclared path "${userClass.path}"`)
+    }
+  }
+  for (const path of paths) {
+    if (!classes.some((userClass) => userClass.path === path.id)) {
+      warnings.push(`rankPath "${path.id}" has no classes`)
+    }
+  }
+
+  return { errors, warnings }
+}

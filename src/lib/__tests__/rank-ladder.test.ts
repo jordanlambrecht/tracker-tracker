@@ -1,9 +1,9 @@
 // src/lib/__tests__/rank-ladder.test.ts
 
 import { describe, expect, it } from "vitest"
-import type { TrackerUserClass } from "@/data/tracker-registry"
+import type { TrackerRankPath, TrackerUserClass } from "@/data/tracker-registry"
 import { REDACTED_PREFIX } from "@/lib/privacy"
-import { buildRankLadder, findClassIndex, ladderPosition } from "@/lib/rank-ladder"
+import { buildRankForest, buildRankLadder, findClassIndex, ladderPosition } from "@/lib/rank-ladder"
 
 const classes: TrackerUserClass[] = [
   { name: "Banned", requirements: "Broke the rules", outsideLadder: "below" },
@@ -133,5 +133,56 @@ describe("ladderPosition", () => {
   it("matches class names case-insensitively", () => {
     expect(ladderPosition(uploadcx, "archivist")).toBe(2)
     expect(ladderPosition(uploadcx, "PARKED")).toBe(-1)
+  })
+})
+
+describe("buildRankForest", () => {
+  const paths: TrackerRankPath[] = [
+    { id: "upload", label: "Upload path" },
+    { id: "seedsize", label: "Seedsize path" },
+  ]
+  const forestClasses: TrackerUserClass[] = [
+    { name: "User" },
+    { name: "Explorer" },
+    { name: "Bulker", path: "upload" },
+    { name: "Force", path: "upload" },
+    { name: "Protector", path: "upload" },
+    { name: "Climber", path: "seedsize" },
+    { name: "Builder", path: "seedsize" },
+    { name: "Hoarder", path: "seedsize" },
+    { name: "VIP", outsideLadder: "above" },
+  ]
+
+  it("returns null for a linear entry", () => {
+    expect(buildRankForest(classes, [], "User")).toBeNull()
+  })
+
+  it("tracks a member still in the shared prefix", () => {
+    const forest = buildRankForest(forestClasses, paths, "Explorer")
+    expect(forest?.sharedCurrentIndex).toBe(1)
+    expect(forest?.activePathId).toBeNull()
+    expect(forest?.paths.map((path) => path.currentIndex)).toEqual([-1, -1])
+    expect(forest?.summary).toBe("Explorer, shared rank 2 of 2, 2 paths onward")
+  })
+
+  it("tracks a member on one branch and leaves the other unlit", () => {
+    const forest = buildRankForest(forestClasses, paths, "Bulker")
+    expect(forest?.sharedCurrentIndex).toBe(1)
+    expect(forest?.activePathId).toBe("upload")
+    expect(forest?.paths.find((path) => path.id === "upload")?.currentIndex).toBe(0)
+    expect(forest?.paths.find((path) => path.id === "seedsize")?.currentIndex).toBe(-1)
+    expect(forest?.summary).toBe("Bulker, Upload path rank 1 of 3")
+  })
+
+  it("lights both branches for an above class", () => {
+    const forest = buildRankForest(forestClasses, paths, "VIP")
+    expect(forest?.appointedClass).toBe("VIP")
+    expect(forest?.paths.map((path) => path.currentIndex)).toEqual([2, 2])
+  })
+
+  it("flags a class on an undeclared path", () => {
+    const forest = buildRankForest(forestClasses, paths, "Ghost")
+    expect(forest?.unknownClass).toBe(true)
+    expect(forest?.summary).toBe("Ghost, not on the registry ladder")
   })
 })
