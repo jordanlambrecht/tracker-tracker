@@ -10,9 +10,8 @@ export const portugas: TrackerRegistryEntry = {
   url: "https://portugas.org",
   description:
     "Portuguese private torrent tracker focused on 0DAY and general content. One of the main Portuguese-language private communities, covering Movies, TV, Audio, PC, Books, and XXX.",
-  platform: "unit3d",
-  unit3dAuthStyle: "bearer",
-  apiPath: "/api/user",
+  platform: "portugas",
+  apiPath: "/",
   specialty: "0DAY / General",
   contentCategories: ["Movies", "TV", "Music", "Games", "Books", "XXX"],
   language: "Portuguese",
@@ -146,7 +145,7 @@ export const portugas: TrackerRegistryEntry = {
   },
   warning: false,
   warningNote: "",
-  draft: true, // API endpoint unavailable on this custom UNIT3D build
+  draft: false, // cookie auth + profile scraping: the custom build has no user API
   supportsTransitPapers: true,
   profileUrlPattern: "/users/{username}",
 }
