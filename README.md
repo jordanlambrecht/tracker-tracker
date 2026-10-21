@@ -71,6 +71,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | ExoticaZ              | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
 | PrivateHD             | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
 | MyAnonamouse (MAM)    | MAM       | ✅ Verified            | Cookie auth via mam_id                            |
+| M-Team (MT)           | M-Team    | ✅ Verified            | API key; JSON API at api.m-team.cc                 |
 | DarkPeers             | UNIT3D    | ✅ Verified            |                                                   |
 | Luminarr              | UNIT3D    | 🟡 Unverified          |                                                   |
 | CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                   |

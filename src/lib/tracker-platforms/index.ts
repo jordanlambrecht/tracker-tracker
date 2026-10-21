@@ -17,6 +17,7 @@ import { GGnAdapter } from "./adapters/ggn"
 import { HawkeAdapter } from "./adapters/hawke"
 import { IptorrentsAdapter } from "./adapters/iptorrents"
 import { MamAdapter } from "./adapters/mam"
+import { MteamAdapter } from "./adapters/mteam"
 import { NebulanceAdapter } from "./adapters/nebulance"
 import { RetrotoonAdapter } from "./adapters/retrotoon"
 import { TorrentleechAdapter } from "./adapters/torrentleech"
@@ -35,6 +36,7 @@ const adapters: Record<string, TrackerAdapter> = {
   hawke: new HawkeAdapter(),
   iptorrents: new IptorrentsAdapter(),
   mam: new MamAdapter(),
+  mteam: new MteamAdapter(),
   nebulance: new NebulanceAdapter(),
   retrotoon: new RetrotoonAdapter(),
   torrentleech: new TorrentleechAdapter(),

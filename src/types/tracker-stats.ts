@@ -242,6 +242,13 @@ export interface C411PlatformMeta {
   canDownload?: boolean
 }
 
+/**
+ * M-Team adds a VIP flag next to the standard stats.
+ */
+export interface MteamPlatformMeta {
+  vip?: boolean
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -255,6 +262,7 @@ export type PlatformMeta =
   | Unit3dPlatformMeta
   | RetrotoonPlatformMeta
   | C411PlatformMeta
+  | MteamPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -269,6 +277,7 @@ export interface PlatformMetaMap {
   unit3d: Unit3dPlatformMeta
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
+  mteam: MteamPlatformMeta
 }
 
 /**
