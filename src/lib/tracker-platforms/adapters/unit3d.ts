@@ -3,7 +3,8 @@
 // Functions: isUnlimitedBuffer, toBytes, toNumber, toSignedBytes, isPlainObject,
 //            missingByteFields, quoteList, describeKeys, readApiKeyExpiry,
 //            unwrapUnit3dResponse, readUnit3dUser, readAuthStyle, rememberAuthStyle,
-//            buildRequest, unit3dFetch, Unit3dAdapter
+//            buildRequest, unit3dFetch, parseFreeleechUntil, readGlobalFreeleech,
+//            rawGlobalFreeleech, fetchGlobalFreeleech, Unit3dAdapter
 
 import {
   computeBufferBytes,
@@ -11,6 +12,7 @@ import {
   floatBytesToBigInt,
   signedFloatBytesToBigInt,
 } from "@/lib/data-transforms"
+import { log } from "@/lib/logger"
 import { parseBytes, parseSignedBytes } from "@/lib/parser"
 import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
@@ -268,6 +270,110 @@ function readUnit3dUser(data: unknown, hostname: string): Unit3dUser {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Global freeleech. Aither's fork answers it at a path the registry names; a
+// tracker without one is never asked.
+// ---------------------------------------------------------------------------
+
+type GlobalFreeleech = Pick<
+  Unit3dPlatformMeta,
+  "globalFreeleech" | "globalFreeleechUntil" | "globalFreeleechEndsAt"
+>
+
+// Offsets from UTC in minutes for the zone abbreviations the end time may
+// carry. Anything else is shown as sent rather than guessed.
+const ZONE_OFFSETS: Record<string, number> = {
+  UTC: 0,
+  GMT: 0,
+  Z: 0,
+  EST: -300,
+  EDT: -240,
+  CST: -360,
+  CDT: -300,
+  MST: -420,
+  MDT: -360,
+  PST: -480,
+  PDT: -420,
+}
+
+/** "12/23/2017 3:00 PM EST" as ISO 8601, or undefined when the wording is not that. */
+function parseFreeleechUntil(raw: string): string | undefined {
+  const m = raw
+    .trim()
+    .match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}) (\d{1,2}):(\d{2}) ?([AP]M) ([A-Z]{1,4})$/i)
+  if (!m) return undefined
+  const [month, day, year, hour, minute] = m.slice(1, 6).map(Number)
+  const offset = ZONE_OFFSETS[m[7].toUpperCase()]
+  if (offset === undefined || hour < 1 || hour > 12 || minute > 59) return undefined
+  const hour24 = (hour % 12) + (m[6].toUpperCase() === "PM" ? 12 : 0)
+  const local = new Date(Date.UTC(year, month - 1, day, hour24, minute))
+  // Date.UTC rolls 02/30 over into March instead of refusing it.
+  if (local.getUTCMonth() !== month - 1 || local.getUTCDate() !== day) return undefined
+  return new Date(local.getTime() - offset * 60_000).toISOString()
+}
+
+function readGlobalFreeleech(data: unknown, hostname: string): GlobalFreeleech {
+  const active = isPlainObject(data) ? data.is_global_free_leech : undefined
+  if (typeof active !== "boolean") {
+    throw new Error(`Unexpected response from ${hostname}: missing "is_global_free_leech"`)
+  }
+  const until = (data as Record<string, unknown>).global_free_leech_until
+  if (!active || typeof until !== "string" || until.trim() === "") {
+    return { globalFreeleech: active }
+  }
+  return {
+    globalFreeleech: true,
+    globalFreeleechUntil: until.trim(),
+    globalFreeleechEndsAt: parseFreeleechUntil(until),
+  }
+}
+
+/** The debug view's entry for the event, failing on its own without the user call. */
+async function rawGlobalFreeleech(
+  baseUrl: string,
+  path: string,
+  apiToken: string,
+  hostname: string,
+  options?: FetchOptions
+): Promise<DebugApiCall> {
+  try {
+    const data = await unit3dFetch<unknown>(baseUrl, path, apiToken, hostname, options)
+    return {
+      label: "Global Freeleech",
+      endpoint: path,
+      data,
+      error: pollError(() => readGlobalFreeleech(data, hostname)),
+    }
+  } catch (err) {
+    return {
+      label: "Global Freeleech",
+      endpoint: path,
+      data: null,
+      error: err instanceof Error ? err.message : "Request failed",
+    }
+  }
+}
+
+/** The event's status, or nothing when the lookup fails: the stats still stand. */
+async function fetchGlobalFreeleech(
+  baseUrl: string,
+  apiToken: string,
+  hostname: string,
+  options?: FetchOptions
+): Promise<GlobalFreeleech> {
+  const path = options?.unit3dGlobalFreeleechPath
+  if (!path) return {}
+  try {
+    return readGlobalFreeleech(
+      await unit3dFetch<unknown>(baseUrl, path, apiToken, hostname, options),
+      hostname
+    )
+  } catch (err) {
+    log.warn({ err, hostname }, "unit3d: global freeleech lookup failed, core stats kept")
+    return {}
+  }
+}
+
 export class Unit3dAdapter implements TrackerAdapter {
   async fetchStats(
     baseUrl: string,
@@ -288,6 +394,7 @@ export class Unit3dAdapter implements TrackerAdapter {
       await unit3dFetch<unknown>(baseUrl, apiPath, trimmedToken, hostname, options),
       hostname
     )
+    const globalFreeleech = await fetchGlobalFreeleech(baseUrl, trimmedToken, hostname, options)
 
     return {
       username: data.username,
@@ -308,7 +415,7 @@ export class Unit3dAdapter implements TrackerAdapter {
       // Always an object, even without an expiry, so a poll that stops reporting
       // one overwrites the stale date instead of leaving the card counting down
       // to it. JSON.stringify drops the undefined member.
-      platformMeta: { apiKeyExpiresAt } satisfies Unit3dPlatformMeta,
+      platformMeta: { apiKeyExpiresAt, ...globalFreeleech } satisfies Unit3dPlatformMeta,
     }
   }
 
@@ -329,7 +436,7 @@ export class Unit3dAdapter implements TrackerAdapter {
         hostname,
         options
       )
-      return [
+      const calls: DebugApiCall[] = [
         {
           label: "User Stats",
           endpoint: apiPath,
@@ -337,6 +444,13 @@ export class Unit3dAdapter implements TrackerAdapter {
           error: pollError(() => readUnit3dUser(data, hostname)),
         },
       ]
+      const freeleechPath = options?.unit3dGlobalFreeleechPath
+      if (freeleechPath) {
+        calls.push(
+          await rawGlobalFreeleech(baseUrl, freeleechPath, trimmedToken, hostname, options)
+        )
+      }
+      return calls
     } catch (err) {
       return [
         {

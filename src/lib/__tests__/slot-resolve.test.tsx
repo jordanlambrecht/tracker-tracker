@@ -1152,6 +1152,37 @@ describe("UNIT3D context", () => {
     const ctx = unit3dCtx({ tracker: makeTracker({ platformType: "gazelle" }) })
     expect(slotIds(ctx, "stat-card")).not.toContain("api-key-expiry")
   })
+
+  const freeleechBadge = (meta: Unit3dPlatformMeta) =>
+    resolveSlots(unit3dCtx({ meta }))
+      .get("badge")
+      ?.find((s) => s.id === "global-freeleech")
+  const inHours = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
+
+  it("counts a global freeleech down in days, then hours", () => {
+    for (const [hours, label] of [
+      [50, "Global Freeleech (3d)"],
+      [5.5, "Global Freeleech (6h)"],
+    ] as const) {
+      const badge = freeleechBadge({ globalFreeleech: true, globalFreeleechEndsAt: inHours(hours) })
+      expect(badge?.props).toEqual({ variant: "accent", label })
+    }
+  })
+
+  it("shows the end time as sent when it did not parse", () => {
+    expect(
+      freeleechBadge({ globalFreeleech: true, globalFreeleechUntil: "Sunday night" })?.props
+    ).toEqual({ variant: "accent", label: "Global Freeleech until Sunday night" })
+    expect(freeleechBadge({ globalFreeleech: true })?.props.label).toBe("Global Freeleech")
+  })
+
+  it("shows nothing when off, or when the snapshot's freeleech has ended", () => {
+    expect(freeleechBadge({ globalFreeleech: false })).toBeUndefined()
+    expect(freeleechBadge({})).toBeUndefined()
+    expect(
+      freeleechBadge({ globalFreeleech: true, globalFreeleechEndsAt: inHours(-1) })
+    ).toBeUndefined()
+  })
 })
 
 // ---------------------------------------------------------------------------

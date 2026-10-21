@@ -19,6 +19,7 @@ export interface FetchOptions {
   remoteUserId?: number
   authStyle?: GazelleAuthStyle
   unit3dAuthStyle?: Unit3dAuthStyle
+  unit3dGlobalFreeleechPath?: string
   nebulanceAuthParam?: NebulanceAuthParam
   enrich?: boolean
 }

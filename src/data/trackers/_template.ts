@@ -48,6 +48,7 @@ export const mytracker: TrackerRegistryEntry = {
   //   gazelleAuthStyle: "token",   // gazelle only. "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only. Enables enrichment call
   //   unit3dAuthStyle: "bearer",   // unit3d only. "bearer" | "query"
+  //   unit3dGlobalFreeleechPath: "/api/events/global-free-leech", // unit3d only, where the fork has it
   apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php"
 
   // ── Content ─────────────────────────────────────────────────────────

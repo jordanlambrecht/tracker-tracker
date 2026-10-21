@@ -843,3 +843,123 @@ describe("Unit3dAdapter.fetchRaw", () => {
     expect(calls[0].error).toBeTruthy()
   })
 })
+
+describe("Unit3dAdapter - global freeleech", () => {
+  const adapter = new Unit3dAdapter()
+  const PATH = "/api/events/global-free-leech"
+  const OPTIONS = { unit3dAuthStyle: "bearer" as const, unit3dGlobalFreeleechPath: PATH }
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const USER = {
+    username: "JohnDoe",
+    group: "Power User",
+    uploaded: "500.25 GiB",
+    downloaded: "125.50 GiB",
+    ratio: "3.99",
+    buffer: "374.75 GiB",
+  }
+
+  function ok(body: unknown): Response {
+    return { ok: true, status: 200, json: async () => body } as Response
+  }
+
+  const poll = () => adapter.fetchStats("https://aither.cc", "fake-token", "/api/user", OPTIONS)
+
+  it("reads a running freeleech and its end time", async () => {
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(ok(USER))
+      .mockResolvedValueOnce(
+        ok({ is_global_free_leech: true, global_free_leech_until: "12/23/2017 3:00 PM EST" })
+      )
+
+    const stats = await poll()
+
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(`https://aither.cc${PATH}`)
+    expect(stats.platformMeta).toEqual({
+      globalFreeleech: true,
+      globalFreeleechUntil: "12/23/2017 3:00 PM EST",
+      globalFreeleechEndsAt: "2017-12-23T20:00:00.000Z",
+    })
+  })
+
+  it("parses the end time's clock and zone, and keeps wording it cannot read", async () => {
+    for (const [until, endsAt] of [
+      ["7/4/2026 12:30 AM EDT", "2026-07-04T04:30:00.000Z"],
+      ["1/1/2027 12:00 PM UTC", "2027-01-01T12:00:00.000Z"],
+      ["2/30/2027 1:00 PM UTC", undefined],
+      ["12/23/2017 3:00 PM CET", undefined],
+      ["2017-12-23 15:00", undefined],
+    ] as const) {
+      vi.spyOn(global, "fetch")
+        .mockResolvedValueOnce(ok(USER))
+        .mockResolvedValueOnce(ok({ is_global_free_leech: true, global_free_leech_until: until }))
+
+      const stats = await poll()
+
+      expect(stats.platformMeta).toEqual({
+        globalFreeleech: true,
+        globalFreeleechUntil: until,
+        globalFreeleechEndsAt: endsAt,
+      })
+    }
+  })
+
+  it("ignores the end time while no freeleech runs", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(ok(USER))
+      .mockResolvedValueOnce(
+        ok({ is_global_free_leech: false, global_free_leech_until: "12/23/2017 3:00 PM EST" })
+      )
+
+    const stats = await poll()
+
+    expect(stats.platformMeta).toEqual({ globalFreeleech: false })
+  })
+
+  it("keeps the stats when the lookup fails or answers something else", async () => {
+    for (const second of [
+      Promise.resolve({ ok: false, status: 404, statusText: "Not Found" } as Response),
+      Promise.resolve(ok({ message: "nope" })),
+      Promise.reject(new Error("network down")),
+    ]) {
+      second.catch(() => {})
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(ok(USER)).mockReturnValueOnce(second)
+
+      const stats = await poll()
+
+      expect(stats.username).toBe("JohnDoe")
+      expect(stats.platformMeta).toEqual({})
+    }
+  })
+
+  it("is not asked for without a path", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValueOnce(ok(USER))
+
+    await adapter.fetchStats("https://aither.cc", "fake-token", "/api/user", {
+      unit3dAuthStyle: "bearer",
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("adds its own entry to the debug view, failing on its own", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(ok(USER))
+      .mockResolvedValueOnce(ok({ message: "nope" }))
+
+    const calls = await adapter.fetchRaw("https://aither.cc", "fake-token", "/api/user", OPTIONS)
+
+    expect(calls).toHaveLength(2)
+    expect(calls[0].error).toBeNull()
+    expect(calls[1]).toEqual({
+      label: "Global Freeleech",
+      endpoint: PATH,
+      data: { message: "nope" },
+      error: 'Unexpected response from aither.cc: missing "is_global_free_leech"',
+    })
+  })
+})

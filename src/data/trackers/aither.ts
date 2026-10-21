@@ -14,6 +14,7 @@ export const aither: TrackerRegistryEntry = {
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
   apiPath: "/api/user",
+  unit3dGlobalFreeleechPath: "/api/events/global-free-leech",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "General / HD content",

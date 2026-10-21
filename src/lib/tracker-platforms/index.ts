@@ -68,6 +68,9 @@ export function buildFetchOptions(opts: {
   if (entry.gazelleAuthStyle) fetchOptions.authStyle = entry.gazelleAuthStyle
   if (entry.gazelleEnrich) fetchOptions.enrich = true
   if (entry.unit3dAuthStyle) fetchOptions.unit3dAuthStyle = entry.unit3dAuthStyle
+  if (entry.unit3dGlobalFreeleechPath) {
+    fetchOptions.unit3dGlobalFreeleechPath = entry.unit3dGlobalFreeleechPath
+  }
   if (entry.nebulanceAuthParam) fetchOptions.nebulanceAuthParam = entry.nebulanceAuthParam
 
   return fetchOptions

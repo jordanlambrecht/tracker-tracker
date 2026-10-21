@@ -212,10 +212,17 @@ export interface FileListPlatformMeta {
  * Stock UNIT3D reports nothing beyond TrackerStats. LST's fork adds the API
  * key's expiry next to the user resource (issue #214), which is the one thing
  * worth keeping, since a lapsed key fails every poll until it is replaced.
+ * Aither's fork adds a global freeleech endpoint.
  */
 export interface Unit3dPlatformMeta {
   /** ISO 8601, as the tracker sent it. Absent when the key does not expire. */
   apiKeyExpiresAt?: string
+  /** Whether a site-wide freeleech is running. Absent when the tracker has no such endpoint. */
+  globalFreeleech?: boolean
+  /** When it ends, worded as the tracker sent it, e.g. "12/23/2017 3:00 PM EST". */
+  globalFreeleechUntil?: string
+  /** The same moment as ISO 8601, when the wording parses. */
+  globalFreeleechEndsAt?: string
 }
 
 /**

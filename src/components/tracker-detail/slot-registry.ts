@@ -6,7 +6,7 @@
 //              gazelle-tokens, perfect-flacs, snatched-gazelle, torrents-uploaded,
 //              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments,
 //              mam-wedges, mam-completed, mam-tracker-errors
-//   badge: warned, donor, disabled, ggn-parked, ggn-invites, ggn-irc,
+//   badge: warned, donor, disabled, global-freeleech, ggn-parked, ggn-invites, ggn-irc,
 //          gazelle-paranoia, gazelle-unread, gazelle-announcement,
 //          mam-vip, mam-connectable, mam-unread
 //   progress: ggn-achievement-progress, ggn-share-score-progress, ggn-buffs,
@@ -564,6 +564,31 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   },
 }
 
+// A site-wide freeleech, counted down when the tracker's end time parses. A
+// stale snapshot whose end has passed shows nothing.
+const globalFreeleechBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "global-freeleech",
+  category: "badge",
+  component: SlotBadge,
+  priority: 13,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "unit3d")
+    if (meta?.globalFreeleech !== true) return null
+    if (!meta.globalFreeleechEndsAt) {
+      const until = meta.globalFreeleechUntil
+      return {
+        variant: "accent",
+        label: until ? `Global Freeleech until ${until}` : "Global Freeleech",
+      }
+    }
+    const ms = new Date(meta.globalFreeleechEndsAt).getTime() - Date.now()
+    if (Number.isNaN(ms) || ms <= 0) return null
+    const hours = Math.ceil(ms / 3_600_000)
+    const left = hours < 24 ? `${hours}h` : `${Math.ceil(hours / 24)}d`
+    return { variant: "accent", label: `Global Freeleech (${left})` }
+  },
+}
+
 const gazelleParanoiaBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   id: "gazelle-paranoia",
   category: "badge",
@@ -1088,6 +1113,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   warnedBadgeSlot,
   donorBadgeSlot,
   disabledBadgeSlot,
+  globalFreeleechBadgeSlot,
   ggnParkedBadgeSlot,
   ggnInvitesBadgeSlot,
   ggnIrcBadgeSlot,
