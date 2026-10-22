@@ -54,6 +54,7 @@ interface FormState {
   joinedAt: string
   lastAccessAt: string
   useProxy: boolean
+  useFlaresolverr: boolean
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
   mouseholeUrl: string
@@ -90,6 +91,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     joinedAt: t.joinedAt ?? "",
     lastAccessAt: t.lastAccessAt ?? "",
     useProxy: t.useProxy ?? false,
+    useFlaresolverr: t.useFlaresolverr ?? false,
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
     hideUnreadBadges: t.hideUnreadBadges ?? false,
     mouseholeUrl: t.mouseholeUrl ?? "",
@@ -132,6 +134,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   const hasLoginPolicy = !!registryEntry?.rules?.loginIntervalDays
 
   const [proxyAvailable, setProxyAvailable] = useState<boolean | null>(null)
+  const [flaresolverrAvailable, setFlaresolverrAvailable] = useState(false)
 
   // Empty unless a Prowlarr instance is configured, which hides the picker.
   const { data: indexerOptions = [] } = useQuery({ ...prowlarrIndexerQueryOptions, enabled: open })
@@ -164,6 +167,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         setProxyAvailable(data ? !!data.proxyEnabled : false)
+        setFlaresolverrAvailable(!!data?.flaresolverrUrl)
       })
       .catch(() => setProxyAvailable(false))
   }, [open, proxyAvailable])
@@ -249,11 +253,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           // has nothing but what it stores.
           body: JSON.stringify(
             tracker.registrySlug
-              ? { slug: tracker.registrySlug, apiToken: trimmedToken }
+              ? {
+                  slug: tracker.registrySlug,
+                  apiToken: trimmedToken,
+                  useFlaresolverr: form.useFlaresolverr,
+                }
               : {
                   baseUrl: tracker.baseUrl,
                   apiToken: trimmedToken,
                   platformType: tracker.platformType,
+                  useFlaresolverr: form.useFlaresolverr,
                 }
           ),
         })
@@ -277,6 +286,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       joinedAt: form.joinedAt || null,
       lastAccessAt: form.lastAccessAt || null,
       useProxy: form.useProxy,
+      useFlaresolverr: form.useFlaresolverr,
       countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
       hideUnreadBadges: form.hideUnreadBadges,
       mouseholeUrl: form.mouseholeUrl.trim(),
@@ -565,6 +575,18 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               proxyAvailable
                 ? "Route API requests for this tracker through the global proxy configured in Settings."
                 : "No proxy configured. Enable a proxy in Settings first."
+            }
+          />
+
+          <Toggle
+            label="Use FlareSolverr"
+            checked={form.useFlaresolverr}
+            onChange={(v) => updateField("useFlaresolverr", v)}
+            disabled={!flaresolverrAvailable && !form.useFlaresolverr}
+            description={
+              flaresolverrAvailable
+                ? "Read this tracker's pages through FlareSolverr, which solves Cloudflare challenges. It replaces the proxy for this tracker."
+                : "No FlareSolverr configured. Set its URL in Settings first."
             }
           />
 

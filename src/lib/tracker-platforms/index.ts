@@ -24,7 +24,7 @@ import { RetrotoonAdapter } from "./adapters/retrotoon"
 import { TorrentleechAdapter } from "./adapters/torrentleech"
 import { Tr4kerAdapter } from "./adapters/tr4ker"
 import { Unit3dAdapter } from "./adapters/unit3d"
-import type { FetchOptions, TrackerAdapter } from "./contract"
+import type { FetchOptions, FlareSolverrConfig, TrackerAdapter } from "./contract"
 
 const adapters: Record<string, TrackerAdapter> = {
   animebytes: new AnimeBytesAdapter(),
@@ -63,9 +63,13 @@ export function buildFetchOptions(opts?: {
   registrySlug?: string | null
   proxyAgent?: HttpAgent
   remoteUserId?: number
+  flaresolverr?: FlareSolverrConfig
 }): FetchOptions {
   const fetchOptions: FetchOptions = {}
-  if (opts?.proxyAgent) fetchOptions.proxyAgent = opts.proxyAgent
+  // FlareSolverr makes the requests from its own browser, so it replaces the
+  // proxy rather than going through it.
+  if (opts?.flaresolverr) fetchOptions.flaresolverr = opts.flaresolverr
+  else if (opts?.proxyAgent) fetchOptions.proxyAgent = opts.proxyAgent
   if (opts?.remoteUserId) fetchOptions.remoteUserId = opts.remoteUserId
 
   const entry = registryEntryFor({ registrySlug: opts?.registrySlug ?? null })
@@ -77,4 +81,4 @@ export function buildFetchOptions(opts?: {
   return fetchOptions
 }
 
-export type { FetchOptions, TrackerAdapter } from "./contract"
+export type { FetchOptions, FlareSolverrConfig, TrackerAdapter } from "./contract"

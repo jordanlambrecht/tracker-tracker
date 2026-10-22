@@ -355,6 +355,31 @@ describe("fetchTrackerHtml - a Cloudflare page on a failed status", () => {
   })
 })
 
+describe("fetchTrackerHtml - forms", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("posts a form body when given one, and still GETs without", async () => {
+    const inits: RequestInit[] = []
+    vi.spyOn(global, "fetch").mockImplementation((_url, init) => {
+      inits.push(init ?? {})
+      return Promise.resolve(htmlResponse("<html></html>"))
+    })
+
+    await fetchTrackerHtml({ ...BASE, form: { action: "get_traf_stats", user_id: "1234" } })
+    await fetchTrackerHtml(BASE)
+
+    expect(inits[0].method).toBe("POST")
+    expect(inits[0].body).toBe("action=get_traf_stats&user_id=1234")
+    expect((inits[0].headers as Record<string, string>)["Content-Type"]).toBe(
+      "application/x-www-form-urlencoded"
+    )
+    expect(inits[1].method).toBe("GET")
+    expect(inits[1].body).toBeUndefined()
+  })
+})
+
 // ---------------------------------------------------------------------------
 // The proxy branch runs the same redirect handling as the direct one, or
 // followRedirects is dead for a proxied user and a login bounce surfaces as a
@@ -446,6 +471,18 @@ describe("fetchTrackerHtml - through a proxy", () => {
     await expect(run({})).rejects.toThrow("Cloudflare challenge detected on ExampleTracker")
   })
 
+  it("posts a form through the proxy", async () => {
+    proxyFetch.mockResolvedValueOnce(proxyResponse(200, "{}"))
+
+    await run({ form: { action: "get_traf_stats" } })
+
+    expect(proxyFetch.mock.calls[0][2]).toMatchObject({
+      method: "POST",
+      body: "action=get_traf_stats",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    })
+  })
+
   it("still returns the body on an ordinary proxied response", async () => {
     proxyFetch.mockResolvedValueOnce(proxyResponse(200, "<html>ok</html>"))
 
@@ -462,5 +499,91 @@ describe("fetchTrackerHtml - through a proxy", () => {
     const headers = proxyFetch.mock.calls[0][2].headers as Record<string, string>
     expect(headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)
     expect(headers["Sec-Fetch-Mode"]).toBeUndefined()
+  })
+})
+
+// Through FlareSolverr, whose browser follows redirects and returns the final page.
+
+describe("fetchTrackerHtml - through FlareSolverr", () => {
+  const config = { url: "http://flaresolverr.example:8191", maxTimeout: 60000 }
+
+  function solved(html: string, url = BASE.url, status = 200): Response {
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        message: "",
+        solution: { url, status, response: html, cookies: [] },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )
+  }
+
+  function sentPayloads(spy: { mock: { calls: unknown[][] } }): Record<string, unknown>[] {
+    return spy.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)))
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("requests the page through FlareSolverr with the session cookies, and sends no User-Agent", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(solved("<html>stats</html>"))
+
+    const html = await fetchTrackerHtml({
+      ...BASE,
+      userAgent: "test-agent",
+      flaresolverr: { config, session: "s1" },
+    })
+
+    expect(html).toBe("<html>stats</html>")
+    expect(String(spy.mock.calls[0][0])).toBe("http://flaresolverr.example:8191/v1")
+    expect(sentPayloads(spy)[0]).toEqual({
+      cmd: "request.get",
+      url: BASE.url,
+      maxTimeout: 60000,
+      disableMedia: true,
+      session: "s1",
+      cookies: [
+        { name: "uid", value: "1" },
+        { name: "pass", value: "abc" },
+      ],
+    })
+    expect(JSON.stringify(spy.mock.calls[0][1])).not.toContain("test-agent")
+  })
+
+  it("posts a form through a page the browser submits", async () => {
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(solved("<html>ok</html>"))
+
+    await fetchTrackerHtml({ ...BASE, form: { a: "1" }, flaresolverr: { config } })
+
+    const payload = sentPayloads(spy)[0]
+    expect(payload.cmd).toBe("request.get")
+    expect(String(payload.url)).toMatch(/^data:text\/html;charset=utf-8,/)
+    expect(payload).not.toHaveProperty("cookies")
+  })
+
+  it("reads landing on the login page as an expired session", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      solved("<html>login</html>", "https://tracker.example/login.php")
+    )
+
+    await expect(
+      fetchTrackerHtml({
+        ...BASE,
+        followRedirects: { loginPattern: /login/ },
+        flaresolverr: { config },
+      })
+    ).rejects.toThrow(SessionExpiredError)
+  })
+
+  it("reports a challenge that was not solved through FlareSolverr", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      solved("<html><head><title>Just a moment...</title></head></html>", BASE.url, 403)
+    )
+
+    const err = (await fetchTrackerHtml({ ...BASE, flaresolverr: { config } }).catch(
+      (e: unknown) => e
+    )) as Error
+    expect(sanitizeNetworkError(err.message)).toBe("Cloudflare challenge blocked the request")
   })
 })

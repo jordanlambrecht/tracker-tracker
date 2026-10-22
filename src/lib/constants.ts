@@ -35,6 +35,10 @@ export const DOCS = {
     href: `${DOCS_URL}/features/proxies/`,
     description: "Route tracker requests through a SOCKS5, HTTP, or HTTPS proxy",
   },
+  FLARESOLVERR: {
+    href: `${DOCS_URL}/reference/settings/#flaresolverr`,
+    description: "Read trackers behind a Cloudflare challenge through FlareSolverr",
+  },
   TOTP: {
     href: `${DOCS_URL}/reference/settings/#two-factor-authentication`,
     description: "Two-factor authentication with backup codes",
