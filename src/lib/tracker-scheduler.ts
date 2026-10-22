@@ -24,13 +24,14 @@ import {
 } from "@/lib/db/schema"
 import { errMsg, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
-import { POLL_CYCLE_DEADLINE_MS, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
+import { POLL_CYCLE_DEADLINE_MS, POLL_FAILURE_THRESHOLD, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
+import { CredentialsRejectedError } from "@/lib/tracker-platforms/helpers/errors"
 import { getPauseState, isRestorePaused, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type {
@@ -125,7 +126,7 @@ async function pollUrlFor(tracker: {
   return entry.url
 }
 
-export const POLL_FAILURE_THRESHOLD = 4
+export { POLL_FAILURE_THRESHOLD }
 
 /**
  * Tolerance window for the overdue check. Trackers that would become overdue
@@ -454,6 +455,11 @@ export async function pollTracker(
       `Poll failed for tracker ${trackerId}: ${message}`
     )
 
+    // A rejected login pauses at once: repeating it on every poll can get the
+    // server's IP address banned by the tracker. The pause is stored, so it
+    // also holds across restarts.
+    const loginRejected = error instanceof CredentialsRejectedError
+
     try {
       const now = new Date()
       const [updated] = await db
@@ -462,7 +468,9 @@ export async function pollTracker(
           lastError: message,
           lastErrorAt: now,
           consecutiveFailures: sql`${trackers.consecutiveFailures} + 1`,
-          pausedAt: sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now.toISOString()}::timestamp ELSE ${trackers.pausedAt} END`,
+          pausedAt: loginRejected
+            ? now
+            : sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now.toISOString()}::timestamp ELSE ${trackers.pausedAt} END`,
           updatedAt: now,
         })
         .where(eq(trackers.id, trackerId))
@@ -480,7 +488,9 @@ export async function pollTracker(
             threshold: POLL_FAILURE_THRESHOLD,
             lastError: message,
           },
-          `Tracker ${trackerId} auto-paused after ${updated.consecutiveFailures} consecutive failures`
+          loginRejected
+            ? `Tracker ${trackerId} auto-paused after a rejected login`
+            : `Tracker ${trackerId} auto-paused after ${updated.consecutiveFailures} consecutive failures`
         )
       } else if (updated) {
         log.info(

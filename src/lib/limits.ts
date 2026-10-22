@@ -59,6 +59,8 @@ export const TRACKER_ROLE_NAME_MAX = 255
 export const POLL_INTERVAL_MIN = 15
 export const POLL_INTERVAL_MAX = 1440
 export const POLL_INTERVAL_DEFAULT = 60
+/** Consecutive failed polls after which a tracker is paused. */
+export const POLL_FAILURE_THRESHOLD = 4
 export const POLL_MANUAL_COOLDOWN_MS = 10_000
 export const CLIENT_POLL_INTERVAL_MIN = 60
 export const CLIENT_POLL_INTERVAL_MAX = 86400

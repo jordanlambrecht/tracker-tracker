@@ -69,6 +69,13 @@ describe("TrackerStatusBanner on an active tracker", () => {
     expect(resumeButton()).toBeInTheDocument()
   })
 
+  it("names a failed login as the reason for a pause before the failure threshold", () => {
+    renderBanner(makeTracker({ ...AUTO_PAUSED, consecutiveFailures: 1 }))
+
+    expect(screen.getByText(/paused after a failed login/)).toBeInTheDocument()
+    expect(resumeButton()).toBeInTheDocument()
+  })
+
   it("announces a user-paused tracker (which has never carried a resume button)", () => {
     renderBanner(makeTracker(USER_PAUSED))
 

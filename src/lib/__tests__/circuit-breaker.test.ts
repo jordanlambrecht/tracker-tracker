@@ -105,6 +105,7 @@ import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { getAdapter } from "@/lib/tracker-platforms"
+import { CredentialsRejectedError } from "@/lib/tracker-platforms/helpers/errors"
 import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
 
 // ---------------------------------------------------------------------------
@@ -438,6 +439,38 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
       expect.objectContaining({ trackerId: 1, consecutiveFailures: POLL_FAILURE_THRESHOLD }),
       expect.stringContaining("auto-paused")
     )
+  })
+
+  it("pauses at once on a rejected login, below the threshold", async () => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(mockSelectOnce([makeTrackerRow()]))
+    const adapter = {
+      fetchStats: vi.fn().mockRejectedValue(new CredentialsRejectedError("Invalid credentials")),
+    }
+    ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValue(adapter)
+    const pausedAt = new Date()
+    const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt }])
+
+    await pollTracker(1, MOCK_KEY, false)
+
+    const setArg = updateChain.set.mock.calls[0]?.[0] as Record<string, unknown>
+    // A plain Date, not the threshold CASE expression.
+    expect(setArg.pausedAt).toBeInstanceOf(Date)
+    const { log } = await import("@/lib/logger")
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ trackerId: 1 }),
+      expect.stringContaining("auto-paused after a rejected login")
+    )
+  })
+
+  it("leaves other failures to the threshold", async () => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(mockSelectOnce([makeTrackerRow()]))
+    mockFailureAdapter("Invalid credentials")
+    const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
+
+    await pollTracker(1, MOCK_KEY, false)
+
+    const setArg = updateChain.set.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(setArg.pausedAt).toBeInstanceOf(SQL)
   })
 
   it("records lastError message when poll fails", async () => {
