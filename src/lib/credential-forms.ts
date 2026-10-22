@@ -124,6 +124,7 @@ export const CREDENTIAL_FORMS = {
   hawke: tokenForm(UNIT3D_TOKEN),
   tr4ker: tokenForm("Your TR4KER API key"),
   c411: tokenForm("Your C411 API key, with the Profile (reading) scope"),
+  mteam: tokenForm("Your M-Team API key"),
 
   avistaz: {
     kind: "cookies-username",

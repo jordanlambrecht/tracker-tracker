@@ -37,6 +37,7 @@ export * from "./iptorrents"
 export * from "./lst"
 export * from "./luminarr"
 export * from "./morethantv"
+export * from "./mteam"
 export * from "./myanonamouse"
 export * from "./nebulance"
 export * from "./oldtoons"
@@ -100,6 +101,7 @@ import { iptorrents } from "./iptorrents"
 import { lst } from "./lst"
 import { luminarr } from "./luminarr"
 import { morethantv } from "./morethantv"
+import { mteam } from "./mteam"
 import { myanonamouse } from "./myanonamouse"
 import { nebulance } from "./nebulance"
 import { oldtoons } from "./oldtoons"
@@ -164,6 +166,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   lst,
   luminarr,
   morethantv,
+  mteam,
   myanonamouse,
   nebulance,
   oldtoons,
