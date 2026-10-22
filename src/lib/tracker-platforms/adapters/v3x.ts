@@ -1,7 +1,8 @@
 // src/lib/tracker-platforms/adapters/v3x.ts
 //
-// Functions: parseV3xCredentials, requireBytes, roleName, dateOnly,
-//            parseV3xMe, V3xAdapter
+// Functions: parseV3xCredentials, requireBytes, numeric, roleName, dateOnly,
+//            parseV3xMe, errorMessage, fetchMe, fetchGamification,
+//            applyGamification, V3xAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { validateCookieHeader } from "@/lib/tracker-credentials/cookie-header"
