@@ -33,7 +33,7 @@ export const mteam: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#2F80ED",
-  logo: "",
+  logo: "/tracker-logos/mteam_logo.png",
   bonusName: "Bonus Points",
 
   // ── External Links ──────────────────────────────────────────────────
