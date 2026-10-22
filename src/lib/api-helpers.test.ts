@@ -5,6 +5,7 @@ import { localDateStr } from "@/lib/formatters"
 import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import {
   validateClientHost,
+  validateFlareSolverrUrl,
   validateHttpUrl,
   validateJoinedAt,
   validateLastAccessAt,
@@ -165,6 +166,20 @@ describe("validateMouseholeUrl", () => {
     await expect(response?.json()).resolves.toEqual({
       error: "Mousehole URL must not target localhost or a private network address",
     })
+  })
+})
+
+describe("validateFlareSolverrUrl", () => {
+  it("accepts a Compose service name", () => {
+    expect(validateFlareSolverrUrl("http://flaresolverr:8191")).toBeNull()
+  })
+
+  it("rejects a username or password in the URL", async () => {
+    const response = validateFlareSolverrUrl("http://user:secret@flaresolverr:8191")
+    expect(response?.status).toBe(400)
+    const body = await response?.json()
+    expect(body.error).toBe("FlareSolverr URL must not contain a username or password")
+    expect(JSON.stringify(body)).not.toContain("secret")
   })
 })
 

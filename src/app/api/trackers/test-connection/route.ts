@@ -12,6 +12,7 @@ import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { flareSolverrFor } from "@/lib/flaresolverr-config"
 import { log } from "@/lib/logger"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
 import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
@@ -26,10 +27,11 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { slug, apiToken, useProxy } = body as {
+  const { slug, apiToken, useProxy, useFlaresolverr } = body as {
     slug?: string
     apiToken?: string
     useProxy?: unknown
+    useFlaresolverr?: boolean
   }
 
   // The slug's registry entry settles address, platform and API path, so nothing
@@ -70,7 +72,11 @@ export async function POST(request: Request) {
       settings && useProxy !== false ? buildProxyAgentFromSettings(settings, key) : undefined
 
     const adapter = getAdapter(site.platform)
-    const fetchOptions = buildFetchOptions({ entry: site.entry, proxyAgent })
+    const fetchOptions = buildFetchOptions({
+      entry: site.entry,
+      proxyAgent,
+      flaresolverr: await flareSolverrFor({ useFlaresolverr: useFlaresolverr === true }),
+    })
     const stats = await adapter.fetchStats(site.url, trimmedApiToken, site.apiPath, fetchOptions)
 
     const result: Record<string, unknown> = {

@@ -73,6 +73,8 @@ export interface TrackerSummary {
   mouseholeUrl: string | null
   hasMouseholeToken: boolean
   useProxy: boolean
+  /** Optional so rows built before the column existed still type-check */
+  useFlaresolverr?: boolean
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
   isFavorite: boolean
