@@ -2,7 +2,8 @@
 //
 // Functions: parsePortugasCredentials, assertAuthenticated, readText,
 //            parseCount, readKeyValues, findKey, findTime,
-//            parsePortugasHomepage, parsePortugasProfile, PortugasAdapter
+//            parsePortugasHomepage, parsePortugasProfile, mergeMeta,
+//            errorMessage, PortugasAdapter
 
 import { parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
@@ -192,7 +193,7 @@ export function parsePortugasProfile(html: string): Partial<TrackerStats> {
   if (realRatio !== undefined) meta.realRatio = realRatio
 
   return {
-    remoteUserId: Number.isSafeInteger(userId) && (userId ?? 0) > 0 ? userId : undefined,
+    remoteUserId: typeof userId === "number" && userId > 0 ? userId : undefined,
     joinedDate,
     lastAccessDate,
     hitAndRuns: hnrCount ?? null,
