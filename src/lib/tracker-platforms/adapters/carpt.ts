@@ -1,7 +1,8 @@
 // src/lib/tracker-platforms/adapters/carpt.ts
 //
-// Functions: parseCarptCredentials, assertAuthenticated, matchText,
-//            parseCarptHomepage, parseCarptProfile, CarptAdapter
+// Functions: parseCarptCredentials, assertAuthenticated, matchText, readHeader,
+//            parseCarptHomepage, readRows, parseCarptProfile, mergeMeta,
+//            errorMessage, CarptAdapter
 
 import { parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
@@ -201,7 +202,7 @@ export function parseCarptProfile(html: string): Partial<TrackerStats> {
 
   return {
     group,
-    remoteUserId: Number.isSafeInteger(uid) && (uid ?? 0) > 0 ? uid : undefined,
+    remoteUserId: typeof uid === "number" && uid > 0 ? uid : undefined,
     joinedDate,
     lastAccessDate,
     platformMeta: Object.keys(meta).length > 0 ? meta : undefined,
