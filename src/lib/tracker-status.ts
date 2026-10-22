@@ -263,7 +263,11 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   const pause = getPauseState(tracker)
   if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
   if (tracker.lastError) return "error"
-  if (!tracker.latestStats) return "offline"
+  if (!tracker.latestStats) {
+    // An overview-only tracker has no stats, so its health depends only on
+    // whether the last poll succeeded.
+    return tracker.overview && tracker.lastPolledAt ? "healthy" : "offline"
+  }
   const { ratio, seedingCount, ratioIsInfinite } = tracker.latestStats
   // An infinite ratio arrives as `ratio: null` because JSON can't carry
   // Infinity. Only treat null as "no data" when the account isn't in that state.

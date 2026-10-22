@@ -36,6 +36,27 @@ export interface TrackerStats {
   platformMeta?: PlatformMeta
 }
 
+/**
+ * What a poll returns for a tracker that shows the account but no byte totals.
+ * It writes no snapshot: the username and class are kept on the tracker row.
+ */
+export interface TrackerOverview {
+  kind: "overview"
+  username: string
+  group: string | null
+  remoteUserId?: number
+  joinedDate?: string
+  lastAccessDate?: string
+  avatarUrl?: string
+  platformMeta?: PlatformMeta
+}
+
+export type TrackerPollResult = TrackerStats | TrackerOverview
+
+export function isTrackerOverview(result: TrackerPollResult): result is TrackerOverview {
+  return "kind" in result && result.kind === "overview"
+}
+
 export interface GGnPlatformMeta {
   achievements?: {
     userLevel: string

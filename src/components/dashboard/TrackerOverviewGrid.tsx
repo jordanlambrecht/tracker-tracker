@@ -265,7 +265,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                   </span>
                 ) : (
                   <RedactedText
-                    value={t.latestStats?.group ?? null}
+                    value={t.latestStats?.group ?? t.overview?.group ?? null}
                     color={t.color}
                     className="font-mono text-xs text-accent ml-4.5"
                   />

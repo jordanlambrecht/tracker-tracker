@@ -9,22 +9,23 @@ import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatAccountAge, formatJoinedDate } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
-import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type { TrackerAccountOverview, TrackerSummary } from "@/types/api"
 
 interface UserProfileCardProps {
   tracker: TrackerSummary
-  stats: TrackerLatestStats
+  /** The latest snapshot, or the overview of a tracker that reports no stats */
+  account: TrackerAccountOverview
   registryEntry: TrackerRegistryEntry | undefined
   accentColor: string
 }
 
 export function UserProfileCard({
   tracker,
-  stats,
+  account,
   registryEntry,
   accentColor: tc,
 }: UserProfileCardProps) {
-  if (!stats.username && !stats.group) return null
+  if (!account.username && !account.group) return null
 
   const accountAge = formatAccountAge(tracker.joinedAt)
   const joinedDate = formatJoinedDate(tracker.joinedAt)
@@ -40,23 +41,23 @@ export function UserProfileCard({
           )}
         </div>
         <div className="flex flex-col gap-2">
-          {stats.username && (
+          {account.username && (
             <RedactedText
-              value={stats.username}
+              value={account.username}
               color={tc}
               className="text-lg font-mono text-primary font-semibold"
             />
           )}
           <div className="flex items-center gap-3 flex-wrap">
-            {stats.group && registryEntry?.userClasses && !isRedacted(stats.group) ? (
+            {account.group && registryEntry?.userClasses && !isRedacted(account.group) ? (
               <RankTooltip
-                currentRank={stats.group}
+                currentRank={account.group}
                 userClasses={registryEntry.userClasses}
                 accentColor={tc}
               />
-            ) : stats.group ? (
+            ) : account.group ? (
               <Badge style={{ backgroundColor: hexToRgba(tc, 0.15), color: tc }}>
-                <RedactedText value={stats.group} color={tc} />
+                <RedactedText value={account.group} color={tc} />
               </Badge>
             ) : null}
           </div>

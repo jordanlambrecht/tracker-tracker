@@ -132,7 +132,7 @@ export function RankStacks({ trackers, expanded, onToggleExpanded }: RankStacksP
   const entries: StackEntry[] = trackers.flatMap((tracker) => {
     if (!tracker.isActive) return []
     const classes = registryEntryFor(tracker)?.userClasses ?? []
-    const ladder = buildRankLadder(classes, tracker.latestStats?.group)
+    const ladder = buildRankLadder(classes, tracker.latestStats?.group ?? tracker.overview?.group)
     return ladder ? [{ tracker, ladder }] : []
   })
 

@@ -293,7 +293,7 @@ export function TrackerDetailClient({
       {/* Rank Progression */}
       <RankProgress
         userClasses={registryEntry?.userClasses ?? []}
-        currentRank={stats?.group ?? null}
+        currentRank={stats?.group ?? tracker.overview?.group ?? null}
         snapshots={allTimeSnapshots}
         accentColor={tc}
         joinedAt={tracker.joinedAt}

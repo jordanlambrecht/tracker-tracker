@@ -22,9 +22,21 @@ import { scrubObject } from "@/lib/scrub-object"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
 import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
-import type { DebugApiCall, TrackerStats } from "@/types/tracker-stats"
+import { type DebugApiCall, isTrackerOverview, type TrackerPollResult } from "@/types/tracker-stats"
 
-function serializeStats(stats: TrackerStats): Record<string, unknown> {
+function serializeStats(stats: TrackerPollResult): Record<string, unknown> {
+  if (isTrackerOverview(stats)) {
+    return {
+      kind: stats.kind,
+      username: stats.username,
+      group: stats.group,
+      remoteUserId: stats.remoteUserId ?? null,
+      joinedDate: stats.joinedDate ?? null,
+      lastAccessDate: stats.lastAccessDate ?? null,
+      avatarUrl: stats.avatarUrl ?? null,
+      platformMeta: stats.platformMeta ?? null,
+    }
+  }
   return {
     username: stats.username,
     group: stats.group,

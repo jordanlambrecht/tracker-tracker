@@ -62,10 +62,17 @@ export function AnalyticsTab({
   // The requirement the health badge judges against
   const requiredRatio = resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker)
 
+  // An overview-only tracker has no figures for the core cards or the charts, so
+  // only its platform cards are shown.
+  const overviewOnly = !stats && !!tracker.overview
+
   // Build core stat descriptors (data, not elements)
   const coreDescriptors = useMemo(
-    () => buildCoreStatDescriptors(stats, latestSnapshot, requiredRatio, ratioTrend),
-    [stats, latestSnapshot, requiredRatio, ratioTrend]
+    () =>
+      overviewOnly
+        ? []
+        : buildCoreStatDescriptors(stats, latestSnapshot, requiredRatio, ratioTrend),
+    [overviewOnly, stats, latestSnapshot, requiredRatio, ratioTrend]
   )
   const coreCount = coreDescriptors.length
 
@@ -157,18 +164,20 @@ export function AnalyticsTab({
         lastErrorAt={tracker.lastErrorAt}
         userPausedAt={tracker.userPausedAt}
       />
-      <AnalyticsCharts
-        trackerName={tracker.name}
-        platformType={tracker.platformType}
-        snapshots={snapshots}
-        accentColor={tc}
-        days={days}
-        onDaysChange={onDaysChange}
-        delta={delta}
-        gazelleMeta={gazelleMeta}
-        requiredRatio={requiredRatio}
-        bonusName={bonusName}
-      />
+      {!overviewOnly && (
+        <AnalyticsCharts
+          trackerName={tracker.name}
+          platformType={tracker.platformType}
+          snapshots={snapshots}
+          accentColor={tc}
+          days={days}
+          onDaysChange={onDaysChange}
+          delta={delta}
+          gazelleMeta={gazelleMeta}
+          requiredRatio={requiredRatio}
+          bonusName={bonusName}
+        />
+      )}
     </div>
   )
 }

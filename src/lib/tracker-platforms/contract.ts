@@ -6,7 +6,7 @@
 
 import type { Agent as HttpAgent } from "node:http"
 import type { GazelleAuthStyle, NebulanceAuthParam, Unit3dAuthStyle } from "@/data/platform-types"
-import type { DebugApiCall, TrackerStats } from "@/types/tracker-stats"
+import type { DebugApiCall, TrackerPollResult } from "@/types/tracker-stats"
 
 export type { GazelleAuthStyle, NebulanceAuthParam, Unit3dAuthStyle } from "@/data/platform-types"
 // The shapes an adapter returns live in @/types/tracker-stats so a component
@@ -29,7 +29,7 @@ export interface TrackerAdapter {
     apiToken: string,
     apiPath: string,
     options?: FetchOptions
-  ): Promise<TrackerStats>
+  ): Promise<TrackerPollResult>
   fetchRaw(
     baseUrl: string,
     apiToken: string,
