@@ -59,6 +59,7 @@ export const LARGE_TOKEN_MAX = 5000
  */
 const LARGE_TOKEN_PLATFORMS: ReadonlySet<string> = new Set([
   "avistaz",
+  "carpt",
   "digitalcore",
   "filelist",
   "iptorrents",

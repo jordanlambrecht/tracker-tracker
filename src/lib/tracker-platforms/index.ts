@@ -10,6 +10,7 @@ import { registryEntryFor } from "@/data/tracker-registry"
 import { AvistazAdapter } from "./adapters/avistaz"
 import { BtnAdapter } from "./adapters/btn"
 import { C411Adapter } from "./adapters/c411"
+import { CarptAdapter } from "./adapters/carpt"
 import { DigitalCoreAdapter } from "./adapters/digitalcore"
 import { FilelistAdapter } from "./adapters/filelist"
 import { GazelleAdapter } from "./adapters/gazelle"
@@ -28,6 +29,7 @@ const adapters: Record<string, TrackerAdapter> = {
   avistaz: new AvistazAdapter(),
   btn: new BtnAdapter(),
   c411: new C411Adapter(),
+  carpt: new CarptAdapter(),
   digitalcore: new DigitalCoreAdapter(),
   filelist: new FilelistAdapter(),
   gazelle: new GazelleAdapter(),

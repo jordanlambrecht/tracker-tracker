@@ -243,6 +243,20 @@ export interface C411PlatformMeta {
   canDownload?: boolean
 }
 
+/**
+ * CarPT is NexusPHP, whose profile carries a few figures the header omits.
+ */
+export interface CarptPlatformMeta {
+  /** 做种积分 (seeding points). */
+  seedingPoints?: number
+  /** H&R torrents still under investigation (考察中). */
+  hnrUnderInvestigation?: number
+  /** H&R warning limit shown next to the counts (20). */
+  hnrLimit?: number
+  torrentComments?: number
+  forumPosts?: number
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -256,6 +270,7 @@ export type PlatformMeta =
   | Unit3dPlatformMeta
   | RetrotoonPlatformMeta
   | C411PlatformMeta
+  | CarptPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -270,6 +285,7 @@ export interface PlatformMetaMap {
   unit3d: Unit3dPlatformMeta
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
+  carpt: CarptPlatformMeta
 }
 
 /**

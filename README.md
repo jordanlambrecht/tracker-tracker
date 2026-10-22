@@ -74,6 +74,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | DarkPeers             | UNIT3D    | ✅ Verified            |                                                   |
 | Luminarr              | UNIT3D    | 🟡 Unverified          |                                                   |
 | CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                   |
+| CarPT (CPT)           | CarPT     | ✅ Verified            | Cookie auth; NexusPHP profile scraping            |
 | DigitalCore           | Custom    | ✅ Verified            |                                                   |
 | HDBits                | Custom    | 📋 Needs adapter       |                                                   |
 | SecretCinema          | Custom    | 📋 Needs adapter       |                                                   |

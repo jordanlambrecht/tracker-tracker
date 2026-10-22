@@ -16,6 +16,7 @@ export * from "./bibliotik"
 export * from "./blutopia"
 export * from "./broadcasthenet"
 export * from "./c411"
+export * from "./carpt"
 export * from "./cathoderaytube"
 export * from "./cinemageddon"
 export * from "./cinemaz"
@@ -79,6 +80,7 @@ import { bibliotik } from "./bibliotik"
 import { blutopia } from "./blutopia"
 import { broadcasthenet } from "./broadcasthenet"
 import { c411 } from "./c411"
+import { carpt } from "./carpt"
 import { cathoderaytube } from "./cathoderaytube"
 import { cinemageddon } from "./cinemageddon"
 import { cinemaz } from "./cinemaz"
@@ -145,6 +147,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   c411,
   cathoderaytube,
   cinemageddon,
+  carpt,
   cinemaz,
   concertos,
   darkpeers,
