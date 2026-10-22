@@ -1,7 +1,7 @@
 // src/lib/tracker-scheduler.ts
 //
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
-// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning
+// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning, isOtherAccount
 // Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
@@ -145,6 +145,20 @@ async function pauseUnlinked(tracker: {
   }
 }
 
+/**
+ * True when the poll returned a different remote user id than the stored one,
+ * i.e. the credentials now belong to another account. Its join date then
+ * replaces the stored one, including one entered by hand.
+ */
+function isOtherAccount(
+  tracker: { remoteUserId: number | null },
+  stats: { remoteUserId?: number }
+): boolean {
+  return Boolean(
+    stats.remoteUserId && tracker.remoteUserId && stats.remoteUserId !== tracker.remoteUserId
+  )
+}
+
 /** Clears the failure state after a successful poll, closing the circuit breaker. */
 async function recordPollSuccess(
   tracker: { id: number; name: string; pausedAt: Date | null; consecutiveFailures: number },
@@ -252,7 +266,7 @@ export async function pollTracker(
     if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
       metaUpdates.remoteUserId = stats.remoteUserId
     }
-    if (stats.joinedDate && !tracker.joinedAt) {
+    if (stats.joinedDate && (!tracker.joinedAt || isOtherAccount(tracker, stats))) {
       const joined = trackerDateStr(stats.joinedDate)
       if (joined) metaUpdates.joinedAt = joined
     }

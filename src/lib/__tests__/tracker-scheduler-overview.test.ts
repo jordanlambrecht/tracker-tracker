@@ -75,7 +75,7 @@ const OVERVIEW = {
   platformMeta: { role: "User" },
 }
 
-function trackerRow() {
+function trackerRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 42,
     name: "Example",
@@ -95,17 +95,21 @@ function trackerRow() {
     consecutiveFailures: 2,
     pausedAt: null,
     userPausedAt: null,
+    ...overrides,
   }
 }
+
+let row = trackerRow()
 
 let writes: Record<string, unknown>[] = []
 
 beforeEach(() => {
   vi.clearAllMocks()
   writes = []
+  row = trackerRow()
   vi.mocked(db.select).mockImplementation(((cols: Record<string, unknown>) => {
     const keys = Object.keys(cols ?? {})
-    if (keys.includes("encryptedApiToken")) return chain([trackerRow()])
+    if (keys.includes("encryptedApiToken")) return chain([row])
     return chain([])
   }) as never)
   vi.mocked(db.insert).mockImplementation((() => chain([])) as never)
@@ -160,5 +164,34 @@ describe("pollTracker with an overview", () => {
       pausedAt: null,
     })
     expect(writes.at(-1)?.lastPolledAt).toBeInstanceOf(Date)
+  })
+})
+
+describe("pollTracker join date", () => {
+  it("takes the join date of another account the credentials now belong to", async () => {
+    row = trackerRow({ remoteUserId: 999, joinedAt: "2026-10-22" })
+    fetchStats.mockResolvedValue(OVERVIEW)
+
+    await pollTracker(42, KEY, false, undefined)
+
+    expect(writes[0]).toMatchObject({ remoteUserId: 1234, joinedAt: "2020-01-02" })
+  })
+
+  it("keeps a stored join date while the account is the same", async () => {
+    row = trackerRow({ remoteUserId: 1234, joinedAt: "2026-10-22" })
+    fetchStats.mockResolvedValue(OVERVIEW)
+
+    await pollTracker(42, KEY, false, undefined)
+
+    expect(writes[0]).not.toHaveProperty("joinedAt")
+  })
+
+  it("keeps a stored join date when no account was recorded before", async () => {
+    row = trackerRow({ remoteUserId: null, joinedAt: "2026-10-22" })
+    fetchStats.mockResolvedValue(OVERVIEW)
+
+    await pollTracker(42, KEY, false, undefined)
+
+    expect(writes[0]).not.toHaveProperty("joinedAt")
   })
 })
