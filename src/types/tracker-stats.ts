@@ -243,6 +243,19 @@ export interface C411PlatformMeta {
   canDownload?: boolean
 }
 
+/**
+ * Portugas exposes a few extra figures in its profile sidebar.
+ */
+export interface PortugasPlatformMeta {
+  invites?: number
+  /** H&R warnings currently on the account, from "Contagem de HnR". */
+  hnrCount?: number
+  /** Bytes currently seeding, from "Tamanho das Sementes". */
+  seedSizeBytes?: number
+  /** Real ratio, before BON credits, from "Real Rácio". */
+  realRatio?: number
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -256,6 +269,7 @@ export type PlatformMeta =
   | Unit3dPlatformMeta
   | RetrotoonPlatformMeta
   | C411PlatformMeta
+  | PortugasPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -270,6 +284,7 @@ export interface PlatformMetaMap {
   unit3d: Unit3dPlatformMeta
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
+  portugas: PortugasPlatformMeta
 }
 
 /**

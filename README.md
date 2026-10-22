@@ -55,7 +55,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | Zenith                | UNIT3D    | 🟡 Unverified          |                                                   |
 | IPTorrents            | IPTorrents| 🟡 Unverified          | Session-cookie scraper, no public API              |
 | TorrentLeech          | TorrentLeech | 🟡 Unverified       | Username/password login, no public API             |
-| Portugas              | UNIT3D    | 📋 Draft               | API endpoint unavailable on this custom build     |
+| Portugas              | Portugas  | ✅ Verified            | Cookie auth; stats scraped from the profile page  |
 | AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
 | AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
 | BroadcastheNet (BTN)  | BTN       | 🟡 Unverified          | JSON-RPC adapter; needs an account holder to verify |
