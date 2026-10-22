@@ -40,6 +40,8 @@ export interface TrackerHtmlRequest {
   sessionExpiredMessage: string
   /** Copied browser User-Agent. When set, navigation headers are sent too. */
   userAgent?: string
+  /** Overrides the Accept header; JSON APIs on cookie auth need application/json. */
+  accept?: string
   proxyAgent?: FetchOptions["proxyAgent"]
   /**
    * When set, redirects are followed rather than treated as an expired session.
@@ -48,10 +50,14 @@ export interface TrackerHtmlRequest {
   followRedirects?: { loginPattern: RegExp; maxHops?: number }
 }
 
-function buildHtmlHeaders(cookies: string, userAgent?: string): Record<string, string> {
+function buildHtmlHeaders(
+  cookies: string,
+  userAgent?: string,
+  accept: string = ACCEPT_HTML
+): Record<string, string> {
   return {
     Cookie: cookies,
-    Accept: ACCEPT_HTML,
+    Accept: accept,
     "Accept-Language": "en-US,en;q=0.9",
     ...(userAgent ? { "User-Agent": userAgent, ...NAVIGATION_HEADERS } : {}),
   }
@@ -197,9 +203,17 @@ async function followRedirectChain(
  * reaches a log or an API response.
  */
 export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<string> {
-  const { url, cookies, label, sessionExpiredMessage, userAgent, proxyAgent, followRedirects } =
-    request
-  const headers = buildHtmlHeaders(cookies, userAgent)
+  const {
+    url,
+    cookies,
+    label,
+    sessionExpiredMessage,
+    userAgent,
+    accept,
+    proxyAgent,
+    followRedirects,
+  } = request
+  const headers = buildHtmlHeaders(cookies, userAgent, accept)
 
   const fetcher: HtmlFetcher = proxyAgent
     ? (target) => getHtmlViaProxy(target, headers, proxyAgent)

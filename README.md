@@ -51,6 +51,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | SkipTheCommercials    | UNIT3D    | ✅ Verified            |                                                   |
 | Seedpool              | UNIT3D    | ✅ Verified            |                                                   |
 | Upload.cx             | UNIT3D    | ✅ Verified            |                                                   |
+| V3X                   | V3X       | ✅ Verified            | Cookie auth; JSON API at api.v3x.club/auth/me     |
 | Yu-Scene              | UNIT3D    | ✅ Verified            |                                                   |
 | Zenith                | UNIT3D    | 🟡 Unverified          |                                                   |
 | IPTorrents            | IPTorrents| 🟡 Unverified          | Session-cookie scraper, no public API              |

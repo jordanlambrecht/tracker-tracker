@@ -38,14 +38,18 @@ const CREDENTIALS: Record<string, string> = {
   retrotoon: cookieBlob(),
   torrentleech: JSON.stringify({ username: "someone", password: CANARY }),
   digitalcore: JSON.stringify({ uid: "54321", pass: CANARY }),
+  v3x: cookieBlob(),
 }
 
 /**
- * BTN serves its API from a fixed host, not the configured baseUrl, so its
- * errors name that host. Declaring it is a claim that the host is part of the
- * protocol. A second adapter like this wants a lookup, not a second const.
+ * Adapters whose API lives on a fixed host, not the configured baseUrl, name
+ * that host in their errors. Declaring one is a claim that the host is part of
+ * the protocol.
  */
-const BTN_API_HOST = "api.broadcasthe.net"
+const FIXED_API_HOSTS: Record<string, string> = {
+  btn: "api.broadcasthe.net",
+  v3x: "api.v3x.club",
+}
 
 const HOST = "tracker.example"
 const BASE_URL = `https://${HOST}`
@@ -169,7 +173,7 @@ describe("every registered adapter", () => {
 
         expect(err).not.toBeNull()
         // Without a host the card cannot say which tracker went quiet.
-        expect(err?.message).toContain(platform === "btn" ? BTN_API_HOST : HOST)
+        expect(err?.message).toContain(FIXED_API_HOSTS[platform] ?? HOST)
       })
 
       it("returns debug calls with the declared shape and a Title Case label", async () => {
