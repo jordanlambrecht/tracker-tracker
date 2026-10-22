@@ -16,7 +16,7 @@ export const portugas: TrackerRegistryEntry = {
   contentCategories: ["Movies", "TV", "Music", "Games", "Books", "XXX"],
   language: "Portuguese",
   color: "#046A38",
-  logo: "",
+  logo: "/tracker-logos/portugas_logo.png",
   trackerHubSlug: "",
   statusPageUrl: "",
   userClasses: [
