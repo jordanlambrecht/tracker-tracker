@@ -1,7 +1,7 @@
 // src/lib/tracker-platforms/adapters/mteam.ts
 //
-// Functions: roleName, rawBytes, numeric, dateOnly, integer, unwrap,
-// readProfile, readPeerStatus, MteamAdapter
+// Functions: roleName, rawBytes, numeric, dateOnly, integer, remoteId, unwrap,
+// readPeerStatus, readProfile, errorMessage, request, MteamAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
