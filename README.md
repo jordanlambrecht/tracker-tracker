@@ -56,6 +56,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | Zenith                | UNIT3D    | 🟡 Unverified          |                                                   |
 | IPTorrents            | IPTorrents| 🟡 Unverified          | Session-cookie scraper, no public API              |
 | TorrentLeech          | TorrentLeech | 🟡 Unverified       | Username/password login, no public API             |
+| FunFile               | FunFile   | 🟡 Unverified          | Username/password login, no public API            |
 | Portugas              | UNIT3D    | 📋 Draft               | API endpoint unavailable on this custom build     |
 | AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
 | AnimeBytes            | AnimeBytes | 🟡 Unverified         | Own API (/api/stats/personal), not Gazelle        |
