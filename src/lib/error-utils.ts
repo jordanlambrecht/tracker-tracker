@@ -251,6 +251,10 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   }
   // Ahead of the ban rule, which would read its "rate limited" as an IP ban.
   if (raw.startsWith(BTN_RATE_LIMITED_CAUSE)) return BTN_RATE_LIMITED_ERROR
+  // FunFile's refused login, a static string like the ones above.
+  if (/FunFile refused the username and password/i.test(raw)) {
+    return "FunFile refused the username and password"
+  }
   // A tracker answer the adapter could not use, such as a 2xx body it could
   // not read or a scraper's redirect with no readable Location. "Unexpected
   // response from <host>: ..." is the wording the adapters and the shared fetch

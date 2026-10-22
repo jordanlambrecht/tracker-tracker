@@ -292,6 +292,25 @@ export const CREDENTIAL_FORMS = {
     },
   },
 
+  funfile: {
+    kind: "login",
+    hidesJoinDate: true,
+    dialog: {
+      username: { label: "FunFile Username", placeholder: "Your FunFile username" },
+      password: {
+        label: "FunFile Password",
+        tooltip:
+          "FunFile has no API, so Tracker Tracker logs in with your username and password. FunFile bans an IP address after six failed logins in a row, so check them before saving.",
+        docs: true,
+        placeholder: "Your FunFile password",
+      },
+    },
+    sheet: {
+      username: { label: "Username" },
+      password: { label: "Password" },
+    },
+  },
+
   torrentleech: {
     kind: "login",
     hidesJoinDate: false,
