@@ -21,7 +21,7 @@ export const v3x: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#8B5CF6",
-  logo: "",
+  logo: "/tracker-logos/v3x_logo.png",
   bonusName: "Points",
 
   // ── External Links ──────────────────────────────────────────────────
