@@ -21,7 +21,7 @@ export const carpt: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#2E8B57",
-  logo: "",
+  logo: "/tracker-logos/carpt_logo.png",
   bonusName: "Magic Points",
 
   // ── External Links ──────────────────────────────────────────────────
