@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { anthelion } from "@/data/trackers/anthelion"
 import { torrentleech } from "@/data/trackers/torrentleech"
-import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { Snapshot, TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 import type { SlotContext } from "@/types/slots"
 import type {
   C411PlatformMeta,
@@ -1176,5 +1176,99 @@ describe("bonus name", () => {
     for (const registry of [undefined, { ...torrentleech, bonusName: "" }]) {
       expect(seedbonusCard(ctx(registry))?.props).toMatchObject({ label: "Seedbonus", unit: "BON" })
     }
+  })
+})
+
+describe("prowlarr-indexer stat card", () => {
+  const STATS = {
+    averageResponseTime: 512,
+    queries: 20,
+    grabs: 3,
+    rssQueries: 76,
+    authQueries: 1,
+    failedQueries: 5,
+    failedGrabs: 0,
+    failedRssQueries: 20,
+    failedAuthQueries: 0,
+  }
+
+  function indexer(overrides: Partial<TrackerProwlarrIndexer> = {}): TrackerProwlarrIndexer {
+    return {
+      instanceId: 1,
+      instanceName: "Home Prowlarr",
+      instanceError: null,
+      stale: false,
+      indexerId: 7,
+      name: "Example Indexer",
+      enabled: true,
+      disabledTill: null,
+      mostRecentFailure: null,
+      initialFailure: null,
+      checkedAt: "2026-05-01T12:00:00.000Z",
+      stats24h: STATS,
+      stats7d: STATS,
+      ...overrides,
+    }
+  }
+
+  function resolveCard(indexers: TrackerProwlarrIndexer[] | null) {
+    const ctx: SlotContext = {
+      tracker: makeTracker({
+        prowlarr: indexers ? { matchedBy: "auto", indexers } : null,
+      }),
+      latestSnapshot: null,
+      meta: null,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+    return (resolveSlots(ctx).get("stat-card") ?? []).find((s) => s.id === "prowlarr-indexer")
+  }
+
+  it("is absent for a tracker no indexer matched", () => {
+    expect(resolveCard(null)).toBeUndefined()
+  })
+
+  it("shows status, traffic and failure rate for a healthy indexer", () => {
+    const props = resolveCard([indexer()])?.props as {
+      rows: { label: string; value: string }[]
+      alert?: string
+    }
+    expect(props.alert).toBeUndefined()
+    expect(Object.fromEntries(props.rows.map((r) => [r.label, r.value]))).toEqual({
+      Status: "OK",
+      "Queries 24h / 7d": "100 / 100",
+      "Grabs 24h / 7d": "3 / 3",
+      "Failed 7d": "25.0%",
+      "Avg Response 7d": "512 ms",
+    })
+  })
+
+  it("prefers the failing indexer and raises a warning", () => {
+    const failing = indexer({
+      indexerId: 8,
+      name: "Sample Indexer",
+      disabledTill: "2026-05-01T15:00:00.000Z",
+      initialFailure: "2026-04-30T08:00:00.000Z",
+    })
+    const slot = resolveCard([indexer(), failing])
+    const props = slot?.props as {
+      rows: { value: string }[]
+      alert?: string
+      alertReason?: string
+      tooltip?: string
+    }
+    expect(props.alert).toBe("warn")
+    expect(props.rows[0].value).toBe("Failing")
+    expect(props.alertReason).toMatch(/^Failing in Prowlarr since/)
+    expect(props.tooltip).toBeUndefined()
+  })
+
+  it("reports an unreachable Prowlarr without warning about the tracker", () => {
+    const props = resolveCard([indexer({ instanceError: "Connection refused" })])?.props as {
+      rows: { value: string }[]
+      alert?: string
+    }
+    expect(props.rows[0].value).toBe("Unreachable")
+    expect(props.alert).toBeUndefined()
   })
 })

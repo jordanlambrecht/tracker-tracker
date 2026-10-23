@@ -600,6 +600,25 @@ function ServerIcon(props: IconProps) {
   )
 }
 
+// Magnifying glass. Used on the Prowlarr stat card
+function SearchIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <line x1="15.5" y1="15.5" x2="20" y2="20" />
+    </svg>
+  )
+}
+
 // Tag. Used in TorrentsTab NoTagState empty state
 function TagIcon(props: IconProps) {
   return (
@@ -928,6 +947,7 @@ export {
   RatioIcon,
   RefreshIcon,
   RequiredRatioIcon,
+  SearchIcon,
   SeedingIcon,
   ServerIcon,
   ShareScoreIcon,

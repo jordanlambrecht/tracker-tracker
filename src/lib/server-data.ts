@@ -5,9 +5,10 @@
 // getSnapshotsForTracker, getFleetSnapshots, getTagGroupsWithMembers,
 // getProxyTrackers, getDatabaseSize, getDatabaseSizeBytes, recordDatabaseSize,
 // getDbSizeHistory, fetchDownloadClients, serializeDownloadClientResponse,
-// fetchNotificationTargets, serializeNotificationTarget
+// fetchNotificationTargets, serializeNotificationTarget, fetchProwlarrInstances,
+// serializeProwlarrInstance
 // Constants: settingsColumns, trackerColumns, snapshotColumns, clientColumns,
-// notificationTargetColumns
+// notificationTargetColumns, prowlarrInstanceColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
 // that return client-safe shapes. Used by both API route handlers and
@@ -22,6 +23,7 @@
 //   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey,
 //     encryptedUrlPath
 //   notificationTargets: encryptedConfig
+//   prowlarrInstances: encryptedApiKey
 
 import "server-only"
 
@@ -33,6 +35,8 @@ import {
   dbSizeHistory,
   downloadClients,
   notificationTargets,
+  prowlarrIndexers,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups as tagGroupsTable,
   trackerSnapshots,
@@ -42,8 +46,16 @@ import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defau
 import { localDateStr } from "@/lib/formatters"
 import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { loadTrackerProwlarrStates } from "@/lib/prowlarr/sync"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
-import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
+import type {
+  ProwlarrHealthIssue,
+  SafeProwlarrInstance,
+  Snapshot,
+  TagGroup,
+  TagGroupChartType,
+  TrackerSummary,
+} from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -193,6 +205,50 @@ export function serializeDownloadClientResponse(row: DownloadClientListRow) {
 }
 
 // ---------------------------------------------------------------------------
+// Prowlarr instances
+// ---------------------------------------------------------------------------
+
+/** Reduces the API key to a presence boolean in SQL, like clientColumns. */
+export const prowlarrInstanceColumns = {
+  id: prowlarrInstances.id,
+  name: prowlarrInstances.name,
+  url: prowlarrInstances.url,
+  hasApiKey: sql<boolean>`(${prowlarrInstances.encryptedApiKey} IS NOT NULL)`.as("has_api_key"),
+  enabled: prowlarrInstances.enabled,
+  lastPolledAt: prowlarrInstances.lastPolledAt,
+  lastError: prowlarrInstances.lastError,
+  errorSince: prowlarrInstances.errorSince,
+  version: prowlarrInstances.version,
+  healthIssues: prowlarrInstances.healthIssues,
+  indexerCount:
+    sql<number>`(SELECT COUNT(*)::int FROM ${prowlarrIndexers} WHERE ${prowlarrIndexers.instanceId} = ${prowlarrInstances.id})`.as(
+      "indexer_count"
+    ),
+  createdAt: prowlarrInstances.createdAt,
+  updatedAt: prowlarrInstances.updatedAt,
+}
+
+export function fetchProwlarrInstances() {
+  return db.select(prowlarrInstanceColumns).from(prowlarrInstances).orderBy(prowlarrInstances.id)
+}
+
+export type ProwlarrInstanceListRow = Awaited<ReturnType<typeof fetchProwlarrInstances>>[number]
+
+export function serializeProwlarrInstance(row: ProwlarrInstanceListRow): SafeProwlarrInstance {
+  return {
+    ...row,
+    healthIssues: Array.isArray(row.healthIssues)
+      ? (row.healthIssues as ProwlarrHealthIssue[])
+      : [],
+    indexerCount: Number(row.indexerCount) || 0,
+    lastPolledAt: row.lastPolledAt?.toISOString() ?? null,
+    errorSince: row.errorSince?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Notification targets
 // ---------------------------------------------------------------------------
 
@@ -287,6 +343,7 @@ export const trackerColumns = {
   joinedAt: trackers.joinedAt,
   lastAccessAt: trackers.lastAccessAt,
   profileUrl: trackers.profileUrl,
+  prowlarrIndexer: trackers.prowlarrIndexer,
   createdAt: trackers.createdAt,
   updatedAt: trackers.updatedAt,
 }
@@ -311,12 +368,14 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
+  const prowlarrByTracker = await loadTrackerProwlarrStates(allTrackers)
 
   // SECURITY: Never include encryptedApiToken in response
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
   return allTrackers.map((tracker) => {
     const latest = snapshotByTracker.get(tracker.id) ?? null
-    return serializeTrackerResponse(tracker, latest, mask)
+    const prowlarr = prowlarrByTracker.get(tracker.id) ?? null
+    return serializeTrackerResponse(tracker, latest, mask, prowlarr)
   })
 }
 
@@ -346,9 +405,10 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
   // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
+  const prowlarr = (await loadTrackerProwlarrStates([tracker])).get(tracker.id) ?? null
 
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
-  return serializeTrackerResponse(tracker, latest ?? null, mask)
+  return serializeTrackerResponse(tracker, latest ?? null, mask, prowlarr)
 }
 
 // ---------------------------------------------------------------------------

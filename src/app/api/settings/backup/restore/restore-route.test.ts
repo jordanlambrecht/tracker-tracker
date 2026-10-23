@@ -52,6 +52,8 @@ vi.mock("@/lib/db/schema", () => ({
   downloadClients: { __table: "download_clients", id: "download_clients.id" },
   notificationDeliveryState: { __table: "notification_delivery_state" },
   notificationTargets: { __table: "notification_targets" },
+  prowlarrIndexers: { __table: "prowlarr_indexers" },
+  prowlarrInstances: { __table: "prowlarr_instances", id: "prowlarr_instances.id" },
   tagGroupMembers: { __table: "tag_group_members" },
   tagGroups: { __table: "tag_groups", id: "tag_groups.id" },
   trackerRoles: { __table: "tracker_roles" },
@@ -508,6 +510,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
       joinedAt: "2020-01-01",
       lastAccessAt: "2026-03-01",
       profileUrl: "https://drift.example.com/users/driftling",
+      prowlarrIndexer: "none",
       createdAt: ISO,
       updatedAt: ISO,
     }
@@ -553,6 +556,112 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
 
     expect(onlyInsert(recorder, "trackers").registrySlug).toBeNull()
+  })
+
+  // Instance ids are reassigned on restore, so a pinned indexer is moved to its
+  // instance's new id; otherwise it would point at no instance, or at another one.
+  describe("Prowlarr instances", () => {
+    const PROWLARR_KEY = "0123456789abcdef0123456789abcdef"
+
+    function withProwlarr(payload: BackupPayload, apiKeyCiphertext: string, pin: string) {
+      payload.prowlarrInstances = [
+        {
+          id: 5,
+          name: "Home Prowlarr",
+          url: "http://prowlarr.test:9696",
+          encryptedApiKey: apiKeyCiphertext,
+          enabled: true,
+          createdAt: ISO,
+          updatedAt: ISO,
+        },
+      ]
+      ;(payload.trackers[0] as Record<string, unknown>).prowlarrIndexer = pin
+      return payload
+    }
+
+    it("restores the instance and re-points a pinned tracker at its new id", async () => {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const payload = withProwlarr(
+        makeBackupPayload(SALT_A, encryptAll(backupKey)),
+        encrypt(PROWLARR_KEY, backupKey),
+        "5:12"
+      )
+      mockCurrentSettings({ encryptionSalt: SALT_A })
+
+      expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+      expect(recorder.deletes).toContainEqual({
+        __table: "prowlarr_instances",
+        id: "prowlarr_instances.id",
+      })
+      const instance = onlyInsert(recorder, "prowlarr_instances")
+      expect(instance).toMatchObject({ name: "Home Prowlarr", enabled: true, lastError: null })
+      expect(decrypt(instance.encryptedApiKey as string, backupKey)).toBe(PROWLARR_KEY)
+      // The instance is inserted before the trackers, so it takes the first id.
+      expect(onlyInsert(recorder, "trackers").prowlarrIndexer).toBe("100:12")
+    })
+
+    it("re-encrypts the key under a new salt", async () => {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const currentKey = await deriveKey(PASSWORD, SALT_B)
+      const payload = withProwlarr(
+        makeBackupPayload(SALT_A, encryptAll(backupKey)),
+        encrypt(PROWLARR_KEY, backupKey),
+        "none"
+      )
+      mockCurrentSettings({ encryptionSalt: SALT_B })
+
+      expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+      const instance = onlyInsert(recorder, "prowlarr_instances")
+      expect(decrypt(instance.encryptedApiKey as string, currentKey)).toBe(PROWLARR_KEY)
+      expect(onlyInsert(recorder, "trackers").prowlarrIndexer).toBe("none")
+    })
+
+    it("clears an unreadable key to NULL and disables the instance", async () => {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const strangerKey = await deriveKey(OTHER_PASSWORD, SALT_A)
+      const payload = withProwlarr(
+        makeBackupPayload(SALT_A, encryptAll(backupKey)),
+        encrypt(PROWLARR_KEY, strangerKey),
+        "5:12"
+      )
+      mockCurrentSettings({ encryptionSalt: SALT_B })
+
+      expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+      const instance = onlyInsert(recorder, "prowlarr_instances")
+      expect(instance.encryptedApiKey).toBeNull()
+      expect(instance.enabled).toBe(false)
+      expect(instance.lastError).toMatch(/API key cleared/)
+    })
+
+    it("drops a pin whose instance is not in the backup", async () => {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+      ;(payload.trackers[0] as Record<string, unknown>).prowlarrIndexer = "9:12"
+      mockCurrentSettings({ encryptionSalt: SALT_A })
+
+      expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+      expect(onlyInsert(recorder, "trackers").prowlarrIndexer).toBeNull()
+    })
+
+    it("counts the key in the dry run", async () => {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const plain = makeBackupPayload(SALT_A, encryptAll(backupKey))
+      mockCurrentSettings({ encryptionSalt: SALT_A })
+      const before = await (await POST(makeRequest(plain, PASSWORD, undefined, true))).json()
+
+      const payload = withProwlarr(
+        makeBackupPayload(SALT_A, encryptAll(backupKey)),
+        encrypt(PROWLARR_KEY, backupKey),
+        "none"
+      )
+      const after = await (await POST(makeRequest(payload, PASSWORD, undefined, true))).json()
+
+      expect(after.credentialsTotal).toBe(before.credentialsTotal + 1)
+    })
   })
 
   // The slug is the key every registry lookup goes by, so a backup handing it a
@@ -1058,6 +1167,9 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
       "notification_delivery_state",
       "notification_targets",
       "download_clients",
+      // The indexer cache is not in the backup; the next poll rebuilds it.
+      "prowlarr_indexers",
+      "prowlarr_instances",
       "trackers",
     ])
   })

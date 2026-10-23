@@ -17,7 +17,13 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, hashPassword, verifyPassword } from "@/lib/auth"
 import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, downloadClients, notificationTargets, trackers } from "@/lib/db/schema"
+import {
+  appSettings,
+  downloadClients,
+  notificationTargets,
+  prowlarrInstances,
+  trackers,
+} from "@/lib/db/schema"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { stopScheduler } from "@/lib/scheduler"
 import { clearSchedulerKey } from "@/lib/scheduler-key-store"
@@ -70,6 +76,11 @@ vi.mock("@/lib/db/schema", () => ({
     name: "notificationTargets.name",
     encryptedConfig: "notificationTargets.encryptedConfig",
   },
+  prowlarrInstances: {
+    id: "prowlarrInstances.id",
+    name: "prowlarrInstances.name",
+    encryptedApiKey: "prowlarrInstances.encryptedApiKey",
+  },
 }))
 
 vi.mock("@/lib/lockout", () => ({
@@ -108,6 +119,7 @@ let settingsRow: Row
 let trackerRows: Row[]
 let clientRows: Row[]
 let notificationRows: Row[]
+let prowlarrRows: Row[]
 /** Every tx.update(...).set(...).where(...) in call order. */
 let writes: Write[]
 /** When set, any write to this table rejects, simulates an in-tx DB failure. */
@@ -142,7 +154,9 @@ function selectFrom(table: unknown) {
           ? clientRows
           : table === notificationTargets
             ? notificationRows
-            : []
+            : table === prowlarrInstances
+              ? prowlarrRows
+              : []
   // appSettings is read as .from(x).limit(1); the rest are awaited directly.
   const result = Promise.resolve(rows)
   ;(result as unknown as { limit: (n: number) => Promise<Row[]> }).limit = () =>
@@ -194,6 +208,7 @@ beforeEach(() => {
   notificationRows = [
     { id: 20, name: "discord", encryptedConfig: encrypt(NOTIFICATION_CONFIG, oldKey) },
   ]
+  prowlarrRows = []
 
   // The session carries the OLD key, this is what decodeKey() unpacks.
   ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -309,6 +324,39 @@ describe("POST /api/auth/change-password — re-encryption round trip", () => {
     expect(clearSchedulerKey).toHaveBeenCalledWith(1)
     expect(stopScheduler).toHaveBeenCalled()
     expect(clearSession).toHaveBeenCalled()
+  })
+})
+
+describe("POST /api/auth/change-password — Prowlarr API keys", () => {
+  const PROWLARR_KEY = "0123456789abcdef0123456789abcdef"
+
+  it("re-encrypts a stored key and leaves a NULL one alone", async () => {
+    prowlarrRows = [
+      { id: 30, name: "Home Prowlarr", encryptedApiKey: encrypt(PROWLARR_KEY, oldKey) },
+      { id: 31, name: "Spare Prowlarr", encryptedApiKey: null },
+    ]
+
+    const response = await post()
+
+    expect(response.status).toBe(200)
+    const prowlarrWrites = writesTo(prowlarrInstances)
+    expect(prowlarrWrites).toHaveLength(1)
+    expect(decrypt(prowlarrWrites[0].values.encryptedApiKey as string, newKey)).toBe(PROWLARR_KEY)
+  })
+
+  it("clears a key that will not decrypt to NULL and says so", async () => {
+    prowlarrRows = [
+      { id: 30, name: "Home Prowlarr", encryptedApiKey: encrypt(PROWLARR_KEY, strangerKey) },
+    ]
+
+    const response = await post()
+
+    expect(response.status).toBe(200)
+    expect(writesTo(prowlarrInstances)).toEqual([
+      { table: prowlarrInstances, values: { encryptedApiKey: null } },
+    ])
+    const body = (await response.json()) as { warnings: string[] }
+    expect(body.warnings.some((w) => w.includes("Prowlarr API key"))).toBe(true)
   })
 })
 

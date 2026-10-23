@@ -2,7 +2,7 @@
 //
 // Exports: SLOT_DEFINITIONS, renderSlotElement, AnySlotDefinition
 // Slot IDs defined:
-//   stat-card: login-deadline, api-key-expiry, gold, snatched-nebulance, seedbonus, ggn-share-score-card,
+//   stat-card: login-deadline, api-key-expiry, prowlarr-indexer, gold, snatched-nebulance, seedbonus, ggn-share-score-card,
 //              gazelle-tokens, perfect-flacs, snatched-gazelle, torrents-uploaded,
 //              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments,
 //              mam-wedges, mam-completed, mam-tracker-errors
@@ -23,6 +23,7 @@ import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
 import {
   DownloadArrowIcon,
+  SearchIcon,
   ShareScoreIcon,
   ShieldIcon,
   StarIcon,
@@ -38,7 +39,13 @@ import type {
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
 import { registryBonusName } from "@/data/tracker-registry"
-import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
+import { formatBytesNum, formatCount, formatPercent, formatRatio } from "@/lib/formatters"
+import {
+  describeIndexerStatus,
+  getIndexerStatus,
+  getProwlarrFailure,
+  statsTotals,
+} from "@/lib/prowlarr/status"
 import type { SlotCategory, SlotContext } from "@/types/slots"
 import { metaFor } from "@/types/tracker-stats"
 import type { GgnAchievementProgressProps } from "./platform/GgnAchievementProgress"
@@ -428,6 +435,60 @@ const apiKeyExpirySlot: SlotDefinition<StatCardDeadlineProps> = {
       accentColor: ctx.accentColor,
       tooltip:
         "When this tracker's API key stops working. Generate a new key on the tracker before then and paste it into the tracker settings.",
+    }
+  },
+}
+
+const PROWLARR_STATUS_ROW: Record<
+  ReturnType<typeof getIndexerStatus>,
+  { value: string; colorClass?: string }
+> = {
+  ok: { value: "OK", colorClass: "text-success" },
+  failing: { value: "Failing", colorClass: "text-warn" },
+  unreachable: { value: "Unreachable", colorClass: "text-danger" },
+  stale: { value: "No data" },
+  disabled: { value: "Disabled" },
+}
+
+// The matched Prowlarr indexer's health and traffic. With several matches the
+// failing one is shown, since that is the one the status warning is about.
+const prowlarrIndexerSlot: SlotDefinition<StatCardStackedProps> = {
+  id: "prowlarr-indexer",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 32,
+  span: 2,
+  resolve(ctx) {
+    const indexers = ctx.tracker.prowlarr?.indexers ?? []
+    const indexer = getProwlarrFailure(ctx.tracker) ?? indexers[0]
+    if (!indexer) return null
+    const status = getIndexerStatus(indexer)
+    const day = indexer.stats24h ? statsTotals(indexer.stats24h) : null
+    const week = indexer.stats7d ? statsTotals(indexer.stats7d) : null
+    const pair = (a: number | undefined, b: number | undefined) =>
+      a === undefined && b === undefined ? "—" : `${formatCount(a)} / ${formatCount(b)}`
+    return {
+      type: "stacked" as const,
+      title: "Prowlarr",
+      rows: [
+        { label: "Status", ...PROWLARR_STATUS_ROW[status] },
+        { label: "Queries 24h / 7d", value: pair(day?.requests, week?.requests) },
+        { label: "Grabs 24h / 7d", value: pair(indexer.stats24h?.grabs, indexer.stats7d?.grabs) },
+        {
+          label: "Failed 7d",
+          value: week?.failureRate == null ? "—" : formatPercent(week.failureRate * 100),
+        },
+        {
+          label: "Avg Response 7d",
+          value: indexer.stats7d?.averageResponseTime
+            ? `${formatCount(Math.round(indexer.stats7d.averageResponseTime))} ms`
+            : "—",
+        },
+      ],
+      accentColor: ctx.accentColor,
+      icon: icon16(SearchIcon),
+      alert: status === "failing" ? ("warn" as const) : undefined,
+      alertReason: status === "failing" ? describeIndexerStatus(indexer) : undefined,
     }
   },
 }
@@ -1023,6 +1084,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   // stat-card slots
   loginDeadlineSlot,
   apiKeyExpirySlot,
+  prowlarrIndexerSlot,
   goldSlot,
   snatchedNebulanceSlot,
   seedbonusSlot,

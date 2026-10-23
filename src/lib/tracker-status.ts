@@ -5,11 +5,13 @@
 // Single source of truth for tracker health status. Includes type, derivation
 // logic, and all visual mappings (PulseDot status, Badge variant, labels,
 // descriptions). Ratio bands are requirement-aware: each tracker is judged
-// against its own required ratio, not a global cutoff.
+// against its own required ratio, not a global cutoff. A tracker failing in
+// Prowlarr is lifted from healthy to warning.
 
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
 import { registryEntryFor } from "@/data/tracker-registry"
+import { describeProwlarrFailure, getProwlarrFailure } from "@/lib/prowlarr/status"
 import type { TrackerSummary } from "@/types/api"
 
 // Ordered loosely by severity, ascending. "warning" and "no-seeds" are
@@ -129,6 +131,16 @@ function resolveRequiredRatio(
 }
 
 function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
+  const base = getBaseHealth(tracker)
+  // A failing indexer is a watch state like a thin ratio, so it only changes a
+  // healthy status. A worse status takes precedence, and an unreachable Prowlarr
+  // is never treated as the tracker failing (getIndexerStatus).
+  if (base === "healthy" && getProwlarrFailure(tracker)) return "warning"
+  return base
+}
+
+// Health from the tracker's own poll and stats, before the Prowlarr state is applied.
+function getBaseHealth(tracker: TrackerSummary): TrackerHealth {
   const pause = getPauseState(tracker)
   if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
   if (tracker.lastError) return "error"
@@ -176,7 +188,19 @@ function getHealthBadgeVariant(status: TrackerHealth): BadgeVariant {
   return HEALTH_META[status].badge
 }
 
-function getHealthLabel(status: TrackerHealth): string {
+// True when the warning comes from Prowlarr alone, so the ratio wording would
+// describe a band the tracker is not in.
+function isProwlarrOnlyWarning(status: TrackerHealth, tracker?: TrackerSummary): boolean {
+  return (
+    status === "warning" &&
+    !!tracker &&
+    getBaseHealth(tracker) !== "warning" &&
+    getProwlarrFailure(tracker) !== null
+  )
+}
+
+function getHealthLabel(status: TrackerHealth, tracker?: TrackerSummary): string {
+  if (isProwlarrOnlyWarning(status, tracker)) return "Indexer Failing"
   return HEALTH_META[status].label
 }
 
@@ -192,6 +216,13 @@ function formatRequirement(value: number): string {
 // applies. The warned check comes first: a warned account is "critical"
 // whatever its ratio, and a band description would explain the wrong thing.
 function getHealthDescription(status: TrackerHealth, tracker?: TrackerSummary): string {
+  const failure = tracker && status === "warning" ? getProwlarrFailure(tracker) : null
+  if (failure && isProwlarrOnlyWarning(status, tracker)) return describeProwlarrFailure(failure)
+  const ratio = getRatioDescription(status, tracker)
+  return failure ? `${ratio}. ${describeProwlarrFailure(failure)}` : ratio
+}
+
+function getRatioDescription(status: TrackerHealth, tracker?: TrackerSummary): string {
   if (!tracker || (status !== "healthy" && status !== "warning" && status !== "critical")) {
     return HEALTH_META[status].description
   }

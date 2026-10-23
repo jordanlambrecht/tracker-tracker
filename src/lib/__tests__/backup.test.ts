@@ -24,6 +24,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackerSnapshots: {},
   trackerRoles: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   tagGroups: {},
   tagGroupMembers: {},
   clientSnapshots: {},

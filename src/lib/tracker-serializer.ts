@@ -4,7 +4,7 @@ import "server-only"
 import type { PlatformType } from "@/data/platform-types"
 import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
-import type { TrackerSummary } from "@/types/api"
+import type { TrackerProwlarrState, TrackerSummary } from "@/types/api"
 import type { PlatformMeta } from "@/types/tracker-stats"
 
 // The ciphertext columns are omitted from the input type, not just left out of
@@ -37,7 +37,8 @@ export function parsePlatformMeta(raw: string | null): PlatformMeta | null {
 export function serializeTrackerResponse(
   tracker: TrackerRow,
   latest: TrackerSnapshotRow | null,
-  mask: (val: string | null | undefined) => string | null
+  mask: (val: string | null | undefined) => string | null,
+  prowlarr: TrackerProwlarrState | null = null
 ): TrackerSummary {
   return {
     id: tracker.id,
@@ -66,6 +67,8 @@ export function serializeTrackerResponse(
     remoteUserId: tracker.remoteUserId ?? null,
     platformMeta: parsePlatformMeta(tracker.platformMeta),
     createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
+    prowlarrIndexer: tracker.prowlarrIndexer ?? null,
+    prowlarr,
     latestStats: latest
       ? {
           // Derived from byte totals, not the stored `ratio`. JSON turns Infinity

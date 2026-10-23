@@ -33,6 +33,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackerSnapshots: {},
   trackerRoles: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {},
   notificationDeliveryState: {},
   dismissedAlerts: {},

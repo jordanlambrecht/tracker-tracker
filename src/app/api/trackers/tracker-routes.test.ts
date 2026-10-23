@@ -48,6 +48,11 @@ vi.mock("@/lib/tracker-scheduler", () => ({
   pollTracker: vi.fn(),
 }))
 
+// No Prowlarr configured. Its own query chain is covered in prowlarr-sync.test.ts.
+vi.mock("@/lib/prowlarr/sync", () => ({
+  loadTrackerProwlarrStates: vi.fn().mockResolvedValue(new Map()),
+}))
+
 vi.mock("@/lib/privacy", () => ({
   isRedacted: vi.fn().mockReturnValue(false),
   maskUsername: vi.fn((v: string) => `▓${v.length}`),
@@ -635,6 +640,32 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(response.status).toBe(200)
     expect(mockSet).toHaveBeenCalledTimes(1)
     expect(mockSet.mock.calls[0][0]).not.toHaveProperty("baseUrl")
+  })
+
+  it.each([
+    ["2:15", "2:15"],
+    ["none", "none"],
+    [null, null],
+  ])("stores the Prowlarr indexer override %j", async (value, stored) => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ prowlarrIndexer: value })
+    const mockSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", {}, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(200)
+    expect(mockSet.mock.calls[0][0].prowlarrIndexer).toBe(stored)
+  })
+
+  it.each(["auto", "1:", "x:2", 5])("rejects the Prowlarr indexer override %j", async (value) => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ prowlarrIndexer: value })
+
+    const request = makeRequest("http://localhost/api/trackers/1", {}, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(400)
+    expect(db.update).not.toHaveBeenCalled()
   })
 
   it("returns 400 when color exceeds 20 characters", async () => {

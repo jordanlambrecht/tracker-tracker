@@ -13,6 +13,8 @@ import {
   downloadClients,
   notificationDeliveryState,
   notificationTargets,
+  prowlarrIndexers,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups,
   torrentDailyCheckpoints,
@@ -84,6 +86,15 @@ export async function scrubAndDeleteAll(): Promise<void> {
       lastDeliveryError: null,
     })
 
+    // NULL rather than random hex for the same reason as encryptedCredentials.
+    await tx.update(prowlarrInstances).set({
+      encryptedApiKey: null,
+      name: randomHex(8),
+      url: randomHex(16),
+      lastError: null,
+      healthIssues: null,
+    })
+
     await tx.delete(dismissedAlerts)
     // Both liveness tables go: they describe when THIS install was collecting,
     // and nothing of that install survives a nuke. The next boot re-establishes
@@ -102,6 +113,8 @@ export async function scrubAndDeleteAll(): Promise<void> {
     await tx.delete(notificationDeliveryState)
     await tx.delete(notificationTargets)
     await tx.delete(downloadClients)
+    await tx.delete(prowlarrIndexers)
+    await tx.delete(prowlarrInstances)
     await tx.delete(trackers)
     await tx.delete(appSettings)
   })

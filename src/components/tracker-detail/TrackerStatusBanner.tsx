@@ -1,17 +1,21 @@
 // src/components/tracker-detail/TrackerStatusBanner.tsx
 
+import { useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { DOCS } from "@/lib/constants"
 import { formatDateTime } from "@/lib/formatters"
+import { describeProwlarrFailure, getProwlarrFailure } from "@/lib/prowlarr/status"
 import { getPauseState } from "@/lib/tracker-status"
-import type { TrackerSummary } from "@/types/api"
+import type { TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 
 interface TrackerStatusBannerProps {
   tracker: TrackerSummary
   pollError: string | null
   onDismissPollError: () => void
   onResume: () => void
+  /** Tests the indexer in Prowlarr. Resolves to the reason it failed, or null. */
+  onResumeIndexer: (indexer: TrackerProwlarrIndexer) => Promise<string | null>
 }
 
 export function TrackerStatusBanner({
@@ -19,8 +23,11 @@ export function TrackerStatusBanner({
   pollError,
   onDismissPollError,
   onResume,
+  onResumeIndexer,
 }: TrackerStatusBannerProps) {
   const pause = getPauseState(tracker)
+  const [resumingIndexer, setResumingIndexer] = useState(false)
+  const [resumeIndexerError, setResumeIndexerError] = useState<string | null>(null)
 
   // An archived tracker is not polled at all, the poll cycle selects on
   // `isActive = true` (tracker-scheduler.ts), so a pause banner announces a
@@ -48,8 +55,14 @@ export function TrackerStatusBanner({
   // returned, not a claim about a poll that is still scheduled, so archiving
   // does not retire it.
   const showLastError = !pollError && !showUserPaused && !showAutoPaused && !!tracker.lastError
+  // Lowest priority: the tracker's own errors and pauses take precedence.
+  const prowlarrFailure =
+    !showPollError && !showUserPaused && !showAutoPaused && !showLastError && !isArchived
+      ? getProwlarrFailure(tracker)
+      : null
 
-  if (!showPollError && !showUserPaused && !showAutoPaused && !showLastError) return null
+  if (!showPollError && !showUserPaused && !showAutoPaused && !showLastError && !prowlarrFailure)
+    return null
 
   return (
     <>
@@ -118,6 +131,36 @@ export function TrackerStatusBanner({
             )}
           </div>
           <p className="text-danger text-sm font-mono">{tracker.lastError}</p>
+        </Card>
+      )}
+      {prowlarrFailure && (
+        <Card glow glowColor="var(--color-warn-dim)" elevation="elevated">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <p className="text-xs font-sans font-medium text-warn uppercase tracking-wider">
+              Indexer Failing
+            </p>
+            <span className="timestamp shrink-0">{prowlarrFailure.instanceName}</span>
+          </div>
+          <p className="text-sm font-mono text-secondary mb-3">
+            {describeProwlarrFailure(prowlarrFailure)}.
+          </p>
+          {resumeIndexerError && (
+            <p className="text-xs font-mono text-danger/80 mb-3">
+              Test failed: {resumeIndexerError}
+            </p>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            text="Resume"
+            loading={resumingIndexer}
+            disabled={resumingIndexer}
+            onClick={async () => {
+              setResumingIndexer(true)
+              setResumeIndexerError(await onResumeIndexer(prowlarrFailure))
+              setResumingIndexer(false)
+            }}
+          />
         </Card>
       )}
     </>

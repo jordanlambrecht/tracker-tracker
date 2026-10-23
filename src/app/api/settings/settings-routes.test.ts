@@ -73,6 +73,8 @@ vi.mock("@/lib/db/schema", () => ({
     createdAt: "createdAt",
     updatedAt: "updatedAt",
   },
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {
     id: "id",
     name: "name",

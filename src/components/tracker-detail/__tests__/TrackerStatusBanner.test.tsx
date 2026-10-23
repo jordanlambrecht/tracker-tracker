@@ -15,7 +15,7 @@
 //    archived + auto-paused + lastError tracker would have left the page with no copy of the
 //    error at all. That regression is the reason the gate now reads off the pause banners.
 
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
 import type { TrackerSummary } from "@/types/api"
@@ -38,15 +38,17 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
 function renderBanner(tracker: TrackerSummary, pollError: string | null = null) {
   const onResume = vi.fn()
   const onDismissPollError = vi.fn()
+  const onResumeIndexer = vi.fn(async (): Promise<string | null> => null)
   const view = render(
     <TrackerStatusBanner
       tracker={tracker}
       pollError={pollError}
       onDismissPollError={onDismissPollError}
       onResume={onResume}
+      onResumeIndexer={onResumeIndexer}
     />
   )
-  return { ...view, onResume, onDismissPollError }
+  return { ...view, onResume, onDismissPollError, onResumeIndexer }
 }
 
 function resumeButton() {
@@ -122,5 +124,42 @@ describe("TrackerStatusBanner on an archived tracker", () => {
     expect(screen.getByText(/Poll error: Poll failed: 403 Forbidden/)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Dismiss error" })).toBeInTheDocument()
     expect(resumeButton()).not.toBeInTheDocument()
+  })
+})
+
+describe("Prowlarr indexer failing", () => {
+  const indexer = {
+    instanceId: 3,
+    instanceName: "Home",
+    instanceError: null,
+    stale: false,
+    indexerId: 12,
+    name: "Example Indexer",
+    enabled: true,
+    disabledTill: "2026-08-14T13:00:00.000Z",
+    mostRecentFailure: "2026-08-14T11:55:00.000Z",
+    initialFailure: "2026-08-14T10:00:00.000Z",
+    checkedAt: "2026-08-14T12:00:00.000Z",
+    stats24h: null,
+    stats7d: null,
+  }
+  const failing = () => makeTracker({ prowlarr: { matchedBy: "auto", indexers: [indexer] } })
+
+  it("offers Resume, which tests that indexer", async () => {
+    const { onResumeIndexer } = renderBanner(failing())
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }))
+
+    await waitFor(() => expect(onResumeIndexer).toHaveBeenCalledWith(indexer))
+    expect(screen.queryByText(/Test failed/)).not.toBeInTheDocument()
+  })
+
+  it("shows why the test failed", async () => {
+    const { onResumeIndexer } = renderBanner(failing())
+    onResumeIndexer.mockResolvedValueOnce("Unable to connect to indexer")
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }))
+
+    expect(await screen.findByText("Test failed: Unable to connect to indexer")).toBeInTheDocument()
   })
 })

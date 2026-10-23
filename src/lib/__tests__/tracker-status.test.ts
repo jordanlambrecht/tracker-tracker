@@ -16,7 +16,7 @@ import {
   getTrackerHealth,
   resolveRequiredRatio,
 } from "@/lib/tracker-status"
-import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type { TrackerLatestStats, TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 
 const mockRegistryEntryFor = vi.mocked(registryEntryFor)
 
@@ -330,5 +330,86 @@ describe("getHealthDescription — per-tracker numbers", () => {
   it("keeps the static wording when no tracker is supplied", () => {
     expect(getHealthDescription("critical")).toBe("Ratio below the required ratio")
     expect(getHealthDescription("healthy")).toBe("Ratio at least double the required ratio")
+  })
+})
+
+describe("getTrackerHealth with a matched Prowlarr indexer", () => {
+  const CHECKED = "2026-05-01T12:00:00.000Z"
+
+  function indexer(overrides: Partial<TrackerProwlarrIndexer> = {}): TrackerProwlarrIndexer {
+    return {
+      instanceId: 1,
+      instanceName: "Home Prowlarr",
+      instanceError: null,
+      stale: false,
+      indexerId: 7,
+      name: "Example Indexer",
+      enabled: true,
+      disabledTill: null,
+      mostRecentFailure: null,
+      initialFailure: null,
+      checkedAt: CHECKED,
+      stats24h: null,
+      stats7d: null,
+      ...overrides,
+    }
+  }
+
+  const failing = indexer({
+    disabledTill: "2026-05-01T18:00:00.000Z",
+    mostRecentFailure: "2026-05-01T11:00:00.000Z",
+    initialFailure: "2026-04-30T09:00:00.000Z",
+  })
+
+  function withIndexer(i: TrackerProwlarrIndexer, overrides: Partial<TrackerSummary> = {}) {
+    return makeTracker({ prowlarr: { matchedBy: "auto", indexers: [i] }, ...overrides })
+  }
+
+  it("lifts a healthy tracker to warning while its indexer is backed off", () => {
+    expect(getTrackerHealth(withIndexer(failing))).toBe("warning")
+  })
+
+  it("stays healthy when the indexer is fine", () => {
+    expect(getTrackerHealth(withIndexer(indexer()))).toBe("healthy")
+  })
+
+  it("never reads an unreachable Prowlarr as the tracker failing", () => {
+    const unreachable = { ...failing, instanceError: "Connection refused" }
+    expect(getTrackerHealth(withIndexer(unreachable))).toBe("healthy")
+  })
+
+  it("ignores a stale reading and an indexer disabled in Prowlarr", () => {
+    expect(getTrackerHealth(withIndexer({ ...failing, stale: true }))).toBe("healthy")
+    expect(getTrackerHealth(withIndexer({ ...failing, enabled: false }))).toBe("healthy")
+  })
+
+  it("does not override worse states", () => {
+    expect(getTrackerHealth(withIndexer(failing, { lastError: "Request timed out" }))).toBe("error")
+    expect(getTrackerHealth(withIndexer(failing, { pausedAt: CHECKED }))).toBe("paused")
+    expect(getTrackerHealth(withIndexer(failing, { userPausedAt: CHECKED }))).toBe("paused-user")
+    expect(getTrackerHealth(withIndexer(failing, { latestStats: null }))).toBe("offline")
+    expect(getTrackerHealth(withIndexer(failing, { latestStats: makeStats({ ratio: 0.4 }) }))).toBe(
+      "critical"
+    )
+    expect(
+      getTrackerHealth(withIndexer(failing, { latestStats: makeStats({ seedingCount: 0 }) }))
+    ).toBe("no-seeds")
+  })
+
+  it("names the indexer failure instead of a ratio band it is not in", () => {
+    const tracker = withIndexer(failing)
+    expect(getHealthLabel("warning", tracker)).toBe("Indexer Failing")
+    expect(getHealthDescription("warning", tracker)).toMatch(
+      /^Failing in Prowlarr since .+, retrying at .+/
+    )
+  })
+
+  it("keeps the ratio wording, and adds the failure, when both apply", () => {
+    const tracker = withIndexer(failing, { latestStats: makeStats({ ratio: 1.5 }) })
+    expect(getTrackerHealth(tracker)).toBe("warning")
+    expect(getHealthLabel("warning", tracker)).toBe("Above Min")
+    expect(getHealthDescription("warning", tracker)).toMatch(
+      /^Ratio between 1\.0 and 2\.0 \(no requirement on record\)\. Failing in Prowlarr/
+    )
   })
 })

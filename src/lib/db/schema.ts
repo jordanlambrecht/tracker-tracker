@@ -4,7 +4,7 @@
 // tagGroups, tagGroupMembers, clientSnapshots, backupHistory, dismissedAlerts,
 // draftQuicklinks (column on appSettings), notificationTargets, notificationDeliveryState,
 // trackerDailyCheckpoints, torrentDailyCheckpoints, dbSizeHistory, appLiveness,
-// appCoverageGaps
+// appCoverageGaps, trackerOutages, prowlarrInstances, prowlarrIndexers
 
 import {
   bigint,
@@ -153,6 +153,9 @@ export const trackers = pgTable("trackers", {
   joinedAt: date("joined_at"),
   lastAccessAt: date("last_access_at"),
   profileUrl: text("profile_url"),
+  // Manual Prowlarr indexer for this tracker. NULL matches by hostname, "none"
+  // opts out, "<instanceId>:<indexerId>" pins one indexer. See prowlarr/matching.ts.
+  prowlarrIndexer: varchar("prowlarr_indexer", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
@@ -548,6 +551,63 @@ export const trackerOutages = pgTable(
   ]
 )
 
+/**
+ * prowlarrInstances
+ *
+ * Prowlarr servers whose indexer health is read to warn about failing trackers.
+ * Polling one never touches the trackers themselves.
+ */
+export const prowlarrInstances = pgTable("prowlarr_instances", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  url: text("url").notNull(),
+  // Prowlarr's API key, sealed under the master key. Same NULL-or-ciphertext
+  // invariant and the same five lifecycle sites as trackers.encryptedCredentials.
+  encryptedApiKey: text("encrypted_api_key"),
+  enabled: boolean("enabled").default(true).notNull(),
+  // Runtime state below, excluded from backups.
+  lastPolledAt: timestamp("last_polled_at"),
+  lastError: text("last_error"),
+  errorSince: timestamp("error_since"),
+  version: varchar("version", { length: 50 }),
+  // Prowlarr's own health checks: [{ source, type, message }].
+  healthIssues: jsonb("health_issues"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+/**
+ * prowlarrIndexers
+ *
+ * The latest state of every indexer on a Prowlarr instance, replaced on each
+ * poll. A cache rather than history, so it is not backed up.
+ */
+export const prowlarrIndexers = pgTable(
+  "prowlarr_indexers",
+  {
+    id: serial("id").primaryKey(),
+    instanceId: integer("instance_id")
+      .references(() => prowlarrInstances.id, { onDelete: "cascade" })
+      .notNull(),
+    // Prowlarr's own indexer id, stable for the life of the indexer.
+    indexerId: integer("indexer_id").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    definitionName: varchar("definition_name", { length: 255 }),
+    enabled: boolean("enabled").default(true).notNull(),
+    privacy: varchar("privacy", { length: 20 }),
+    // Lowercased hostnames without "www.", from baseUrl, indexerUrls and legacyUrls.
+    hosts: text("hosts").array().default([]).notNull(),
+    // Set only while Prowlarr reports the indexer as backed off after failures.
+    disabledTill: timestamp("disabled_till"),
+    mostRecentFailure: timestamp("most_recent_failure"),
+    initialFailure: timestamp("initial_failure"),
+    stats24h: jsonb("stats_24h"),
+    stats7d: jsonb("stats_7d"),
+    checkedAt: timestamp("checked_at").notNull(),
+  },
+  (table) => [uniqueIndex("uq_prowlarr_indexer").on(table.instanceId, table.indexerId)]
+)
+
 // ── type exports ──────────────────────────────────────────────
 export type AppSettingsRow = typeof appSettings.$inferSelect
 export type TrackerRow = typeof trackers.$inferSelect
@@ -568,3 +628,5 @@ export type DbSizeHistoryRow = typeof dbSizeHistory.$inferSelect
 export type AppLivenessRow = typeof appLiveness.$inferSelect
 export type AppCoverageGapRow = typeof appCoverageGaps.$inferSelect
 export type TrackerOutageRow = typeof trackerOutages.$inferSelect
+export type ProwlarrInstanceRow = typeof prowlarrInstances.$inferSelect
+export type ProwlarrIndexerRow = typeof prowlarrIndexers.$inferSelect

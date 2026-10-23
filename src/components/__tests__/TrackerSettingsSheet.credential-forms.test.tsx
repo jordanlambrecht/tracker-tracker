@@ -52,9 +52,12 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
   return { ok, status, json: async () => body }
 }
 
+// Reads the sheet makes on open, which touch no credential.
+const OPEN_READS = new Set(["/api/settings", "/api/prowlarr/indexers"])
+
 /** Every call that would have written or verified the credential. */
 function credentialRequests() {
-  return fetchMock.mock.calls.filter(([url]) => String(url) !== "/api/settings")
+  return fetchMock.mock.calls.filter(([url]) => !OPEN_READS.has(String(url)))
 }
 
 beforeEach(() => {

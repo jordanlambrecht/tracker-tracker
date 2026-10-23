@@ -12,7 +12,12 @@
 
 import { queryOptions } from "@tanstack/react-query"
 import type { FleetAggregation } from "@/lib/fleet-aggregation"
-import type { SafeDownloadClient, TrackerSummary } from "@/types/api"
+import type {
+  ProwlarrIndexerOption,
+  SafeDownloadClient,
+  SafeProwlarrInstance,
+  TrackerSummary,
+} from "@/types/api"
 
 export const clientQueryOptions = queryOptions({
   queryKey: ["clients"] as const,
@@ -46,5 +51,31 @@ export const trackerQueryOptions = queryOptions({
     })
     if (!res.ok) return [] as TrackerSummary[]
     return res.json() as Promise<TrackerSummary[]>
+  },
+})
+
+// Shared by the settings section and the dashboard card, which is hidden when
+// this is empty.
+export const prowlarrQueryOptions = queryOptions({
+  queryKey: ["prowlarr"] as const,
+  queryFn: async ({ signal }) => {
+    const res = await fetch("/api/prowlarr", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
+    if (!res.ok) return [] as SafeProwlarrInstance[]
+    const data: unknown = await res.json()
+    return Array.isArray(data) ? (data as SafeProwlarrInstance[]) : []
+  },
+})
+
+export const prowlarrIndexerQueryOptions = queryOptions({
+  queryKey: ["prowlarr-indexers"] as const,
+  queryFn: async ({ signal }) => {
+    const res = await fetch("/api/prowlarr/indexers", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
+    if (!res.ok) return [] as ProwlarrIndexerOption[]
+    const data: unknown = await res.json()
+    return Array.isArray(data) ? (data as ProwlarrIndexerOption[]) : []
   },
 })

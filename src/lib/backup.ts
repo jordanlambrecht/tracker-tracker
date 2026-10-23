@@ -16,6 +16,7 @@ import {
   dismissedAlerts,
   downloadClients,
   notificationTargets,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups,
   trackerOutages,
@@ -26,6 +27,7 @@ import {
 import { log } from "@/lib/logger"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
+import { prowlarrUrlError } from "@/lib/prowlarr/client"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import packageJson from "../../package.json"
@@ -56,6 +58,7 @@ export interface BackupPayload {
   trackerOutages?: Record<string, unknown>[]
   dismissedAlerts?: Record<string, unknown>[]
   notificationTargets?: Record<string, unknown>[]
+  prowlarrInstances?: Record<string, unknown>[]
 }
 
 export interface EncryptedBackupEnvelope {
@@ -110,6 +113,20 @@ export const BACKUP_CLIENT_COLUMNS = {
   updatedAt: downloadClients.updatedAt,
 } as const
 
+/**
+ * Columns included in a backup for each Prowlarr instance. Poll state is left
+ * out, and prowlarr_indexers is a cache rebuilt by the first poll after a restore.
+ */
+export const BACKUP_PROWLARR_COLUMNS = {
+  id: prowlarrInstances.id,
+  name: prowlarrInstances.name,
+  url: prowlarrInstances.url,
+  encryptedApiKey: prowlarrInstances.encryptedApiKey,
+  enabled: prowlarrInstances.enabled,
+  createdAt: prowlarrInstances.createdAt,
+  updatedAt: prowlarrInstances.updatedAt,
+} as const
+
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
@@ -127,6 +144,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     rawTrackerOutages,
     rawDismissedAlerts,
     allNotificationTargets,
+    rawProwlarrInstances,
   ] = await Promise.all([
     db.select().from(appSettings).limit(1),
     db.select().from(trackers).orderBy(trackers.id),
@@ -151,6 +169,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     db.select().from(trackerOutages).orderBy(trackerOutages.id),
     db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id),
     db.select().from(notificationTargets).orderBy(notificationTargets.id),
+    db.select(BACKUP_PROWLARR_COLUMNS).from(prowlarrInstances).orderBy(prowlarrInstances.id),
   ])
 
   const settingsPayload: Record<string, unknown> = {}
@@ -211,6 +230,10 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
       serializeRow(rest as Record<string, unknown>)
   )
 
+  const prowlarrPayload = rawProwlarrInstances.map((p) =>
+    serializeRow(p as Record<string, unknown>)
+  )
+
   const counts: Record<string, number> = {
     trackers: trackersPayload.length,
     trackerSnapshots: snapshotsPayload.length,
@@ -224,6 +247,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     trackerOutages: trackerOutagesPayload.length,
     dismissedAlerts: dismissedAlertsPayload.length,
     notificationTargets: backupNotificationTargets.length,
+    prowlarrInstances: prowlarrPayload.length,
   }
 
   const manifest: BackupManifest = {
@@ -250,6 +274,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     trackerOutages: trackerOutagesPayload,
     dismissedAlerts: dismissedAlertsPayload,
     notificationTargets: backupNotificationTargets,
+    prowlarrInstances: prowlarrPayload,
   }
 }
 
@@ -430,6 +455,24 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
   }
 
+  // prowlarrInstances is optional for backward compatibility with older backups
+  if (p.prowlarrInstances !== undefined) {
+    assertArray(p.prowlarrInstances, "prowlarrInstances")
+    for (let i = 0; i < p.prowlarrInstances.length; i++) {
+      const pi = p.prowlarrInstances[i] as Record<string, unknown>
+      const prefix = `prowlarrInstances[${i}]`
+      assertNumber(pi.id, `${prefix}.id`)
+      assertString(pi.name, `${prefix}.name`)
+      assertString(pi.url, `${prefix}.url`)
+      // The same check as the API routes, so a restore cannot store a URL they reject.
+      const urlError = prowlarrUrlError(pi.url)
+      if (urlError) throw new Error(`Backup validation: ${prefix}.url: ${urlError}`)
+      if (pi.encryptedApiKey !== null && pi.encryptedApiKey !== undefined) {
+        assertString(pi.encryptedApiKey, `${prefix}.encryptedApiKey`)
+      }
+    }
+  }
+
   // tracker entries
   for (let i = 0; i < p.trackers.length; i++) {
     const t = p.trackers[i] as Record<string, unknown>
@@ -464,6 +507,10 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     // registryEntryFor returns undefined for an unknown slug on read.
     if (t.registrySlug !== null && t.registrySlug !== undefined) {
       assertString(t.registrySlug, `${prefix}.registrySlug`)
+    }
+
+    if (t.prowlarrIndexer !== null && t.prowlarrIndexer !== undefined) {
+      assertString(t.prowlarrIndexer, `${prefix}.prowlarrIndexer`)
     }
 
     if (t.color !== null && t.color !== undefined) {

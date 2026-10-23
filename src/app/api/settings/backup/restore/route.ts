@@ -1,7 +1,7 @@
 // src/app/api/settings/backup/restore/route.ts
 //
 // Functions: backupCiphertexts, batchInsert, POST, firstBackupCiphertext, hashFileName,
-// reencryptField
+// reencryptField, remapProwlarrIndexer
 
 import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
@@ -27,6 +27,8 @@ import {
   downloadClients,
   notificationDeliveryState,
   notificationTargets,
+  prowlarrIndexers,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups,
   trackerOutages,
@@ -47,6 +49,7 @@ import {
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
+import { formatIndexerOverride, parseIndexerOverride } from "@/lib/prowlarr/matching"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
 
 const BATCH_SIZE = 500
@@ -89,6 +92,10 @@ function backupCiphertexts(payload: BackupPayload): string[] {
     ]),
     ...(Array.isArray(payload.notificationTargets)
       ? payload.notificationTargets.map((n) => (n as Record<string, unknown>).encryptedConfig)
+      : []),
+    // Nullable and absent from older backups, like encryptedCredentials.
+    ...(Array.isArray(payload.prowlarrInstances)
+      ? payload.prowlarrInstances.map((p) => (p as Record<string, unknown>).encryptedApiKey)
       : []),
     settings.encryptedProxyPassword,
     settings.encryptedBackupPassword,
@@ -137,6 +144,18 @@ function clientRestoreError(credentialsCleared: boolean, urlPathCleared: boolean
   if (credentialsCleared) return "Credentials cleared during restore. Re-enter and re-enable"
   if (urlPathCleared) return "URL path cleared during restore. Re-enter it and re-enable"
   return null
+}
+
+// A tracker's pinned indexer names a Prowlarr instance by id, and instance ids
+// are reassigned on restore. A pin whose instance is not in the backup goes
+// back to hostname matching rather than pointing at whatever reuses the id.
+function remapProwlarrIndexer(raw: unknown, instanceIdMap: Map<number, number>): string | null {
+  if (typeof raw !== "string") return null
+  const override = parseIndexerOverride(raw)
+  if (override.kind === "none") return raw
+  if (override.kind !== "indexer") return null
+  const newId = instanceIdMap.get(override.instanceId)
+  return newId ? formatIndexerOverride(newId, override.indexerId) : null
 }
 
 export async function POST(request: Request) {
@@ -378,7 +397,41 @@ export async function POST(request: Request) {
       await tx.delete(notificationDeliveryState)
       await tx.delete(notificationTargets)
       await tx.delete(downloadClients)
+      await tx.delete(prowlarrIndexers)
+      await tx.delete(prowlarrInstances)
       await tx.delete(trackers)
+
+      // Insert Prowlarr instances first: tracker rows reference their ids.
+      // The API key follows the vault's null-or-ciphertext rule.
+      const prowlarrIdMap = new Map<number, number>()
+      for (const pi of Array.isArray(payload.prowlarrInstances) ? payload.prowlarrInstances : []) {
+        const { id: oldId, ...fields } = pi as Record<string, unknown> & { id: number }
+        const stored = (fields.encryptedApiKey as string | null | undefined) || null
+        let apiKey: string | null
+        if (canPassThrough) {
+          apiKey = stored
+        } else if (canReencrypt && stored) {
+          apiKey =
+            reencryptField(stored, backupKey, currentKey, `prowlarr '${fields.name}' apiKey`) ||
+            null
+        } else {
+          apiKey = null
+        }
+        const keyCleared = stored !== null && apiKey === null
+        const [inserted] = await tx
+          .insert(prowlarrInstances)
+          .values({
+            name: fields.name as string,
+            url: fields.url as string,
+            encryptedApiKey: apiKey,
+            enabled: keyCleared ? false : ((fields.enabled as boolean) ?? true),
+            lastError: keyCleared ? "API key cleared during restore. Re-enter and re-enable" : null,
+            createdAt: new Date(fields.createdAt as string),
+            updatedAt: new Date(fields.updatedAt as string),
+          })
+          .returning({ id: prowlarrInstances.id })
+        prowlarrIdMap.set(oldId, inserted.id)
+      }
 
       // Insert trackers with token re-encryption
       const trackerIdMap = new Map<number, number>()
@@ -479,6 +532,7 @@ export async function POST(request: Request) {
             joinedAt: (fields.joinedAt as string | null) ?? null,
             lastAccessAt: (fields.lastAccessAt as string | null) ?? null,
             profileUrl: (fields.profileUrl as string | null) ?? null,
+            prowlarrIndexer: remapProwlarrIndexer(fields.prowlarrIndexer, prowlarrIdMap),
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
@@ -1061,6 +1115,9 @@ export async function POST(request: Request) {
         notificationTargets: Array.isArray(payload.notificationTargets)
           ? payload.notificationTargets.length
           : 0,
+        prowlarrInstances: Array.isArray(payload.prowlarrInstances)
+          ? payload.prowlarrInstances.length
+          : 0,
       },
     },
     "Restore operation completed successfully"
@@ -1084,6 +1141,9 @@ export async function POST(request: Request) {
       dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
       notificationTargets: Array.isArray(payload.notificationTargets)
         ? payload.notificationTargets.length
+        : 0,
+      prowlarrInstances: Array.isArray(payload.prowlarrInstances)
+        ? payload.prowlarrInstances.length
         : 0,
     },
     tokensPreserved,

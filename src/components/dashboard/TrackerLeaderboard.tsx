@@ -141,7 +141,7 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     render: (t) => {
       const health = getTrackerHealth(t)
-      return <Badge variant={getHealthBadgeVariant(health)}>{getHealthLabel(health)}</Badge>
+      return <Badge variant={getHealthBadgeVariant(health)}>{getHealthLabel(health, t)}</Badge>
     },
   },
 ]

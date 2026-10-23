@@ -18,6 +18,7 @@ import { DataSection } from "@/components/settings/DataSection"
 import { EventsSection } from "@/components/settings/EventsSection"
 import { ImageHostingSection } from "@/components/settings/ImageHostingSection"
 import { PrivacySection } from "@/components/settings/PrivacySection"
+import { ProwlarrSection } from "@/components/settings/ProwlarrSection"
 import { ProxySection } from "@/components/settings/ProxySection"
 import { SecurityPoliciesSection } from "@/components/settings/SecurityPoliciesSection"
 import { TwoFactorSection } from "@/components/settings/TwoFactorSection"
@@ -25,11 +26,13 @@ import { TagGroups } from "@/components/TagGroups"
 import { TabBar } from "@/components/ui/TabBar"
 import type { QbitmanageTagConfig } from "@/types/api"
 
-type SettingsTab = "general" | "clients" | "notifications" | "backups" | "events" | "about"
+type SettingsTab =
+  "general" | "clients" | "prowlarr" | "notifications" | "backups" | "events" | "about"
 
 const SETTINGS_TABS: { key: SettingsTab; label: string }[] = [
   { key: "general", label: "General" },
   { key: "clients", label: "Download Clients" },
+  { key: "prowlarr", label: "Prowlarr" },
   { key: "notifications", label: "Notifications" },
   { key: "backups", label: "Backups" },
   { key: "events", label: "Events" },
@@ -146,6 +149,8 @@ export function SettingsClient({
           <TagGroups />
         </>
       )}
+
+      {activeTab === "prowlarr" && <ProwlarrSection />}
 
       {activeTab === "notifications" && <NotificationTargets />}
 

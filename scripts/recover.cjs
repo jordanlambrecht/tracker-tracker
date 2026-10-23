@@ -277,6 +277,8 @@ const MASTER_KEY_TABLES = [
     columns: ["encrypted_username", "encrypted_password", "encrypted_api_key", "encrypted_url_path"],
   },
   { table: "notification_targets", label: "name", columns: ["encrypted_config"] },
+  // NULLABLE, like encrypted_credentials: an instance without a key stores NULL.
+  { table: "prowlarr_instances", label: "name", columns: ["encrypted_api_key"] },
 ]
 
 const MASTER_KEY_SETTINGS_COLUMNS = [

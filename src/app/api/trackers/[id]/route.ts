@@ -23,6 +23,7 @@ import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isValidIndexerOverride } from "@/lib/prowlarr/matching"
 import { getTrackerForClient } from "@/lib/server-data"
 
 export async function GET(_request: Request, props: RouteContext) {
@@ -123,6 +124,22 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.hideUnreadBadges === "boolean") updates.hideUnreadBadges = body.hideUnreadBadges
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
+  // null returns the tracker to hostname matching.
+  if (body.prowlarrIndexer !== undefined) {
+    if (body.prowlarrIndexer === null) {
+      updates.prowlarrIndexer = null
+    } else if (
+      typeof body.prowlarrIndexer === "string" &&
+      isValidIndexerOverride(body.prowlarrIndexer)
+    ) {
+      updates.prowlarrIndexer = body.prowlarrIndexer
+    } else {
+      return NextResponse.json(
+        { error: 'prowlarrIndexer must be null, "none" or "<instanceId>:<indexerId>"' },
+        { status: 400 }
+      )
+    }
+  }
   if (typeof body.pollingPaused === "boolean") {
     updates.userPausedAt = body.pollingPaused ? new Date() : null
     if (!body.pollingPaused) {

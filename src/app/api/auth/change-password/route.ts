@@ -5,7 +5,8 @@
 // Changes the master password and re-encrypts all encrypted fields
 // (tracker API tokens, tracker credential vaults, Mousehole API tokens, download
 // client credentials, proxy password, backup password, TOTP secrets, image host
-// API keys, notification target configs) inside a single transaction.
+// API keys, notification target configs, Prowlarr API keys) inside a single
+// transaction.
 // Requires an active session and the current password for verification.
 
 import { timingSafeEqual } from "node:crypto"
@@ -15,7 +16,13 @@ import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, hashPassword, verifyPassword } from "@/lib/auth"
 import { decrypt, deriveKey, encrypt, reencrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, downloadClients, notificationTargets, trackers } from "@/lib/db/schema"
+import {
+  appSettings,
+  downloadClients,
+  notificationTargets,
+  prowlarrInstances,
+  trackers,
+} from "@/lib/db/schema"
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/limits"
 import { recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { log } from "@/lib/logger"
@@ -114,13 +121,16 @@ export async function POST(request: Request) {
     { username: string; password: string; apiKey: string; urlPath: string }
   >()
   const notificationPlaintexts = new Map<number, string>()
+  // Instances without a key (NULL) are not in this map and are not touched.
+  const prowlarrPlaintexts = new Map<number, string>()
   const failedTrackers: string[] = []
   const failedVaults: string[] = []
   const failedMouseholeTokens: string[] = []
   const failedClients: string[] = []
   const failedNotifications: string[] = []
+  const failedProwlarr: string[] = []
 
-  const [allTrackers, allClients, allNotifications] = await Promise.all([
+  const [allTrackers, allClients, allNotifications, allProwlarr] = await Promise.all([
     db
       .select({
         id: trackers.id,
@@ -147,6 +157,13 @@ export async function POST(request: Request) {
         encryptedConfig: notificationTargets.encryptedConfig,
       })
       .from(notificationTargets),
+    db
+      .select({
+        id: prowlarrInstances.id,
+        name: prowlarrInstances.name,
+        encryptedApiKey: prowlarrInstances.encryptedApiKey,
+      })
+      .from(prowlarrInstances),
   ])
 
   for (const tracker of allTrackers) {
@@ -234,6 +251,23 @@ export async function POST(request: Request) {
         "Failed to decrypt notification config during password change"
       )
       failedNotifications.push(nt.name)
+    }
+  }
+
+  // Same handling as the Mousehole token: NULL stays NULL, and a key that cannot
+  // be decrypted with the verified current key is cleared so it can be re-entered.
+  const clearedProwlarr: number[] = []
+  for (const instance of allProwlarr) {
+    if (!instance.encryptedApiKey) continue
+    try {
+      prowlarrPlaintexts.set(instance.id, decrypt(instance.encryptedApiKey, oldKey))
+    } catch (err) {
+      log.warn(
+        { prowlarrInstanceId: instance.id, error: String(err) },
+        "Failed to decrypt Prowlarr API key during password change, clearing it"
+      )
+      clearedProwlarr.push(instance.id)
+      failedProwlarr.push(instance.name)
     }
   }
 
@@ -384,6 +418,19 @@ export async function POST(request: Request) {
           .where(eq(notificationTargets.id, id))
       }
 
+      for (const [id, apiKey] of prowlarrPlaintexts) {
+        await tx
+          .update(prowlarrInstances)
+          .set({ encryptedApiKey: encrypt(apiKey, newKey) })
+          .where(eq(prowlarrInstances.id, id))
+      }
+      for (const id of clearedProwlarr) {
+        await tx
+          .update(prowlarrInstances)
+          .set({ encryptedApiKey: null })
+          .where(eq(prowlarrInstances.id, id))
+      }
+
       await tx
         .update(appSettings)
         .set({ passwordHash: newHash, ...settingsUpdates })
@@ -435,6 +482,11 @@ export async function POST(request: Request) {
   if (failedNotifications.length > 0) {
     warnings.push(
       `${failedNotifications.length} notification target(s) could not be re-encrypted and were skipped: ${failedNotifications.join(", ")}`
+    )
+  }
+  if (failedProwlarr.length > 0) {
+    warnings.push(
+      `${failedProwlarr.length} Prowlarr API key(s) could not be re-encrypted and were cleared: ${failedProwlarr.join(", ")}. Re-enter them in settings.`
     )
   }
   if (totpDisabled) {
