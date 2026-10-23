@@ -16,6 +16,7 @@ import { GazelleAdapter } from "./adapters/gazelle"
 import { GGnAdapter } from "./adapters/ggn"
 import { HawkeAdapter } from "./adapters/hawke"
 import { IptorrentsAdapter } from "./adapters/iptorrents"
+import { LuminanceAdapter } from "./adapters/luminance"
 import { MamAdapter } from "./adapters/mam"
 import { NebulanceAdapter } from "./adapters/nebulance"
 import { RetrotoonAdapter } from "./adapters/retrotoon"
@@ -34,6 +35,7 @@ const adapters: Record<string, TrackerAdapter> = {
   ggn: new GGnAdapter(),
   hawke: new HawkeAdapter(),
   iptorrents: new IptorrentsAdapter(),
+  luminance: new LuminanceAdapter(),
   mam: new MamAdapter(),
   nebulance: new NebulanceAdapter(),
   retrotoon: new RetrotoonAdapter(),

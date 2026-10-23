@@ -160,6 +160,12 @@ describe("sanitizeNetworkError", () => {
     )
   })
 
+  it("passes Luminance login failures through with their reason", () => {
+    expect(sanitizeNetworkError("Luminance login failed: Invalid username or password")).toBe(
+      "Luminance login failed: Invalid username or password"
+    )
+  })
+
   it("maps a username/password rejection to a credentials message", () => {
     expect(
       sanitizeNetworkError("Authentication failed. qBittorrent rejected the username and password")

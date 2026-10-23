@@ -81,12 +81,14 @@ function CredentialFields({
           onChange={(e) => onChange("password", e.target.value)}
           error={error}
         />
-        <Input
-          {...field(copy.alt2FA, "alt2fa")}
-          type="password"
-          value={values.alt2FAToken}
-          onChange={(e) => onChange("alt2FAToken", e.target.value)}
-        />
+        {copy.alt2FA && (
+          <Input
+            {...field(copy.alt2FA, "alt2fa")}
+            type="password"
+            value={values.alt2FAToken}
+            onChange={(e) => onChange("alt2FAToken", e.target.value)}
+          />
+        )}
       </>
     )
   }

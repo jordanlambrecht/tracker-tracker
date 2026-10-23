@@ -292,6 +292,27 @@ export const CREDENTIAL_FORMS = {
       },
     },
   },
+  luminance: {
+    kind: "login",
+    hidesJoinDate: true,
+    dialog: {
+      username: {
+        label: (trackerName: string) => `${trackerName} Username`,
+        placeholder: "Your username on this tracker",
+      },
+      password: {
+        label: (trackerName: string) => `${trackerName} Password`,
+        tooltip:
+          "Luminance has no stats API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential.",
+        docs: true,
+        placeholder: "Your password on this tracker",
+      },
+    },
+    sheet: {
+      username: { label: "Username" },
+      password: { label: "Password" },
+    },
+  },
 } satisfies Record<PlatformType, CredentialForm>
 
 /**

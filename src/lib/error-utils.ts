@@ -75,6 +75,8 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
     return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
   }
   if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
+  const luminance = raw.match(/Luminance (login failed: .*|2FA is not supported.*)/)
+  if (luminance) return `Luminance ${luminance[1]}`
   // A tracker answer the adapter could not use, such as a 2xx body it could
   // not read or a scraper's redirect with no readable Location. "Unexpected
   // response from <host>: ..." is the wording the adapters and the shared fetch

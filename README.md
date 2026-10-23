@@ -73,7 +73,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | MyAnonamouse (MAM)    | MAM       | ✅ Verified            | Cookie auth via mam_id                            |
 | DarkPeers             | UNIT3D    | ✅ Verified            |                                                   |
 | Luminarr              | UNIT3D    | 🟡 Unverified          |                                                   |
-| CathodeRayTube (CRT)  | UNIT3D    | 📋 Draft               |                                                   |
+| CathodeRayTube (CRT)  | Luminance | 🟡 Unverified          | Username/password login, no stats API             |
 | DigitalCore           | Custom    | ✅ Verified            |                                                   |
 | HDBits                | Custom    | 📋 Needs adapter       |                                                   |
 | SecretCinema          | Custom    | 📋 Needs adapter       |                                                   |
