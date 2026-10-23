@@ -7,6 +7,7 @@ import { torrentleech } from "@/data/trackers/torrentleech"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 import type { SlotContext } from "@/types/slots"
 import type {
+  AnimeBytesPlatformMeta,
   C411PlatformMeta,
   DigitalCorePlatformMeta,
   GazellePlatformMeta,
@@ -202,6 +203,35 @@ describe("GGn context", () => {
 // ---------------------------------------------------------------------------
 // Test 2: Gazelle context
 // ---------------------------------------------------------------------------
+
+describe("AnimeBytes context", () => {
+  const abMeta: AnimeBytesPlatformMeta = { yenPerHour: 200, yenPerDay: 4800, potentialHnrs: 0 }
+
+  const ctx: SlotContext = {
+    tracker: makeTracker({ platformType: "animebytes" }),
+    latestSnapshot: makeSnapshot({ seedbonus: 123456 }),
+    meta: abMeta,
+    registry: undefined,
+    accentColor: BASE_ACCENT,
+  }
+
+  it("shows the bonus as Yen instead of the generic seedbonus card", () => {
+    const ids = slotIds(ctx, "stat-card")
+    expect(ids).toContain("yen")
+    expect(ids).not.toContain("seedbonus")
+  })
+
+  it("yen card rows include balance, per hour and per day in ¥", () => {
+    const yenCard = resolveSlots(ctx)
+      .get("stat-card")
+      ?.find((s) => s.id === "yen")
+    const rows = yenCard?.props.rows as { label: string; value: string | number }[]
+    expect(rows.map((r) => r.label)).toEqual(["Balance", "Per Hour", "Per Day"])
+    expect(rows[0].value).toBe("¥123,456")
+    expect(rows[1].value).toBe("+¥200")
+    expect(rows[2].value).toBe("+¥4,800")
+  })
+})
 
 describe("Gazelle context", () => {
   const gazMeta: GazellePlatformMeta = {

@@ -1,20 +1,18 @@
 # AnimeBytes (AB)
 
 !!! Warning
-    This tracker is marked **Unvalidated** and has not been tested it against a real account yet. The field names and response structure should match the standard Gazelle layout, but there's no proof yet.
+    This tracker is marked **Unvalidated**: the adapter follows AnimeBytes' published API documentation but has not yet been tested against a real account.
 
-| Field        | Value                                     |
-| ------------ | ----------------------------------------- |
-| Platform     | Gazelle                                   |
-| Base URL     | `https://animebytes.tv`                   |
-| API Endpoint | `https://animebytes.tv/ajax.php`          |
-| Auth Method  | HTTP header: `Authorization: token TOKEN` |
-| Enrichment   | No                                        |
-| Auth Style   | standard                                  |
+| Field        | Value                                        |
+| ------------ | -------------------------------------------- |
+| Platform     | AnimeBytes                                   |
+| Base URL     | `https://animebytes.tv`                      |
+| API Endpoint | `https://animebytes.tv/api/stats/personal`   |
+| Auth Method  | HTTP header: `Authorization: Bearer API_KEY` |
 
 ## Notes
 
-This is a standard Gazelle setup.
+AnimeBytes is not a stock Gazelle site: `/ajax.php` redirects to an HTML page. Its own API returns class, account upload/download, yen, active and potential H&Rs, and seeding/leeching counts. It does not return the username, so the credential form asks for it next to the API key.
 
 ## Slots
 

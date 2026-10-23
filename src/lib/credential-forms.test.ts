@@ -107,6 +107,13 @@ describe("buildCredentialBlob", () => {
     })
   })
 
+  it("pairs the token with the username for animebytes", () => {
+    expect(blob("animebytes", { token: "  abc123  ", username: "  bob  " })).toEqual({
+      token: "abc123",
+      username: "bob",
+    })
+  })
+
   it("splits uid and pass out of the digitalcore cookie string", () => {
     expect(blob("digitalcore", { cookies: "uid=56954; pass=abc123def456" })).toEqual({
       uid: "56954",
@@ -154,6 +161,15 @@ describe("validateCredentialValues empty fields", () => {
     )
     expect(validateCredentialValues(CREDENTIAL_FORMS.avistaz, values({ username: "bob" }))).toBe(
       "Browser cookies are required"
+    )
+  })
+
+  it("asks for the animebytes username before the token", () => {
+    expect(validateCredentialValues(CREDENTIAL_FORMS.animebytes, values())).toBe(
+      "Username is required"
+    )
+    expect(validateCredentialValues(CREDENTIAL_FORMS.animebytes, values({ username: "bob" }))).toBe(
+      "API token is required"
     )
   })
 

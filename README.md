@@ -57,7 +57,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | TorrentLeech          | TorrentLeech | 🟡 Unverified       | Username/password login, no public API             |
 | Portugas              | UNIT3D    | 📋 Draft               | API endpoint unavailable on this custom build     |
 | AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
-| AnimeBytes            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
+| AnimeBytes            | AnimeBytes | 🟡 Unverified         | Own API (/api/stats/personal), not Gazelle        |
 | BroadcastheNet (BTN)  | BTN       | 🟡 Unverified          | JSON-RPC adapter; needs an account holder to verify |
 | Empornium             | Gazelle   | 🟡 Unverified ⛔ Stuck | XXX trackers aren't really my jam, so PRs welcome |
 | GreatPosterWall (GPW) | Gazelle   | 🟡 Unverified          |                                                   |

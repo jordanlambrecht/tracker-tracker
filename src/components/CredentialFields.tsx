@@ -54,15 +54,24 @@ function CredentialFields({
     }
   }
 
-  if (form.kind === "token") {
+  if (form.kind === "token" || form.kind === "token-username") {
     return (
-      <Input
-        {...field(copy.secret, "api-token")}
-        type="password"
-        value={values.token}
-        onChange={(e) => onChange("token", e.target.value)}
-        error={error}
-      />
+      <>
+        {form.kind === "token-username" && (
+          <Input
+            {...field(copy.username, "username")}
+            value={values.username}
+            onChange={(e) => onChange("username", e.target.value)}
+          />
+        )}
+        <Input
+          {...field(copy.secret, "api-token")}
+          type="password"
+          value={values.token}
+          onChange={(e) => onChange("token", e.target.value)}
+          error={error}
+        />
+      </>
     )
   }
 

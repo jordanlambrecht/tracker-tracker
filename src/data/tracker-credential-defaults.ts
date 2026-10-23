@@ -60,6 +60,7 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
   gazelle: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD, ...IRC_FIELDS],
   ggn: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD, ...IRC_FIELDS],
   nebulance: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD],
+  animebytes: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD, ...IRC_FIELDS],
   mam: [
     {
       id: "mam_id",

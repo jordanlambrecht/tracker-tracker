@@ -441,7 +441,9 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
         <div
           className={clsx(
             "flex flex-col",
-            credentialForm.kind === "cookies-username" || credentialForm.kind === "login"
+            credentialForm.kind === "cookies-username" ||
+              credentialForm.kind === "token-username" ||
+              credentialForm.kind === "login"
               ? "gap-3"
               : "gap-1"
           )}

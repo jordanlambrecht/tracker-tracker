@@ -29,6 +29,7 @@ const CREDENTIALS: Record<string, string> = {
   nebulance: CANARY,
   btn: CANARY,
   hawke: CANARY,
+  animebytes: JSON.stringify({ token: CANARY, username: "someone" }),
   tr4ker: CANARY,
   c411: CANARY,
   mam: CANARY,
