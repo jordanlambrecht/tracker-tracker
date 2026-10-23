@@ -57,8 +57,21 @@ describe("onlyimageAdapter", () => {
     expect(result.host).toBe("onlyimage")
 
     const callArgs = mockFetch.mock.calls[0]
+    // onlyimage.org answers the trailing-slash form with a 301.
+    expect(callArgs[0]).toBe("https://onlyimage.org/api/1/upload")
     const headers = callArgs[1].headers as Record<string, string>
     expect(headers["X-API-Key"]).toBe("my-key")
+  })
+
+  it("refuses a key a request header cannot carry, without quoting it", async () => {
+    const err = await onlyimageAdapter
+      .upload(Buffer.from("img"), "t.png", "SECRET-KEY\r\nX: 1")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toContain("Invalid API token")
+    expect(err?.message).not.toContain("SECRET-KEY")
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it("converts expirationSeconds to ISO 8601 duration", async () => {
@@ -88,5 +101,16 @@ describe("onlyimageAdapter", () => {
     await expect(onlyimageAdapter.upload(Buffer.from("img"), "t.png", "bad")).rejects.toThrow(
       "OnlyImage upload failed (400)"
     )
+  })
+
+  it("does not follow a redirect, which would carry X-API-Key to another host", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(null, { status: 302, headers: { Location: "https://elsewhere.example/" } })
+    )
+
+    await expect(onlyimageAdapter.upload(Buffer.from("img"), "t.png", "key")).rejects.toThrow(
+      "OnlyImage upload failed (302)"
+    )
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ redirect: "manual" })
   })
 })

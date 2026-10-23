@@ -10,11 +10,12 @@ import { TrackerBreakdownBars } from "@/components/dashboard/TrackerBreakdownBar
 import { TrackerBreakdownTicker } from "@/components/dashboard/TrackerBreakdownTicker"
 import { Card, Divider } from "@/components/ui"
 import { formatTimeAgo } from "@/lib/formatters"
-import type { TodayAtAGlance as TodayAtAGlanceData } from "@/types/api"
+import type { GlanceDay, TodayAtAGlance as TodayAtAGlanceData } from "@/types/api"
 
 interface TodayAtAGlanceProps {
   data: TodayAtAGlanceData
   variant?: "bars" | "ticker"
+  day?: GlanceDay
 }
 
 function UpdatedAt({ iso }: { iso: string | null }) {
@@ -27,7 +28,7 @@ function UpdatedAt({ iso }: { iso: string | null }) {
   )
 }
 
-export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) {
+export function TodayAtAGlance({ data, variant = "bars", day = "today" }: TodayAtAGlanceProps) {
   const hasActivity =
     data.activity.addedToday > 0 ||
     data.activity.completedToday > 0 ||
@@ -37,7 +38,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
   return (
     <Card>
       <div className="flex flex-col gap-5">
-        <FleetHeadline fleet={data.fleet} />
+        <FleetHeadline fleet={data.fleet} day={day} />
 
         <Divider compact />
 
@@ -50,7 +51,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
             <H2 className="uppercase tracking-wider">Upload</H2>
             {variant === "bars" ? (
-              <TrackerBreakdownBars trackers={data.trackers} metric="upload" />
+              <TrackerBreakdownBars trackers={data.trackers} metric="upload" day={day} />
             ) : (
               <TrackerBreakdownTicker trackers={data.trackers} />
             )}
@@ -59,7 +60,7 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
           <div className="nm-inset-sm rounded-nm-md p-4 flex flex-col gap-3">
             <H2 className="uppercase tracking-wider">Download</H2>
             {variant === "bars" ? (
-              <TrackerBreakdownBars trackers={data.trackers} metric="download" />
+              <TrackerBreakdownBars trackers={data.trackers} metric="download" day={day} />
             ) : (
               <TrackerBreakdownTicker trackers={data.trackers} />
             )}
@@ -70,10 +71,10 @@ export function TodayAtAGlance({ data, variant = "bars" }: TodayAtAGlanceProps) 
           <>
             <Divider compact />
             <div className="flex items-center justify-between">
-              <FleetActivity activity={data.activity} />
+              <FleetActivity activity={data.activity} day={day} />
               <UpdatedAt iso={data.clientLastUpdated} />
             </div>
-            <MoversAndShakers movers={data.movers} />
+            <MoversAndShakers movers={data.movers} day={day} />
           </>
         )}
       </div>

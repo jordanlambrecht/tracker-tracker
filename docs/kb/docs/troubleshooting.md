@@ -243,6 +243,18 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 ---
 
+### `Tracker redirected the request`
+
+**Cause:** The tracker's API answered with a redirect instead of your stats. Tracker Tracker never follows a redirect on an API request, because it could carry your API key or session cookie to another host.
+
+!!! success "Solution"
+
+    1. Check that your API key or session cookie still works on the tracker. Some trackers answer a request without valid credentials by redirecting it to their login page; if yours were revoked or expired, paste new ones into the tracker's settings.
+    2. Open the tracker in a browser and check whether it has moved to a new address. If it has, open an issue with the new address so the tracker's entry can be updated.
+    3. If neither, check `docker compose logs tracker-tracker-app` for the `Poll failed for tracker` line and open an issue with it.
+
+---
+
 ### Stale error banner (no pause)
 
 If you see a **Last Error** banner without "Polling Paused", a recent poll failed but not enough to trigger a pause. It clears on the next success.

@@ -123,6 +123,7 @@ export const CREDENTIAL_FORMS = {
   btn: tokenForm(UNIT3D_TOKEN),
   hawke: tokenForm(UNIT3D_TOKEN),
   tr4ker: tokenForm("Your TR4KER API key"),
+  c411: tokenForm("Your C411 API key, with the Profile (reading) scope", true),
 
   avistaz: {
     kind: "cookies-username",
@@ -358,7 +359,7 @@ export function validateCredentialValues(
     case "token": {
       const token = values.token.trim()
       if (!token) return "API token is required"
-      // The check unit3d, gazelle, hawke and tr4ker run before sending the token,
+      // The check unit3d, gazelle, hawke, tr4ker and c411 run before sending the token,
       // so for them the pre-save message matches a poll's.
       try {
         validateHeaderToken(token)

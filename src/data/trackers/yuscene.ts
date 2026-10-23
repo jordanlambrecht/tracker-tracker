@@ -16,7 +16,7 @@ export const yuscene: TrackerRegistryEntry = {
   contentCategories: ["Movies", "TV", "Games", "Books", "Music"],
   language: "English",
   color: "#00b4d8",
-  logo: "",
+  logo: "/tracker-logos/yuscene_logo.png",
   trackerHubSlug: "",
   statusPageUrl: "",
   userClasses: [

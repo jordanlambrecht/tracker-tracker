@@ -15,6 +15,7 @@ export * from "./beyondhd"
 export * from "./bibliotik"
 export * from "./blutopia"
 export * from "./broadcasthenet"
+export * from "./c411"
 export * from "./cathoderaytube"
 export * from "./cinemageddon"
 export * from "./cinemaz"
@@ -77,6 +78,7 @@ import { beyondhd } from "./beyondhd"
 import { bibliotik } from "./bibliotik"
 import { blutopia } from "./blutopia"
 import { broadcasthenet } from "./broadcasthenet"
+import { c411 } from "./c411"
 import { cathoderaytube } from "./cathoderaytube"
 import { cinemageddon } from "./cinemageddon"
 import { cinemaz } from "./cinemaz"
@@ -140,6 +142,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   bibliotik,
   blutopia,
   broadcasthenet,
+  c411,
   cathoderaytube,
   cinemageddon,
   cinemaz,

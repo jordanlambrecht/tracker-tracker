@@ -100,6 +100,15 @@ describe("serializeTrackerResponse", () => {
   })
 })
 
+describe("serializeTrackerResponse infinite ratio", () => {
+  it("reports an infinite ratio, not a stored 0, when nothing was downloaded", () => {
+    const snapshot = { ...mockSnapshot, ratio: 0, downloadedBytes: BigInt(0) }
+    const result = serializeTrackerResponse(mockTracker, snapshot, (v) => v ?? null)
+    expect(result.latestStats?.ratioIsInfinite).toBe(true)
+    expect(result.latestStats?.ratio).toBeNull()
+  })
+})
+
 describe("serializeTrackerResponse new fields", () => {
   it("serializes bufferBytes as decimal string", () => {
     const snapshotWithBuffer = { ...mockSnapshot, bufferBytes: BigInt(10737418240) }

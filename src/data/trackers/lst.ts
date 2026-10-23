@@ -33,7 +33,7 @@ export const lst: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#12BC00",
-  logo: "",
+  logo: "/tracker-logos/lst_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

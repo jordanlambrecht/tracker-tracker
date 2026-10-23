@@ -2,13 +2,16 @@
 
 import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
+import { anthelion } from "@/data/trackers/anthelion"
 import { torrentleech } from "@/data/trackers/torrentleech"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 import type { SlotContext } from "@/types/slots"
 import type {
+  C411PlatformMeta,
   DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GGnPlatformMeta,
+  HawkePlatformMeta,
   NebulancePlatformMeta,
   Unit3dPlatformMeta,
 } from "@/types/tracker-stats"
@@ -443,10 +446,10 @@ describe("priority ordering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 6: Mutual exclusion, Nebulance context
+// Test 6: Nebulance context, Snatched beside the bonus card
 // ---------------------------------------------------------------------------
 
-describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
+describe("Nebulance: snatched-nebulance beside the bonus card", () => {
   const nebMeta: NebulancePlatformMeta = {
     snatched: 42,
     grabbed: 10,
@@ -458,7 +461,7 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
     tracker: makeTracker({ platformType: "nebulance" }),
     latestSnapshot: snap,
     meta: nebMeta,
-    registry: undefined,
+    registry: anthelion,
     accentColor: BASE_ACCENT,
   }
 
@@ -466,8 +469,11 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
     expect(slotIds(ctx, "stat-card")).toContain("snatched-nebulance")
   })
 
-  it("does NOT resolve seedbonus (snatched in meta blocks it)", () => {
-    expect(slotIds(ctx, "stat-card")).not.toContain("seedbonus")
+  it("resolves seedbonus too, named the way Anthelion names it", () => {
+    const card = resolveSlots(ctx)
+      .get("stat-card")
+      ?.find((s) => s.id === "seedbonus")
+    expect(card?.props.label).toBe("Orbs")
   })
 
   it("does NOT resolve gold (no hourlyGold)", () => {
@@ -1000,6 +1006,80 @@ describe("slot resolution — DigitalCore", () => {
 
   it("resolves disabled badge when enabled is false", () => {
     expect(slotIds(dcCtx({ enabled: false }), "badge")).toContain("disabled")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// C411 context: the downloads-disabled badge
+// ---------------------------------------------------------------------------
+
+describe("C411 context", () => {
+  function c411Ctx(meta: C411PlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "c411" }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("resolves the downloads-disabled badge when downloads are refused", () => {
+    const badge = resolveSlots(c411Ctx({ canDownload: false }))
+      .get("badge")
+      ?.find((s) => s.id === "c411-download-disabled")
+    expect(badge?.props.label).toBe("Downloads Disabled")
+  })
+
+  it("does not resolve it when downloads are allowed or the flag is unknown", () => {
+    for (const meta of [{ canDownload: true }, {}]) {
+      expect(slotIds(c411Ctx(meta), "badge")).not.toContain("c411-download-disabled")
+    }
+  })
+
+  it("does not resolve it for another platform's canDownload", () => {
+    const avistaz: SlotContext = {
+      ...c411Ctx({ canDownload: false }),
+      tracker: makeTracker({ platformType: "avistaz" }),
+    }
+    expect(slotIds(avistaz, "badge")).not.toContain("c411-download-disabled")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// HAWKE-UNO context: the downloads-disabled badge
+// ---------------------------------------------------------------------------
+
+describe("HAWKE-UNO context", () => {
+  function hawkeCtx(meta: HawkePlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "hawke" }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("resolves the downloads-disabled badge when downloads are refused", () => {
+    const badge = resolveSlots(hawkeCtx({ canDownload: false }))
+      .get("badge")
+      ?.find((s) => s.id === "hawke-download-disabled")
+    expect(badge?.props.label).toBe("Downloads Disabled")
+  })
+
+  it("does not resolve it when downloads are allowed or the flag is unknown", () => {
+    for (const meta of [{ canDownload: true }, {}]) {
+      expect(slotIds(hawkeCtx(meta), "badge")).not.toContain("hawke-download-disabled")
+    }
+  })
+
+  it("does not resolve it for another platform's canDownload", () => {
+    const c411: SlotContext = {
+      ...hawkeCtx({ canDownload: false }),
+      tracker: makeTracker({ platformType: "c411" }),
+    }
+    expect(slotIds(c411, "badge")).not.toContain("hawke-download-disabled")
   })
 })
 

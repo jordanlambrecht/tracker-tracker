@@ -74,10 +74,10 @@ export function AnalyticsCharts({
           <BufferCandlestickChart trackerData={candlestickData} height={320} />
         </Card>
 
-        {/* Seedbonus / Gold */}
+        {/* Seedbonus */}
         <Card
           lazy
-          title={platformType === "ggn" ? "Gold" : (bonusName ?? "Seedbonus")}
+          title={bonusName ?? "Seedbonus"}
           trackerColor={tc}
           className="flex flex-col gap-4"
         >

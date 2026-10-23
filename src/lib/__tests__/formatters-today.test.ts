@@ -1,7 +1,7 @@
 // src/lib/__tests__/formatters-today.test.ts
 
-import { describe, expect, it } from "vitest"
-import { formatBytesFromString, localDateStr } from "@/lib/formatters"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { formatAccountAge, formatBytesFromString, localDateStr } from "@/lib/formatters"
 
 // ---------------------------------------------------------------------------
 // localDateStr
@@ -143,5 +143,39 @@ describe("formatBytesFromString MiB/GiB threshold", () => {
     const bytes = BigInt(MiB)
     const result = formatBytesFromString(bytes.toString())
     expect(result).toBe("1 MiB")
+  })
+})
+
+describe("formatAccountAge", () => {
+  const originalTz = process.env.TZ
+
+  beforeEach(() => {
+    // 01:00 local east of UTC, when the day's UTC midnight is still ahead
+    process.env.TZ = "Europe/Helsinki"
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-10-20T22:00:00Z"))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    process.env.TZ = originalTz
+  })
+
+  it("reads an account that joined today as 0 days old", () => {
+    expect(formatAccountAge("2026-10-21")).toBe("0 days")
+  })
+
+  it("counts calendar days, not elapsed hours", () => {
+    expect(formatAccountAge("2026-10-20")).toBe("1 day")
+    expect(formatAccountAge("2026-10-01")).toBe("20 days")
+  })
+
+  it("counts days across a daylight-saving change", () => {
+    vi.setSystemTime(new Date("2026-10-26T10:00:00Z"))
+    expect(formatAccountAge("2026-10-24")).toBe("2 days")
+  })
+
+  it("never reports a negative age", () => {
+    expect(formatAccountAge("2026-10-22")).toBe("0 days")
   })
 })

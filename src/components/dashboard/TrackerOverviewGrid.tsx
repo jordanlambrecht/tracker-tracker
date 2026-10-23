@@ -2,7 +2,7 @@
 "use client"
 
 import { useAutoAnimate } from "@formkit/auto-animate/react"
-import { ExternalLinkIcon, PlusIcon } from "@icons"
+import { ExternalLinkIcon, FavoriteStarIcon, InfinitySign, PlusIcon } from "@icons"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -155,8 +155,14 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 active={favoritesOnly}
                 onClick={() => setFavoritesOnly((v) => !v)}
                 activeColor="text-accent"
+                className="inline-flex items-center gap-1"
               >
-                {favoritesOnly ? "★" : "☆"} Favorites
+                <FavoriteStarIcon
+                  width="12"
+                  height="12"
+                  fill={favoritesOnly ? "currentColor" : "none"}
+                />
+                Favorites
               </FilterPill>
             )}
 
@@ -222,10 +228,12 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                     {t.name}
                   </span>
                   <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
-                    {formatRatioDisplay(
-                      t.latestStats?.ratioIsInfinite
-                        ? Number.POSITIVE_INFINITY
-                        : t.latestStats?.ratio
+                    {t.latestStats?.ratioIsInfinite ? (
+                      <>
+                        <InfinitySign />x
+                      </>
+                    ) : (
+                      formatRatioDisplay(t.latestStats?.ratio)
                     )}
                   </span>
                   <a

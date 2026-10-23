@@ -9,6 +9,7 @@ import type { Agent as HttpAgent } from "node:http"
 import { registryEntryFor } from "@/data/tracker-registry"
 import { AvistazAdapter } from "./adapters/avistaz"
 import { BtnAdapter } from "./adapters/btn"
+import { C411Adapter } from "./adapters/c411"
 import { DigitalCoreAdapter } from "./adapters/digitalcore"
 import { FilelistAdapter } from "./adapters/filelist"
 import { GazelleAdapter } from "./adapters/gazelle"
@@ -26,6 +27,7 @@ import type { FetchOptions, TrackerAdapter } from "./contract"
 const adapters: Record<string, TrackerAdapter> = {
   avistaz: new AvistazAdapter(),
   btn: new BtnAdapter(),
+  c411: new C411Adapter(),
   digitalcore: new DigitalCoreAdapter(),
   filelist: new FilelistAdapter(),
   gazelle: new GazelleAdapter(),

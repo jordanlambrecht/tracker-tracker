@@ -372,3 +372,80 @@ describe("adapterRequest - User-Agent", () => {
     expect(captured?.["User-Agent"]).toBe("Mozilla/5.0")
   })
 })
+
+// ---------------------------------------------------------------------------
+// fetch forwards a custom key header, and a body on a 307 or 308, to any host a
+// redirect names, so a JSON API request refuses every redirect on both paths.
+// ---------------------------------------------------------------------------
+
+describe("adapterRequest - redirects", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each([301, 302, 303, 307, 308])(
+    "refuses a %i on the direct path without sending the key or body again",
+    async (status) => {
+      const answer = new Response("<html>login</html>", {
+        status,
+        headers: { Location: "https://collector.example/steal" },
+      })
+      const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(answer)
+
+      const err = await adapterRequest(
+        "https://tracker.example/rpc",
+        "tracker.example",
+        undefined,
+        { "X-Api-Key": "secret-key" },
+        { method: "POST", body: '{"params":["secret-key"]}' }
+      ).catch((e: Error) => e)
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      // Left to fetch, the redirect would be followed before this code saw it.
+      expect(fetchSpy.mock.calls[0][1]?.redirect).toBe("manual")
+      expect((err as Error).message).toBe(
+        `tracker.example answered with a ${status} redirect, which is not followed`
+      )
+      expect(sanitizeNetworkError((err as Error).message)).toBe("Tracker redirected the request")
+      // Released, so the redirect's connection is not held until garbage collection.
+      expect(answer.bodyUsed).toBe(true)
+    }
+  )
+
+  it("refuses a redirect within the tracker's own site as well", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValue(new Response(null, { status: 302, headers: { Location: "/api/v2/me" } }))
+
+    const err = await adapterRequest("https://tracker.example/api/me", "tracker.example").catch(
+      (e: Error) => e
+    )
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(sanitizeNetworkError((err as Error).message)).toBe("Tracker redirected the request")
+  })
+
+  it("refuses a redirect on the proxy path the same way", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 302,
+      statusText: "Found",
+      headers: { location: "https://collector.example/steal" },
+      json: async () => ({}),
+      buffer: async () => Buffer.from(""),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+    vi.resetModules()
+    const { adapterRequest: fresh } = await import("../helpers/adapter-fetch")
+
+    const err = await fresh("https://tracker.example/api", "tracker.example", {
+      proxyAgent: {} as never,
+    }).catch((e: Error) => e)
+
+    expect(proxyFetch).toHaveBeenCalledTimes(1)
+    expect((err as Error).message).toBe(
+      "tracker.example answered with a 302 redirect, which is not followed"
+    )
+    vi.doUnmock("@/lib/tunnel")
+  })
+})

@@ -348,7 +348,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Bonus Points Capped"
           checked={draft.notifyBonusCap}
           onChange={(v) => updateDraft({ notifyBonusCap: v })}
-          description="Alert when seedbonus hits the cap (i.e. 99,999 on MAM)"
+          description="Alert when bonus points hit the 99,999 cap (MAM)"
         />
 
         <Toggle
@@ -376,7 +376,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Download Privileges Revoked"
           checked={draft.notifyDownloadDisabled}
           onChange={(v) => updateDraft({ notifyDownloadDisabled: v })}
-          description="Alert when an AvistaZ network tracker revokes download access"
+          description="Alert when a tracker revokes download access (AvistaZ network, DigitalCore.Club, HAWKE-UNO, C411)"
         />
       </div>
 

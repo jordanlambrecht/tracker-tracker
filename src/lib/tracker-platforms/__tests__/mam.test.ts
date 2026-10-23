@@ -172,6 +172,7 @@ describe("MamAdapter - parsing", () => {
     const meta = stats.platformMeta as {
       connectable?: string
       seedingHnrCount?: number
+      seedingUnsatisfiedCount?: number
       unsatisfiedCount?: number
       unsatisfiedLimit?: number
       inactiveSatisfiedCount?: number
@@ -181,6 +182,7 @@ describe("MamAdapter - parsing", () => {
     }
     expect(meta.connectable).toBe("yes")
     expect(meta.seedingHnrCount).toBe(2)
+    expect(meta.seedingUnsatisfiedCount).toBe(1)
     expect(meta.unsatisfiedCount).toBe(1)
     expect(meta.unsatisfiedLimit).toBe(50)
     expect(meta.inactiveSatisfiedCount).toBe(6)
@@ -267,6 +269,7 @@ describe("MamAdapter - parsing", () => {
       unsatisfiedLimit?: number
       inactiveSatisfiedCount?: number
       seedingHnrCount?: number
+      seedingUnsatisfiedCount?: number
       trackerErrorCount?: number
       recentlyDeleted?: number
       unreadPMs?: number
@@ -282,6 +285,7 @@ describe("MamAdapter - parsing", () => {
     expect(meta.unsatisfiedLimit).toBe(10)
     expect(meta.inactiveSatisfiedCount).toBe(8)
     expect(meta.seedingHnrCount).toBe(1)
+    expect(meta.seedingUnsatisfiedCount).toBe(3)
     expect(meta.trackerErrorCount).toBe(1)
     expect(meta.recentlyDeleted).toBe(0)
     expect(meta.unreadPMs).toBe(3)

@@ -4,7 +4,15 @@
 
 import { closestCenter, DndContext } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { BookIcon, EyeIcon, EyeOffIcon, GitHubIcon } from "@icons"
+import {
+  BookIcon,
+  EyeIcon,
+  EyeOffIcon,
+  FavoriteStarIcon,
+  GitHubIcon,
+  LockIcon,
+  UnlockIcon,
+} from "@icons"
 import clsx from "clsx"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
@@ -195,7 +203,13 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                         prefs.showFavoritesOnly ? "Show all trackers" : "Show favorites only"
                       }
                     >
-                      <span>{prefs.showFavoritesOnly ? "★" : "☆"}</span>
+                      <span className="flex">
+                        <FavoriteStarIcon
+                          width="14"
+                          height="14"
+                          fill={prefs.showFavoritesOnly ? "currentColor" : "none"}
+                        />
+                      </span>
                     </Tooltip>
                   </button>
 
@@ -208,7 +222,13 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
                     aria-label={lockLabel}
                   >
                     <Tooltip content={lockLabel}>
-                      <span>{dragUnlocked ? "🔓" : "🔒"}</span>
+                      <span className="flex">
+                        {dragUnlocked ? (
+                          <UnlockIcon width="14" height="14" />
+                        ) : (
+                          <LockIcon width="14" height="14" />
+                        )}
+                      </span>
                     </Tooltip>
                   </button>
                 </div>

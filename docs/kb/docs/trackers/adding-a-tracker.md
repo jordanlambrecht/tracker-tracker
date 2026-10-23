@@ -17,72 +17,121 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
 
 === "UNIT3D"
 
-| Name               | Abbreviation |
-| ------------------ | ------------ |
-| Aither             | ATH          |
-| Blutopia           | BLU          |
-| Concertos          |              |
-| FearNoPeer         | FNP          |
-| LST                | LST          |
-| OldToons           |              |
-| OnlyEncodes        | OE           |
-| Racing4Everyone    | R4E          |
-| ReelFlix           |              |
-| SkipTheCommercials | STC          |
-| Seedpool           | SP           |
-| Upload.cx          |              |
-| DarkPeers          | DP           |
-| Luminarr           | LUME         |
+    | Name               | Abbreviation |
+    | ------------------ | ------------ |
+    | Aither             | ATH          |
+    | Blutopia           | BLU          |
+    | Concertos          | CON          |
+    | DarkPeers          | DP           |
+    | DreadVault         | DV           |
+    | FearNoPeer         | FNP          |
+    | InfinityHD         | IHD          |
+    | LST                | LST          |
+    | Luminarr           | LUME         |
+    | OldToons           | OT           |
+    | OnlyEncodes        | OE           |
+    | Racing4Everyone    | R4E          |
+    | ReelFliX           | RFX          |
+    | Retro Movies Club  | RMC          |
+    | RocketHD           | RHD          |
+    | SeedCore           |              |
+    | seedpool           | SP           |
+    | SkipTheCommercials | STC          |
+    | Upload.cx          | UCX          |
+    | Yu-Scene           | yus          |
+    | Zenith             | ZN           |
 
 === "Gazelle"
 
-| Name            | Abbreviation |
-| --------------- | ------------ |
-| AlphaRatio      | AR           |
-| AnimeBytes      | AB           |
-| BroadcasTheNet  | BTN          |
-| Empornium       | EMP          |
-| GreatPosterWall | GPW          |
-| MoreThanTV      | MTV          |
-| Orpheus         | OPS          |
-| PassThePopcorn  | PTP          |
-| PhoenixProject  | PPT          |
-| REDacted        | RED          |
+    | Name              | Abbreviation |
+    | ----------------- | ------------ |
+    | AlphaRatio        | AR           |
+    | AnimeBytes        | AB           |
+    | BroadcasTheNet    | BTN          |
+    | Empornium         | EMP          |
+    | Great Poster Wall | GPW          |
+    | MoreThanTV        | MTV          |
+    | Orpheus           | OPS          |
+    | PassThePopcorn    | PTP          |
+    | Phoenix Project   | PP           |
+    | REDacted          | RED          |
 
 === "GGn"
 
-| Name         | Abbreviation |
-| ------------ | ------------ |
-| GazelleGames | GGn          |
+    | Name         | Abbreviation |
+    | ------------ | ------------ |
+    | GazelleGames | GGn          |
 
 === "Nebulance"
 
-| Name      | Abbreviation |
-| --------- | ------------ |
-| Anthelion | ANT          |
-| Nebulance | NBL          |
+    | Name      | Abbreviation |
+    | --------- | ------------ |
+    | Anthelion | ANT          |
+    | Nebulance | NBL          |
 
 === "AvistaZ"
 
-| Name      | Abbreviation |
-| --------- | ------------ |
-| AvistaZ   | AvZ          |
-| AnimeZ    | AnZ          |
-| CinemaZ   | CZ           |
-| ExoticaZ  | ExZ          |
-| PrivateHD | PHD          |
+    | Name      | Abbreviation |
+    | --------- | ------------ |
+    | AvistaZ   | AvZ          |
+    | AnimeZ    | AnZ          |
+    | CinemaZ   | CZ           |
+    | ExoticaZ  | ExZ          |
+    | PrivateHD | PHD          |
 
 === "DigitalCore"
 
-| Name        | Abbreviation |
-| ----------- | ------------ |
-| DigitalCore | DC           |
+    | Name             | Abbreviation |
+    | ---------------- | ------------ |
+    | DigitalCore.Club | DCC          |
 
 === "RetroToon"
 
-| Name            | Abbreviation |
-| --------------- | ------------ |
-| RetroToon World | RTW          |
+    | Name            | Abbreviation |
+    | --------------- | ------------ |
+    | RetroToon World | RTW          |
+
+=== "TR4KER"
+
+    | Name   | Abbreviation |
+    | ------ | ------------ |
+    | TR4KER | TR4K         |
+
+=== "C411"
+
+    | Name | Abbreviation |
+    | ---- | ------------ |
+    | C411 | C411         |
+
+=== "FileList"
+
+    | Name     | Abbreviation |
+    | -------- | ------------ |
+    | FileList | FL           |
+
+=== "HAWKE-UNO"
+
+    | Name      | Abbreviation |
+    | --------- | ------------ |
+    | HAWKE-UNO | HU           |
+
+=== "IPTorrents"
+
+    | Name       | Abbreviation |
+    | ---------- | ------------ |
+    | IPTorrents | IPT          |
+
+=== "MyAnonaMouse"
+
+    | Name         | Abbreviation |
+    | ------------ | ------------ |
+    | MyAnonaMouse | MAM          |
+
+=== "TorrentLeech"
+
+    | Name         | Abbreviation |
+    | ------------ | ------------ |
+    | TorrentLeech | TL           |
 
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
@@ -208,6 +257,20 @@ Location varies by platform:
 
     !!! danger "Do not select and copy the Cookie value directly"
         Firefox (and some Chromium browsers) truncate long header values in the display, replacing the end with `…`. Copying the selection gets the truncated version with the ellipsis embedded, which fails with a "Tracker test failed" error. Always use **right-click → Copy Value**.
+
+=== "TR4KER"
+
+    Create an API key in your TR4KER account and paste it into the Add Tracker dialog.
+
+    !!! warning "Unverified"
+        TR4KER support hasn't been tested against a live account. If a poll fails or a stat looks wrong, open an issue naming the tracker.
+
+=== "C411"
+
+    Create an API key on C411 and tick the **Profile (reading)** scope while you create it. A new key does not get that scope by default, and a key's scopes cannot be changed afterwards.
+
+    !!! warning "A key without the Profile scope reads as an authentication failure"
+        C411 refuses such a key with a 403, which shows as "Authentication failed". Create a new key with the scope ticked and replace the old one.
 
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.

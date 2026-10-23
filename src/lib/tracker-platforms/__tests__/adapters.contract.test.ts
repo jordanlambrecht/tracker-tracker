@@ -30,6 +30,7 @@ const CREDENTIALS: Record<string, string> = {
   btn: CANARY,
   hawke: CANARY,
   tr4ker: CANARY,
+  c411: CANARY,
   mam: CANARY,
   avistaz: cookieBlob({ username: "someone" }),
   filelist: cookieBlob(),

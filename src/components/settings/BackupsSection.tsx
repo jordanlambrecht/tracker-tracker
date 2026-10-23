@@ -1,6 +1,7 @@
 // src/components/settings/BackupsSection.tsx
 "use client"
 
+import { LockIcon } from "@icons"
 import { H2, Paragraph, Subtext } from "@typography"
 import clsx from "clsx"
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -367,7 +368,13 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             {formatDateTime(b.createdAt)}
             {b.encrypted && (
               <Tooltip content="Password-protected">
-                <span className="ml-2 text-xs text-accent">🔒</span>
+                <span
+                  role="img"
+                  aria-label="Password-protected"
+                  className="ml-2 inline-flex align-middle text-xs text-accent"
+                >
+                  <LockIcon width="12" height="12" />
+                </span>
               </Tooltip>
             )}
           </span>

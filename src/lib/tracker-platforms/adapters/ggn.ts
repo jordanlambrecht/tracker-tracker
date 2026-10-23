@@ -30,8 +30,8 @@ interface GGnUserResponse {
     username: string
     stats: {
       uploaded: number
-      downloaded: number
-      ratio: string | number
+      downloaded: number | null
+      ratio: string | number | null
       requiredRatio: number
       gold: number
       joinedDate: string | null
@@ -98,6 +98,18 @@ function readQuickUser(
   return { id: data.response.id, username: data.response.username }
 }
 
+/**
+ * GGn sends a null downloaded when nothing counts against the ratio, such as
+ * when every download was freeleech. A missing figure is read as zero only when
+ * the ratio agrees: absent, zero, infinite or not a number.
+ */
+function nothingDownloaded(stats: NonNullable<GGnUserResponse["response"]>["stats"]): boolean {
+  if (stats.downloaded != null) return false
+  if (stats.ratio == null) return true
+  const ratio = typeof stats.ratio === "number" ? stats.ratio : parseFloat(stats.ratio)
+  return ratio === 0 || !Number.isFinite(ratio)
+}
+
 /** The user profile and its byte totals, or the error fetchStats fails the poll with. */
 function readUserStats(
   data: GGnUserResponse,
@@ -115,7 +127,9 @@ function readUserStats(
   return {
     resp,
     uploaded: requireBytes(resp.stats.uploaded, "uploaded", hostname),
-    downloaded: requireBytes(resp.stats.downloaded, "downloaded", hostname),
+    downloaded: nothingDownloaded(resp.stats)
+      ? 0n
+      : requireBytes(resp.stats.downloaded, "downloaded", hostname),
   }
 }
 
@@ -160,7 +174,7 @@ export class GGnAdapter implements TrackerAdapter {
     // downloaded has no quotient to report, and a ratio that does not parse is no
     // figure at all, so both come from the byte totals.
     const reported =
-      typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio)
+      typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio ?? "")
     const ratio =
       downloaded === 0n || !Number.isFinite(reported)
         ? computeRatio(uploaded, downloaded)

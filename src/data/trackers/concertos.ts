@@ -22,7 +22,7 @@ export const concertos: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#b0b8c4",
-  logo: "",
+  logo: "/tracker-logos/concertos_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

@@ -17,7 +17,7 @@
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "custom"
 //   - apiPath must match platform default:
 //       unit3d   → "/api/user"
 //       gazelle  → "/ajax.php"
@@ -43,7 +43,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only. "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only. Enables enrichment call

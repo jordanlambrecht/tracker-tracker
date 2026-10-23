@@ -22,7 +22,7 @@ export const tr4ker: TrackerRegistryEntry = {
 
   // -- Visual -----------------------------------------------------------
   color: "#0ea5e9",
-  logo: "",
+  logo: "/tracker-logos/tr4ker_logo.png",
 
   // -- External Links ---------------------------------------------------
   trackerHubSlug: "",

@@ -1,8 +1,8 @@
 // src/lib/tracker-platforms/adapters/torrentleech.ts
 //
 // Functions: parseTlCredentials, sessionKey, getTlSession, withTlSession, login,
-//            isRedirect, textAfterNode, firstText, topBarCell, parenCount,
-//            trailingCount, parseTlProfile, fetchHtml, TorrentleechAdapter
+//            textAfterNode, firstText, topBarCell, parenCount, trailingCount,
+//            parseTlProfile, fetchHtml, TorrentleechAdapter
 
 import { randomBytes, scrypt } from "node:crypto"
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
@@ -10,6 +10,7 @@ import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isRedirect } from "@/lib/network"
 import { parseBytes } from "@/lib/parser"
 import { proxyFetch } from "@/lib/tunnel"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "../contract"
@@ -54,17 +55,6 @@ export function parseTlCredentials(apiToken: string): TlCredentials {
     password,
     ...(alt2FAToken ? { alt2FAToken } : {}),
   }
-}
-
-// ---------------------------------------------------------------------------
-// Login flow
-// ---------------------------------------------------------------------------
-
-/** Every status that carries a Location, matching html-fetch's own set. */
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
-
-function isRedirect(status: number): boolean {
-  return REDIRECT_STATUSES.has(status)
 }
 
 // ---------------------------------------------------------------------------

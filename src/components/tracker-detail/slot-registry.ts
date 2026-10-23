@@ -16,6 +16,8 @@
 //   dc stat-card: dc-activity, dc-real-data
 //   dc badge: dc-download-ban, dc-upload-ban, dc-hnr-warned, dc-parked,
 //             dc-unconnectable, dc-seedbox-donor, dc-invites, dc-hearts
+//   c411 badge: c411-download-disabled
+//   hawke badge: hawke-download-disabled
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -106,7 +108,7 @@ const goldSlot: SlotDefinition<StatCardStackedProps> = {
     const gold = Math.floor(ctx.latestSnapshot.seedbonus)
     return {
       type: "stacked" as const,
-      title: "Gold",
+      title: registryBonusName(ctx.registry) ?? "Gold",
       rows: [
         { label: "Balance", value: formatCount(gold) },
         {
@@ -144,7 +146,7 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   priority: 10,
   resolve(ctx) {
     if (ctx.latestSnapshot?.seedbonus == null) return null
-    if (metaFor(ctx, "ggn") || metaFor(ctx, "nebulance")) return null
+    if (metaFor(ctx, "ggn")) return null
     const bonusName = registryBonusName(ctx.registry)
     return {
       label: bonusName ?? "Seedbonus",
@@ -991,6 +993,28 @@ const dcHeartsBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   },
 }
 
+const c411DownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "c411-download-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    if (metaFor(ctx, "c411")?.canDownload !== false) return null
+    return { variant: "danger", label: "Downloads Disabled" }
+  },
+}
+
+const hawkeDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "hawke-download-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    if (metaFor(ctx, "hawke")?.canDownload !== false) return null
+    return { variant: "danger", label: "Downloads Disabled" }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Exported registry
 // ---------------------------------------------------------------------------
@@ -1055,6 +1079,10 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   dcSeedboxDonorBadgeSlot,
   dcInvitesBadgeSlot,
   dcHeartsBadgeSlot,
+  // C411 slots (badge)
+  c411DownloadDisabledBadgeSlot,
+  // HAWKE-UNO slots (badge)
+  hawkeDownloadDisabledBadgeSlot,
 ]
 
 // Shared component lookup: single source for rendering resolved slots

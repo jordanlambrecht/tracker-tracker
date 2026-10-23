@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.13.5](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.4...v2.13.5) (2026-10-20)
+
+## [2.13.4](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.3...v2.13.4) (2026-10-20)
+## [2.13.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.2...v2.13.3) (2026-10-20)
 ## [2.13.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.1...v2.13.2) (2026-10-20)
 
 ### Bug Fixes

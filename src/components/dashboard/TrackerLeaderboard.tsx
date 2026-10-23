@@ -1,6 +1,7 @@
 // src/components/dashboard/TrackerLeaderboard.tsx
 "use client"
 
+import { InfinitySign } from "@icons"
 import { DataCell } from "@typography"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/Badge"
@@ -71,8 +72,12 @@ const columns: Column<TrackerSummary>[] = [
       t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : (t.latestStats?.ratio ?? -1),
     render: (t) => (
       <DataCell>
-        {formatRatioDisplay(
-          t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : t.latestStats?.ratio
+        {t.latestStats?.ratioIsInfinite ? (
+          <>
+            <InfinitySign />x
+          </>
+        ) : (
+          formatRatioDisplay(t.latestStats?.ratio)
         )}
       </DataCell>
     ),

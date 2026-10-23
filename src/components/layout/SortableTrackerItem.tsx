@@ -8,7 +8,7 @@ import clsx from "clsx"
 import Link from "next/link"
 import type { CSSProperties } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
-import { InfinityIcon } from "@/components/ui/Icons"
+import { FavoriteStarIcon, InfinitySign } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatStatValue, type StatMode } from "@/lib/formatters"
@@ -75,7 +75,7 @@ function SortableTrackerItem({
           "Archived"
         ) : stat.startsWith("∞") ? (
           <>
-            <InfinityIcon className="inline-block h-[0.55em] w-[1.1em] align-middle" />
+            <InfinitySign />
             {stat.slice(1)}
           </>
         ) : (
@@ -101,14 +101,18 @@ function SortableTrackerItem({
             }
           }}
           className={clsx(
-            "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
+            "flex shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
             tracker.isFavorite
               ? "text-warn opacity-100"
               : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!"
           )}
           aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
-          {tracker.isFavorite ? "★" : "☆"}
+          <FavoriteStarIcon
+            width="14"
+            height="14"
+            fill={tracker.isFavorite ? "currentColor" : "none"}
+          />
         </span>
       )}
     </>

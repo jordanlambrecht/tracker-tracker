@@ -22,7 +22,7 @@ export const oldtoons: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#fbbf24",
-  logo: "",
+  logo: "/tracker-logos/oldtoons_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

@@ -115,7 +115,10 @@ export function parseFilelistProfile(html: string, hostname: string): TrackerSta
     } else if (label === "Downloaded") {
       downloadedBytes = tryParseSiteBytes(value) ?? downloadedBytes
     } else if (label === "Class") {
-      group = value || null
+      // A live VIP account renders "VIP (Until: 2026-11-28 17:44:57)". The
+      // rank ladder matches on the bare class name, so the expiry suffix is
+      // dropped here rather than leaking into the profile badge.
+      group = value.replace(/\s*\(until:[^)]*\)\s*$/i, "").trim() || null
     } else if (label === "Join date") {
       joinedDate = datePrefix(value) ?? joinedDate
     } else if (label === "Last seen") {

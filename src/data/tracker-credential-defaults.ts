@@ -77,6 +77,7 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
     { id: "rss_feed_url", label: "RSS feed URL", secret: false },
   ],
   torrentleech: [{ id: "session_cookie", label: "Session cookie" }, PASSKEY_FIELD],
+  c411: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD],
   // RetroToon issues three distinct secrets, and the API key is not the one
   // that polls: it uploads torrents, stats come from the session cookie, and
   // the passkey signs announce and the Torznab feed.

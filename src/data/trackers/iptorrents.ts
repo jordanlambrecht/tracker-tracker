@@ -22,7 +22,7 @@ export const iptorrents: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#e74c3c",
-  logo: "",
+  logo: "/tracker-logos/iptorrents_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

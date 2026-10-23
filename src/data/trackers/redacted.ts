@@ -26,7 +26,7 @@ export const redacted: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#f44336",
-  logo: "",
+  logo: "/tracker-logos/redacted_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "redacted",

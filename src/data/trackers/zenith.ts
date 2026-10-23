@@ -21,7 +21,7 @@ export const zenith: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#7c3aed",
-  logo: "",
+  logo: "/tracker-logos/zenith_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

@@ -23,7 +23,7 @@ export const passthepopcorn: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#f1c40f",
-  logo: "",
+  logo: "/tracker-logos/passthepopcorn_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "pass-the-popcorn",

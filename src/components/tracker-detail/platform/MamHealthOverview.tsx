@@ -25,10 +25,11 @@ const ESTIMATED_POINTS_PER_SEED_PER_HOUR = 0.5 // Rough average
 // ── Torrent health segments ─────────────────────────────────────────────────
 const SEGMENTS = [
   { key: "seeding", label: "Seeding", color: "var(--color-success)" },
+  { key: "seedingUnsatisfied", label: "Seeding, unsatisfied", color: "var(--color-warn)" },
   { key: "seedingHnr", label: "Seeding HnR", color: "var(--color-warn)" },
   { key: "leeching", label: "Leeching", color: "var(--color-accent)" },
   { key: "inactiveHnr", label: "Inactive HnR", color: "var(--color-danger)" },
-  { key: "preHnr", label: "Pre-HnR", color: "var(--color-warn)" },
+  { key: "inactiveUnsatisfied", label: "Not seeding, unsatisfied", color: "var(--color-warn)" },
   { key: "completed", label: "Completed", color: "var(--color-tertiary)" },
 ] as const
 
@@ -77,12 +78,17 @@ export function MamHealthOverview({
   else if (satPct >= 70) satColor = "var(--color-warn)"
 
   // ── Torrent health data ────────────────────────────────────────────────
+  // seedingCount also holds the HnR and unsatisfied torrents being seeded, so
+  // what is left after taking them out is satisfied seeding and own uploads.
+  const seedingHnr = meta.seedingHnrCount ?? 0
+  const seedingUnsatisfied = meta.seedingUnsatisfiedCount ?? 0
   const healthValues: Record<string, number> = {
-    seeding: Math.max(0, seedingCount - (meta.seedingHnrCount ?? 0)),
-    seedingHnr: meta.seedingHnrCount ?? 0,
+    seeding: Math.max(0, seedingCount - seedingHnr - seedingUnsatisfied),
+    seedingUnsatisfied,
+    seedingHnr,
     leeching: leechingCount,
     inactiveHnr: hitAndRuns,
-    preHnr: meta.inactiveUnsatisfiedCount ?? 0,
+    inactiveUnsatisfied: meta.inactiveUnsatisfiedCount ?? 0,
     completed: meta.inactiveSatisfiedCount ?? 0,
   }
   const healthTotal = Object.values(healthValues).reduce((a, b) => a + b, 0)
@@ -129,7 +135,7 @@ export function MamHealthOverview({
           <div className="flex items-center gap-1">
             <SlotLabel label="Torrent Health" />
             <InfoTip
-              content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied. Amber = seeding but not yet past the 72-hour requirement (pre-HnR or active HnR). Red = not seeding past deadline (Hit & Run). Gray = completed, no longer seeding."
+              content="Breakdown of your snatched torrents by seeding status. Green = seeding and satisfied, or your own uploads. Amber = not yet past the 72-hour requirement: seeding toward it, seeding off a Hit & Run, or stopped before the deadline. Red = not seeding past the deadline (Hit & Run). Gray = satisfied, no longer seeding."
               size="sm"
             />
           </div>

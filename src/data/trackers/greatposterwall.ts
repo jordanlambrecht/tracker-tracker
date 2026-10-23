@@ -22,7 +22,7 @@ export const greatposterwall: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#c0392b",
-  logo: "",
+  logo: "/tracker-logos/greatposterwall_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "great-poster-wall",

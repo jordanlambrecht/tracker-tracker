@@ -75,10 +75,11 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
     return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
   }
   if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
-  // A tracker that answered 2xx with a body the adapter could not read.
-  // "Unexpected response from <host>: ..." is the wording the Gazelle, BTN,
-  // GGn, MAM, Nebulance, Hawke and UNIT3D adapters share (issue #214); the
-  // other three are parseBytes rejecting a byte string ("", "1,024.50 GiB").
+  // A tracker answer the adapter could not use, such as a 2xx body it could
+  // not read or a scraper's redirect with no readable Location. "Unexpected
+  // response from <host>: ..." is the wording the adapters and the shared fetch
+  // helpers use (issue #214); the other three are parseBytes rejecting a byte
+  // string ("", "1,024.50 GiB").
   // Matched before the generic rules on purpose: "Invalid byte format" and a
   // key called "invalid" in a listed payload would otherwise both fall into
   // the credential rule below and surface as "Invalid credentials".
@@ -91,11 +92,13 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/Cloudflare challenge detected/i.test(raw)) {
     return "Cloudflare challenge blocked the request"
   }
-  // The scrapers refuse a redirect off the tracker's own origin, which would
-  // carry the session cookies to another host, and give up on a loop. The
-  // tracker answered either way, so neither is an unreachable host.
+  // Scrapers that opt into following redirects refuse one off the tracker's own
+  // origin, which would carry the session cookies to another host, and give up
+  // on a loop. JSON API requests refuse every redirect. The tracker answered in
+  // all three cases, so none is an unreachable host.
   if (/redirected off-site/i.test(raw)) return "Tracker redirected to another site"
   if (/Too many redirects from/i.test(raw)) return "Tracker redirected too many times"
+  if (/answered with a \d{3} redirect/i.test(raw)) return "Tracker redirected the request"
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"

@@ -408,8 +408,9 @@ describe("sanitizeNetworkError Cloudflare challenge", () => {
 
 describe("sanitizeNetworkError redirect refusals", () => {
   // The scrapers refuse a redirect off the tracker's own origin, which would
-  // carry the session cookies to another host, and give up on a loop. The
-  // tracker answered either way, so neither may read as unreachable.
+  // carry the session cookies to another host, and give up on a loop. JSON API
+  // requests refuse every redirect. The tracker answered in each case, so none
+  // may read as unreachable.
   it("names an off-site redirect instead of falling back to Poll failed", () => {
     const card = sanitizeNetworkError(
       "IPTorrents redirected off-site; refusing to send credentials",
@@ -422,6 +423,15 @@ describe("sanitizeNetworkError redirect refusals", () => {
   it("names a redirect loop instead of falling back to Poll failed", () => {
     const card = sanitizeNetworkError("Too many redirects from FileList", "Poll failed")
     expect(card).toBe("Tracker redirected too many times")
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+
+  it("names a refused API redirect instead of falling back to Poll failed", () => {
+    const card = sanitizeNetworkError(
+      "aither.cc answered with a 302 redirect, which is not followed",
+      "Poll failed"
+    )
+    expect(card).toBe("Tracker redirected the request")
     expect(isUnreachableMessage(card)).toBe(false)
   })
 })

@@ -35,9 +35,21 @@ import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type {
   AvistazPlatformMeta,
+  C411PlatformMeta,
   DigitalCorePlatformMeta,
+  HawkePlatformMeta,
   MamPlatformMeta,
 } from "@/types/tracker-stats"
+
+// Platforms whose only platform alert is download-revoked, read from
+// platformMeta.canDownload.
+const DOWNLOAD_ALERT_ONLY_PLATFORMS = new Set(["c411", "hawke"])
+// Platforms whose download-revoked alert compares this poll's meta with the last.
+const DOWNLOAD_ALERT_PLATFORMS = new Set([
+  "avistaz",
+  "digitalcore",
+  ...DOWNLOAD_ALERT_ONLY_PLATFORMS,
+])
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job (it keeps firing)
@@ -236,10 +248,7 @@ export async function pollTracker(
     // Snapshot the previous platformMeta before writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
     let previousPlatformMeta: Record<string, unknown> | null = null
-    if (
-      (tracker.platformType === "avistaz" || tracker.platformType === "digitalcore") &&
-      tracker.platformMeta
-    ) {
+    if (DOWNLOAD_ALERT_PLATFORMS.has(tracker.platformType) && tracker.platformMeta) {
       try {
         previousPlatformMeta = JSON.parse(tracker.platformMeta) as Record<string, unknown>
       } catch (err) {
@@ -357,6 +366,10 @@ export async function pollTracker(
           ? (stats.platformMeta as DigitalCorePlatformMeta | undefined)
           : undefined
 
+      const canDownloadMeta = DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+        ? (stats.platformMeta as C411PlatformMeta | HawkePlatformMeta | undefined)
+        : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -394,8 +407,9 @@ export async function pollTracker(
                 }
               : tracker.platformType === "avistaz"
                 ? {
-                    currentSeedbonus: stats.seedbonus ?? null,
-                    previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                    // The 99,999 bonus cap these feed is MAM's.
+                    currentSeedbonus: null,
+                    previousSeedbonus: null,
                     vipUntil: avistazMeta?.vipExpiry ?? null,
                     unsatisfiedCount: null,
                     unsatisfiedLimit: null,
@@ -407,8 +421,9 @@ export async function pollTracker(
                   }
                 : tracker.platformType === "digitalcore"
                   ? {
-                      currentSeedbonus: stats.seedbonus ?? null,
-                      previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                      // The 99,999 bonus cap these feed is MAM's.
+                      currentSeedbonus: null,
+                      previousSeedbonus: null,
                       vipUntil: null,
                       unsatisfiedCount: null,
                       unsatisfiedLimit: null,
@@ -427,7 +442,20 @@ export async function pollTracker(
                             ? true
                             : null,
                     }
-                  : undefined,
+                  : DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+                    ? {
+                        currentSeedbonus: null,
+                        previousSeedbonus: null,
+                        vipUntil: null,
+                        unsatisfiedCount: null,
+                        unsatisfiedLimit: null,
+                        inactiveHnrCount: null,
+                        previousInactiveHnrCount: null,
+                        canDownload: canDownloadMeta?.canDownload ?? null,
+                        previousCanDownload:
+                          (previousPlatformMeta?.canDownload as boolean | null) ?? null,
+                      }
+                    : undefined,
         },
         encryptionKey,
         enabledTargets

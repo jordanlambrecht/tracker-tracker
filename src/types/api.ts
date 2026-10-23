@@ -139,6 +139,8 @@ export interface DashboardSettings {
   showOutageBands: boolean
 }
 
+export type GlanceDay = "today" | "yesterday"
+
 export interface TodayAtAGlance {
   fleet: {
     uploadDelta: string

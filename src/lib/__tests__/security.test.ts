@@ -2,6 +2,12 @@
 //
 // Security invariant tests: auth enforcement, token leakage,
 // input validation, setup protection, crypto integrity
+//
+// The upload routes are driven with Node's own Request. Under jsdom, FormData
+// and Blob are jsdom's, which that Request cannot read since jsdom 30.1, so
+// this file opts into the native Node environment like auth-jwe.test.ts.
+
+// @vitest-environment node
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"

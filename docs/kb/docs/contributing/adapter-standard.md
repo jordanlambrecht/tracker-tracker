@@ -211,8 +211,8 @@ it. Import it rather than writing it again.
 
 | Helper | File | Use it for | Do not hand-roll |
 |---|---|---|---|
-| `adapterFetch` | `helpers/adapter-fetch.ts` | Every JSON API request on the happy path. Applies the shared timeout, default User-Agent and proxy, throws on non-2xx. | Your own fetch, timeout, proxy branch or non-2xx message |
-| `adapterRequest` | `helpers/adapter-fetch.ts` | Same, but returns a non-2xx instead of throwing. Only when your API reports errors in the body of a non-2xx. | Reaching for this by default |
+| `adapterFetch` | `helpers/adapter-fetch.ts` | Every JSON API request on the happy path. Applies the shared timeout, default User-Agent and proxy, refuses every redirect, throws on non-2xx. | Your own fetch, timeout, proxy branch or non-2xx message |
+| `adapterRequest` | `helpers/adapter-fetch.ts` | Same, but returns a non-2xx other than a redirect instead of throwing. Only when your API reports errors in the body of a non-2xx. | Reaching for this by default |
 | `fetchTrackerHtml` | `helpers/html-fetch.ts` | Every authenticated page fetch in a scraper. Handles headers, cookies, the redirect chain, the off-origin refusal. | A private fetch with a Cookie header, your own redirect following |
 | `pollError` | `helpers/poll-error.ts` | `fetchRaw`, on every 200 body `fetchStats` reads. Runs the function `fetchStats` reads it with and returns the message that function throws, or null. | Restating `fetchStats`'s checks inside `fetchRaw` |
 | `normalizeWhitespace` | `helpers/html-parse.ts` | Any text you compare against a literal label. Labels carry U+00A0, which an exact match will not survive. | `value.replace(/\s+/g, " ").trim()` |
@@ -327,6 +327,9 @@ dashes.
 - [ ] No credential appears in any error, log line, or debug `endpoint`, `data` or `error`.
 - [ ] Any call I make directly carries `ADAPTER_FETCH_TIMEOUT_MS`. Calls through `adapterFetch`
       and `fetchTrackerHtml` get it automatically.
+- [ ] Any call I make directly that carries a credential sets `redirect: "manual"` and refuses
+      the 3xx, as `adapterRequest` does. A followed redirect sends a custom key header or a 307
+      body to whatever host the Location names.
 - [ ] I log through `log` from `@/lib/logger`. There is no `console.` in my file.
 
 **fetchRaw**

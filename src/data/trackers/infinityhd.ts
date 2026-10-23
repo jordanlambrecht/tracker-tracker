@@ -21,7 +21,7 @@ export const infinityhd: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#8f6cff",
-  logo: "",
+  logo: "/tracker-logos/infinityhd_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

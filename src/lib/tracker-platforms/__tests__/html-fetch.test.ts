@@ -214,6 +214,22 @@ describe("fetchTrackerHtml - redirects", () => {
       fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
     ).rejects.toThrow("Unexpected response from tracker.example: redirect with no Location")
   })
+
+  it("reads an unreadable Location as an unexpected response, not as bad credentials", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(redirectResponse("http://["))
+
+    const err = await fetchTrackerHtml({
+      ...BASE,
+      followRedirects: { loginPattern: /\/login/i },
+    }).catch((e: Error) => e)
+
+    expect((err as Error).message).toBe(
+      "Unexpected response from tracker.example: redirect to an unreadable Location"
+    )
+    expect(sanitizeNetworkError((err as Error).message)).toBe(
+      "Tracker returned an unexpected response"
+    )
+  })
 })
 
 describe("fetchTrackerHtml - errors", () => {

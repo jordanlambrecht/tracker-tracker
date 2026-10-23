@@ -22,7 +22,7 @@ export const retromoviesclub: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#ff69b4",
-  logo: "",
+  logo: "/tracker-logos/retromoviesclub_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

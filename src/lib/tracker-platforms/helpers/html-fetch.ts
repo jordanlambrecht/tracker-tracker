@@ -1,10 +1,11 @@
 // src/lib/tracker-platforms/helpers/html-fetch.ts
 //
-// Functions: buildHtmlHeaders, fetchFailure, getHtmlViaProxy, getHtml, isRedirect,
-//            followRedirectChain, fetchTrackerHtml
+// Functions: buildHtmlHeaders, fetchFailure, getHtmlViaProxy, getHtml, followRedirectChain,
+//            fetchTrackerHtml
 
 import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { isRedirect } from "@/lib/network"
 import type { FetchOptions } from "../contract"
 import { SessionExpiredError } from "./errors"
 
@@ -132,18 +133,6 @@ async function getHtml(url: string, headers: Record<string, string>): Promise<Ht
 }
 
 /**
- * Every status that carries a Location, not just the two most common. A status
- * missing from this set is returned to the caller as though it were the final
- * response, which means it never reaches the same-origin check below, so
- * narrowing this set silently narrows that guard too.
- */
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
-
-function isRedirect(status: number): boolean {
-  return REDIRECT_STATUSES.has(status)
-}
-
-/**
  * Walks a redirect chain by hand (redirect: "manual") so a bounce to the login
  * page can be distinguished from an ordinary relocation such as / -> /t.
  */
@@ -173,7 +162,16 @@ async function followRedirectChain(
     }
     if (hop === maxHops) break
 
-    const nextUrl = new URL(location, currentUrl)
+    // new URL's own error says "Invalid URL", which the sanitizer would read as
+    // bad credentials.
+    let nextUrl: URL
+    try {
+      nextUrl = new URL(location, currentUrl)
+    } catch {
+      throw new Error(
+        `Unexpected response from ${new URL(fromUrl).hostname}: redirect to an unreadable Location`
+      )
+    }
     // `headers` carries the user's tracker session cookie. Location is chosen by
     // the remote host, so following it blindly would replay that cookie wherever
     // the response points. A hostile or compromised tracker could harvest the

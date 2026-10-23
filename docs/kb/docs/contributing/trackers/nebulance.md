@@ -5,7 +5,7 @@
 | Platform     | Nebulance                           |
 | Base URL     | `https://nebulance.io`              |
 | API Endpoint | `https://nebulance.io/api.php`      |
-| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Auth Method  | Query parameter: `?api_key=KEY`     |
 | Enrichment   | N/A                                 |
 | Auth Style   | N/A                                 |
 
@@ -17,7 +17,7 @@ Nebulance is a Gazelle fork that uses `api.php` instead of `ajax.php` and authen
 
 **Profile Card:** username · group · join date (Nebulance gives us joinedDate)
 
-**Badges:** `warned` (always `false`, Nebulance doesn't provide enrichment)
+**Badges:** none (the API sends no warned flag, so `warned` stays null)
 
 **Stat Cards:** `snatched-nebulance`, `login-deadline` (loginIntervalDays: 90)
 

@@ -79,7 +79,8 @@ export interface SnapshotContext {
   // The effective requirement: live requiredRatio when the adapter reports
   // one, registry minimumRatio otherwise (resolveRequiredRatio).
   minimumRatio: number | undefined
-  // Platform-specific extended fields; populated for MAM and AvistaZ, undefined for others
+  // Platform-specific fields. pollTracker fills them for MAM and for the
+  // DOWNLOAD_ALERT_PLATFORMS in tracker-scheduler.ts, and leaves them undefined for others.
   platformContext?: {
     currentSeedbonus: number | null
     previousSeedbonus: number | null

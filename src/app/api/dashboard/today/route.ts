@@ -7,9 +7,14 @@ import { backfillTrackerCheckpoints, computeTodayAtAGlance } from "@/lib/today"
 
 const g = globalThis as typeof globalThis & { __backfillDone?: boolean }
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+
+  const day = new URL(request.url).searchParams.get("day") ?? "today"
+  if (day !== "today" && day !== "yesterday") {
+    return NextResponse.json({ error: "day must be today or yesterday" }, { status: 400 })
+  }
 
   try {
     // One-time backfill on first request that populates checkpoint table from existing snapshots
@@ -23,7 +28,7 @@ export async function GET() {
       }
     }
 
-    const data = await computeTodayAtAGlance()
+    const data = await computeTodayAtAGlance(day)
     return NextResponse.json(data)
   } catch (error) {
     log.error(error, "Failed to compute today at a glance")

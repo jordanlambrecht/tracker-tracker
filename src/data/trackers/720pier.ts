@@ -21,7 +21,7 @@ export const pier720: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#4caf50",
-  logo: "",
+  logo: "/tracker-logos/720pier_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

@@ -20,6 +20,9 @@ export const ptpimgAdapter: ImageHostAdapter = {
     const response = await fetch(UPLOAD_URL, {
       method: "POST",
       body: form,
+      // A 307 or 308 replays the form, key included, at whatever host its
+      // Location names. Manual mode makes any redirect the non-ok throw below.
+      redirect: "manual",
       signal: AbortSignal.timeout(30_000),
     })
 
