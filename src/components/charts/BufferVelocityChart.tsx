@@ -251,8 +251,13 @@ function buildBufferVelocityOption(
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
             const val = (item.value as [number, number])[1]
-            const sign = val >= 0 ? "+" : ""
-            const valueColor = val >= 0 ? CHART_THEME.positive : CHART_THEME.negative
+            const sign = val > Number.EPSILON ? "+" : ""
+            const valueColor =
+              val > Number.EPSILON
+                ? CHART_THEME.positive
+                : val < -Number.EPSILON
+                  ? CHART_THEME.negative
+                  : CHART_THEME.neutral
             const display = `${sign}${fmtNum(val)} ${unit}`
             return (
               chartDot(item.color) +

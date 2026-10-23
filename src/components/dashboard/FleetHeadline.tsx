@@ -19,10 +19,15 @@ interface FleetHeadlineProps {
   day?: GlanceDay
 }
 
+/** "+" or "-" from the exact value; none for zero within floating-point error. */
+function signOf(value: number): string {
+  return value > Number.EPSILON ? "+" : value < -Number.EPSILON ? "-" : ""
+}
+
 function pctLabel(pct: number | null, versus: string): string | undefined {
   if (pct === null) return undefined
-  const rounded = Math.round(pct)
-  return rounded >= 0 ? `+${rounded}% vs ${versus}` : `${rounded}% vs ${versus}`
+  const magnitude = signOf(pct) === "" ? 0 : Math.abs(pct)
+  return `${signOf(pct)}${magnitude.toFixed(1)}% vs ${versus}`
 }
 
 export function FleetHeadline({ fleet, day = "today" }: FleetHeadlineProps) {
@@ -31,30 +36,31 @@ export function FleetHeadline({ fleet, day = "today" }: FleetHeadlineProps) {
   const downloadParts = splitValueUnit(formatBytesFromString(fleet.downloadDelta))
   const bufferParts = splitValueUnit(formatBytesFromString(fleet.bufferDelta))
 
-  const ratioDisplay =
-    fleet.ratioChange !== null
-      ? fleet.ratioChange >= 0
-        ? `+${fleet.ratioChange.toFixed(4)}`
-        : fleet.ratioChange.toFixed(4)
-      : "+0.0000"
+  // Zero within floating-point error has no sign; anything else keeps the sign
+  // of the exact value, so a tiny gain reads "+0.0000" beside an up arrow.
+  const ratioChange =
+    fleet.ratioChange === null || Math.abs(fleet.ratioChange) <= Number.EPSILON
+      ? 0
+      : fleet.ratioChange
+  const ratioDisplay = ratioChange > 0 ? `+${ratioChange.toFixed(4)}` : ratioChange.toFixed(4)
 
-  const seedbonusDisplay = (() => {
-    if (fleet.seedbonusChange === null) return "+0"
-    const floored = Math.floor(Math.abs(fleet.seedbonusChange))
-    const sign = fleet.seedbonusChange >= 0 ? "+" : "-"
-    return sign + formatCount(floored)
-  })()
+  const seedbonusDisplay =
+    fleet.seedbonusChange === null
+      ? "0"
+      : signOf(fleet.seedbonusChange) + formatCount(Math.floor(Math.abs(fleet.seedbonusChange)))
 
   const uploadPct = computePctChange(fleet.uploadDelta, fleet.uploadDeltaYesterday)
   const downloadPct = computePctChange(fleet.downloadDelta, fleet.downloadDeltaYesterday)
   const bufferPct = computePctChange(fleet.bufferDelta, fleet.bufferDeltaYesterday)
 
   const ratioTrend =
-    fleet.ratioChange === null || fleet.ratioChange === 0
+    fleet.ratioChange === null
       ? undefined
-      : fleet.ratioChange > 0
+      : ratioChange > 0
         ? ("up" as const)
-        : ("down" as const)
+        : ratioChange < 0
+          ? ("down" as const)
+          : ("flat" as const)
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -90,9 +96,11 @@ export function FleetHeadline({ fleet, day = "today" }: FleetHeadlineProps) {
         value={ratioDisplay}
         trend={ratioTrend}
         accentColor={
-          fleet.ratioChange !== null && fleet.ratioChange < 0
+          ratioChange < 0
             ? CHART_THEME.danger
-            : CHART_THEME.success
+            : ratioChange > 0
+              ? CHART_THEME.success
+              : CHART_THEME.neutral
         }
         icon={<RatioIcon width="16" height="16" />}
       />

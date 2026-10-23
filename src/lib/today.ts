@@ -211,12 +211,18 @@ export async function computeTodayAtAGlance(
   // Today runs from the first snapshot to the latest. A past day runs from the
   // day before's checkpoint to its own, the same basis as its comparison.
   const spans = new Map<number, [Reading, Reading]>()
+  // The bonus is measured between the first and last readings that carry one, so
+  // a tracker that starts reporting it partway through does not book its whole balance.
+  const bonusSpans = new Map<number, [number, number]>()
   if (nextDayStr) {
     const startByTracker = new Map(yesterdayCheckpoints.map((cp) => [cp.trackerId, cp]))
     for (const end of checkpointRows) {
       const start = startByTracker.get(end.trackerId)
       if (end.checkpointDate !== todayStr || !start) continue
       spans.set(end.trackerId, [checkpointReading(start), checkpointReading(end)])
+      if (start.seedbonusEnd != null && end.seedbonusEnd != null) {
+        bonusSpans.set(end.trackerId, [start.seedbonusEnd, end.seedbonusEnd])
+      }
     }
   } else {
     const snapshotsByTracker = new Map<number, (typeof todaySnapshots)[number][]>()
@@ -228,6 +234,8 @@ export async function computeTodayAtAGlance(
     for (const [trackerId, snaps] of snapshotsByTracker) {
       if (snaps.length < 2) continue
       spans.set(trackerId, [snapshotReading(snaps[0]), snapshotReading(snaps[snaps.length - 1])])
+      const bonuses = snaps.map((s) => s.seedbonus).filter((v): v is number => v != null)
+      if (bonuses.length >= 2) bonusSpans.set(trackerId, [bonuses[0], bonuses[bonuses.length - 1]])
     }
   }
 
@@ -252,10 +260,8 @@ export async function computeTodayAtAGlance(
       const bufferDelta = BigInt(latestBuffer) - BigInt(earliestBuffer)
 
       const ratioChange = (latest.ratio ?? 0) - (earliest.ratio ?? 0)
-      // Only readings that carry a bonus count, so a tracker that starts
-      // reporting one partway through the day does not book its whole balance.
-      const bonuses = snaps.map((s) => s.seedbonus).filter((v): v is number => v != null)
-      const seedbonusChange = bonuses.length >= 2 ? bonuses[bonuses.length - 1] - bonuses[0] : 0
+      const bonus = bonusSpans.get(tracker.id)
+      const seedbonusChange = bonus ? bonus[1] - bonus[0] : 0
 
       trackerDeltas.push({
         id: tracker.id,

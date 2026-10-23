@@ -204,9 +204,16 @@ function buildCandlestickOption(
             ]
             const change = close - open
             const changeAbs = Math.abs(change)
-            const changeSign = change >= 0 ? "+" : "-"
-            const arrow = change >= 0 ? "▲" : "▼"
-            const changeColor = change >= 0 ? CHART_THEME.positive : CHART_THEME.negative
+            // No sign, arrow or gain colour for a candle that did not move
+            const rising = change > Number.EPSILON
+            const falling = change < -Number.EPSILON
+            const changeSign = rising ? "+" : falling ? "-" : ""
+            const arrow = rising ? " (▲)" : falling ? " (▼)" : ""
+            const changeColor = rising
+              ? CHART_THEME.positive
+              : falling
+                ? CHART_THEME.negative
+                : CHART_THEME.neutral
 
             const swatch = chartDot(item.color)
             const name = `<span style="color:${CHART_THEME.textSecondary};font-weight:600;">${escHtml(item.seriesName)}:</span>`
@@ -215,7 +222,7 @@ function buildCandlestickOption(
             const closeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Close:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(close)} ${unit}</span>`
             const highLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">High:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(high)} ${unit}</span>`
             const lowLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Low:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(low)} ${unit}</span>`
-            const changeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Change:</span> <span style="color:${changeColor};font-weight:600;">${changeSign}${fmtNum(changeAbs)} ${unit} (${arrow})</span>`
+            const changeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Change:</span> <span style="color:${changeColor};font-weight:600;">${changeSign}${fmtNum(changeAbs)} ${unit}${arrow}</span>`
 
             return `<div style="margin-bottom:8px;">${swatch}${name}<br/>${openLine}&nbsp;&nbsp;${closeLine}<br/>${highLine}&nbsp;&nbsp;${lowLine}<br/>${changeLine}</div>`
           })

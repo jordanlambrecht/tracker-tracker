@@ -889,6 +889,34 @@ describe("computeTodayAtAGlance — yesterday", () => {
     expect(result.trackers[0].uploadDelta).toBe("2000")
   })
 
+  it("measures yesterday's bonus between the checkpoints at either end", async () => {
+    const tracker = makeTracker(1)
+    seedStore(
+      [tracker],
+      [],
+      [{ ...makeTrackerCheckpoint(1, yesterday, "5000", "500"), seedbonusEnd: 1300 }],
+      [{ ...makeTrackerCheckpoint(1, shift(today, -2), "3000", "300"), seedbonusEnd: 1000 }]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.seedbonusChange).toBe(300)
+  })
+
+  it("books no bonus for yesterday when the earlier checkpoint has none", async () => {
+    const tracker = makeTracker(1)
+    seedStore(
+      [tracker],
+      [],
+      [{ ...makeTrackerCheckpoint(1, yesterday, "5000", "500"), seedbonusEnd: 1300 }],
+      [makeTrackerCheckpoint(1, shift(today, -2), "3000", "300")]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.seedbonusChange).toBe(0)
+  })
+
   it("reports no movement for a tracker missing the checkpoint before yesterday", async () => {
     const tracker = makeTracker(1)
     seedStore([tracker], [], [makeTrackerCheckpoint(1, yesterday, "5000", "500")], [])

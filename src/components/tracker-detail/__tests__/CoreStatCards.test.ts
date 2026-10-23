@@ -10,7 +10,7 @@
 // snapshot, so unknown never reads as clean.
 
 import { describe, expect, it } from "vitest"
-import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
+import { buildCoreStatDescriptors, ratioTrend24h } from "@/components/tracker-detail/CoreStatCards"
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 const baseStats: TrackerLatestStats = {
@@ -59,7 +59,7 @@ function ratioDescriptor(stats: TrackerLatestStats | null) {
 }
 
 describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
-  it("renders '∞' with unit 'x' and an 'up' trend for a zero-download account", () => {
+  it("renders '∞' with unit 'x' for a zero-download account", () => {
     const stats: TrackerLatestStats = {
       ...baseStats,
       ratioIsInfinite: true,
@@ -70,7 +70,6 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
     const descriptor = ratioDescriptor(stats)
     expect(descriptor.value).toBe("∞")
     expect(descriptor.unit).toBe("x")
-    expect(descriptor.trend).toBe("up")
   })
 
   it("does not flag an infinite ratio as below a required ratio", () => {
@@ -105,7 +104,47 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
     const descriptor = ratioDescriptor(stats)
     expect(descriptor.value).toBe("2.50")
     expect(descriptor.unit).toBe("x")
-    expect(descriptor.trend).toBe("up")
+  })
+})
+
+describe("ratio trend", () => {
+  function snap(hoursAgo: number, ratio: number | null, ratioIsInfinite = false): Snapshot {
+    return {
+      ...baseSnapshot,
+      polledAt: new Date(Date.UTC(2026, 9, 24, 12) - hoursAgo * 3_600_000).toISOString(),
+      ratio,
+      ratioIsInfinite,
+    }
+  }
+
+  it("shows the trend it is given, not a level from the ratio itself", () => {
+    const stats: TrackerLatestStats = { ...baseStats, ratio: 4.48 }
+    const trendOf = (trend?: "up" | "flat" | "down") =>
+      buildCoreStatDescriptors(stats, null, undefined, trend).find((d) => d.key === "ratio")?.trend
+    expect(trendOf()).toBeUndefined()
+    expect(trendOf("flat")).toBe("flat")
+  })
+
+  it("compares the latest ratio with the newest snapshot at least 24 hours older", () => {
+    expect(ratioTrend24h([snap(30, 2.0), snap(25, 4.48), snap(2, 4.0), snap(0, 4.48)])).toBe("flat")
+    expect(ratioTrend24h([snap(24, 4.4), snap(0, 4.48)])).toBe("up")
+    expect(ratioTrend24h([snap(24, 4.5), snap(0, 4.48)])).toBe("down")
+  })
+
+  it("treats a change within Number.EPSILON as flat", () => {
+    expect(ratioTrend24h([snap(24, 1), snap(0, 1 + Number.EPSILON)])).toBe("flat")
+  })
+
+  it("has no trend without a snapshot 24 hours older or without a ratio", () => {
+    expect(ratioTrend24h([])).toBeUndefined()
+    expect(ratioTrend24h([snap(23, 1), snap(0, 2)])).toBeUndefined()
+    expect(ratioTrend24h([snap(24, null), snap(0, 2)])).toBeUndefined()
+  })
+
+  it("ranks an infinite ratio above any finite one", () => {
+    expect(ratioTrend24h([snap(24, 3), snap(0, null, true)])).toBe("up")
+    expect(ratioTrend24h([snap(24, null, true), snap(0, 3)])).toBe("down")
+    expect(ratioTrend24h([snap(24, null, true), snap(0, null, true)])).toBe("flat")
   })
 })
 

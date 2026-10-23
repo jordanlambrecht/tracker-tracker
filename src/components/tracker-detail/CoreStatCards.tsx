@@ -20,6 +20,31 @@ import {
 } from "@/lib/formatters"
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function snapshotRatio(snapshot: Snapshot): number | null {
+  return snapshot.ratioIsInfinite ? Number.POSITIVE_INFINITY : snapshot.ratio
+}
+
+/**
+ * The ratio's movement over the last 24 hours: the latest snapshot against the
+ * newest one taken at least 24 hours before it. Undefined without such a pair.
+ */
+export function ratioTrend24h(snapshots: Snapshot[]): "up" | "flat" | "down" | undefined {
+  const latest = snapshots.at(-1)
+  if (!latest) return undefined
+  const cutoff = new Date(latest.polledAt).getTime() - DAY_MS
+  const earlier = snapshots.findLast((s) => new Date(s.polledAt).getTime() <= cutoff)
+  if (!earlier) return undefined
+  const now = snapshotRatio(latest)
+  const then = snapshotRatio(earlier)
+  if (now === null || then === null) return undefined
+  if (now === then) return "flat"
+  const change = now - then
+  if (Math.abs(change) <= Number.EPSILON) return "flat"
+  return change > 0 ? "up" : "down"
+}
+
 export interface StatDescriptor {
   key: string
   label: string
@@ -36,7 +61,8 @@ export interface StatDescriptor {
 export function buildCoreStatDescriptors(
   stats: TrackerLatestStats | null,
   latestSnapshot: Snapshot | null,
-  minimumRatio?: number
+  minimumRatio?: number,
+  ratioTrend?: "up" | "flat" | "down"
 ): StatDescriptor[] {
   const [upVal, upUnit] = formatBytesFromString(stats?.uploadedBytes ?? null).split(" ")
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
@@ -81,7 +107,7 @@ export function buildCoreStatDescriptors(
       icon: <RatioIcon width="16" height="16" />,
       value: formatRatio(ratio),
       unit: ratio != null ? "x" : undefined,
-      trend: ratio == null ? undefined : ratio >= 2 ? "up" : ratio >= 1 ? "flat" : "down",
+      trend: ratio == null ? undefined : ratioTrend,
       alert: ratioBelowRequired ? "danger" : undefined,
       alertReason: ratioAlertReason,
     },
