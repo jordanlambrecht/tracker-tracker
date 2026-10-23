@@ -23,13 +23,87 @@ export const iptorrents: TrackerRegistryEntry = {
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#e74c3c",
   logo: "/tracker-logos/iptorrents_logo.png",
+  bonusName: "Bonus Points",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
   statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
-  userClasses: [],
+  userClasses: [
+    {
+      name: "Peasant",
+      requirements:
+        "Ratio below 0.30 with over 1 GB downloaded for 1 week. Warned to correct the ratio",
+      perks: [{ type: "custom", label: "Seeding only" }],
+      outsideLadder: "below",
+    },
+    {
+      name: "User",
+      requirements: "Default class for new members",
+    },
+    {
+      name: "Power User",
+      requirements: "4 weeks, 50 GB up, ratio ≥ 1.05. Automatic; demoted if ratio drops below 0.95",
+      perks: [
+        { type: "custom", label: "Make requests, view the Top 10" },
+        { type: "custom", label: "Apply for Uploader" },
+      ],
+    },
+    {
+      name: "Star",
+      requirements: "Any donation other than a FreeLeech donation",
+      perks: [
+        { type: "hnr-immune", label: "Immune to automatic demotion and H&R warnings" },
+        { type: "custom", label: "H&R warnings cleared on donation. Seeding still required" },
+      ],
+      outsideLadder: "above",
+    },
+    {
+      name: "VIP",
+      requirements: "Assigned to the best of the best, or given on donation. Begging disqualifies",
+      perks: [
+        { type: "custom", label: "Power User privileges, Elite Member of IPT" },
+        { type: "hnr-immune", label: "Immune to H&R warnings during VIP; cleared on donation" },
+      ],
+      outsideLadder: "above",
+    },
+    {
+      name: "Uploader",
+      requirements: "Appointed by staff (see the Uploading section)",
+      perks: [
+        { type: "upload", label: "Upload rights" },
+        { type: "custom", label: "Immune to automatic demotion" },
+        { type: "custom", label: "More forums, peer lists on non-anonymous torrents" },
+      ],
+      outsideLadder: "above",
+    },
+    {
+      name: "TCM/TDE",
+      requirements: "Appointed by staff. Do not ask",
+      perks: [{ type: "custom", label: "Staff: edit comments (TCM) or torrents (TDE)" }],
+      outsideLadder: "above",
+    },
+    {
+      name: "Moderator",
+      requirements: "Appointed by staff",
+      perks: [
+        { type: "custom", label: "Edit and delete torrents, moderate comments, disable accounts" },
+      ],
+      outsideLadder: "above",
+    },
+    {
+      name: "Administrator",
+      requirements: "Staff",
+      perks: [{ type: "custom", label: "Can do just about anything" }],
+      outsideLadder: "above",
+    },
+    {
+      name: "IPT Gods",
+      requirements: "Staff leaders",
+      outsideLadder: "above",
+    },
+  ],
   releaseGroups: [],
   bannedGroups: [],
   notableMembers: [],
@@ -38,7 +112,7 @@ export const iptorrents: TrackerRegistryEntry = {
   rules: {
     minimumRatio: 1.0,
     seedTimeHours: 336,
-    loginIntervalDays: 0,
+    loginIntervalDays: 90,
   },
 
   // ── Status ──────────────────────────────────────────────────────────

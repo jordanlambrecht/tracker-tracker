@@ -183,7 +183,7 @@ export const CREDENTIAL_FORMS = {
     kind: "cookies",
     example: "uid=123; pass=abc123",
     extraCookieNames: ["uid", "pass"],
-    hidesJoinDate: false,
+    hidesJoinDate: true,
     dialog: {
       secret: {
         label: "Browser Cookies",

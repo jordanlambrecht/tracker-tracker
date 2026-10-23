@@ -2,7 +2,14 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { sanitizeNetworkError } from "@/lib/error-utils"
-import { IptorrentsAdapter, parseIptCredentials, parseIptProfile } from "../adapters/iptorrents"
+import {
+  IptorrentsAdapter,
+  parseIptClass,
+  parseIptCredentials,
+  parseIptProfile,
+  parseIptProfileDates,
+  parseIptProfilePath,
+} from "../adapters/iptorrents"
 
 const STATS_HTML = `
 <div class="stats">
@@ -16,7 +23,24 @@ const STATS_HTML = `
 
 const FULL_PAGE = `<!doctype html><html><head></head><body>${STATS_HTML}</body></html>`
 
+const PROFILE_PAGE = `<!doctype html><html><body>
+  <h1 class="up-username">testuser</h1>
+  <span class="up-class-badge">Power User</span>
+  <div class="up-section">
+    <div class="up-field">
+      <span class="up-field-label">Join Date</span>
+      <span class="up-field-value">2024-05-06 07:08:09 (<span class="elapsedDate" title="Monday, May 6, 2024 at 7:08am">2 years ago</span>)</span>
+    </div>
+    <div class="up-field">
+      <span class="up-field-label">Last Seen</span>
+      <span class="up-field-value">2026-01-02 03:04:05 (<span class="elapsedDate" title="Friday, January 2, 2026 at 3:04am">3 minutes ago</span>)</span>
+    </div>
+  </div>
+</body></html>`
+
 const HOSTNAME = "iptorrents.com"
+
+const page = (html: string) => ({ ok: true, status: 200, text: async () => html }) as Response
 
 describe("parseIptProfile", () => {
   it("extracts stats from the header stats bar", () => {
@@ -195,6 +219,33 @@ describe("parseIptProfile", () => {
   })
 })
 
+describe("parseIptProfilePath and parseIptClass", () => {
+  it("takes the profile path from the stats bar's username link", () => {
+    expect(parseIptProfilePath(FULL_PAGE)).toBe("/u/12345")
+  })
+
+  it("ignores a username link that is not a profile path", () => {
+    const offsite = FULL_PAGE.replace('href="/u/12345"', 'href="https://elsewhere.example/u/1"')
+    expect(parseIptProfilePath(offsite)).toBeNull()
+  })
+
+  it("reads the class badge, or null when there is none", () => {
+    expect(parseIptClass(PROFILE_PAGE)).toBe("Power User")
+    expect(parseIptClass(FULL_PAGE)).toBeNull()
+  })
+
+  it("reads the join and last-seen dates without their elapsed text", () => {
+    expect(parseIptProfileDates(PROFILE_PAGE)).toEqual({
+      joinedDate: "2024-05-06 07:08:09",
+      lastAccessDate: "2026-01-02 03:04:05",
+    })
+    expect(parseIptProfileDates(FULL_PAGE)).toEqual({
+      joinedDate: undefined,
+      lastAccessDate: undefined,
+    })
+  })
+})
+
 describe("parseIptProfile pages it cannot read", () => {
   // The tracker answered, so the card must not read "Poll failed", which is
   // also what a host that never answered gets.
@@ -313,21 +364,46 @@ describe("IptorrentsAdapter.fetchStats - network error classification", () => {
     )
   })
 
-  it("fetches the homepage with cookie and user-agent headers", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: async () => FULL_PAGE,
-    } as Response)
+  it("fetches the homepage, then the profile page, with cookie and user-agent headers", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockResolvedValueOnce(page(PROFILE_PAGE))
 
     await adapter.fetchStats("https://iptorrents.com", validToken, "")
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    const [calledUrl, init] = fetchSpy.mock.calls[0]
-    expect(calledUrl).toBe("https://iptorrents.com/")
-    const headers = init?.headers as Record<string, string>
-    expect(headers.Cookie).toBe("uid=123; pass=abc123")
-    expect(headers["User-Agent"]).toBe("Mozilla/5.0")
+    expect(fetchSpy.mock.calls.map(([url]) => url)).toEqual([
+      "https://iptorrents.com/",
+      "https://iptorrents.com/u/12345",
+    ])
+    for (const [, init] of fetchSpy.mock.calls) {
+      const headers = init?.headers as Record<string, string>
+      expect(headers.Cookie).toBe("uid=123; pass=abc123")
+      expect(headers["User-Agent"]).toBe("Mozilla/5.0")
+    }
+  })
+
+  it("takes the class and dates from the profile page", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockResolvedValueOnce(page(PROFILE_PAGE))
+
+    const stats = await adapter.fetchStats("https://iptorrents.com", validToken, "")
+
+    expect(stats.group).toBe("Power User")
+    expect(stats.joinedDate).toBe("2024-05-06 07:08:09")
+    expect(stats.lastAccessDate).toBe("2026-01-02 03:04:05")
+  })
+
+  it("keeps the stats bar's class when the profile page fails", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockRejectedValueOnce(new Error("network down"))
+
+    const stats = await adapter.fetchStats("https://iptorrents.com", validToken, "")
+
+    expect(stats.group).toBe("User")
+    expect(stats.uploadedBytes).toBeGreaterThan(0n)
   })
 })
 
@@ -412,7 +488,8 @@ describe("IptorrentsAdapter - redirect handling", () => {
     const adapter = new IptorrentsAdapter()
     const stats = await adapter.fetchStats("https://iptorrents.com", creds, "/")
     expect(stats.username).toBe("testuser")
-    expect(callCount).toBe(2)
+    // The redirect, the page it lands on, and the profile page
+    expect(callCount).toBe(3)
   })
 })
 
@@ -424,18 +501,33 @@ describe("IptorrentsAdapter.fetchRaw", () => {
     vi.restoreAllMocks()
   })
 
-  it("returns the parsed profile as a successful call", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: async () => FULL_PAGE,
-    } as Response)
+  it("returns the parsed homepage and the profile page's class as successful calls", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockResolvedValueOnce(page(PROFILE_PAGE))
 
     const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "")
 
-    expect(calls).toHaveLength(1)
+    expect(calls).toHaveLength(2)
     expect(calls[0].error).toBeNull()
     expect(calls[0].data).not.toBeNull()
+    expect(calls[1]).toMatchObject({
+      label: "Profile Page",
+      data: { group: "Power User" },
+      error: null,
+    })
+  })
+
+  it("records a failed profile page next to the homepage", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockRejectedValueOnce(new Error("network down"))
+
+    const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "")
+
+    expect(calls[0].error).toBeNull()
+    expect(calls[1].data).toBeNull()
+    expect(calls[1].error).toBeTruthy()
   })
 
   it("records an unreadable page instead of throwing", async () => {
