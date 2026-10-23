@@ -9,7 +9,7 @@ import { Tooltip } from "@/components/ui/Tooltip"
 import { registryEntryFor } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
 import { isRedacted } from "@/lib/privacy"
-import { buildRankLadder, type RankLadder } from "@/lib/rank-ladder"
+import { buildRankForest, buildRankLadder, type RankLadder } from "@/lib/rank-ladder"
 import type { TrackerSummary } from "@/types/api"
 
 // Every stack is the same height, so rung thickness is what varies with the
@@ -131,8 +131,35 @@ export function RankStacks({ trackers, expanded, onToggleExpanded }: RankStacksP
 
   const entries: StackEntry[] = trackers.flatMap((tracker) => {
     if (!tracker.isActive) return []
-    const classes = registryEntryFor(tracker)?.userClasses ?? []
-    const ladder = buildRankLadder(classes, tracker.latestStats?.group)
+    const entry = registryEntryFor(tracker)
+    const classes = entry?.userClasses ?? []
+    const group = tracker.latestStats?.group
+
+    if (entry?.rankPaths && entry.rankPaths.length > 0) {
+      const forest = buildRankForest(classes, entry.rankPaths, group)
+      if (forest) {
+        const activePath = forest.paths.find((path) => path.id === forest.activePathId)
+        const rungs = activePath ? [...forest.shared, ...activePath.rungs] : forest.shared
+        const currentIndex = activePath
+          ? forest.shared.length + activePath.currentIndex
+          : forest.sharedCurrentIndex
+        return [
+          {
+            tracker,
+            ladder: {
+              rungs,
+              currentIndex,
+              appointedClass: forest.appointedClass,
+              shownClass: forest.shownClass,
+              unknownClass: forest.unknownClass,
+              summary: forest.summary,
+            },
+          },
+        ]
+      }
+    }
+
+    const ladder = buildRankLadder(classes, group)
     return ladder ? [{ tracker, ladder }] : []
   })
 

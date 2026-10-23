@@ -9,7 +9,7 @@ import { InfoTip } from "@/components/ui/InfoTip"
 import { PillTag } from "@/components/ui/PillTag"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
-import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import type { TrackerRegistryEntry, TrackerUserClass } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
@@ -31,6 +31,102 @@ interface TrackerInfoTabProps {
   registryEntry: TrackerRegistryEntry | undefined
   stats: TrackerLatestStats | null
   accentColor: string
+}
+
+function UserClassRow({
+  userClass,
+  isCurrent,
+  isFirst,
+  accentColor,
+}: {
+  userClass: TrackerUserClass
+  isCurrent: boolean
+  isFirst: boolean
+  accentColor: string
+}) {
+  return (
+    <div
+      className={clsx(
+        "flex items-start justify-between px-6 py-3.5",
+        !isFirst && "border-t border-border",
+        userClass.outsideLadder && "opacity-60"
+      )}
+      style={isCurrent ? { backgroundColor: hexToRgba(accentColor, 0.08) } : undefined}
+    >
+      <div className="flex items-center gap-3 pt-0.5">
+        <span
+          className={clsx(
+            "text-sm font-mono min-w-35",
+            isCurrent ? "font-semibold" : "text-secondary"
+          )}
+          style={isCurrent ? { color: accentColor } : undefined}
+        >
+          {userClass.name}
+        </span>
+        {isCurrent && (
+          <span className="text-3xs font-mono" style={{ color: accentColor }}>
+            ← you
+          </span>
+        )}
+      </div>
+      {(userClass.requirements || (userClass.perks && userClass.perks.length > 0)) && (
+        <div className="flex flex-col items-end gap-1 max-w-[60%]">
+          {userClass.requirements && (
+            <span className="text-xs font-mono text-muted text-right">
+              {userClass.requirements}
+            </span>
+          )}
+          {userClass.perks && userClass.perks.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1 mt-1">
+              {userClass.perks.map((perk) => (
+                <PillTag key={`${perk.type}-${perk.label}`} size="sm" color="muted">
+                  {perk.label}
+                </PillTag>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RankGroup({
+  title,
+  description,
+  userClasses,
+  currentClass,
+  accentColor,
+}: {
+  title: string
+  description?: string
+  userClasses: TrackerUserClass[]
+  currentClass?: string | null
+  accentColor: string
+}) {
+  if (userClasses.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-0.5">
+        <h3 className="text-xs font-sans font-medium text-tertiary uppercase tracking-wider">
+          {title}
+        </h3>
+        {description && <p className="text-3xs font-mono text-muted">{description}</p>}
+      </div>
+      <div className="nm-inset-sm bg-control-bg overflow-hidden rounded-nm-md">
+        {userClasses.map((userClass, index) => (
+          <UserClassRow
+            key={userClass.name}
+            userClass={userClass}
+            isCurrent={currentClass?.toLowerCase() === userClass.name.toLowerCase()}
+            isFirst={index === 0}
+            accentColor={accentColor}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: TrackerInfoTabProps) {
@@ -185,56 +281,50 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
       {registryEntry?.userClasses && registryEntry.userClasses.length > 0 && (
         <div className="flex flex-col gap-3">
           <H2>User Ranks</H2>
-          <div className="nm-inset-sm bg-control-bg overflow-hidden rounded-nm-md">
-            {registryEntry.userClasses.map((uc, i) => {
-              const isCurrent = stats?.group?.toLowerCase() === uc.name.toLowerCase()
-              return (
-                <div
-                  key={uc.name}
-                  className={clsx(
-                    "flex items-start justify-between px-6 py-3.5",
-                    i > 0 ? "border-t border-border" : ""
+          {registryEntry.rankPaths && registryEntry.rankPaths.length > 0 ? (
+            <div className="flex flex-col gap-5">
+              <RankGroup
+                title="Shared"
+                userClasses={registryEntry.userClasses.filter(
+                  (userClass) => !userClass.outsideLadder && !userClass.path
+                )}
+                currentClass={stats?.group}
+                accentColor={tc}
+              />
+              {registryEntry.rankPaths.map((path) => (
+                <RankGroup
+                  key={path.id}
+                  title={path.label}
+                  description={path.description}
+                  userClasses={registryEntry.userClasses.filter(
+                    (userClass) => !userClass.outsideLadder && userClass.path === path.id
                   )}
-                  style={isCurrent ? { backgroundColor: hexToRgba(tc, 0.08) } : undefined}
-                >
-                  <div className="flex items-center gap-3 pt-0.5">
-                    <span
-                      className={clsx(
-                        "text-sm font-mono min-w-35",
-                        isCurrent ? "font-semibold" : "text-secondary"
-                      )}
-                      style={isCurrent ? { color: tc } : undefined}
-                    >
-                      {uc.name}
-                    </span>
-                    {isCurrent && (
-                      <span className="text-3xs font-mono" style={{ color: tc }}>
-                        ← you
-                      </span>
-                    )}
-                  </div>
-                  {(uc.requirements || (uc.perks && uc.perks.length > 0)) && (
-                    <div className="flex flex-col items-end gap-1 max-w-[60%]">
-                      {uc.requirements && (
-                        <span className="text-xs font-mono text-muted text-right">
-                          {uc.requirements}
-                        </span>
-                      )}
-                      {uc.perks && uc.perks.length > 0 && (
-                        <div className="flex flex-wrap justify-end gap-1 mt-1">
-                          {uc.perks.map((perk) => (
-                            <PillTag key={`${perk.type}-${perk.label}`} size="sm" color="muted">
-                              {perk.label}
-                            </PillTag>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  currentClass={stats?.group}
+                  accentColor={tc}
+                />
+              ))}
+              <RankGroup
+                title="Awarded & system"
+                userClasses={registryEntry.userClasses.filter(
+                  (userClass) => userClass.outsideLadder
+                )}
+                currentClass={stats?.group}
+                accentColor={tc}
+              />
+            </div>
+          ) : (
+            <div className="nm-inset-sm bg-control-bg overflow-hidden rounded-nm-md">
+              {registryEntry.userClasses.map((userClass, index) => (
+                <UserClassRow
+                  key={userClass.name}
+                  userClass={userClass}
+                  isCurrent={stats?.group?.toLowerCase() === userClass.name.toLowerCase()}
+                  isFirst={index === 0}
+                  accentColor={tc}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

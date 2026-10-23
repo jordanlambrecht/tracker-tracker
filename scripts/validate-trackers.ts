@@ -20,6 +20,7 @@ import {
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
   validateDefunct,
+  validateRankPaths,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { isValidHex } from "@/lib/validators"
@@ -246,6 +247,11 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     const defunct = validateDefunct(tracker)
     errors.push(...defunct.errors)
     warnings.push(...defunct.warnings)
+
+    // ── Rank path validation ──────────────────────────────────────────
+    const rankPaths = validateRankPaths(tracker)
+    errors.push(...rankPaths.errors)
+    warnings.push(...rankPaths.warnings)
 
     // ── Warn-level fields ─────────────────────────────────────────────
     if (isEmpty(tracker.abbreviation)) warnings.push("Missing abbreviation")

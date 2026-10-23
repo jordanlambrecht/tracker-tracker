@@ -1,9 +1,9 @@
 // src/lib/rank-ladder.ts
 //
-// Functions: findClassIndex, buildRankLadder, ladderPosition
+// Functions: findClassIndex, buildRankLadder, buildRankForest, ladderPosition
 // Constants: OUTSIDE_LADDER_NOTE
 
-import type { TrackerUserClass } from "@/data/tracker-registry"
+import type { TrackerRankPath, TrackerUserClass } from "@/data/tracker-registry"
 import { isRedacted } from "@/lib/privacy"
 
 /** Hover text for a class that is not a rung, shared by the pills and the rank tooltip. */
@@ -40,6 +40,34 @@ export interface RankLadder {
    * One sentence for assistive tech, "Power User, rank 2 of 5". Kept
    * here so the visual label and the spoken one cannot drift apart.
    */
+  summary: string
+}
+
+/** One branch of a ladder that splits after a shared prefix. */
+export interface RankPathLadder {
+  id: string
+  label: string
+  description?: string
+  /** Earned classes on this branch, lowest first. */
+  rungs: RankRung[]
+  /** Position in `rungs`, or -1 when the member is not on this branch. */
+  currentIndex: number
+}
+
+/**
+ * A rank ladder with a shared prefix and one or more branches. The member
+ * starts in `shared`, then continues on exactly one of `paths`.
+ */
+export interface RankForest {
+  shared: RankRung[]
+  /** Position in `shared`, or -1 when nothing is lit. */
+  sharedCurrentIndex: number
+  paths: RankPathLadder[]
+  /** Branch the member is on, or null while still in the shared prefix. */
+  activePathId: string | null
+  appointedClass: string | null
+  shownClass: string | null
+  unknownClass: boolean
   summary: string
 }
 
@@ -148,5 +176,120 @@ export function buildRankLadder(
     shownClass: current.name,
     unknownClass: false,
     summary: `${current.name}, rank ${currentIndex + 1} of ${total}`,
+  }
+}
+
+function rungIndex(rungs: RankRung[], name: string): number {
+  const wanted = name.toLowerCase()
+  return rungs.findIndex((rung) => rung.name.toLowerCase() === wanted)
+}
+
+/**
+ * Build the shared prefix plus one branch per declared path. A member in the
+ * prefix has no active path; a member in a branch has completed the prefix.
+ * Returns null for linear entries, which keep using buildRankLadder.
+ */
+export function buildRankForest(
+  classes: TrackerUserClass[],
+  paths: TrackerRankPath[],
+  currentClass: string | null | undefined
+): RankForest | null {
+  if (paths.length === 0) return null
+
+  const shared = classes
+    .filter((c) => !c.outsideLadder && !c.path)
+    .map((c) => ({ name: c.name, requirements: c.requirements }))
+  const branches: RankPathLadder[] = paths.map((path) => ({
+    id: path.id,
+    label: path.label,
+    description: path.description,
+    rungs: classes
+      .filter((c) => !c.outsideLadder && c.path === path.id)
+      .map((c) => ({ name: c.name, requirements: c.requirements })),
+    currentIndex: -1,
+  }))
+
+  if (shared.length === 0 || branches.every((branch) => branch.rungs.length === 0)) return null
+
+  const totalShared = shared.length
+  const index = findClassIndex(classes, currentClass)
+  const base: RankForest = {
+    shared,
+    sharedCurrentIndex: -1,
+    paths: branches,
+    activePathId: null,
+    appointedClass: null,
+    shownClass: null,
+    unknownClass: false,
+    summary: "",
+  }
+
+  if (index === -1) {
+    if (!currentClass) {
+      return {
+        ...base,
+        summary: `class not reported, rank 0 of ${totalShared}`,
+      }
+    }
+    if (isRedacted(currentClass)) {
+      return {
+        ...base,
+        shownClass: currentClass,
+        summary: `class redacted, rank 0 of ${totalShared}`,
+      }
+    }
+    return {
+      ...base,
+      shownClass: currentClass,
+      unknownClass: true,
+      summary: `${currentClass}, not on the registry ladder`,
+    }
+  }
+
+  const current = classes[index]
+  if (current.outsideLadder === "above") {
+    for (const branch of branches) branch.currentIndex = branch.rungs.length - 1
+    return {
+      ...base,
+      sharedCurrentIndex: totalShared - 1,
+      appointedClass: current.name,
+      shownClass: current.name,
+      summary: `${current.name}, above the ${totalShared}-rank shared ladder`,
+    }
+  }
+  if (current.outsideLadder === "below") {
+    return {
+      ...base,
+      shownClass: current.name,
+      summary: `${current.name}, rank 0 of ${totalShared}`,
+    }
+  }
+
+  if (current.path) {
+    const branch = branches.find((candidate) => candidate.id === current.path)
+    if (!branch) {
+      return {
+        ...base,
+        shownClass: current.name,
+        unknownClass: true,
+        summary: `${current.name}, path "${current.path}" is not declared`,
+      }
+    }
+    branch.currentIndex = rungIndex(branch.rungs, current.name)
+    return {
+      ...base,
+      sharedCurrentIndex: totalShared - 1,
+      activePathId: branch.id,
+      shownClass: current.name,
+      summary: `${current.name}, ${branch.label} rank ${branch.currentIndex + 1} of ${branch.rungs.length}`,
+    }
+  }
+
+  const sharedIndex = rungIndex(shared, current.name)
+  return {
+    ...base,
+    sharedCurrentIndex: sharedIndex,
+    shownClass: current.name,
+    summary: `${current.name}, shared rank ${sharedIndex + 1} of ${totalShared}, ${branches.length} paths onward`,
   }
 }
