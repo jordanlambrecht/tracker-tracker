@@ -28,6 +28,7 @@ export const torrentleech: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "torrent-leech",
   statusPageUrl: "",
+  announceHosts: ["tleechreload.org"],
 
   // ── Community ───────────────────────────────────────────────────────
   // wiki.torrentleech.org/doku.php/user_classes. Staff roles (Uploader, FLS,

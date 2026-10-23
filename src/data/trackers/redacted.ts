@@ -31,6 +31,7 @@ export const redacted: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "redacted",
   statusPageUrl: "https://red.trackerstatus.info/",
+  announceHosts: ["flacsfor.me"],
 
   // ── Community ───────────────────────────────────────────────────────
   // wiki.php?action=article&name=classes (r27). Counts are torrents uploaded,

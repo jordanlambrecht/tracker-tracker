@@ -27,6 +27,7 @@ export const iptorrents: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
   statusPageUrl: "",
+  announceHosts: ["bgp.technology"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

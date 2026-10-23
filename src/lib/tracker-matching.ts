@@ -8,6 +8,7 @@
 // who don't tag per-tracker (issue #152). The torrent's announce URL is
 // already captured, so fall back to matching on that.
 
+import { registryEntryFor } from "@/data/tracker-registry"
 import { parseTorrentTags } from "@/lib/fleet"
 
 /**
@@ -73,19 +74,46 @@ export function trackerHostKey(input: string | null | undefined): string | null 
   return labels.slice(-take).join(".")
 }
 
+/** A tracker row as far as announce matching is concerned. */
+export interface AnnounceSource {
+  baseUrl?: string | null
+  registrySlug?: string | null
+}
+
+const announceKeyCache = new Map<string, readonly string[]>()
+
+/** The tracker's own host key plus those of its registry entry's `announceHosts`. */
+export function trackerAnnounceKeys(tracker: AnnounceSource | null | undefined): readonly string[] {
+  const baseUrl = tracker?.baseUrl ?? ""
+  const registrySlug = tracker?.registrySlug ?? null
+  const cacheKey = `${registrySlug ?? ""} ${baseUrl}`
+  const cached = announceKeyCache.get(cacheKey)
+  if (cached) return cached
+
+  const own = trackerHostKey(baseUrl)
+  const extra = registryEntryFor({ registrySlug })?.announceHosts ?? []
+  const keys = [
+    ...new Set(
+      [own, ...extra.map((h) => trackerHostKey(h))].filter((k): k is string => k !== null)
+    ),
+  ]
+  announceKeyCache.set(cacheKey, keys)
+  return keys
+}
+
 /** True when a torrent's announce URL points at the same site as a tracker. */
 export function announceMatchesTracker(
   announceUrl: string | null | undefined,
-  trackerBaseUrl: string | null | undefined
+  tracker: AnnounceSource | null | undefined
 ): boolean {
   const a = trackerHostKey(announceUrl)
-  const b = trackerHostKey(trackerBaseUrl)
-  return a !== null && b !== null && a === b
+  return a !== null && trackerAnnounceKeys(tracker).includes(a)
 }
 
 interface MatchableTracker {
   qbtTag: string | null
   baseUrl: string
+  registrySlug?: string | null
 }
 
 interface MatchableTorrent {
@@ -138,7 +166,7 @@ export function resolveTorrentTracker<T extends MatchableTracker>(
   }
 
   if (torrent.tracker) {
-    const hit = trackers.find((t) => announceMatchesTracker(torrent.tracker, t.baseUrl))
+    const hit = trackers.find((t) => announceMatchesTracker(torrent.tracker, t))
     if (hit) return { tracker: hit, matchedTag: null }
   }
 

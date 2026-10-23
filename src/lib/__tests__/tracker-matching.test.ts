@@ -4,11 +4,18 @@
 // users without per-tracker tags saw empty dashboards.
 
 import { describe, expect, it } from "vitest"
+import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import {
   announceMatchesTracker,
   resolveTorrentTracker,
+  trackerAnnounceKeys,
   trackerHostKey,
 } from "@/lib/tracker-matching"
+
+const site = (baseUrl: string | null, registrySlug: string | null = null) => ({
+  baseUrl,
+  registrySlug,
+})
 
 describe("trackerHostKey", () => {
   it("reduces a host to its registrable core", () => {
@@ -43,22 +50,71 @@ describe("trackerHostKey", () => {
 describe("announceMatchesTracker", () => {
   it("matches an announce subdomain to the site's base URL", () => {
     expect(
-      announceMatchesTracker("https://tracker.example.org/announce", "https://example.org")
+      announceMatchesTracker("https://tracker.example.org/announce", site("https://example.org"))
     ).toBe(true)
     expect(
-      announceMatchesTracker("https://aither.cc/announce?passkey=x", "https://aither.cc")
+      announceMatchesTracker("https://aither.cc/announce?passkey=x", site("https://aither.cc"))
     ).toBe(true)
   })
 
   it("does not match unrelated sites", () => {
     expect(
-      announceMatchesTracker("https://tracker.other.org/announce", "https://example.org")
+      announceMatchesTracker("https://tracker.other.org/announce", site("https://example.org"))
     ).toBe(false)
   })
 
   it("is false when either side is missing", () => {
-    expect(announceMatchesTracker(null, "https://example.org")).toBe(false)
-    expect(announceMatchesTracker("https://example.org/announce", null)).toBe(false)
+    expect(announceMatchesTracker(null, site("https://example.org"))).toBe(false)
+    expect(announceMatchesTracker("https://example.org/announce", site(null))).toBe(false)
+  })
+})
+
+describe("registry announceHosts", () => {
+  it("leaves trackers without a registry entry on their own host", () => {
+    expect(trackerAnnounceKeys(site("https://example.org"))).toEqual(["example.org"])
+    expect(trackerAnnounceKeys(site(null))).toEqual([])
+  })
+
+  it("lists bare hostnames only, never an announce URL with its passkey", () => {
+    for (const entry of TRACKER_REGISTRY) {
+      for (const host of entry.announceHosts ?? []) {
+        expect(host).toMatch(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/)
+      }
+    }
+  })
+
+  it("matches Redacted's flacsfor.me announces, and only for Redacted", () => {
+    expect(trackerAnnounceKeys(site("https://redacted.sh", "redacted"))).toEqual([
+      "redacted.sh",
+      "flacsfor.me",
+    ])
+    expect(announceMatchesTracker("flacsfor.me:443", site("https://redacted.sh", "redacted"))).toBe(
+      true
+    )
+    expect(announceMatchesTracker("flacsfor.me", site("https://orpheus.network", "orpheus"))).toBe(
+      false
+    )
+  })
+
+  it("matches IPTorrents' bgp.technology announces", () => {
+    expect(
+      announceMatchesTracker("routing.bgp.technology", site("https://iptorrents.com", "iptorrents"))
+    ).toBe(true)
+  })
+
+  it("matches Orpheus' opsfet.ch announces", () => {
+    expect(
+      announceMatchesTracker("home.opsfet.ch", site("https://orpheus.network", "orpheus"))
+    ).toBe(true)
+  })
+
+  it("matches TorrentLeech's tleechreload.org announces", () => {
+    expect(
+      announceMatchesTracker(
+        "tracker.tleechreload.org",
+        site("https://www.torrentleech.org", "torrentleech")
+      )
+    ).toBe(true)
   })
 })
 
@@ -89,6 +145,19 @@ describe("resolveTorrentTracker", () => {
   it("resolves a torrent with no tags at all", () => {
     const hit = resolveTorrentTracker({ tags: "", tracker: "https://aither.cc/announce" }, trackers)
     expect(hit?.tracker.baseUrl).toBe("https://aither.cc")
+  })
+
+  it("attributes an untagged torrent announcing on a registry alias host", () => {
+    const withRedacted = [
+      ...trackers,
+      { qbtTag: "red", baseUrl: "https://redacted.sh", registrySlug: "redacted" },
+    ]
+    const hit = resolveTorrentTracker(
+      { tags: "", tracker: "https://flacsfor.me/announce" },
+      withRedacted
+    )
+    expect(hit?.tracker.baseUrl).toBe("https://redacted.sh")
+    expect(hit?.matchedTag).toBeNull()
   })
 
   it("returns null when nothing matches", () => {

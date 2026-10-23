@@ -77,6 +77,7 @@ export async function computeTodayAtAGlance(): Promise<TodayAtAGlance> {
         color: trackers.color,
         qbtTag: trackers.qbtTag,
         baseUrl: trackers.baseUrl,
+        registrySlug: trackers.registrySlug,
       })
       .from(trackers)
       .where(eq(trackers.isActive, true)),

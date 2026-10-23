@@ -97,6 +97,11 @@ export interface TrackerRegistryEntry {
    * It replaces "Seedbonus" and "BON". Read it through registryBonusName().
    */
   bonusName?: string
+  /**
+   * Announce domains that differ from `url`s. Bare hostnames only, never an
+   * announce URL: those carry the passkey.
+   */
+  announceHosts?: string[]
   draft?: boolean
   warning?: boolean
   warningNote?: string
