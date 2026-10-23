@@ -206,6 +206,44 @@ describe("PATCH /api/settings route validation", () => {
     })
   })
 
+  it("stores a FlareSolverr URL without its trailing slash", async () => {
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      flaresolverrUrl: " http://flaresolverr:8191/ ",
+      flaresolverrMaxTimeout: 90000,
+    })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flaresolverrUrl: "http://flaresolverr:8191",
+        flaresolverrMaxTimeout: 90000,
+      })
+    )
+  })
+
+  it.each([
+    [
+      { flaresolverrUrl: "ftp://flaresolverr:8191" },
+      "FlareSolverr URL must use https:// or http://",
+    ],
+    [
+      { flaresolverrUrl: "http://user:pw@flaresolverr:8191" },
+      "FlareSolverr URL must not contain a username or password",
+    ],
+    [{ flaresolverrMaxTimeout: 1000 }, "FlareSolverr timeout must be between 10000 and 180000 ms"],
+  ])("rejects FlareSolverr settings %j", async (body, error) => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error })
+  })
+
   // ─── Username validation ──────────────────────────────────────
 
   it("rejects username shorter than 3 characters", async () => {

@@ -10,6 +10,7 @@ import {
   authenticate,
   decodeKey,
   parseJsonBody,
+  validateFlareSolverrUrl,
   validateIntRange,
   validateMaxLength,
 } from "@/lib/api-helpers"
@@ -24,6 +25,8 @@ import {
   BACKUP_RETENTION_MAX,
   BACKUP_RETENTION_MIN,
   CREDENTIAL_MAX,
+  FLARESOLVERR_TIMEOUT_MAX_MS,
+  FLARESOLVERR_TIMEOUT_MIN_MS,
   HOST_MAX,
   LOCKOUT_DURATION_MAX,
   LOCKOUT_DURATION_MIN,
@@ -279,6 +282,40 @@ export async function PATCH(request: Request) {
       updates.encryptedProxyPassword = encrypt(body.proxyPassword, key)
     } else {
       return NextResponse.json({ error: "Invalid proxy password" }, { status: 400 })
+    }
+  }
+
+  // --- FlareSolverr ---
+  if (body.flaresolverrUrl !== undefined) {
+    if (body.flaresolverrUrl === null || body.flaresolverrUrl === "") {
+      updates.flaresolverrUrl = null
+    } else if (typeof body.flaresolverrUrl === "string") {
+      const url = body.flaresolverrUrl.trim().replace(/\/+$/, "")
+      const lengthErr = validateMaxLength(url, LONG_STRING_MAX, "FlareSolverr URL")
+      if (lengthErr) return lengthErr
+      const urlErr = validateFlareSolverrUrl(url)
+      if (urlErr) return urlErr
+      updates.flaresolverrUrl = url
+    } else {
+      return NextResponse.json({ error: "Invalid FlareSolverr URL" }, { status: 400 })
+    }
+  }
+
+  if (body.flaresolverrMaxTimeout !== undefined) {
+    if (body.flaresolverrMaxTimeout === null) {
+      updates.flaresolverrMaxTimeout = null
+    } else if (typeof body.flaresolverrMaxTimeout !== "number") {
+      return NextResponse.json({ error: "Invalid FlareSolverr timeout" }, { status: 400 })
+    } else {
+      const timeoutErr = validateIntRange(
+        body.flaresolverrMaxTimeout,
+        FLARESOLVERR_TIMEOUT_MIN_MS,
+        FLARESOLVERR_TIMEOUT_MAX_MS,
+        "flaresolverrMaxTimeout",
+        `FlareSolverr timeout must be between ${FLARESOLVERR_TIMEOUT_MIN_MS} and ${FLARESOLVERR_TIMEOUT_MAX_MS} ms`
+      )
+      if (timeoutErr) return timeoutErr
+      updates.flaresolverrMaxTimeout = body.flaresolverrMaxTimeout
     }
   }
 

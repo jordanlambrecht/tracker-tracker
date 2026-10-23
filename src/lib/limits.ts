@@ -171,6 +171,10 @@ export const EVENTS_LIMIT_CAP = 1000
 // ─── Time ─────────────────────────────────────────────────────────────────────
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 export const ADAPTER_FETCH_TIMEOUT_MS = 15_000
+/** How long FlareSolverr may spend on one page. Solving a challenge takes seconds. */
+export const FLARESOLVERR_TIMEOUT_DEFAULT_MS = 60_000
+export const FLARESOLVERR_TIMEOUT_MIN_MS = 10_000
+export const FLARESOLVERR_TIMEOUT_MAX_MS = 180_000
 
 /**
  * Upper bound on one scheduled poll cycle. Every adapter call is bounded by

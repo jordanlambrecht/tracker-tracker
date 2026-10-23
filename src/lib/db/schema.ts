@@ -54,6 +54,10 @@ export const appSettings = pgTable("app_settings", {
   proxyPort: integer("proxy_port").default(1080),
   proxyUsername: varchar("proxy_username", { length: 255 }),
   encryptedProxyPassword: text("encrypted_proxy_password"),
+  // FlareSolverr, for trackers behind a Cloudflare challenge. NULL URL means
+  // none is set up; NULL timeout means FLARESOLVERR_TIMEOUT_DEFAULT_MS.
+  flaresolverrUrl: text("flaresolverr_url"),
+  flaresolverrMaxTimeout: integer("flaresolverr_max_timeout"),
   qbitmanageEnabled: boolean("qbitmanage_enabled").default(false).notNull(),
   qbitmanageTags: text("qbitmanage_tags"),
   backupScheduleEnabled: boolean("backup_schedule_enabled").default(false).notNull(),
@@ -146,6 +150,8 @@ export const trackers = pgTable("trackers", {
   avatarCachedAt: timestamp("avatar_cached_at"),
   avatarRemoteUrl: text("avatar_remote_url"),
   useProxy: boolean("use_proxy").default(false).notNull(),
+  // Read this tracker's pages through the FlareSolverr set up in settings.
+  useFlaresolverr: boolean("use_flaresolverr").default(false).notNull(),
   countCrossSeedUnsatisfied: boolean("count_cross_seed_unsatisfied").default(false).notNull(),
   hideUnreadBadges: boolean("hide_unread_badges").default(false).notNull(),
   isFavorite: boolean("is_favorite").default(false).notNull(),

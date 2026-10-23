@@ -1,13 +1,14 @@
 // src/lib/tracker-platforms/helpers/html-fetch.ts
 //
-// Functions: buildHtmlHeaders, fetchFailure, getHtmlViaProxy, getHtml, followRedirectChain,
-//            fetchTrackerHtml
+// Functions: buildHtmlHeaders, isCloudflareChallenge, fetchFailure, getHtmlViaProxy, getHtml,
+//            followRedirectChain, fetchViaSolver, fetchTrackerHtml
 
 import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { isRedirect } from "@/lib/network"
-import type { FetchOptions } from "../contract"
+import type { FetchOptions, FlareSolverrConfig } from "../contract"
 import { SessionExpiredError } from "./errors"
+import { cookieHeaderToSolverCookies, solverGet, solverPostForm } from "./flaresolverr"
 
 // ---------------------------------------------------------------------------
 // Shared HTML fetcher for the scraping adapters.
@@ -46,7 +47,22 @@ export interface TrackerHtmlRequest {
    * Does not follow if the Location matches loginPattern.
    */
   followRedirects?: { loginPattern: RegExp; maxHops?: number }
+  /** A form POST instead of a GET. Redirects after it are followed with GETs. */
+  form?: Record<string, string>
+  /**
+   * Read the page through FlareSolverr instead. Its browser sends its own
+   * User-Agent, so `userAgent` and `proxyAgent` are not used.
+   */
+  flaresolverr?: { config: FlareSolverrConfig; session?: string }
 }
+
+/** What a request sends beyond its headers. */
+interface RequestBody {
+  method: "GET" | "POST"
+  body?: string
+}
+
+const GET: RequestBody = { method: "GET" }
 
 function buildHtmlHeaders(cookies: string, userAgent?: string): Record<string, string> {
   return {
@@ -57,6 +73,11 @@ function buildHtmlHeaders(cookies: string, userAgent?: string): Record<string, s
   }
 }
 
+/** Cloudflare's interstitial, served in place of the page while a challenge is pending. */
+export function isCloudflareChallenge(html: string): boolean {
+  return html.includes("<title>Just a moment...</title>") || html.includes("cf_chl_opt")
+}
+
 /**
  * Same wording adapterFetch throws, which sanitizeNetworkError matches on. The
  * scheduler and the connection test sanitize it once, and sanitizing it here as
@@ -64,7 +85,7 @@ function buildHtmlHeaders(cookies: string, userAgent?: string): Record<string, s
  * failed".
  */
 function fetchFailure(status: number, statusText: string): Error {
-  return new Error(`Tracker API error: ${status} ${statusText}`)
+  return new Error(`Tracker API error: ${status} ${statusText}`.trimEnd())
 }
 
 /**
@@ -85,7 +106,8 @@ type HtmlFetcher = (url: string) => Promise<HtmlResponse>
 async function getHtmlViaProxy(
   url: string,
   headers: Record<string, string>,
-  proxyAgent: NonNullable<FetchOptions["proxyAgent"]>
+  proxyAgent: NonNullable<FetchOptions["proxyAgent"]>,
+  request: RequestBody
 ): Promise<HtmlResponse> {
   const { proxyFetch } = await import("@/lib/tunnel")
   // Passed rather than inherited. tunnel.ts defaults to 15000, which happens to
@@ -97,6 +119,7 @@ async function getHtmlViaProxy(
     result = await proxyFetch(url, proxyAgent, {
       headers,
       timeoutMs: ADAPTER_FETCH_TIMEOUT_MS,
+      ...request,
     })
   } catch (err) {
     throw classifyProxyFetchError(err, hostname)
@@ -115,11 +138,16 @@ async function getHtmlViaProxy(
   }
 }
 
-async function getHtml(url: string, headers: Record<string, string>): Promise<HtmlResponse> {
+async function getHtml(
+  url: string,
+  headers: Record<string, string>,
+  request: RequestBody
+): Promise<HtmlResponse> {
   const response = await fetch(url, {
     headers,
     signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
     redirect: "manual",
+    ...request,
   }).catch((err) => {
     throw classifyFetchError(err, new URL(url).hostname)
   })
@@ -192,20 +220,74 @@ async function followRedirectChain(
 }
 
 /**
- * Fetches an authenticated HTML page, honoring the user's proxy when one is
- * configured. No error it throws names the URL, so a token carried in one never
+ * The request through FlareSolverr. The browser follows redirects itself, so a
+ * redirect is visible only in the final URL.
+ */
+async function fetchViaSolver(
+  request: TrackerHtmlRequest,
+  solver: NonNullable<TrackerHtmlRequest["flaresolverr"]>
+): Promise<string> {
+  const { url, cookies, label, sessionExpiredMessage, followRedirects, form } = request
+  const { config, session } = solver
+  const result = form
+    ? await solverPostForm(config, url, form, { session })
+    : await solverGet(config, url, { session, cookies: cookieHeaderToSolverCookies(cookies) })
+
+  const requested = new URL(url)
+  let landed: URL
+  try {
+    landed = new URL(result.url)
+  } catch {
+    landed = requested
+  }
+  if (landed.origin !== requested.origin) throw new Error(`${label} redirected off-site`)
+  const target = landed.pathname + landed.search
+  if (target !== requested.pathname + requested.search) {
+    if (!followRedirects || followRedirects.loginPattern.test(target)) {
+      throw new SessionExpiredError(sessionExpiredMessage)
+    }
+  }
+  if (isCloudflareChallenge(result.html)) {
+    throw new Error(
+      `Cloudflare challenge detected. It was not solved through FlareSolverr for ${label}`
+    )
+  }
+  if (result.status >= 400) throw fetchFailure(result.status, "")
+  return result.html
+}
+
+/**
+ * Fetches an authenticated HTML page, honoring the user's proxy or FlareSolverr
+ * when one is configured. No error it throws names the URL, so a token carried in one never
  * reaches a log or an API response.
  */
 export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<string> {
-  const { url, cookies, label, sessionExpiredMessage, userAgent, proxyAgent, followRedirects } =
-    request
+  const {
+    url,
+    cookies,
+    label,
+    sessionExpiredMessage,
+    userAgent,
+    proxyAgent,
+    followRedirects,
+    form,
+    flaresolverr,
+  } = request
+  if (flaresolverr) return fetchViaSolver(request, flaresolverr)
+
   const headers = buildHtmlHeaders(cookies, userAgent)
+  const first: RequestBody = form
+    ? { method: "POST", body: new URLSearchParams(form).toString() }
+    : GET
+  const firstHeaders = form
+    ? { ...headers, "Content-Type": "application/x-www-form-urlencoded" }
+    : headers
 
-  const fetcher: HtmlFetcher = proxyAgent
-    ? (target) => getHtmlViaProxy(target, headers, proxyAgent)
-    : (target) => getHtml(target, headers)
+  const send = (target: string, body: RequestBody, sent: Record<string, string>) =>
+    proxyAgent ? getHtmlViaProxy(target, sent, proxyAgent, body) : getHtml(target, sent, body)
+  const fetcher: HtmlFetcher = (target) => send(target, GET, headers)
 
-  let response = await fetcher(url)
+  let response = await send(url, first, firstHeaders)
 
   if (followRedirects) {
     response = await followRedirectChain(
@@ -220,7 +302,22 @@ export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<str
     throw new SessionExpiredError(sessionExpiredMessage)
   }
 
-  if (!response.ok) throw fetchFailure(response.status, response.statusText)
+  if (!response.ok) {
+    // Cloudflare returns 403 or 503 with its challenge page. Reported as a plain
+    // 403, it would be shown as rejected credentials.
+    if (response.status === 403 || response.status === 503) {
+      let body = ""
+      try {
+        body = await response.text()
+      } catch {
+        // An unreadable body is reported by its status alone.
+      }
+      if (isCloudflareChallenge(body)) {
+        throw new Error(`Cloudflare challenge detected. ${label} cookies need refreshing`)
+      }
+    }
+    throw fetchFailure(response.status, response.statusText)
+  }
 
   return response.text()
 }

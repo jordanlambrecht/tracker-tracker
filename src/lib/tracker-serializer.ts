@@ -57,6 +57,7 @@ export function serializeTrackerResponse(
     mouseholeUrl: tracker.mouseholeUrl ?? null,
     hasMouseholeToken: tracker.hasMouseholeToken,
     useProxy: tracker.useProxy,
+    useFlaresolverr: tracker.useFlaresolverr,
     countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
     hideUnreadBadges: tracker.hideUnreadBadges,
     isFavorite: tracker.isFavorite,

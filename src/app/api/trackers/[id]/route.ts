@@ -119,6 +119,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
+  if (typeof body.useFlaresolverr === "boolean") updates.useFlaresolverr = body.useFlaresolverr
   if (typeof body.countCrossSeedUnsatisfied === "boolean")
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.hideUnreadBadges === "boolean") updates.hideUnreadBadges = body.hideUnreadBadges

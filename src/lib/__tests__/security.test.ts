@@ -282,6 +282,7 @@ import { POST as BackupRestorePOST } from "@/app/api/settings/backup/restore/rou
 import { GET as DashboardGET, PUT as DashboardPUT } from "@/app/api/settings/dashboard/route"
 import { GET as DbSizeGET } from "@/app/api/settings/db-size/route"
 import { GET as EventsGET } from "@/app/api/settings/events/route"
+import { POST as FlareSolverrTestPOST } from "@/app/api/settings/flaresolverr-test/route"
 import { GET as ImageHostsGET } from "@/app/api/settings/image-hosts/route"
 import { POST as LockdownPOST } from "@/app/api/settings/lockdown/route"
 import { GET as LogsDownloadGET } from "@/app/api/settings/logs/download/route"
@@ -505,6 +506,16 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
       "POST"
     )
     const res = await ProxyTestPOST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it("POST /api/settings/flaresolverr-test returns 401", async () => {
+    const req = makeRequest(
+      "http://localhost/api/settings/flaresolverr-test",
+      { url: "http://flaresolverr:8191" },
+      "POST"
+    )
+    const res = await FlareSolverrTestPOST(req)
     expect(res.status).toBe(401)
   })
 

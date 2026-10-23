@@ -472,6 +472,7 @@ export async function POST(request: Request) {
               : null,
             avatarRemoteUrl: (fields.avatarRemoteUrl as string | null) ?? null,
             useProxy: fields.useProxy as boolean,
+            useFlaresolverr: (fields.useFlaresolverr as boolean) ?? false,
             countCrossSeedUnsatisfied: (fields.countCrossSeedUnsatisfied as boolean) ?? false,
             hideUnreadBadges: (fields.hideUnreadBadges as boolean) ?? false,
             isFavorite: (fields.isFavorite as boolean) ?? false,
@@ -978,6 +979,9 @@ export async function POST(request: Request) {
           proxyPort: (payload.settings.proxyPort as number | null) ?? null,
           proxyUsername: (payload.settings.proxyUsername as string | null) ?? null,
           encryptedProxyPassword: proxyPassword,
+          flaresolverrUrl: (payload.settings.flaresolverrUrl as string | null) ?? null,
+          flaresolverrMaxTimeout:
+            (payload.settings.flaresolverrMaxTimeout as number | null) ?? null,
           qbitmanageEnabled: payload.settings.qbitmanageEnabled as boolean,
           qbitmanageTags: (payload.settings.qbitmanageTags as string | null) ?? null,
           backupScheduleEnabled: payload.settings.backupScheduleEnabled as boolean,

@@ -58,6 +58,19 @@ All settings are self-explanatory; **Proxy Password** is stored encrypted.
 
 ---
 
+## FlareSolverr
+
+[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) loads pages in a real browser that solves Cloudflare challenges. Trackers whose pages sit behind such a challenge can be read through it.
+
+| Setting         | Default | Description                                                                                  |
+| --------------- | ------- | -------------------------------------------------------------------------------------------- |
+| **URL**         | empty   | Where Tracker Tracker reaches FlareSolverr, such as `http://flaresolverr:8191`. Empty turns it off |
+| **Max timeout** | 60 s    | How long FlareSolverr may spend on one page                                                  |
+
+Then turn on **Use FlareSolverr** for each tracker that needs it, when adding the tracker or in its settings. Such a tracker's requests come from FlareSolverr's browser, with its own User-Agent and its own network route; the proxy above is not used for them. Each page takes a few seconds, so these trackers poll more slowly.
+
+---
+
 ## Notifications
 
 Each target is an independent delivery destination (Discord, Gotify, Telegram, Slack, email). Configure what events trigger notifications per target and whether to include tracker names.

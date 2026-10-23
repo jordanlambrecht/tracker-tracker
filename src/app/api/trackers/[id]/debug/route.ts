@@ -10,6 +10,7 @@ import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/li
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
+import { loadFlareSolverrConfig } from "@/lib/flaresolverr-config"
 import { log } from "@/lib/logger"
 import { scrubObject } from "@/lib/scrub-object"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
@@ -61,6 +62,7 @@ export async function POST(_request: Request, props: RouteContext) {
       isActive: trackers.isActive,
       remoteUserId: trackers.remoteUserId,
       useProxy: trackers.useProxy,
+      useFlaresolverr: trackers.useFlaresolverr,
     })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
@@ -107,7 +109,17 @@ export async function POST(_request: Request, props: RouteContext) {
 
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
-  if (tracker.useProxy && !proxyAgent) {
+  const flaresolverr = tracker.useFlaresolverr
+    ? ((await loadFlareSolverrConfig()) ?? undefined)
+    : undefined
+  if (tracker.useFlaresolverr && !flaresolverr) {
+    return NextResponse.json(
+      { error: "FlareSolverr is enabled for this tracker but not set up in Settings" },
+      { status: 400 }
+    )
+  }
+
+  if (tracker.useProxy && !proxyAgent && !flaresolverr) {
     return NextResponse.json(
       { error: "Proxy required but not configured, refusing direct connection" },
       { status: 400 }
@@ -118,6 +130,7 @@ export async function POST(_request: Request, props: RouteContext) {
     registrySlug: tracker.registrySlug,
     proxyAgent: tracker.useProxy ? proxyAgent : undefined,
     remoteUserId: tracker.remoteUserId ?? undefined,
+    flaresolverr,
   })
 
   const adapter = getAdapter(tracker.platformType)

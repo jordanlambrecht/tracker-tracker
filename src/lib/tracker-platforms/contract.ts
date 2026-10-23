@@ -14,8 +14,18 @@ export type { GazelleAuthStyle, NebulanceAuthParam, Unit3dAuthStyle } from "@/da
 // adapter still takes its contract from one import.
 export type * from "@/types/tracker-stats"
 
+/** A FlareSolverr instance, which loads pages in a browser that solves Cloudflare challenges. */
+export interface FlareSolverrConfig {
+  /** Base URL, such as http://flaresolverr:8191 */
+  url: string
+  /** Milliseconds FlareSolverr may spend on one page */
+  maxTimeout: number
+}
+
 export interface FetchOptions {
   proxyAgent?: HttpAgent
+  /** Set when the tracker is routed through FlareSolverr. It replaces the proxy. */
+  flaresolverr?: FlareSolverrConfig
   remoteUserId?: number
   authStyle?: GazelleAuthStyle
   unit3dAuthStyle?: Unit3dAuthStyle

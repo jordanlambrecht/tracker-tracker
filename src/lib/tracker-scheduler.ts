@@ -23,6 +23,7 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { errMsg, sanitizeNetworkError } from "@/lib/error-utils"
+import { flareSolverrFor } from "@/lib/flaresolverr-config"
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
 import { POLL_CYCLE_DEADLINE_MS, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -91,6 +92,7 @@ const POLL_TRACKER_COLUMNS = {
   baseUrl: trackers.baseUrl,
   apiPath: trackers.apiPath,
   useProxy: trackers.useProxy,
+  useFlaresolverr: trackers.useFlaresolverr,
   remoteUserId: trackers.remoteUserId,
   platformMeta: trackers.platformMeta,
   joinedAt: trackers.joinedAt,
@@ -167,7 +169,8 @@ export async function fetchTrackerStats(
   }
 
   const adapter = getAdapter(tracker.platformType)
-  if (tracker.useProxy && !proxyAgent) {
+  const flaresolverr = await flareSolverrFor(tracker)
+  if (tracker.useProxy && !proxyAgent && !flaresolverr) {
     throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
   }
 
@@ -176,6 +179,7 @@ export async function fetchTrackerStats(
     registrySlug: tracker.registrySlug,
     proxyAgent: tracker.useProxy ? proxyAgent : undefined,
     remoteUserId: tracker.remoteUserId ?? undefined,
+    flaresolverr,
   })
   const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
@@ -234,7 +238,8 @@ export async function pollTracker(
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
     const adapter = getAdapter(tracker.platformType)
-    if (tracker.useProxy && !proxyAgent) {
+    const flaresolverr = await flareSolverrFor(tracker)
+    if (tracker.useProxy && !proxyAgent && !flaresolverr) {
       throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
     }
     const baseUrl = await pollUrlFor(tracker)
@@ -242,6 +247,7 @@ export async function pollTracker(
       registrySlug: tracker.registrySlug,
       proxyAgent: tracker.useProxy ? proxyAgent : undefined,
       remoteUserId: tracker.remoteUserId ?? undefined,
+      flaresolverr,
     })
     const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
 

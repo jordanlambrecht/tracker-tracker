@@ -42,17 +42,27 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } =
-    body as {
-      name?: string
-      slug?: string
-      apiToken?: string
-      color?: string
-      qbtTag?: string
-      mouseholeUrl?: string
-      mouseholeToken?: string
-      joinedAt?: string
-    }
+  const {
+    name,
+    slug,
+    apiToken,
+    color,
+    qbtTag,
+    mouseholeUrl,
+    mouseholeToken,
+    joinedAt,
+    useFlaresolverr,
+  } = body as {
+    name?: string
+    slug?: string
+    apiToken?: string
+    color?: string
+    qbtTag?: string
+    mouseholeUrl?: string
+    mouseholeToken?: string
+    joinedAt?: string
+    useFlaresolverr?: boolean
+  }
 
   if (
     typeof name !== "string" ||
@@ -138,6 +148,7 @@ export async function POST(request: Request) {
         mouseholeUrl: trimmedMouseholeUrl || null,
         encryptedMouseholeToken: trimmedMouseholeToken ? encrypt(trimmedMouseholeToken, key) : null,
         joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
+        useFlaresolverr: useFlaresolverr === true,
       })
       .returning()
 

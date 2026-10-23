@@ -406,6 +406,29 @@ describe("sanitizeNetworkError Cloudflare challenge", () => {
   })
 })
 
+describe("sanitizeNetworkError FlareSolverr", () => {
+  it("reads an unreachable FlareSolverr as unreachable", () => {
+    const card = sanitizeNetworkError(
+      "FlareSolverr unreachable: Failed to connect to flaresolverr: ECONNREFUSED",
+      "Poll failed"
+    )
+    expect(card).toBe("FlareSolverr unreachable")
+    expect(isUnreachableMessage(card)).toBe(true)
+  })
+
+  it("maps a FlareSolverr timeout before the generic timeout rule", () => {
+    expect(
+      sanitizeNetworkError("FlareSolverr: Error solving the challenge. Timeout after 60.0 seconds.")
+    ).toBe("FlareSolverr timed out")
+  })
+
+  it("maps any other FlareSolverr failure", () => {
+    expect(sanitizeNetworkError("FlareSolverr: Challenge not detected!")).toBe(
+      "FlareSolverr could not load the page"
+    )
+  })
+})
+
 describe("sanitizeNetworkError redirect refusals", () => {
   // The scrapers refuse a redirect off the tracker's own origin, which would
   // carry the session cookies to another host, and give up on a loop. JSON API

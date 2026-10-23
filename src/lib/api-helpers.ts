@@ -1,7 +1,7 @@
 // src/lib/api-helpers.ts
 //
 // Functions: authenticate, parseRouteId, parseTrackerId, parseJsonBody,
-//            validateHttpUrl, validateMouseholeUrl, validateMouseholeToken,
+//            validateHttpUrl, validateMouseholeUrl, validateMouseholeToken, validateFlareSolverrUrl,
 //            validateHexColor, validatePort, validatePastDate, validateJoinedAt,
 //            validateLastAccessAt, validateIntRange, validateMaxLength,
 //            validateAuthMethod, validateUrlPath, validateClientHost, decodeKey
@@ -88,6 +88,20 @@ export function validateMouseholeUrl(url: string): NextResponse | null {
         error:
           "Mousehole URL must not contain a token or password. Enter the token in the Mousehole API token field",
       },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+/** validateHttpUrl, and also rejects a username or password, which FlareSolverr does not use. */
+export function validateFlareSolverrUrl(url: string): NextResponse | null {
+  const urlErr = validateHttpUrl(url, "FlareSolverr URL")
+  if (urlErr) return urlErr
+  const parsed = new URL(url)
+  if (parsed.username || parsed.password) {
+    return NextResponse.json(
+      { error: "FlareSolverr URL must not contain a username or password" },
       { status: 400 }
     )
   }
