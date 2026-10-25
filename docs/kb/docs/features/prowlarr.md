@@ -5,7 +5,7 @@ description: Show the status of each tracker's indexer in one or more Prowlarr i
 
 # Prowlarr
 
-Tracker Tracker can read indexer status from one or more [Prowlarr](https://prowlarr.com) instances and show it next to each matching tracker. Only read requests are made: Prowlarr's settings are never changed and no indexer is tested or searched.
+Tracker Tracker can read indexer status from one or more [Prowlarr](https://prowlarr.com) instances and show it next to each matching tracker. Apart from the indexer test that **Resume** runs, only read requests are made, and Prowlarr's settings are never changed.
 
 ## Adding an Instance
 
@@ -43,6 +43,21 @@ Below the header the card shows Prowlarr's own counters for the last 24 hours an
 
 The dashboard lists failing indexers, and each Prowlarr instance that cannot be read, in a short line below the alerts. Nothing is shown there while everything is fine.
 
-Prowlarr's status does not change a tracker's health. Prowlarr reports a backoff without its cause, so stale credentials in Prowlarr, a problem with Prowlarr's own proxy or FlareSolverr, and a real tracker outage all look the same.
-
 Prowlarr lists an indexer as backed off only until the backoff ends, so the first reading after that shows **OK** whether or not Prowlarr has retried it yet.
+
+## Resume
+
+A failing indexer's row has a **Resume** button that runs Prowlarr's test for that indexer, the same as testing it in Prowlarr:
+
+- A passing test clears the backoff, so Prowlarr searches the indexer again immediately.
+- A failed test shows Prowlarr's reason under the button, and Prowlarr extends the backoff.
+- Prowlarr counts a test that hits the site's request limit as passed, which also clears the backoff.
+- Each test is a search on the site with your account, so one indexer can be tested once a minute from here.
+
+URLs in Prowlarr's messages are cut down to their host, since some indexers carry an API key in the URL.
+
+## Marking Trackers
+
+By default Prowlarr's status does not change a tracker's health. Prowlarr reports a backoff without its cause, so stale credentials in Prowlarr, a problem with Prowlarr's own proxy or FlareSolverr, and a real tracker outage all look the same.
+
+Turn on **Mark trackers with a failing indexer** on an instance to have its failing indexers turn an otherwise healthy tracker amber, with the **Indexer Failing** status in the sidebar, on the dashboard and on the tracker's page. A tracker that is erroring, paused, offline, without seeds or below its required ratio keeps that status.
