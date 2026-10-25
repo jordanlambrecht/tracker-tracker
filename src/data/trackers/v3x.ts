@@ -20,7 +20,7 @@ export const v3x: TrackerRegistryEntry = {
   language: "French",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#8B5CF6",
+  color: "#FF5A1F",
   logo: "/tracker-logos/v3x_logo.png",
   bonusName: "Points",
 
@@ -46,9 +46,8 @@ export const v3x: TrackerRegistryEntry = {
     // hard floor the health alert can represent.
     minimumRatio: 0.5,
     seedTimeHours: 48,
-    loginIntervalDays: 50,
+    loginIntervalDays: 0,
     fulfillmentPeriodHours: 336,
-    satisfactionMode: "any",
     hnrBanLimit: 3,
     fullRulesMarkdown: [
       "## Ratio",

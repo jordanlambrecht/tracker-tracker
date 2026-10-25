@@ -148,6 +148,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | ---------------- | ------------ |
     | Cathode-Ray.Tube | CRT          |
 
+=== "V3X"
+
+    | Name | Abbreviation |
+    | ---- | ------------ |
+    | V3X  | V3X          |
+
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can use them as quicklinks, but they won't poll yet.
 
@@ -316,6 +322,21 @@ Location varies by platform:
 
     !!! warning "Unverified"
         Luminance support hasn't been tested against a live account. If a poll fails or a stat looks wrong, open an issue naming the tracker.
+
+=== "V3X"
+
+    V3X reads your stats from its JSON API at `api.v3x.club` with your logged-in session.
+
+    1. Open [v3x.club](https://v3x.club) in your browser and log in
+    2. Open DevTools (F12 or Cmd+Option+I)
+    3. Go to the **Network** tab and refresh the page
+    4. Click the request to `api.v3x.club/auth/me`
+    5. **Right-click** the `Cookie` header in **Request Headers** and select **Copy Value**
+
+    Paste it into the Add Tracker dialog. The User-Agent gets captured automatically, so add or update V3X from the same browser you are logged in with. The class shown is your V3X rank (Figurant, Second rôle, ...).
+
+    !!! warning "Cookie expiration"
+        When polling fails with "Session expired," log back in and re-copy the cookie string.
 
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.
