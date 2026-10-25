@@ -15,8 +15,11 @@ import {
   parseIndexerStatuses,
   parseIndexers,
   parseSystemStatus,
+  parseTestFailures,
   prowlarrUrlError,
+  retestIndexer,
   sanitizeProwlarrError,
+  scrubTestMessage,
 } from "@/lib/prowlarr/client"
 
 const CONN = { url: "http://prowlarr.test:9696", apiKey: "0123456789abcdef0123456789abcdef" }
@@ -274,5 +277,91 @@ describe("transport", () => {
     )
     const err = await fetchIndexers(CONN).catch((e: Error) => e)
     expect((err as Error).message).toBe("Failed to connect to prowlarr.test: ECONNREFUSED")
+  })
+})
+
+describe("retestIndexer", () => {
+  it("sends Prowlarr's own definition back to the test endpoint", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(INDEXER))
+      .mockResolvedValueOnce(jsonResponse({}))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(retestIndexer(CONN, 12)).resolves.toEqual({ ok: true })
+
+    const [getUrl, getInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(getUrl).toBe("http://prowlarr.test:9696/api/v1/indexer/12")
+    expect(getInit.method).toBe("GET")
+    const [testUrl, testInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+    expect(testUrl).toBe("http://prowlarr.test:9696/api/v1/indexer/test")
+    expect(testInit.method).toBe("POST")
+    expect(testInit.redirect).toBe("manual")
+    expect(JSON.parse(testInit.body as string)).toEqual(INDEXER)
+    expect((testInit.headers as Record<string, string>)["Content-Type"]).toBe("application/json")
+  })
+
+  it("returns a failed test's reasons, never the values it echoes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(INDEXER))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify([
+              {
+                propertyName: "",
+                errorMessage: "Unable to connect to indexer",
+                attemptedValue: "secret-cookie",
+                severity: "error",
+              },
+            ]),
+            { status: 400 }
+          )
+        )
+    )
+
+    const out = await retestIndexer(CONN, 12)
+
+    expect(out).toEqual({ failures: ["Unable to connect to indexer"] })
+    expect(JSON.stringify(out)).not.toContain("secret-cookie")
+  })
+
+  // HttpException messages include the request URL, which carries the API key
+  // for UNIT3D and Torznab indexers.
+  it("cuts every URL in a failure message down to its host", () => {
+    const failures = parseTestFailures([
+      {
+        errorMessage:
+          "Unable to connect: HTTP request failed: [500:InternalServerError] [GET] at [https://tracker.example.org/api/torrents/filter?api_token=SECRET123&name=x]",
+      },
+    ])
+    expect(failures).toEqual([
+      "Unable to connect: HTTP request failed: [500:InternalServerError] [GET] at [tracker.example.org]",
+    ])
+    expect(JSON.stringify(failures)).not.toContain("SECRET123")
+  })
+
+  it("throws a status the sanitizer understands for other errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(INDEXER))
+        .mockResolvedValueOnce(new Response("", { status: 500 }))
+    )
+    await expect(retestIndexer(CONN, 12)).rejects.toThrow("Prowlarr API error: 500")
+  })
+})
+
+describe("scrubTestMessage", () => {
+  it("keeps a message without URLs and caps its length", () => {
+    expect(scrubTestMessage("Invalid credentials")).toBe("Invalid credentials")
+    expect(scrubTestMessage("x".repeat(5000))).toHaveLength(1000)
+  })
+
+  it("replaces a URL it cannot parse", () => {
+    expect(scrubTestMessage("at http://[bad/apikey=1")).toBe("at [URL]")
   })
 })
