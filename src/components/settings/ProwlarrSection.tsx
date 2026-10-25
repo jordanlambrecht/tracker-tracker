@@ -31,7 +31,7 @@ import type { SafeProwlarrInstance } from "@/types/api"
 
 const API_KEY_HINT = "Found in Prowlarr under Settings → General → Security."
 
-const DRAFT_KEYS = ["name", "url", "enabled"] as const
+const DRAFT_KEYS = ["name", "url", "enabled", "affectsHealth"] as const
 
 function buildPatch(
   draft: SafeProwlarrInstance,
@@ -174,6 +174,17 @@ function InstanceCard({
         checked={draft.enabled}
         onChange={(v) => updateDraft({ enabled: v })}
       />
+
+      <div className="flex flex-col gap-1">
+        <Toggle
+          label="Mark trackers with a failing indexer"
+          checked={draft.affectsHealth}
+          onChange={(v) => updateDraft({ affectsHealth: v })}
+        />
+        <Subtext>
+          Trackers that have been temporarily disabled in Prowlarr will have an amber indicator
+        </Subtext>
+      </div>
 
       <div className="border-t border-border" />
 

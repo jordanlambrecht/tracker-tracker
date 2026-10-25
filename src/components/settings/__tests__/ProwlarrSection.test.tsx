@@ -14,6 +14,7 @@ function instance(overrides: Partial<SafeProwlarrInstance> = {}): SafeProwlarrIn
     url: "http://prowlarr.test:9696",
     hasApiKey: true,
     enabled: true,
+    affectsHealth: false,
     indexerCount: 2,
     lastPolledAt: "2026-08-14T12:00:00.000Z",
     indexersReadAt: "2026-08-14T12:00:00.000Z",

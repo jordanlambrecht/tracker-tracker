@@ -571,6 +571,8 @@ export const prowlarrInstances = pgTable("prowlarr_instances", {
   // invariant and the same five lifecycle sites as trackers.encryptedCredentials.
   encryptedApiKey: text("encrypted_api_key"),
   enabled: boolean("enabled").default(true).notNull(),
+  // When set, a failing indexer turns an otherwise healthy tracker amber.
+  affectsHealth: boolean("affects_health").default(false).notNull(),
   // Runtime state below, excluded from backups.
   lastPolledAt: timestamp("last_polled_at"),
   // When the indexer list was last read. It is read far less often than the status.

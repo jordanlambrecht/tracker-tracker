@@ -8,7 +8,12 @@ import {
   prowlarrIndexersUrl,
   statsTotals,
 } from "@/lib/prowlarr/status"
-import { getTrackerHealth } from "@/lib/tracker-status"
+import {
+  getHealthDescription,
+  getHealthDot,
+  getHealthLabel,
+  getTrackerHealth,
+} from "@/lib/tracker-status"
 import type { TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 
 const CHECKED_AT = "2026-08-14T12:00:00.000Z"
@@ -18,6 +23,7 @@ function indexer(overrides: Partial<TrackerProwlarrIndexer> = {}): TrackerProwla
     instanceId: 3,
     instanceName: "Home",
     instanceUrl: "http://prowlarr.test:9696/",
+    affectsHealth: false,
     instanceError: null,
     stale: false,
     indexerId: 12,
@@ -129,21 +135,50 @@ describe("prowlarrIndexersUrl", () => {
 })
 
 // A backed-off indexer can mean stale credentials in Prowlarr or a problem with
-// its own proxy, so it is shown beside the tracker's health and never changes it.
+// its own proxy, so it changes tracker health only where the instance opts in.
 describe("tracker health", () => {
-  it("is unchanged by a failing indexer", () => {
-    const base = {
-      isActive: true,
-      linked: true,
-      lastError: null,
-      pausedAt: null,
-      userPausedAt: null,
-      latestStats: null,
-    } as unknown as TrackerSummary
-    const failing = {
+  const base = {
+    isActive: true,
+    linked: true,
+    lastError: null,
+    pausedAt: null,
+    userPausedAt: null,
+    registrySlug: null,
+    latestStats: { ratio: 5, ratioIsInfinite: false, seedingCount: 3, requiredRatio: 1 },
+  } as unknown as TrackerSummary
+  const withIndexer = (overrides: Partial<TrackerProwlarrIndexer>, tracker = base) =>
+    ({
+      ...tracker,
+      prowlarr: {
+        matchedBy: "auto",
+        indexers: [indexer({ ...backedOff("2026-08-14T10:00:00.000Z"), ...overrides })],
+      },
+    }) as TrackerSummary
+
+  it("is unchanged by a failing indexer of an instance that has not opted in", () => {
+    expect(getTrackerHealth(withIndexer({ affectsHealth: false }))).toBe("healthy")
+  })
+
+  it("marks a healthy tracker with its own state and label, not the ratio warning", () => {
+    const tracker = withIndexer({ affectsHealth: true })
+    const health = getTrackerHealth(tracker)
+    expect(health).toBe("indexer-failing")
+    expect(getHealthDot(health)).toEqual({ tone: "warn", glow: true, label: "Indexer Failing" })
+    expect(getHealthLabel(health)).toBe("Indexer Failing")
+    expect(getHealthDescription(health, tracker)).toMatch(/^Example Indexer: Failing in Prowlarr/)
+  })
+
+  it("never hides a worse status", () => {
+    const critical = {
       ...base,
-      prowlarr: { matchedBy: "auto", indexers: [indexer(backedOff("2026-08-14T10:00:00.000Z"))] },
-    } as TrackerSummary
-    expect(getTrackerHealth(failing)).toBe(getTrackerHealth(base))
+      latestStats: { ...base.latestStats, ratio: 0.5 },
+    } as unknown as TrackerSummary
+    expect(getTrackerHealth(withIndexer({ affectsHealth: true }, critical))).toBe("critical")
+  })
+
+  it("ignores an opted-in instance whose indexer is not failing", () => {
+    expect(getTrackerHealth(withIndexer({ affectsHealth: true, disabledTill: null }))).toBe(
+      "healthy"
+    )
   })
 })

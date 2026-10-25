@@ -464,6 +464,7 @@ describe("prowlarrInstanceColumns security invariant", () => {
         "url",
         "hasApiKey",
         "enabled",
+        "affectsHealth",
         "lastPolledAt",
         "indexersReadAt",
         "statsReadAt",
