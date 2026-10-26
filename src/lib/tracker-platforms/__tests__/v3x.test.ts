@@ -1,41 +1,43 @@
 // src/lib/tracker-platforms/__tests__/v3x.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { parseV3xMe, V3xAdapter } from "../adapters/v3x"
-import { SessionExpiredError } from "../helpers/errors"
 
-// Synthetic fixture shaped like /auth/me. No real account data.
+// Synthetic fixture shaped like the /api/me fields the wiki lists. No real account data.
 const ME = {
   username: "testuser",
+  id: 4242,
   role: "power_user",
-  status: "active",
+  createdAt: "2026-09-05T13:57:58.012Z",
+  lastLoginAt: "2026-10-20T08:00:00.000Z",
+  lastVisitDay: "2026-10-25",
   uploaded: 186064294312,
   downloaded: 74273761201,
+  buffer: 111790533111,
   downloadedReal: 73200019377,
-  bonusPoints: 18591,
-  seedTimeSeconds: 37339256,
-  freeleechTokens: 0,
-  createdAt: "2026-09-05T13:57:58.012Z",
   ratio: 2.505114744471765,
-  ratioFloor: { enabled: true, floor: 0.5, warnAt: 0.7, level: "ok" },
-  hnr: { enabled: true, active: 1, uploader: 0, max: 3, exempt: false },
-}
-
-const GAME = {
-  xp: 28020,
+  bonusPoints: 18591,
+  pointsPerHour: 42.5,
+  seeding: 13,
+  leeching: 0,
+  seedTimeSeconds: 37339256,
+  freeleechTokens: 1,
+  freeleech: false,
+  freeleechUntil: null,
+  globalFreeleech: false,
+  globalFreeleechUntil: null,
   level: 14,
+  xp: 28020,
+  nextLevelXp: 32268,
   prestige: 0,
-  rank: { key: "second", label: "Second rôle" },
-  nextRank: { label: "Tête d'affiche", atLevel: 25 },
-  into: 4100,
-  need: 4248,
-  maxed: false,
-  loginStreak: 20,
-  seedStreak: 37,
-  missions: [],
+  hitAndRun: 1,
+  hitAndRunMax: 3,
+  hitAndRunExempt: false,
+  ratioFloor: { floor: 0.5, warnAt: 0.7, level: "ok" },
+  warnings: 0,
+  invitesLeft: 2,
 }
 
-const HOST = "https://v3x.club"
-const CREDENTIALS = JSON.stringify({ cookies: "v3x_session=abc", userAgent: "Mozilla/5.0" })
+const CANARY = "CANARYv3x5e8d2b7f4a"
 
 const jsonResponse = (body: unknown) =>
   ({
@@ -59,37 +61,84 @@ const statusResponse = (status: number, statusText: string) =>
   }) as unknown as Response
 
 describe("parseV3xMe", () => {
-  it("maps the API payload into TrackerStats", () => {
+  it("maps the profile into TrackerStats", () => {
     const stats = parseV3xMe(ME)
 
-    expect(stats.username).toBe("testuser")
-    expect(stats.group).toBeNull()
-    expect(stats.uploadedBytes).toBe(186064294312n)
-    expect(stats.downloadedBytes).toBe(74273761201n)
+    expect(stats).toMatchObject({
+      username: "testuser",
+      group: "Second rôle",
+      uploadedBytes: 186064294312n,
+      downloadedBytes: 74273761201n,
+      bufferBytes: 111790533111n,
+      seedingCount: 13,
+      leechingCount: 0,
+      seedbonus: 18591,
+      hitAndRuns: 1,
+      requiredRatio: 0.5,
+      warned: false,
+      freeleechTokens: 1,
+      remoteUserId: 4242,
+      joinedDate: "2026-09-05T13:57:58.012Z",
+      lastAccessDate: "2026-10-25",
+      platformMeta: { freeleechDownloadedBytes: 0, invites: 2, globalFreeleech: false },
+    })
     expect(stats.ratio).toBeCloseTo(2.505114744471765, 10)
-    expect(stats.bufferBytes).toBe(111790533111n)
-    expect(stats.seedbonus).toBe(18591)
-    expect(stats.hitAndRuns).toBe(1)
-    expect(stats.requiredRatio).toBe(0.5)
-    expect(stats.freeleechTokens).toBe(0)
-    expect(stats.joinedDate).toBe("2026-09-05T13:57:58.012Z")
-    expect(stats.seedingCount).toBeNull()
-    expect(stats.leechingCount).toBeNull()
-    expect(stats.warned).toBeNull()
-    expect(stats.platformMeta).toBeUndefined()
+  })
+
+  it.each([
+    [1, "Figurant"],
+    [9, "Figurant"],
+    [10, "Second rôle"],
+    [25, "Tête d'affiche"],
+    [45, "Réalisateur"],
+    [70, "Palme d'Or"],
+    [100, "Palme d'Or"],
+  ])("names level %i %s", (level, rank) => {
+    expect(parseV3xMe({ ...ME, level }).group).toBe(rank)
+  })
+
+  it.each([undefined, 0, 2.5])("leaves the class empty for level %s", (level) => {
+    expect(parseV3xMe({ ...ME, level }).group).toBeNull()
+  })
+
+  it("counts the real download above the counted one as freeleech", () => {
+    const stats = parseV3xMe({ ...ME, downloaded: 1000, downloadedReal: 1500 })
+
+    expect(stats.platformMeta).toMatchObject({ freeleechDownloadedBytes: 500 })
+  })
+
+  it.each([
+    [2, true],
+    [[{ id: 1 }], true],
+    [[], false],
+    [undefined, null],
+  ])("reads warnings %j as warned %s", (warnings, warned) => {
+    expect(parseV3xMe({ ...ME, warnings: warnings as number }).warned).toBe(warned)
+  })
+
+  it("keeps the end of a running global freeleech", () => {
+    const stats = parseV3xMe({
+      ...ME,
+      globalFreeleech: true,
+      globalFreeleechUntil: "2026-11-01T00:00:00.000Z",
+    })
+
+    expect(stats.platformMeta).toMatchObject({
+      globalFreeleech: true,
+      globalFreeleechEndsAt: "2026-11-01T00:00:00.000Z",
+    })
+  })
+
+  it("falls back to the last login without a last visit day", () => {
+    expect(parseV3xMe({ ...ME, lastVisitDay: null }).lastAccessDate).toBe(
+      "2026-10-20T08:00:00.000Z"
+    )
   })
 
   it.each(["uploaded", "downloaded"])("fails when %s is missing", (field) => {
     expect(() => parseV3xMe({ ...ME, [field]: undefined })).toThrow(
       `Unexpected response from api.v3x.club: missing ${field}`
     )
-  })
-
-  it("reads a zero-download account", () => {
-    const stats = parseV3xMe({ ...ME, downloaded: 0 })
-
-    expect(stats.downloadedBytes).toBe(0n)
-    expect(stats.ratio).toBe(Number.POSITIVE_INFINITY)
   })
 
   it("fails on a body without a user object", () => {
@@ -106,111 +155,49 @@ describe("V3xAdapter", () => {
     vi.restoreAllMocks()
   })
 
-  it("reads /auth/me and takes the class from the gamification rank", async () => {
-    const inits: { url: string; init?: RequestInit }[] = []
-    vi.spyOn(global, "fetch").mockImplementation((url, init) => {
-      inits.push({ url: String(url), init })
-      return Promise.resolve(jsonResponse(String(url).endsWith("/auth/me") ? ME : GAME))
-    })
+  it("reads /api/me once with the key as a Bearer token", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse(ME))
 
-    const stats = await adapter.fetchStats(HOST, CREDENTIALS, "/auth/me")
-    const headers = inits[0].init?.headers as Record<string, string>
+    const stats = await adapter.fetchStats("https://v3x.club", CANARY, "/auth/me")
 
-    expect(inits.map((c) => c.url)).toEqual([
-      "https://api.v3x.club/auth/me",
-      "https://api.v3x.club/me/gamification",
-    ])
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchSpy.mock.calls[0]
+    const headers = init?.headers as Record<string, string>
+    expect(String(url)).toBe("https://api.v3x.club/api/me")
+    expect(headers.Authorization).toBe(`Bearer ${CANARY}`)
+    expect(headers.Cookie).toBeUndefined()
     expect(stats.uploadedBytes).toBe(186064294312n)
-    expect(stats.group).toBe("Second rôle")
-    expect(headers.Cookie).toBe("v3x_session=abc")
-    expect(headers["User-Agent"]).toBe("Mozilla/5.0")
-    expect(headers.Accept).toBe("application/json")
-    expect(headers["Sec-Fetch-Mode"]).toBeUndefined()
   })
 
-  it("leaves the class empty when gamification is unavailable", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce(jsonResponse(ME))
-      .mockRejectedValueOnce(new TypeError("fetch failed"))
+  it("says a 401 means the key was refused", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(statusResponse(401, "Unauthorized"))
 
-    const stats = await adapter.fetchStats(HOST, CREDENTIALS, "/auth/me")
-
-    expect(stats.group).toBeNull()
-  })
-
-  it("leaves the class empty for a blank rank label", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce(jsonResponse(ME))
-      .mockResolvedValueOnce(jsonResponse({ ...GAME, rank: { key: "x", label: "  " } }))
-
-    const stats = await adapter.fetchStats(HOST, CREDENTIALS, "/auth/me")
-
-    expect(stats.group).toBeNull()
-  })
-
-  it("turns a 401 into a session-expired error", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(statusResponse(401, "Unauthorized"))
-
-    await expect(adapter.fetchStats(HOST, CREDENTIALS, "/auth/me")).rejects.toBeInstanceOf(
-      SessionExpiredError
+    await expect(adapter.fetchStats("https://v3x.club", CANARY, "/api/me")).rejects.toThrow(
+      "V3X refused the API key"
     )
   })
 
-  it("rethrows a 401 from the gamification call", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce(jsonResponse(ME))
-      .mockResolvedValueOnce(statusResponse(401, "Unauthorized"))
+  it("fails a 429 as an ordinary error", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(statusResponse(429, "Too Many Requests"))
 
-    await expect(adapter.fetchStats(HOST, CREDENTIALS, "/auth/me")).rejects.toBeInstanceOf(
-      SessionExpiredError
+    await expect(adapter.fetchStats("https://v3x.club", CANARY, "/api/me")).rejects.toThrow(
+      "Tracker API error: 429 Too Many Requests"
     )
   })
 
-  it("fails a 403 as an ordinary error", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(statusResponse(403, "Forbidden"))
+  it("returns the raw profile for the debug view", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse(ME))
 
-    const err = await adapter.fetchStats(HOST, CREDENTIALS, "/auth/me").catch((e: unknown) => e)
+    const calls = await adapter.fetchRaw("https://v3x.club", CANARY, "/api/me")
 
-    expect(err).not.toBeInstanceOf(SessionExpiredError)
-    expect((err as Error).message).toBe("Tracker API error: 403 Forbidden")
+    expect(calls).toEqual([{ label: "Profile", endpoint: "/api/me", data: ME, error: null }])
   })
 
-  it("returns both raw payloads for the debug view", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce(jsonResponse(ME))
-      .mockResolvedValueOnce(jsonResponse(GAME))
+  it("flags a profile the poll would fail", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(jsonResponse({ ...ME, uploaded: undefined }))
 
-    const calls = await adapter.fetchRaw(HOST, CREDENTIALS, "/auth/me")
-
-    expect(calls).toEqual([
-      { label: "Me", endpoint: "/auth/me", data: ME, error: null },
-      { label: "Gamification", endpoint: "/me/gamification", data: GAME, error: null },
-    ])
-  })
-
-  it("flags a /auth/me body the poll would fail, and still reads gamification", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce(jsonResponse({ ...ME, uploaded: undefined }))
-      .mockResolvedValueOnce(jsonResponse(GAME))
-
-    const calls = await adapter.fetchRaw(HOST, CREDENTIALS, "/auth/me")
+    const calls = await adapter.fetchRaw("https://v3x.club", CANARY, "/api/me")
 
     expect(calls[0].error).toBe("Unexpected response from api.v3x.club: missing uploaded")
-    expect(calls[1]).toMatchObject({ label: "Gamification", data: GAME, error: null })
-  })
-
-  it("adds the gamification entry when /auth/me fails", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce(statusResponse(500, "Internal Server Error"))
-      .mockResolvedValueOnce(jsonResponse(GAME))
-
-    const calls = await adapter.fetchRaw(HOST, CREDENTIALS, "/auth/me")
-
-    expect(calls[0]).toMatchObject({
-      label: "Me",
-      data: null,
-      error: "Tracker API error: 500 Internal Server Error",
-    })
-    expect(calls[1]).toMatchObject({ label: "Gamification", data: GAME, error: null })
   })
 })

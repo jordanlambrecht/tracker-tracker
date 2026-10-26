@@ -52,10 +52,6 @@ describe("CREDENTIAL_FORMS coverage", () => {
       extraCookieNames: ["sid"],
       requiredCookieNames: ["sid"],
     })
-    expect(CREDENTIAL_FORMS.v3x).toMatchObject({
-      extraCookieNames: ["v3x_session", "__Host-v3x_session", "session"],
-      example: "v3x_session=...",
-    })
   })
 })
 

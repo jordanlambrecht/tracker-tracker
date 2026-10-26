@@ -265,32 +265,7 @@ export const CREDENTIAL_FORMS = {
     },
   },
 
-  v3x: {
-    kind: "cookies",
-    example: "v3x_session=...",
-    extraCookieNames: ["v3x_session", "__Host-v3x_session", "session"],
-    hidesJoinDate: true,
-    dialog: {
-      secret: {
-        label: "Browser Cookies",
-        tooltip:
-          "V3X reads stats from its JSON API with your session cookies. Open DevTools (F12) → Network → the request to api.v3x.club/auth/me → copy the full Cookie header value.",
-        docs: true,
-        placeholder: "v3x_session=...",
-        rows: 3,
-      },
-    },
-    sheet: {
-      secret: {
-        label: "Browser Cookies",
-        tooltip:
-          "Open DevTools (F12) → Network → api.v3x.club/auth/me → copy the full Cookie header value.",
-        docs: true,
-        placeholder: "v3x_session=...",
-        rows: 3,
-      },
-    },
-  },
+  v3x: tokenForm("Your V3X API key with « Mon profil (lecture) »", true),
 
   retrotoon: {
     kind: "cookies",

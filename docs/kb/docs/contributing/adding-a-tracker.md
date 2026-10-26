@@ -273,7 +273,7 @@ Which adapter handles API requests. This tells the scheduler how to fetch stats.
 | `"c411"`         | C411, Bearer API key against `/api/user/profile`            |
 | `"animebytes"`   | AnimeBytes, key and username against `/api/stats/personal`  |
 | `"luminance"`    | Luminance, username/password login + profile scraping       |
-| `"v3x"`          | V3X, cookie auth against `api.v3x.club/auth/me`             |
+| `"v3x"`          | V3X, API key auth against `api.v3x.club/api/me`             |
 | `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`
@@ -329,7 +329,7 @@ The path appended to `url` for API requests. Must match the platform's actual en
 | `ggn`       | `/api.php` |
 | `nebulance` | `/api.php` |
 | `avistaz`   | `/profile` |
-| `v3x`       | `/auth/me` |
+| `v3x`       | `/api/me`  |
 
 Almost all trackers use the platform default. Only change it if you've verified the tracker deviates.
 

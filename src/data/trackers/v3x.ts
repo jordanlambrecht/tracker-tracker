@@ -12,7 +12,7 @@ export const v3x: TrackerRegistryEntry = {
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "v3x",
-  apiPath: "/auth/me",
+  apiPath: "/api/me",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "General",

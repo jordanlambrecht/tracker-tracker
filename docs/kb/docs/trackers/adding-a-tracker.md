@@ -325,18 +325,13 @@ Location varies by platform:
 
 === "V3X"
 
-    V3X reads your stats from its JSON API at `api.v3x.club` with your logged-in session.
+    V3X reads your stats from its read-only profile API at `api.v3x.club/api/me`, with a key that can do nothing else.
 
-    1. Open [v3x.club](https://v3x.club) in your browser and log in
-    2. Open DevTools (F12 or Cmd+Option+I)
-    3. Go to the **Network** tab and refresh the page
-    4. Click the request to `api.v3x.club/auth/me`
-    5. **Right-click** the `Cookie` header in **Request Headers** and select **Copy Value**
+    1. On [v3x.club](https://v3x.club), go to **Réglages → Intégrations → Clés API à droits limités**
+    2. Create a key with only **Mon profil (lecture)** checked
+    3. Copy the key, which is shown once, and paste it into the Add Tracker dialog
 
-    Paste it into the Add Tracker dialog. The User-Agent gets captured automatically, so add or update V3X from the same browser you are logged in with. The class shown is your V3X rank (Figurant, Second rôle, ...).
-
-    !!! warning "Cookie expiration"
-        When polling fails with "Session expired," log back in and re-copy the cookie string.
+    The class shown is your V3X rank (Figurant, Second rôle, ...), named from your level. Seeding and leeching counts, H&R, warnings, freeleech tokens, last visit, remaining invites, a running global freeleech and the download that freeleech kept off your ratio are read too. V3X allows 30 calls a minute, and each poll makes one.
 
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.

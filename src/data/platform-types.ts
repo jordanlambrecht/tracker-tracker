@@ -43,7 +43,7 @@ export const DEFAULT_API_PATHS: Record<string, string> = {
   c411: "/api/user/profile",
   animebytes: "/api/stats/personal",
   luminance: "/user.php",
-  v3x: "/auth/me",
+  v3x: "/api/me",
 }
 
 /**

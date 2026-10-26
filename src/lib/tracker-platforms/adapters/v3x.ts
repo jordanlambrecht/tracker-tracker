@@ -1,122 +1,137 @@
 // src/lib/tracker-platforms/adapters/v3x.ts
 //
-// Functions: parseV3xCredentials, numeric, parseV3xMe, fetchJson, fetchMe, fetchGamification,
-//            rankLabel, V3xAdapter
+// Functions: numeric, rankForLevel, warningCount, parseV3xMe, fetchMe, V3xAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { log } from "@/lib/logger"
-import { validateCookieHeader } from "@/lib/tracker-credentials/cookie-header"
-import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "../contract"
+import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
+import type {
+  DebugApiCall,
+  FetchOptions,
+  TrackerAdapter,
+  TrackerStats,
+  V3xPlatformMeta,
+} from "../contract"
 import { adapterRequest } from "../helpers/adapter-fetch"
 import { requireBytes } from "../helpers/bytes"
-import { presentClass } from "../helpers/class-name"
-import { parseCredentialJson } from "../helpers/cookie-credentials"
-import { SessionExpiredError } from "../helpers/errors"
 import { pollError } from "../helpers/poll-error"
 
-// V3X serves its JSON API from a fixed host, and the web app calls it with
-// `credentials: "include"`, so cookie auth is the protocol here.
+// V3X's read-only profile API, on a fixed host. A "Mon profil (lecture)" key
+// reads only the owner's figures; Torznab, Upload and Drafts keys work too.
+// The site allows 30 calls a minute.
 const API_HOST = "api.v3x.club"
-const API_BASE = `https://${API_HOST}`
-const ME_PATH = "/auth/me"
-const GAMIFICATION_PATH = "/me/gamification"
-const LABEL = "V3X"
-const SESSION_EXPIRED = "Session expired. Browser cookies need to be refreshed"
-
-export interface V3xCredentials {
-  cookies: string
-  userAgent: string
-}
-
-export function parseV3xCredentials(apiToken: string): V3xCredentials {
-  const { cookies, userAgent } = parseCredentialJson(apiToken, LABEL, [
-    "cookies",
-    "userAgent",
-  ] as const)
-
-  return {
-    cookies: validateCookieHeader(cookies, {
-      extraCookieNames: ["v3x_session", "__Host-v3x_session", "session"],
-      example: "v3x_session=...",
-    }),
-    userAgent,
-  }
-}
+const ME_PATH = "/api/me"
 
 interface V3xMe {
+  id?: number
   username?: string
+  createdAt?: string
+  lastLoginAt?: string | null
+  lastVisitDay?: string | null
   uploaded?: number
   downloaded?: number
+  downloadedReal?: number
   bonusPoints?: number
+  seeding?: number
+  leeching?: number
   freeleechTokens?: number
-  createdAt?: string
+  globalFreeleech?: boolean
+  globalFreeleechUntil?: string | null
+  level?: number
+  hitAndRun?: number
   ratioFloor?: { floor?: number }
-  hnr?: { active?: number }
+  warnings?: number | unknown[]
+  invitesLeft?: number
 }
 
-interface V3xGamification {
-  rank?: { label?: string }
-}
+// The site's ranks by level, as its rules list them. The profile API sends the
+// level but not the rank name.
+const RANKS: readonly [number, string][] = [
+  [70, "Palme d'Or"],
+  [45, "Réalisateur"],
+  [25, "Tête d'affiche"],
+  [10, "Second rôle"],
+  [1, "Figurant"],
+]
 
 function numeric(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
-/** The poll without its class, which comes from the gamification call. */
+function rankForLevel(level: unknown): string | null {
+  if (typeof level !== "number" || !Number.isInteger(level) || level < 1) return null
+  return RANKS.find(([min]) => level >= min)?.[1] ?? null
+}
+
+/** The wiki calls it the current warnings without saying whether it is a count or a list. */
+function warningCount(warnings: unknown): number | null {
+  if (Array.isArray(warnings)) return warnings.length
+  return numeric(warnings)
+}
+
 export function parseV3xMe(body: V3xMe | null): TrackerStats {
   if (body == null || typeof body !== "object") {
     throw new Error(`Unexpected response from ${API_HOST}: missing user object`)
   }
   const uploadedBytes = requireBytes(body.uploaded, "uploaded", API_HOST)
   const downloadedBytes = requireBytes(body.downloaded, "downloaded", API_HOST)
+  const downloadedReal = numeric(body.downloadedReal)
+  const invites = numeric(body.invitesLeft)
+  const warnings = warningCount(body.warnings)
+
+  const meta: V3xPlatformMeta = {}
+  // The site shows the real download only when it is above the counted one.
+  if (downloadedReal !== null) {
+    meta.freeleechDownloadedBytes = Math.max(0, downloadedReal - Number(downloadedBytes))
+  }
+  if (invites !== null) meta.invites = invites
+  if (typeof body.globalFreeleech === "boolean") {
+    meta.globalFreeleech = body.globalFreeleech
+    if (body.globalFreeleech && typeof body.globalFreeleechUntil === "string") {
+      meta.globalFreeleechEndsAt = body.globalFreeleechUntil
+    }
+  }
 
   return {
     username: typeof body.username === "string" ? body.username : "",
-    group: null,
+    group: rankForLevel(body.level),
     uploadedBytes,
     downloadedBytes,
     ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
-    seedingCount: null,
-    leechingCount: null,
+    seedingCount: numeric(body.seeding),
+    leechingCount: numeric(body.leeching),
     seedbonus: numeric(body.bonusPoints),
-    hitAndRuns: numeric(body.hnr?.active),
+    hitAndRuns: numeric(body.hitAndRun),
     requiredRatio: numeric(body.ratioFloor?.floor),
-    warned: null,
+    warned: warnings === null ? null : warnings > 0,
     freeleechTokens: numeric(body.freeleechTokens),
+    remoteUserId:
+      typeof body.id === "number" && Number.isInteger(body.id) && body.id > 0 ? body.id : undefined,
     joinedDate: typeof body.createdAt === "string" ? body.createdAt : undefined,
+    // The site shows the last visit day, and the last login only without one
+    lastAccessDate: [body.lastVisitDay, body.lastLoginAt].find(
+      (value): value is string => typeof value === "string" && value !== ""
+    ),
+    platformMeta: Object.keys(meta).length > 0 ? meta : undefined,
   }
 }
 
-/**
- * Only a 401 means the cookies expired. Cloudflare also answers 403, so a 403
- * fails as an ordinary error rather than asking for new cookies.
- */
-async function fetchJson<T>(path: string, creds: V3xCredentials, options?: FetchOptions) {
-  const response = await adapterRequest(`${API_BASE}${path}`, API_HOST, options, {
-    Cookie: creds.cookies,
-    "User-Agent": creds.userAgent,
+/** The key goes in the Authorization header rather than the URL, so it stays out of logs. */
+async function fetchMe(token: string, options?: FetchOptions): Promise<V3xMe | null> {
+  const response = await adapterRequest(`https://${API_HOST}${ME_PATH}`, API_HOST, options, {
+    Authorization: `Bearer ${token}`,
   })
-  if (response.status === 401) throw new SessionExpiredError(SESSION_EXPIRED)
+  if (response.status === 401) {
+    throw new Error("V3X refused the API key. Create one with « Mon profil (lecture) »")
+  }
   if (!response.ok) {
     throw new Error(`Tracker API error: ${response.status} ${response.statusText}`)
   }
-  return response.json<T>()
-}
-
-const fetchMe = (creds: V3xCredentials, options?: FetchOptions) =>
-  fetchJson<V3xMe | null>(ME_PATH, creds, options)
-
-const fetchGamification = (creds: V3xCredentials, options?: FetchOptions) =>
-  fetchJson<V3xGamification | null>(GAMIFICATION_PATH, creds, options)
-
-function rankLabel(game: V3xGamification | null): string | null {
-  const label = presentClass(game?.rank?.label)
-  return label === null ? null : label.trim()
+  return response.json<V3xMe | null>()
 }
 
 export class V3xAdapter implements TrackerAdapter {
-  // _apiPath is ignored: /auth/me is intrinsic to the platform, not a property
+  // _apiPath is ignored: /api/me is intrinsic to the platform, not a property
   // of a user's row, so a stale persisted api_path value self-heals instead of
   // breaking the adapter (the filelist.ts precedent).
   async fetchStats(
@@ -125,18 +140,7 @@ export class V3xAdapter implements TrackerAdapter {
     _apiPath: string,
     options?: FetchOptions
   ): Promise<TrackerStats> {
-    const creds = parseV3xCredentials(apiToken)
-    const stats = parseV3xMe(await fetchMe(creds, options))
-
-    // The class is the rank label alone. Falling back to the role would raise a
-    // rank change each time this call fails or recovers.
-    try {
-      stats.group = rankLabel(await fetchGamification(creds, options))
-    } catch (err) {
-      if (err instanceof SessionExpiredError) throw err
-      log.warn({ err }, "v3x: gamification failed, class left empty")
-    }
-    return stats
+    return parseV3xMe(await fetchMe(validateHeaderToken(apiToken), options))
   }
 
   async fetchRaw(
@@ -145,36 +149,15 @@ export class V3xAdapter implements TrackerAdapter {
     _apiPath: string,
     options?: FetchOptions
   ): Promise<DebugApiCall[]> {
-    const creds = parseV3xCredentials(apiToken)
-    const call = async (
-      label: string,
-      endpoint: string,
-      read: () => Promise<unknown>,
-      check?: (data: unknown) => void
-    ): Promise<DebugApiCall> => {
-      try {
-        const data = await read()
-        return { label, endpoint, data, error: check ? pollError(() => check(data)) : null }
-      } catch (err) {
-        return {
-          label,
-          endpoint,
-          data: null,
-          error: err instanceof Error ? err.message : "Request failed",
-        }
-      }
+    // A malformed key throws here, before the try, as it does in fetchStats.
+    const token = validateHeaderToken(apiToken)
+    const call = { label: "Profile", endpoint: ME_PATH }
+    try {
+      const data = await fetchMe(token, options)
+      // A body fetchStats would fail must not read as healthy here (adapter standard 2.6).
+      return [{ ...call, data, error: pollError(() => parseV3xMe(data)) }]
+    } catch (err) {
+      return [{ ...call, data: null, error: err instanceof Error ? err.message : "Request failed" }]
     }
-
-    return [
-      // A body fetchStats would fail must not read as healthy here (adapter
-      // standard 2.6).
-      await call(
-        "Me",
-        ME_PATH,
-        () => fetchMe(creds, options),
-        (data) => parseV3xMe(data as V3xMe)
-      ),
-      await call("Gamification", GAMIFICATION_PATH, () => fetchGamification(creds, options)),
-    ]
   }
 }

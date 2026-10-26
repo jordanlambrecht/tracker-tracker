@@ -273,6 +273,17 @@ export interface AnimeBytesPlatformMeta {
   freeleechUntil?: number
 }
 
+/** V3X figures that fit no TrackerStats field. Byte counts are plain numbers. */
+export interface V3xPlatformMeta {
+  /** Real download above the counted figure, which the ratio does not count */
+  freeleechDownloadedBytes?: number
+  invites?: number
+  /** Whether a site-wide freeleech is running */
+  globalFreeleech?: boolean
+  /** When it ends, as ISO 8601 */
+  globalFreeleechEndsAt?: string
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -287,6 +298,7 @@ export type PlatformMeta =
   | RetrotoonPlatformMeta
   | C411PlatformMeta
   | AnimeBytesPlatformMeta
+  | V3xPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -302,6 +314,7 @@ export interface PlatformMetaMap {
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
   animebytes: AnimeBytesPlatformMeta
+  v3x: V3xPlatformMeta
 }
 
 /**

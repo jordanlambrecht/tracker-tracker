@@ -32,6 +32,7 @@ const CREDENTIALS: Record<string, string> = {
   animebytes: JSON.stringify({ token: CANARY, username: "someone" }),
   tr4ker: CANARY,
   c411: CANARY,
+  v3x: CANARY,
   mam: CANARY,
   avistaz: cookieBlob({ username: "someone" }),
   filelist: cookieBlob(),
@@ -40,7 +41,6 @@ const CREDENTIALS: Record<string, string> = {
   torrentleech: JSON.stringify({ username: "someone", password: CANARY }),
   digitalcore: JSON.stringify({ uid: "54321", pass: CANARY }),
   luminance: JSON.stringify({ username: "someone", password: CANARY }),
-  v3x: cookieBlob(),
 }
 
 /**
