@@ -27,6 +27,8 @@ export const v3x: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
   statusPageUrl: "",
+  // announce.v3x.club already matches through the site's own domain
+  announceHosts: ["v3x.tw"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [

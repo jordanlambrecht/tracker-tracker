@@ -151,6 +151,12 @@ describe("registry announceHosts", () => {
       announceMatchesTracker("https://tracker.old-home.example/announce", site(null, MOVED.slug))
     ).toBe(true)
   })
+
+  it("matches V3X's announce.v3x.club and tk.v3x.tw announces", () => {
+    const v3x = site("https://v3x.club", "v3x")
+    expect(announceMatchesTracker("announce.v3x.club", v3x)).toBe(true)
+    expect(announceMatchesTracker("tk.v3x.tw", v3x)).toBe(true)
+  })
 })
 
 describe("resolveTorrentTracker", () => {
