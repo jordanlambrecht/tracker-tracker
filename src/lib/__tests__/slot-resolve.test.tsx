@@ -1372,6 +1372,13 @@ describe("V3X context", () => {
     expect(slotIds(v3xCtx({}), "stat-card")).not.toContain("v3x-freeleech")
   })
 
+  it("shows the level progress with the level and XP", () => {
+    expect(slotIds(v3xCtx({ level: 14, xp: 28020, prestige: 0 }), "progress")).toContain(
+      "v3x-level-progress"
+    )
+    expect(slotIds(v3xCtx({}), "progress")).not.toContain("v3x-level-progress")
+  })
+
   it("shows a global freeleech that is running", () => {
     const endsAt = new Date(Date.now() + 5 * 3_600_000).toISOString()
     const running = v3xCtx({ globalFreeleech: true, globalFreeleechEndsAt: endsAt })

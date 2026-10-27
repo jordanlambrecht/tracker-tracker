@@ -1,6 +1,7 @@
 // src/data/trackers/v3x.ts
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import { v3xUserClasses } from "@/data/v3x-levels"
 
 export const v3x: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
@@ -31,13 +32,8 @@ export const v3x: TrackerRegistryEntry = {
   announceHosts: ["v3x.tw"],
 
   // ── Community ───────────────────────────────────────────────────────
-  userClasses: [
-    { name: "Figurant", requirements: "Level 1, 0 XP" },
-    { name: "Second rôle", requirements: "Level 10, 11 088 XP" },
-    { name: "Tête d'affiche", requirements: "Level 25, 100 128 XP" },
-    { name: "Réalisateur", requirements: "Level 45, 479 248 XP" },
-    { name: "Palme d'Or", requirements: "Level 70, 1 641 648 XP" },
-  ],
+  // Figurant N1 to Palme d'Or N100: the site names every level, like C411's grades.
+  userClasses: v3xUserClasses(),
   releaseGroups: [],
   bannedGroups: [],
   notableMembers: [],

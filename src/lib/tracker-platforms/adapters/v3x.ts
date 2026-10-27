@@ -1,7 +1,8 @@
 // src/lib/tracker-platforms/adapters/v3x.ts
 //
-// Functions: numeric, rankForLevel, warningCount, parseV3xMe, fetchMe, V3xAdapter
+// Functions: numeric, warningCount, parseV3xMe, fetchMe, V3xAdapter
 
+import { v3xClassName } from "@/data/v3x-levels"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
 import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
@@ -37,29 +38,16 @@ interface V3xMe {
   globalFreeleech?: boolean
   globalFreeleechUntil?: string | null
   level?: number
+  xp?: number
+  prestige?: number
   hitAndRun?: number
   ratioFloor?: { floor?: number }
   warnings?: number | unknown[]
   invitesLeft?: number
 }
 
-// The site's ranks by level, as its rules list them. The profile API sends the
-// level but not the rank name.
-const RANKS: readonly [number, string][] = [
-  [70, "Palme d'Or"],
-  [45, "Réalisateur"],
-  [25, "Tête d'affiche"],
-  [10, "Second rôle"],
-  [1, "Figurant"],
-]
-
 function numeric(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
-}
-
-function rankForLevel(level: unknown): string | null {
-  if (typeof level !== "number" || !Number.isInteger(level) || level < 1) return null
-  return RANKS.find(([min]) => level >= min)?.[1] ?? null
 }
 
 /** The wiki calls it the current warnings without saying whether it is a count or a list. */
@@ -84,6 +72,14 @@ export function parseV3xMe(body: V3xMe | null): TrackerStats {
     meta.freeleechDownloadedBytes = Math.max(0, downloadedReal - Number(downloadedBytes))
   }
   if (invites !== null) meta.invites = invites
+  const level = numeric(body.level)
+  const xp = numeric(body.xp)
+  if (level !== null && xp !== null) {
+    meta.level = level
+    meta.xp = xp
+    const prestige = numeric(body.prestige)
+    if (prestige !== null) meta.prestige = prestige
+  }
   if (typeof body.globalFreeleech === "boolean") {
     meta.globalFreeleech = body.globalFreeleech
     if (body.globalFreeleech && typeof body.globalFreeleechUntil === "string") {
@@ -93,7 +89,7 @@ export function parseV3xMe(body: V3xMe | null): TrackerStats {
 
   return {
     username: typeof body.username === "string" ? body.username : "",
-    group: rankForLevel(body.level),
+    group: v3xClassName(body.level),
     uploadedBytes,
     downloadedBytes,
     ratio: computeRatio(uploadedBytes, downloadedBytes),

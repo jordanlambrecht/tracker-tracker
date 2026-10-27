@@ -66,7 +66,7 @@ describe("parseV3xMe", () => {
 
     expect(stats).toMatchObject({
       username: "testuser",
-      group: "Second rôle",
+      group: "Second rôle N14",
       uploadedBytes: 186064294312n,
       downloadedBytes: 74273761201n,
       bufferBytes: 111790533111n,
@@ -80,24 +80,31 @@ describe("parseV3xMe", () => {
       remoteUserId: 4242,
       joinedDate: "2026-09-05T13:57:58.012Z",
       lastAccessDate: "2026-10-25",
-      platformMeta: { freeleechDownloadedBytes: 0, invites: 2, globalFreeleech: false },
+      platformMeta: {
+        freeleechDownloadedBytes: 0,
+        invites: 2,
+        globalFreeleech: false,
+        level: 14,
+        xp: 28020,
+        prestige: 0,
+      },
     })
     expect(stats.ratio).toBeCloseTo(2.505114744471765, 10)
   })
 
   it.each([
-    [1, "Figurant"],
-    [9, "Figurant"],
-    [10, "Second rôle"],
-    [25, "Tête d'affiche"],
-    [45, "Réalisateur"],
-    [70, "Palme d'Or"],
-    [100, "Palme d'Or"],
+    [1, "Figurant N1"],
+    [9, "Figurant N9"],
+    [10, "Second rôle N10"],
+    [25, "Tête d'affiche N25"],
+    [45, "Réalisateur N45"],
+    [70, "Palme d'Or N70"],
+    [100, "Palme d'Or N100"],
   ])("names level %i %s", (level, rank) => {
     expect(parseV3xMe({ ...ME, level }).group).toBe(rank)
   })
 
-  it.each([undefined, 0, 2.5])("leaves the class empty for level %s", (level) => {
+  it.each([undefined, 0, 2.5, 101])("leaves the class empty for level %s", (level) => {
     expect(parseV3xMe({ ...ME, level }).group).toBeNull()
   })
 

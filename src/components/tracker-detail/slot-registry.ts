@@ -19,6 +19,7 @@
 //   c411 badge: c411-download-disabled
 //   hawke badge: hawke-download-disabled
 //   v3x stat-card: v3x-freeleech
+//   v3x progress: v3x-level-progress
 //   v3x badge: v3x-invites
 
 import type { ComponentType, ReactNode } from "react"
@@ -51,6 +52,8 @@ import type { GgnShareScoreProgressProps } from "./platform/GgnShareScoreProgres
 import { GgnShareScoreProgress } from "./platform/GgnShareScoreProgress"
 import type { MamHealthOverviewProps } from "./platform/MamHealthOverview"
 import { MamHealthOverview } from "./platform/MamHealthOverview"
+import type { V3xLevelProgressProps } from "./platform/V3xLevelProgress"
+import { V3xLevelProgress } from "./platform/V3xLevelProgress"
 import type { LoginDeadlineCardProps } from "./slots/LoginDeadlineCard"
 import { LoginDeadlineCard } from "./slots/LoginDeadlineCard"
 import type { SlotBadgeProps } from "./slots/SlotBadge"
@@ -1104,6 +1107,23 @@ const v3xFreeleechSlot: SlotDefinition<StatCardBasicProps> = {
   },
 }
 
+const v3xLevelProgressSlot: SlotDefinition<V3xLevelProgressProps> = {
+  id: "v3x-level-progress",
+  category: "progress",
+  component: V3xLevelProgress as ComponentType<V3xLevelProgressProps>,
+  priority: 10,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "v3x")
+    if (meta?.level === undefined || meta.xp === undefined) return null
+    return {
+      level: meta.level,
+      xp: meta.xp,
+      prestige: meta.prestige ?? 0,
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
 const v3xInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   id: "v3x-invites",
   category: "badge",
@@ -1185,6 +1205,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   // V3X slots
   v3xFreeleechSlot,
   v3xInvitesBadgeSlot,
+  v3xLevelProgressSlot,
 ]
 
 // Shared component lookup: single source for rendering resolved slots

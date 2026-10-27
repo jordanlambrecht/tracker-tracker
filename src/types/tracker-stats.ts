@@ -282,6 +282,11 @@ export interface V3xPlatformMeta {
   globalFreeleech?: boolean
   /** When it ends, as ISO 8601 */
   globalFreeleechEndsAt?: string
+  /** Level over the whole ladder, 1 to 100, and the cumulative XP */
+  level?: number
+  xp?: number
+  /** How many times the member restarted from level 1 after level 100 */
+  prestige?: number
 }
 
 /** Union of all platform-specific metadata types */
