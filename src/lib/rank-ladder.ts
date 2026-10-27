@@ -3,7 +3,7 @@
 // Functions: findClassIndex, buildRankLadder, ladderPosition
 // Constants: OUTSIDE_LADDER_NOTE
 
-import type { TrackerUserClass } from "@/data/tracker-registry"
+import type { TrackerRegistryEntry, TrackerUserClass } from "@/data/tracker-registry"
 import { isRedacted } from "@/lib/privacy"
 
 /** Hover text for a class that is not a rung, shared by the pills and the rank tooltip. */
@@ -22,6 +22,11 @@ export interface RankLadder {
   rungs: RankRung[]
   /** Position in `rungs`, or -1 when nothing is lit. */
   currentIndex: number
+  /**
+   * How much of the current rung is earned: below 1 only for a class that
+   * carries a level inside its rank, such as V3X's "Second rôle N14".
+   */
+  currentFraction: number
   /**
    * Set when the member holds a class above the ladder (staff, donor). There
    * is no rung for it, so the stack renders fully lit under this name.
@@ -48,12 +53,16 @@ export interface RankLadder {
  * canonical casing, so the match is case-insensitive. A redacted name is a
  * privacy mask, not a class, and never matches.
  */
+/** Maps a class carrying a level onto its rank; see TrackerRegistryEntry.classLevel. */
+export type ClassLevelParser = TrackerRegistryEntry["classLevel"]
+
 export function findClassIndex(
   classes: TrackerUserClass[],
-  className: string | null | undefined
+  className: string | null | undefined,
+  classLevel?: ClassLevelParser
 ): number {
   if (!className || isRedacted(className)) return -1
-  const wanted = className.toLowerCase()
+  const wanted = (classLevel?.(className)?.rank ?? className).toLowerCase()
   return classes.findIndex((c) => c.name.toLowerCase() === wanted)
 }
 
@@ -64,9 +73,10 @@ export function findClassIndex(
  */
 export function ladderPosition(
   classes: TrackerUserClass[],
-  className: string | null | undefined
+  className: string | null | undefined,
+  classLevel?: ClassLevelParser
 ): number | null {
-  const index = findClassIndex(classes, className)
+  const index = findClassIndex(classes, className, classLevel)
   if (index === -1) return null
   const cls = classes[index]
   const rungs = classes.filter((c) => !c.outsideLadder)
@@ -76,7 +86,8 @@ export function ladderPosition(
 
 export function buildRankLadder(
   classes: TrackerUserClass[],
-  currentClass: string | null | undefined
+  currentClass: string | null | undefined,
+  classLevel?: ClassLevelParser
 ): RankLadder | null {
   const rungs = classes
     .filter((c) => !c.outsideLadder)
@@ -84,13 +95,14 @@ export function buildRankLadder(
   if (rungs.length === 0) return null
 
   const total = rungs.length
-  const index = findClassIndex(classes, currentClass)
+  const index = findClassIndex(classes, currentClass, classLevel)
 
   if (index === -1) {
     if (!currentClass) {
       return {
         rungs,
         currentIndex: -1,
+        currentFraction: 1,
         appointedClass: null,
         shownClass: null,
         unknownClass: false,
@@ -101,6 +113,7 @@ export function buildRankLadder(
       return {
         rungs,
         currentIndex: -1,
+        currentFraction: 1,
         appointedClass: null,
         shownClass: currentClass,
         unknownClass: false,
@@ -110,6 +123,7 @@ export function buildRankLadder(
     return {
       rungs,
       currentIndex: -1,
+      currentFraction: 1,
       appointedClass: null,
       shownClass: currentClass,
       unknownClass: true,
@@ -122,6 +136,7 @@ export function buildRankLadder(
     return {
       rungs,
       currentIndex: total - 1,
+      currentFraction: 1,
       appointedClass: current.name,
       shownClass: current.name,
       unknownClass: false,
@@ -134,6 +149,7 @@ export function buildRankLadder(
     return {
       rungs,
       currentIndex: -1,
+      currentFraction: 1,
       appointedClass: null,
       shownClass: current.name,
       unknownClass: false,
@@ -141,12 +157,16 @@ export function buildRankLadder(
     }
   }
   const currentIndex = findClassIndex(rungs, current.name)
+  // The level stays in the class shown, and sets how much of the rung is lit.
+  const level = currentClass ? classLevel?.(currentClass) : null
+  const shownClass = level ? (currentClass as string) : current.name
   return {
     rungs,
     currentIndex,
+    currentFraction: level ? level.fraction : 1,
     appointedClass: null,
-    shownClass: current.name,
+    shownClass,
     unknownClass: false,
-    summary: `${current.name}, rank ${currentIndex + 1} of ${total}`,
+    summary: `${shownClass}, rank ${currentIndex + 1} of ${total}`,
   }
 }

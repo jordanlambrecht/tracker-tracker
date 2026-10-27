@@ -72,7 +72,7 @@ function RungList({ ladder, color }: { ladder: RankLadder; color: string }) {
 }
 
 function RankStack({ tracker, ladder, onOpen }: StackEntry & { onOpen: () => void }) {
-  const { rungs, currentIndex, unknownClass, shownClass, summary } = ladder
+  const { rungs, currentIndex, currentFraction, unknownClass, shownClass, summary } = ladder
   const lit = currentIndex + 1
 
   return (
@@ -90,17 +90,24 @@ function RankStack({ tracker, ladder, onOpen }: StackEntry & { onOpen: () => voi
           {rungs.map((rung, i) => {
             const isCurrent = i === currentIndex
             const isLit = i < lit
+            const color = hexToRgba(
+              tracker.color,
+              isLit ? (isCurrent ? 1 : LIT_ALPHA) : GHOST_ALPHA
+            )
+            // A class with a level inside its rank lights its rung only that far.
+            const partial = isCurrent && currentFraction < 1
+            const percent = Math.round(Math.max(0, currentFraction) * 100)
             return (
               <span
                 key={rung.name}
                 data-rung={i}
                 data-lit={isLit ? "true" : "false"}
                 className={RUNG_CLASS}
+                data-fill={partial ? percent : undefined}
                 style={{
-                  backgroundColor: hexToRgba(
-                    tracker.color,
-                    isLit ? (isCurrent ? 1 : LIT_ALPHA) : GHOST_ALPHA
-                  ),
+                  background: partial
+                    ? `linear-gradient(to right, ${color} ${percent}%, ${hexToRgba(tracker.color, GHOST_ALPHA)} ${percent}%)`
+                    : color,
                   boxShadow: isCurrent
                     ? `${GLOW} ${hexToRgba(tracker.color, GLOW_ALPHA)}`
                     : undefined,
@@ -131,8 +138,12 @@ export function RankStacks({ trackers, expanded, onToggleExpanded }: RankStacksP
 
   const entries: StackEntry[] = trackers.flatMap((tracker) => {
     if (!tracker.isActive) return []
-    const classes = registryEntryFor(tracker)?.userClasses ?? []
-    const ladder = buildRankLadder(classes, tracker.latestStats?.group)
+    const entry = registryEntryFor(tracker)
+    const ladder = buildRankLadder(
+      entry?.userClasses ?? [],
+      tracker.latestStats?.group,
+      entry?.classLevel
+    )
     return ladder ? [{ tracker, ladder }] : []
   })
 

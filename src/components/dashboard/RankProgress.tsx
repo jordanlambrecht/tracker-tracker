@@ -9,7 +9,12 @@ import { SectionToggle } from "@/components/ui/SectionToggle"
 import type { TrackerUserClass } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
 import { isRedacted } from "@/lib/privacy"
-import { findClassIndex, ladderPosition, OUTSIDE_LADDER_NOTE } from "@/lib/rank-ladder"
+import {
+  type ClassLevelParser,
+  findClassIndex,
+  ladderPosition,
+  OUTSIDE_LADDER_NOTE,
+} from "@/lib/rank-ladder"
 import { checkAnniversaryMilestone } from "@/lib/tracker-events"
 import type { Snapshot } from "@/types/api"
 
@@ -34,6 +39,7 @@ type TimelineEvent =
 interface RankProgressBarProps {
   userClasses: TrackerUserClass[]
   currentRank: string | null
+  classLevel?: ClassLevelParser
   accentColor: string
 }
 
@@ -45,6 +51,8 @@ interface RankTimelineProps {
 interface RankProgressProps {
   userClasses: TrackerUserClass[]
   currentRank: string | null
+  /** Maps a class carrying a level onto its rank, from the registry entry */
+  classLevel?: ClassLevelParser
   snapshots: Snapshot[]
   accentColor: string
   joinedAt?: string | null
@@ -73,24 +81,36 @@ export function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
 function classifyDirection(
   from: string,
   to: string,
-  userClasses: TrackerUserClass[]
+  userClasses: TrackerUserClass[],
+  classLevel?: ClassLevelParser
 ): "promotion" | "demotion" | "unknown" {
+  // Levels run over the whole ladder, so they order a move within a rank too.
+  const fromLevel = classLevel?.(from)?.level
+  const toLevel = classLevel?.(to)?.level
+  if (fromLevel !== undefined && toLevel !== undefined && fromLevel !== toLevel) {
+    return toLevel > fromLevel ? "promotion" : "demotion"
+  }
   // An above class is granted or bought rather than earned, so a move into or
   // out of one is neither a promotion nor a demotion.
   const isAbove = (name: string) =>
     userClasses[findClassIndex(userClasses, name)]?.outsideLadder === "above"
   if (isAbove(from) || isAbove(to)) return "unknown"
-  const fromPos = ladderPosition(userClasses, from)
-  const toPos = ladderPosition(userClasses, to)
+  const fromPos = ladderPosition(userClasses, from, classLevel)
+  const toPos = ladderPosition(userClasses, to, classLevel)
   if (fromPos === null || toPos === null || fromPos === toPos) return "unknown"
   return toPos > fromPos ? "promotion" : "demotion"
 }
 
-function RankProgressBar({ userClasses, currentRank, accentColor }: RankProgressBarProps) {
+function RankProgressBar({
+  userClasses,
+  currentRank,
+  classLevel,
+  accentColor,
+}: RankProgressBarProps) {
   if (userClasses.length === 0 || !currentRank || isRedacted(currentRank)) return null
 
-  const currentIndex = findClassIndex(userClasses, currentRank)
-  const currentPos = ladderPosition(userClasses, currentRank)
+  const currentIndex = findClassIndex(userClasses, currentRank, classLevel)
+  const currentPos = ladderPosition(userClasses, currentRank, classLevel)
 
   return (
     <div className="flex items-center gap-1 w-full overflow-x-auto p-3 -m-3 styled-scrollbar">
@@ -217,6 +237,7 @@ function RankTimeline({ events, accentColor }: RankTimelineProps) {
 function RankProgress({
   userClasses,
   currentRank,
+  classLevel,
   snapshots,
   accentColor,
   joinedAt,
@@ -230,7 +251,7 @@ function RankProgress({
     from: change.from,
     to: change.to,
     date: change.date,
-    direction: classifyDirection(change.from, change.to, userClasses),
+    direction: classifyDirection(change.from, change.to, userClasses, classLevel),
   }))
 
   const milestone = checkAnniversaryMilestone(joinedAt)
@@ -256,6 +277,7 @@ function RankProgress({
             <RankProgressBar
               userClasses={userClasses}
               currentRank={currentRank}
+              classLevel={classLevel}
               accentColor={accentColor}
             />
           )}

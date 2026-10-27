@@ -26,6 +26,15 @@ export interface RankPerk {
   label: string
 }
 
+/** A class the tracker names with a level inside a rank, like V3X's "Figurant N4". */
+export interface ClassLevel {
+  /** The rank on the ladder, a `userClasses` name */
+  rank: string
+  level: number
+  /** How far through the rank the level is, 0 at its first level and 1 at the next rank */
+  fraction: number
+}
+
 export interface TrackerUserClass {
   name: string
   requirements?: string
@@ -76,6 +85,12 @@ export interface TrackerRegistryEntry {
   specialty: string
   contentCategories: string[]
   userClasses: TrackerUserClass[]
+  /**
+   * For trackers whose class names carry a level inside a rank: maps the
+   * reported class onto its rank, so the ladder lists ranks while the class
+   * shown keeps the level. Null for a name it does not recognise.
+   */
+  classLevel?: (className: string) => ClassLevel | null
   releaseGroups: (string | ReleaseGroup)[]
   notableMembers: string[]
   bannedGroups?: string[]

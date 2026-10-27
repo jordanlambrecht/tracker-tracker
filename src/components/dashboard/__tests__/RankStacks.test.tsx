@@ -31,12 +31,22 @@ const LADDERS: Record<string, TrackerUserClass[]> = {
   ],
 }
 
-vi.mock("@/data/tracker-registry", () => ({
-  registryEntryFor: ({ registrySlug }: { registrySlug: string | null }) =>
-    registrySlug && registrySlug in LADDERS
-      ? ({ userClasses: LADDERS[registrySlug] } as unknown as TrackerRegistryEntry)
-      : undefined,
-}))
+vi.mock("@/data/tracker-registry", async () => {
+  const levels = await vi.importActual<typeof import("@/data/v3x-levels")>("@/data/v3x-levels")
+  return {
+    registryEntryFor: ({ registrySlug }: { registrySlug: string | null }) => {
+      if (registrySlug === "v3x") {
+        return {
+          userClasses: levels.v3xUserClasses(),
+          classLevel: levels.v3xClassLevel,
+        } as unknown as TrackerRegistryEntry
+      }
+      return registrySlug && registrySlug in LADDERS
+        ? ({ userClasses: LADDERS[registrySlug] } as unknown as TrackerRegistryEntry)
+        : undefined
+    },
+  }
+})
 
 import { RankStacks } from "@/components/dashboard/RankStacks"
 
@@ -152,6 +162,20 @@ describe("RankStacks", () => {
     const d = stackFor("Delta")
     expect(litCount(d)).toBe(1)
     expect(rungs(d).map((r) => r.dataset.lit)).toEqual(["true", "false"])
+  })
+
+  // V3X names a level inside each rank. The stack keeps the five ranks and
+  // lights the current one as far as the level's XP has gone through it.
+  it("fills the current rank part way for a class with a level, and keeps the level", () => {
+    renderStacks([makeTracker(9, "V3X", "v3x", "Second rôle N14")])
+    const v = stackFor("V3X")
+
+    expect(rungs(v)).toHaveLength(5)
+    expect(litCount(v)).toBe(2)
+    // Level 14 starts at 23 920 XP, Second rôle runs from 11 088 to 100 128 XP.
+    expect(rungs(v)[1].dataset.fill).toBe("14")
+    expect(rungs(v)[0].dataset.fill).toBeUndefined()
+    expect(within(v).getByText("Second rôle N14")).toBeInTheDocument()
   })
 
   it("renders a class above the ladder as a full stack under its own name", () => {

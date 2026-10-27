@@ -1,7 +1,7 @@
 // src/data/trackers/v3x.ts
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { v3xUserClasses } from "@/data/v3x-levels"
+import { v3xClassLevel, v3xUserClasses } from "@/data/v3x-levels"
 
 export const v3x: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
@@ -32,8 +32,9 @@ export const v3x: TrackerRegistryEntry = {
   announceHosts: ["v3x.tw"],
 
   // ── Community ───────────────────────────────────────────────────────
-  // Figurant N1 to Palme d'Or N100: the site names every level, like C411's grades.
+  // The class is reported as "<rank> N<level>"; classLevel maps it onto these ranks.
   userClasses: v3xUserClasses(),
+  classLevel: v3xClassLevel,
   releaseGroups: [],
   bannedGroups: [],
   notableMembers: [],

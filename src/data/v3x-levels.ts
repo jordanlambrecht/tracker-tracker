@@ -1,11 +1,11 @@
 // src/data/v3x-levels.ts
 //
-// Functions: levelCost, xpToReach, rankForLevel, v3xClassName, v3xUserClasses
+// Functions: levelCost, xpToReach, rankForLevel, v3xClassName, v3xUserClasses, v3xClassLevel
 //
 // V3X's ranks and levels. The site names a member "<rank> N<level>", with the
-// level counted over the whole ladder, so each level is a class of its own.
+// level counted over the whole ladder. The ladder lists the five ranks.
 
-import type { TrackerUserClass } from "@/data/tracker-registry"
+import type { ClassLevel, TrackerUserClass } from "@/data/tracker-registry"
 
 export const V3X_MAX_LEVEL = 100
 
@@ -45,13 +45,30 @@ export function v3xClassName(level: unknown): string | null {
 
 const groupThousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
 
-/** One rung per level, each with the cumulative XP it needs. */
+/** The five ranks, each with the level and cumulative XP it starts at. */
 export function v3xUserClasses(): TrackerUserClass[] {
-  return Array.from({ length: V3X_MAX_LEVEL }, (_, i) => {
-    const level = i + 1
-    return {
-      name: v3xClassName(level) as string,
-      requirements: `Level ${level}, ${groupThousands(xpToReach(level))} XP`,
-    }
-  })
+  return [...RANKS].reverse().map(([level, name]) => ({
+    name,
+    requirements: `Level ${level}, ${groupThousands(xpToReach(level))} XP`,
+  }))
+}
+
+/**
+ * Reads "Second rôle N14" as level 14 of Second rôle, with the XP share of the
+ * rank reached by that level. The last rank runs to the top level.
+ */
+export function v3xClassLevel(className: string): ClassLevel | null {
+  const match = /^(.+) N(\d+)$/.exec(className.trim())
+  if (!match) return null
+  const level = Number(match[2])
+  if (v3xClassName(level)?.toLowerCase() !== className.trim().toLowerCase()) return null
+  const index = RANKS.findIndex(([min]) => level >= min)
+  const start = RANKS[index][0]
+  const end = index === 0 ? V3X_MAX_LEVEL : RANKS[index - 1][0]
+  const span = xpToReach(end) - xpToReach(start)
+  return {
+    rank: RANKS[index][1],
+    level,
+    fraction: Math.min(1, (xpToReach(level) - xpToReach(start)) / span),
+  }
 }

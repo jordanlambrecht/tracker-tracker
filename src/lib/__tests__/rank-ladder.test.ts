@@ -50,6 +50,24 @@ describe("buildRankLadder", () => {
     expect(ladder?.summary).toBe("User, rank 1 of 2")
   })
 
+  it("lights a whole rung for a class without a level", () => {
+    expect(buildRankLadder(classes, "User")?.currentFraction).toBe(1)
+  })
+
+  // A tracker that names a level inside each rank, like V3X's "User N3".
+  it("places a class with a level on its rank and keeps the level in the shown class", () => {
+    const classLevel = (name: string) =>
+      name === "User N3" ? { rank: "User", level: 3, fraction: 0.25 } : null
+
+    const ladder = buildRankLadder(classes, "User N3", classLevel)
+
+    expect(ladder?.currentIndex).toBe(0)
+    expect(ladder?.currentFraction).toBe(0.25)
+    expect(ladder?.shownClass).toBe("User N3")
+    expect(ladder?.summary).toBe("User N3, rank 1 of 2")
+    expect(ladderPosition(classes, "User N3", classLevel)).toBe(0)
+  })
+
   it("carries the requirements text onto each rung", () => {
     const ladder = buildRankLadder(classes, "User")
     expect(ladder?.rungs[1]).toEqual({ name: "Power User", requirements: "1 TiB up" })
