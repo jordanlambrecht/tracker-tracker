@@ -18,6 +18,7 @@ function indexer(overrides: Partial<TrackerProwlarrIndexer> = {}): TrackerProwla
     instanceId: 3,
     instanceName: "Home",
     instanceUrl: "http://prowlarr.test:9696/",
+    instancePublicUrl: null,
     instanceError: null,
     stale: false,
     indexerId: 12,
@@ -124,7 +125,16 @@ describe("prowlarrIndexersUrl", () => {
     ["http://host.test/prowlarr", "http://host.test/prowlarr/"],
     ["http://host.test/prowlarr//", "http://host.test/prowlarr/"],
   ])("links %s to its indexer list at %s", (instanceUrl, url) => {
-    expect(prowlarrIndexersUrl({ instanceUrl })).toBe(url)
+    expect(prowlarrIndexersUrl({ instanceUrl, instancePublicUrl: null })).toBe(url)
+  })
+
+  it("links to the public URL's indexer list when one is set", () => {
+    expect(
+      prowlarrIndexersUrl({
+        instanceUrl: "http://prowlarr:9696",
+        instancePublicUrl: "https://prowlarr.example.com/",
+      })
+    ).toBe("https://prowlarr.example.com/")
   })
 })
 

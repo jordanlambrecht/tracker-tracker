@@ -120,6 +120,24 @@ describe("POST /api/prowlarr", () => {
     expect(JSON.stringify(await res.json())).not.toContain(API_KEY)
   })
 
+  it("stores a normalized public URL, and null without one", async () => {
+    const values = mockInsertReturning({ id: 3, name: "Home" })
+
+    await POST(
+      jsonRequest({
+        name: "Home",
+        url: "http://prowlarr:9696",
+        publicUrl: " https://prowlarr.example.com/ ",
+        apiKey: API_KEY,
+      })
+    )
+    await POST(jsonRequest({ name: "Home", url: "http://prowlarr:9696", apiKey: API_KEY }))
+
+    const [withUrl, without] = values.mock.calls as unknown as [Record<string, unknown>][]
+    expect(withUrl[0].publicUrl).toBe("https://prowlarr.example.com")
+    expect(without[0].publicUrl).toBeNull()
+  })
+
   it.each([
     [{ url: "http://prowlarr.test:9696", apiKey: API_KEY }, /required/],
     [{ name: "Home", url: "ftp://prowlarr", apiKey: API_KEY }, /http/],
@@ -130,6 +148,10 @@ describe("POST /api/prowlarr", () => {
     [{ name: "Home", url: "http://prowlarr.test:9696", apiKey: "" }, /API key is required/],
     [{ name: "Home", url: "http://prowlarr.test:9696", apiKey: "has space" }, /printable/],
     [{ name: "", url: "http://prowlarr.test:9696", apiKey: API_KEY }, /Name/],
+    [
+      { name: "Home", url: "http://prowlarr.test:9696", publicUrl: "ftp://p", apiKey: API_KEY },
+      /Public URL must use/,
+    ],
   ])("rejects %j", async (body, message) => {
     const res = await POST(jsonRequest(body))
     expect(res.status).toBe(400)
@@ -171,6 +193,34 @@ describe("PATCH /api/prowlarr/[id]", () => {
 
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(message)
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  // Only the browser opens it, so neither the poller nor the stored error is touched.
+  it("sets and clears the public URL without polling", async () => {
+    mockSelectRow({ id: 1 })
+    const set = mockUpdate()
+
+    await PATCH(jsonRequest({ publicUrl: "https://prowlarr.example.com/" }, "PATCH"), params("1"))
+    await PATCH(jsonRequest({ publicUrl: "" }, "PATCH"), params("1"))
+
+    const [first, second] = set.mock.calls as unknown as [Record<string, unknown>][]
+    expect(first[0].publicUrl).toBe("https://prowlarr.example.com")
+    expect(first[0]).not.toHaveProperty("lastError")
+    expect(second[0].publicUrl).toBeNull()
+    expect(requestProwlarrPoll).not.toHaveBeenCalled()
+  })
+
+  it("refuses an invalid public URL", async () => {
+    mockSelectRow({ id: 1 })
+    const set = mockUpdate()
+
+    const res = await PATCH(
+      jsonRequest({ publicUrl: "https://u:p@example.com" }, "PATCH"),
+      params("1")
+    )
+
+    expect(res.status).toBe(400)
     expect(set).not.toHaveBeenCalled()
   })
 

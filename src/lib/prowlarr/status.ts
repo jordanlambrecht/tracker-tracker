@@ -7,6 +7,7 @@
 // shown next to the tracker's health and never changes it.
 
 import { formatDateTime } from "@/lib/formatters"
+import { browserBase } from "@/lib/public-url"
 import type { ProwlarrIndexerStats, TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 
 type IndexerStatus = "ok" | "failing" | "disabled" | "prowlarr-error" | "stale"
@@ -70,11 +71,14 @@ export function describeIndexerStatus(indexer: TrackerProwlarrIndexer): string {
 }
 
 /**
- * Prowlarr's indexer list, where a backed-off indexer can be tested or edited. It is
- * Prowlarr's home page, under any URL base: Prowlarr has no /indexers route.
+ * Prowlarr's indexer list, where a backed-off indexer can be tested or edited, at
+ * the instance's public URL or its URL without one. It is Prowlarr's home page,
+ * under any URL base: Prowlarr has no /indexers route.
  */
-export function prowlarrIndexersUrl(indexer: Pick<TrackerProwlarrIndexer, "instanceUrl">): string {
-  return `${indexer.instanceUrl.replace(/\/+$/, "")}/`
+export function prowlarrIndexersUrl(
+  indexer: Pick<TrackerProwlarrIndexer, "instanceUrl" | "instancePublicUrl">
+): string {
+  return `${browserBase(indexer.instancePublicUrl, indexer.instanceUrl).replace(/\/+$/, "")}/`
 }
 
 /**

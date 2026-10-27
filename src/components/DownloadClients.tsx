@@ -38,6 +38,7 @@ import {
 } from "@/lib/download-clients/types"
 import { formatTimeAgo } from "@/lib/formatters"
 import { PORT_MAX, PORT_MIN } from "@/lib/limits"
+import { CLIENT_PUBLIC_URL_TIP, PUBLIC_URL_PLACEHOLDER } from "@/lib/public-url"
 import { clientQueryOptions } from "@/lib/query-options"
 import type { SafeDownloadClient } from "@/types/api"
 
@@ -235,6 +236,7 @@ const DRAFT_KEYS: (keyof DownloadClient)[] = [
   "host",
   "port",
   "useSsl",
+  "publicUrl",
   "pollIntervalSeconds",
   "crossSeedTags",
 ]
@@ -476,6 +478,11 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
           message="Port 443 is typically used with SSL. Did you mean to enable SSL?"
         />
       )}
+
+      <PublicUrlField
+        value={draft.publicUrl ?? ""}
+        onChange={(v) => updateDraft({ publicUrl: v || null })}
+      />
 
       <div className="border-t border-border" />
 
@@ -733,6 +740,22 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
 // DownloadClients
 // ---------------------------------------------------------------------------
 
+function PublicUrlField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Input
+      type="url"
+      label="Public URL (optional)"
+      tooltip={CLIENT_PUBLIC_URL_TIP}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={PUBLIC_URL_PLACEHOLDER}
+      name="client-public-url"
+      autoComplete="off"
+      data-1p-ignore
+    />
+  )
+}
+
 function AddClientForm({
   onCreated,
   onCancel,
@@ -751,6 +774,7 @@ function AddClientForm({
   const [password, setPassword] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [urlPath, setUrlPath] = useState("")
+  const [publicUrl, setPublicUrl] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -787,6 +811,7 @@ function AddClientForm({
           port,
           ...credentials,
           urlPath: urlPath.trim(),
+          publicUrl: publicUrl.trim() || undefined,
           isDefault: isFirst,
         }),
       })
@@ -849,6 +874,7 @@ function AddClientForm({
         onApiKeyChange={setApiKey}
       />
       <UrlPathField clientType={type} value={urlPath} onChange={setUrlPath} />
+      <PublicUrlField value={publicUrl} onChange={setPublicUrl} />
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button

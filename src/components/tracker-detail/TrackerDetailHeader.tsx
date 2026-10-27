@@ -215,6 +215,7 @@ export function TrackerDetailHeader({
                   key={settingsSaves}
                   trackerId={tracker.id}
                   mouseholeUrl={tracker.mouseholeUrl}
+                  mouseholePublicUrl={tracker.mouseholePublicUrl}
                 />
               )}
               {prowlarrIndexers.length > 0 && <ProwlarrIndexerCard indexers={prowlarrIndexers} />}

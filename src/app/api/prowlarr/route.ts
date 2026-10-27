@@ -3,7 +3,7 @@
 // Functions: GET, POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
+import { authenticate, decodeKey, parseJsonBody, readPublicUrl } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { prowlarrInstances } from "@/lib/db/schema"
@@ -33,9 +33,10 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, url, apiKey, enabled } = body as {
+  const { name, url, publicUrl, apiKey, enabled } = body as {
     name?: unknown
     url?: unknown
+    publicUrl?: unknown
     apiKey?: unknown
     enabled?: unknown
   }
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
   if (urlErr) return urlErr
   const apiKeyErr = validateProwlarrApiKey(apiKey)
   if (apiKeyErr) return apiKeyErr
+  const browserUrl = readPublicUrl(publicUrl)
+  if (browserUrl instanceof NextResponse) return browserUrl
 
   const key = decodeKey(auth)
   try {
@@ -60,6 +63,7 @@ export async function POST(request: Request) {
       .values({
         name: name.trim(),
         url: normalizeProwlarrUrl(url),
+        publicUrl: browserUrl ?? null,
         encryptedApiKey: encrypt(apiKey.trim(), key),
         enabled: enabled ?? true,
       })

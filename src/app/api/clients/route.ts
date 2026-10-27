@@ -7,6 +7,7 @@ import {
   authenticate,
   decodeKey,
   parseJsonBody,
+  readPublicUrl,
   validateAuthMethod,
   validateAuthMethodForType,
   validateClientHost,
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
     isDefault,
     crossSeedTags,
     urlPath,
+    publicUrl,
   } = body as {
     name?: string
     host?: string
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
     isDefault?: boolean
     crossSeedTags?: string[]
     urlPath?: string
+    publicUrl?: unknown
   }
 
   if (!name || !host) {
@@ -138,6 +141,9 @@ export async function POST(request: Request) {
   const urlPathErr = validateUrlPath(trimmedUrlPath)
   if (urlPathErr) return urlPathErr
   const resolvedUrlPath = stripTrailingSlash(trimmedUrlPath)
+
+  const browserUrl = readPublicUrl(publicUrl)
+  if (browserUrl instanceof NextResponse) return browserUrl
 
   const sanitizedHost = sanitizeHost(host)
   if (!PROXY_HOST_PATTERN.test(sanitizedHost)) {
@@ -213,6 +219,7 @@ export async function POST(request: Request) {
           encryptedPassword,
           encryptedApiKey,
           encryptedUrlPath,
+          publicUrl: browserUrl ?? null,
           pollIntervalSeconds:
             typeof pollIntervalSeconds === "number"
               ? pollIntervalSeconds

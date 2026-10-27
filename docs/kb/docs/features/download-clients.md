@@ -20,16 +20,17 @@ Tracker Tracker connects to qBittorrent's Web API or Transmission's RPC to pull 
 
 Go to **Settings → Download Clients** and fill in your connection details:
 
-| Field    | Notes                                                                                                                                      |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Name     | A label for this client                                                                                                                    |
-| Type     | qBittorrent or Transmission. Fixed once the client is added. To switch, delete the client and add a new one                               |
-| Host     | Hostname or IP, do **not** include `http://` or `https://`                                                                                 |
-| Port     | `8080` for qBittorrent and `9091` for Transmission by default. Choosing a type fills it in                                                |
-| Username | The qBittorrent Web UI or Transmission RPC username                                                                                        |
-| Password | The qBittorrent Web UI or Transmission RPC password                                                                                        |
-| Use SSL  | Enable if the client is served over HTTPS                                                                                                  |
-| URL path | Optional. For qBittorrent, a reverse proxy path or Qui's client proxy at `<base path>/proxy/<client API key>`. For Transmission, it replaces the default `/transmission` path, and `/rpc` is added after it. Stored encrypted and shown masked |
+| Field      | Notes                                                                                                                                                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name       | A label for this client                                                                                                                                                                                                                        |
+| Type       | qBittorrent or Transmission. Fixed once the client is added. To switch, delete the client and add a new one                                                                                                                                    |
+| Host       | Hostname or IP, do **not** include `http://` or `https://`                                                                                                                                                                                     |
+| Port       | `8080` for qBittorrent and `9091` for Transmission by default. Choosing a type fills it in                                                                                                                                                     |
+| Username   | The qBittorrent Web UI or Transmission RPC username                                                                                                                                                                                            |
+| Password   | The qBittorrent Web UI or Transmission RPC password                                                                                                                                                                                            |
+| Use SSL    | Enable if the client is served over HTTPS                                                                                                                                                                                                      |
+| URL path   | Optional. For qBittorrent, a reverse proxy path or Qui's client proxy at `<base path>/proxy/<client API key>`. For Transmission, it replaces the default `/transmission` path, and `/rpc` is added after it. Stored encrypted and shown masked |
+| Public URL | Optional. The address your browser opens the client's web UI on. When set, the client status in the sidebar links to it                                                                                                                        |
 
 !!! warning "SSL/port mismatch"
     The form will warn you if SSL is on with port 80, or SSL is off with port 443. These combinations are usually misconfigured. You can still save, but double-check your settings.

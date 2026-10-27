@@ -34,6 +34,7 @@ import { log } from "@/lib/logger"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import { prowlarrUrlError } from "@/lib/prowlarr/client"
+import { publicUrlError } from "@/lib/public-url"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 import {
   DATE_RE,
@@ -120,6 +121,7 @@ export const BACKUP_CLIENT_COLUMNS = {
   encryptedPassword: downloadClients.encryptedPassword,
   encryptedApiKey: downloadClients.encryptedApiKey,
   encryptedUrlPath: downloadClients.encryptedUrlPath,
+  publicUrl: downloadClients.publicUrl,
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -136,6 +138,7 @@ const BACKUP_PROWLARR_COLUMNS = {
   id: prowlarrInstances.id,
   name: prowlarrInstances.name,
   url: prowlarrInstances.url,
+  publicUrl: prowlarrInstances.publicUrl,
   encryptedApiKey: prowlarrInstances.encryptedApiKey,
   enabled: prowlarrInstances.enabled,
   createdAt: prowlarrInstances.createdAt,
@@ -301,6 +304,14 @@ function assertString(value: unknown, label: string): asserts value is string {
   if (typeof value !== "string") {
     throw new Error(`Backup validation: ${label} must be a string`)
   }
+}
+
+/** Absent or null in backups written before public URLs existed. */
+function assertPublicUrl(value: unknown, label: string): void {
+  if (value === null || value === undefined) return
+  assertString(value, label)
+  const error = publicUrlError(value)
+  if (error) throw new Error(`Backup validation: ${label}: ${error}`)
 }
 
 function assertNumber(value: unknown, label: string): asserts value is number {
@@ -512,6 +523,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       // The same check as the API routes, so a restore cannot store a URL they reject.
       const urlError = prowlarrUrlError(pi.url)
       if (urlError) throw new Error(`Backup validation: ${prefix}.url: ${urlError}`)
+      assertPublicUrl(pi.publicUrl, `${prefix}.publicUrl`)
       if (pi.encryptedApiKey !== null && pi.encryptedApiKey !== undefined) {
         assertString(pi.encryptedApiKey, `${prefix}.encryptedApiKey`)
       }
@@ -562,6 +574,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
 
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)
     // Empty token is valid, happens after a restore clears encrypted fields
+    assertPublicUrl(t.mouseholePublicUrl, `${prefix}.mouseholePublicUrl`)
 
     // Optional: backups predating the column carry no slug, and a pre-registry
     // custom site legitimately carries null. Only the type is checked here: the
@@ -676,6 +689,7 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     if (typeof c.encryptedUrlPath !== "undefined") {
       assertString(c.encryptedUrlPath, `${prefix}.encryptedUrlPath`)
     }
+    assertPublicUrl(c.publicUrl, `${prefix}.publicUrl`)
     assertValidIso(c.createdAt, `${prefix}.createdAt`)
     assertValidIso(c.updatedAt, `${prefix}.updatedAt`)
   }

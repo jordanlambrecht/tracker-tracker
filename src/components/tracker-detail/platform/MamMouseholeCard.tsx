@@ -16,10 +16,13 @@ import {
   mouseholeStatus,
   stripUrlCredentials,
 } from "@/lib/mousehole"
+import { browserBase } from "@/lib/public-url"
 
 export interface MamMouseholeCardProps {
   trackerId: number
   mouseholeUrl: string
+  /** Where the browser opens Mousehole, when it differs from mouseholeUrl */
+  mouseholePublicUrl?: string | null
 }
 
 function parseRfc9557(dateStr: string): Date {
@@ -47,7 +50,11 @@ function formatResult(msg: string): string {
   }
 }
 
-export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardProps) {
+export function MamMouseholeCard({
+  trackerId,
+  mouseholeUrl,
+  mouseholePublicUrl,
+}: MamMouseholeCardProps) {
   const [data, setData] = useState<MouseholeStatusResponse | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -198,7 +205,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
   const isOk = status.tone === "success"
   const isStale = status.tone === "warn"
   const countdownExpired = countdown === "00:00:00"
-  const mouseholeLink = stripUrlCredentials(mouseholeUrl)
+  const mouseholeLink = stripUrlCredentials(browserBase(mouseholePublicUrl, mouseholeUrl))
   // A refusal from Mousehole, or a poll or Check Now that failed after data
   // loaded, is shown below the header so a collapsed card cannot read as healthy.
   const notice = fetchError ?? data.stateError
