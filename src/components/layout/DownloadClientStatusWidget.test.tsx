@@ -34,6 +34,7 @@ function client(overrides: Partial<SafeDownloadClient> = {}): SafeDownloadClient
     authMethod: "password",
     hasCredentials: true,
     hasUrlPath: false,
+    publicUrl: null,
     pollIntervalSeconds: 300,
     isDefault: false,
     crossSeedTags: [],
@@ -90,5 +91,22 @@ describe("DownloadClientStatusWidget client state", () => {
     expect(status).toHaveClass("text-danger")
     expect(screen.queryByText("Stats paused")).toBeNull()
     expect(container.querySelector(".color-dot")).toHaveClass("bg-danger")
+  })
+})
+
+describe("DownloadClientStatusWidget web UI link", () => {
+  it("links to the client's web UI at its public URL", async () => {
+    renderWidget(client({ publicUrl: "https://qbt.example.com" }))
+
+    const link = await screen.findByRole("link", { name: "Open Seedbox" })
+    expect(link).toHaveAttribute("href", "https://qbt.example.com")
+    expect(link).toHaveAttribute("target", "_blank")
+  })
+
+  it("shows no link without a public URL", async () => {
+    renderWidget(client())
+
+    await screen.findByText("Seedbox")
+    expect(screen.queryByRole("link")).not.toBeInTheDocument()
   })
 })

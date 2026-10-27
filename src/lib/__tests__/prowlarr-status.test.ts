@@ -5,7 +5,7 @@ import {
   describeIndexerStatus,
   getIndexerStatus,
   getProwlarrFailures,
-  prowlarrIndexersUrl,
+  prowlarrLinkUrl,
   statsTotals,
 } from "@/lib/prowlarr/status"
 import { getTrackerHealth } from "@/lib/tracker-status"
@@ -18,6 +18,7 @@ function indexer(overrides: Partial<TrackerProwlarrIndexer> = {}): TrackerProwla
     instanceId: 3,
     instanceName: "Home",
     instanceUrl: "http://prowlarr.test:9696/",
+    instancePublicUrl: null,
     instanceError: null,
     stale: false,
     indexerId: 12,
@@ -116,11 +117,20 @@ describe("statsTotals", () => {
   })
 })
 
-describe("prowlarrIndexersUrl", () => {
-  it("links to the Indexers page under any URL base", () => {
-    expect(prowlarrIndexersUrl({ instanceUrl: "http://host.test/prowlarr/" })).toBe(
-      "http://host.test/prowlarr/indexers"
-    )
+describe("prowlarrLinkUrl", () => {
+  it("links to the instance URL, with its URL base, without a public URL", () => {
+    expect(
+      prowlarrLinkUrl({ instanceUrl: "http://host.test/prowlarr/", instancePublicUrl: null })
+    ).toBe("http://host.test/prowlarr")
+  })
+
+  it("links to the public URL when one is set", () => {
+    expect(
+      prowlarrLinkUrl({
+        instanceUrl: "http://prowlarr:9696",
+        instancePublicUrl: "https://prowlarr.example.com/",
+      })
+    ).toBe("https://prowlarr.example.com")
   })
 })
 

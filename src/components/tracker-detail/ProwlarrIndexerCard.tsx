@@ -10,7 +10,7 @@ import {
   describeIndexerStatus,
   getIndexerStatus,
   type IndexerStatus,
-  prowlarrIndexersUrl,
+  prowlarrLinkUrl,
   statsTotals,
 } from "@/lib/prowlarr/status"
 import type { ProwlarrIndexerStats, TrackerProwlarrIndexer } from "@/types/api"
@@ -165,7 +165,7 @@ function IndexerCard({
           <span className="text-xs font-mono text-muted truncate">· {indexer.name}</span>
         </button>
         <a
-          href={prowlarrIndexersUrl(indexer)}
+          href={prowlarrLinkUrl(indexer)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs font-mono text-accent hover:text-primary transition-colors duration-150 shrink-0"

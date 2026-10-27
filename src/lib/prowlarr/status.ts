@@ -1,12 +1,13 @@
 // src/lib/prowlarr/status.ts
 //
 // Functions: getIndexerStatus, isIndexerFailing, getProwlarrFailures, describeIndexerStatus,
-//            prowlarrIndexersUrl, statsTotals
+//            prowlarrLinkUrl, statsTotals
 //
 // Client-safe reading of the Prowlarr state included in TrackerSummary. It is
 // shown next to the tracker's health and never changes it.
 
 import { formatDateTime } from "@/lib/formatters"
+import { browserBase } from "@/lib/public-url"
 import type { ProwlarrIndexerStats, TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 
 type IndexerStatus = "ok" | "failing" | "disabled" | "prowlarr-error" | "stale"
@@ -69,9 +70,11 @@ export function describeIndexerStatus(indexer: TrackerProwlarrIndexer): string {
   }
 }
 
-/** Prowlarr's own Indexers page, where a backed-off indexer can be tested or edited. */
-export function prowlarrIndexersUrl(indexer: Pick<TrackerProwlarrIndexer, "instanceUrl">): string {
-  return `${indexer.instanceUrl.replace(/\/+$/, "")}/indexers`
+/** Where the indexer card links: the instance's public URL, or its URL without one. */
+export function prowlarrLinkUrl(
+  indexer: Pick<TrackerProwlarrIndexer, "instanceUrl" | "instancePublicUrl">
+): string {
+  return browserBase(indexer.instancePublicUrl, indexer.instanceUrl)
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   parseJsonBody,
   parseRouteId,
   type RouteContext,
+  readPublicUrl,
   validateAuthMethod,
   validateAuthMethodForType,
   validateClientHost,
@@ -229,6 +230,11 @@ export async function PATCH(request: Request, props: RouteContext) {
     const storedUrlPath = stripTrailingSlash(trimmedUrlPath)
     updates.encryptedUrlPath = storedUrlPath ? encrypt(storedUrlPath, getKey()) : ""
   }
+
+  // Only the browser opens it, so a change leaves the scheduler's state alone.
+  const publicUrl = readPublicUrl(body.publicUrl)
+  if (publicUrl instanceof NextResponse) return publicUrl
+  if (publicUrl !== undefined) updates.publicUrl = publicUrl
 
   if (body.isDefault === true) {
     updates.isDefault = true

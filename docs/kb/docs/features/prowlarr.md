@@ -11,11 +11,12 @@ Tracker Tracker can read indexer status from one or more [Prowlarr](https://prow
 
 Go to **Settings → General → Prowlarr** and fill in:
 
-| Field   | Notes                                                                                                   |
-| ------- | ------------------------------------------------------------------------------------------------------- |
-| Name    | A label for this instance                                                                               |
-| URL     | The address Tracker Tracker can reach Prowlarr on, including any URL base, like `http://localhost:9696` |
-| API key | Prowlarr → **Settings → General → Security**. Stored encrypted, and included in backups like other keys |
+| Field      | Notes                                                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Name       | A label for this instance                                                                                               |
+| URL        | The address Tracker Tracker can reach Prowlarr on, including any URL base, like `http://localhost:9696`                 |
+| Public URL | Optional. The address your browser opens Prowlarr on, when it differs from the URL, like `https://prowlarr.example.com` |
+| API key    | Prowlarr → **Settings → General → Security**. Stored encrypted, and included in backups like other keys                 |
 
 Use **Test Connection** to confirm the URL and key. Add another instance the same way, for example one that reaches some trackers through a different network.
 
@@ -29,7 +30,7 @@ When the hosts differ, open the tracker's settings and pick the indexer under **
 
 ## What Is Shown
 
-The tracker's page gets a card for each matched indexer, beside the TrackerHub card and laid out the same way. Its header shows the indexer's status, collapses the details below it, and links to that Prowlarr's Indexers page. The link uses the instance's URL, so it opens only if your browser can reach that address too, which a Docker container name usually is not. The status is one of:
+The tracker's page gets a card for each matched indexer, beside the TrackerHub card and laid out the same way. Its header shows the indexer's status, collapses the details below it, and links to that Prowlarr. The link uses the instance's public URL, or its URL when no public URL is set. A Docker container name usually opens only from other containers, so set a public URL when Tracker Tracker reaches Prowlarr that way. The status is one of:
 
 | Status         | Meaning                                                                                     |
 | -------------- | ------------------------------------------------------------------------------------------- |

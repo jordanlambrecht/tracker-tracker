@@ -246,3 +246,23 @@ describe("emergency lockdown with a wrong master password", () => {
     expect(clearSchedulerKey).not.toHaveBeenCalled()
   })
 })
+
+// The public URLs are plaintext addresses of the user's services, so nuke
+// overwrites them with the other URLs before the rows are deleted.
+describe("nuke scrubs every service URL", () => {
+  it("overwrites the Mousehole, Prowlarr and download client URLs", async () => {
+    await scrubAndDeleteAll()
+
+    const tracker = trackerVaultWrite()
+    expect(tracker.mouseholeUrl).toMatch(/^[0-9a-f]+$/)
+    expect(tracker.mouseholePublicUrl).toMatch(/^[0-9a-f]+$/)
+
+    const prowlarr = writes.filter((w) => w.table === prowlarrInstances)
+    expect(prowlarr[0].values.publicUrl).toMatch(/^[0-9a-f]+$/)
+
+    const clients = writes.filter((w) => w.table === downloadClients)
+    expect(clients).toHaveLength(1)
+    expect(clients[0].values.host).toMatch(/^[0-9a-f]+$/)
+    expect(clients[0].values.publicUrl).toMatch(/^[0-9a-f]+$/)
+  })
+})

@@ -95,6 +95,7 @@ vi.mock("@/lib/server-data", async (importOriginal) => {
       color: "#00d4ff",
       qbtTag: null,
       mouseholeUrl: null,
+      mouseholePublicUrl: null,
       useProxy: false,
       countCrossSeedUnsatisfied: false,
       hideUnreadBadges: false,
@@ -506,6 +507,46 @@ describe("POST /api/trackers", () => {
     const inserted = mockValues.mock.calls[0][0]
     expect(inserted.encryptedMouseholeToken).toBe("encrypted-token")
     expect(inserted.mouseholeUrl).toBe("http://mousehole-test:5010")
+  })
+
+  it("stores a normalized Mousehole public URL beside the URL", async () => {
+    const body = {
+      name: "MAM",
+      slug: "myanonamouse",
+      apiToken: "mytoken",
+      mouseholeUrl: "http://mousehole-test:5010",
+      mouseholePublicUrl: " https://mousehole.example.com/ ",
+    }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 9, name: "MAM" }])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const response = await POST(makeRequest("http://localhost/api/trackers", body, "POST"))
+
+    expect(response.status).toBe(201)
+    expect(mockValues.mock.calls[0][0].mouseholePublicUrl).toBe("https://mousehole.example.com")
+  })
+
+  it.each([
+    [
+      { mouseholePublicUrl: "https://mousehole.example.com" },
+      "Mousehole public URL needs a Mousehole URL",
+    ],
+    [
+      { mouseholeUrl: "http://mousehole-test:5010", mouseholePublicUrl: "mousehole" },
+      "Invalid public URL format",
+    ],
+  ])("rejects the Mousehole public URL in %j", async (fields, message) => {
+    const body = { name: "MAM", slug: "myanonamouse", apiToken: "mytoken", ...fields }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+    const response = await POST(makeRequest("http://localhost/api/trackers", body, "POST"))
+
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toBe(message)
+    expect(db.insert).not.toHaveBeenCalled()
   })
 
   it("rejects a Mousehole API token holding a control character without echoing it", async () => {
@@ -1162,6 +1203,39 @@ describe("PATCH /api/trackers/[id]", () => {
     const updates = mockSet.mock.calls[0]?.[0]
     expect(updates).toHaveProperty("mouseholeUrl", null)
     expect(updates).toHaveProperty("encryptedMouseholeToken", null)
+  })
+
+  // The settings sheet sends both fields on every save.
+  it("clears the public URL with the URL, whatever the body's public URL holds", async () => {
+    const body = { mouseholeUrl: "", mouseholePublicUrl: "https://mousehole.example.com" }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", body, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(200)
+    expect(mockSet.mock.calls[0]?.[0]).toHaveProperty("mouseholePublicUrl", null)
+  })
+
+  it("sets and clears the Mousehole public URL beside a URL", async () => {
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    for (const publicUrl of ["https://mousehole.example.com/", ""]) {
+      const body = { mouseholeUrl: "http://mousehole-test:5010", mouseholePublicUrl: publicUrl }
+      ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+      const request = makeRequest("http://localhost/api/trackers/1", body, "PATCH")
+      const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+      expect(response.status).toBe(200)
+    }
+
+    expect(mockSet.mock.calls[0]?.[0].mouseholePublicUrl).toBe("https://mousehole.example.com")
+    expect(mockSet.mock.calls[1]?.[0].mouseholePublicUrl).toBeNull()
   })
 
   it("saves a URL and token sent together without reading the row", async () => {

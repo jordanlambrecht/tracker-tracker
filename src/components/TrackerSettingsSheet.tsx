@@ -32,6 +32,7 @@ import {
 import { localDateStr } from "@/lib/formatters"
 import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
 import { matchTrackerIndexers } from "@/lib/prowlarr/matching"
+import { PUBLIC_URL_PLACEHOLDER, PUBLIC_URL_TIP } from "@/lib/public-url"
 import { prowlarrIndexerQueryOptions, trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
@@ -57,6 +58,7 @@ interface FormState {
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
   mouseholeUrl: string
+  mouseholePublicUrl: string
   /** AUTO_INDEXER, NO_INDEXER or pinValue(instanceId, indexerId) */
   prowlarrIndexer: string
 }
@@ -93,6 +95,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
     hideUnreadBadges: t.hideUnreadBadges ?? false,
     mouseholeUrl: t.mouseholeUrl ?? "",
+    mouseholePublicUrl: t.mouseholePublicUrl ?? "",
     prowlarrIndexer: indexerValue(t),
   }
 }
@@ -280,6 +283,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
       hideUnreadBadges: form.hideUnreadBadges,
       mouseholeUrl: form.mouseholeUrl.trim(),
+      mouseholePublicUrl: form.mouseholePublicUrl.trim(),
     }
 
     if (changingKey && trimmedToken) {
@@ -450,6 +454,15 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                     description: "Mousehole on GitHub",
                   }}
                 />
+              </div>
+              <div className="flex items-center gap-1">
+                <Input
+                  label="Mousehole public URL (optional)"
+                  value={form.mouseholePublicUrl}
+                  onChange={(e) => updateField("mouseholePublicUrl", e.target.value)}
+                  placeholder={PUBLIC_URL_PLACEHOLDER}
+                />
+                <InfoTip content={PUBLIC_URL_TIP} size="sm" />
               </div>
               <div className="flex items-center gap-1">
                 {tracker.hasMouseholeToken && !changingMouseholeToken ? (
