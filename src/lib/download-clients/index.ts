@@ -43,7 +43,6 @@ export {
 } from "./sync-store"
 export type { SlimTorrent } from "./transforms"
 export { slimTorrentForCache } from "./transforms"
-export { clearAllTransmissionSessions } from "./transmission/transport"
 export type {
   TransmissionTorrent,
   TransmissionTrackerStat,

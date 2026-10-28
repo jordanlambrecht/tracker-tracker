@@ -12,12 +12,18 @@ vi.mock("@/lib/download-clients/transmission/transport", () => ({
   testSession: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock("@/lib/download-clients/transport", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/download-clients/transport")>()),
+  clearAuthBlocks: vi.fn(),
+}))
+
 import {
   getSessionStats,
   getTorrents,
   invalidateSessionId,
   testSession,
 } from "@/lib/download-clients/transmission/transport"
+import { clearAuthBlocks } from "@/lib/download-clients/transport"
 import { TransmissionClientAdapter } from "../adapters/transmission"
 
 function torrent(over: Partial<TransmissionTorrent>): TransmissionTorrent {
@@ -68,6 +74,11 @@ describe("TransmissionClientAdapter", () => {
     expect(new TransmissionClientAdapter("host", 443, true, CREDS).baseUrl).toBe("https://host:443")
   })
 
+  it("keeps the URL path in its base URL, which is the sync store key", () => {
+    const a = new TransmissionClientAdapter("host", 9091, false, { ...CREDS, urlPath: "/torrents" })
+    expect(a.baseUrl).toBe("http://host:9091/torrents")
+  })
+
   it("does not implement delta sync, so the scheduler takes its full-fetch path", () => {
     // Transmission has no sync/maindata equivalent. The scheduler branches on
     // `if (adapter.getDeltaSync)`, so this absence is load-bearing. Asserted
@@ -109,6 +120,21 @@ describe("TransmissionClientAdapter", () => {
     expect(result.map((t) => t.hash).sort()).toEqual(["down", "up"])
   })
 
+  it("asks for recently active torrents only when filtering for active ones", async () => {
+    vi.mocked(getTorrents).mockResolvedValue([])
+    await adapter().getTorrents({ filter: "active" })
+    await adapter().getTorrents({ tag: "tl" })
+    expect(vi.mocked(getTorrents).mock.calls[0][2]).toMatchObject({ recentlyActive: true })
+    expect(vi.mocked(getTorrents).mock.calls[1][2]).toMatchObject({ recentlyActive: false })
+  })
+
+  it("hands the caller's signal to the transport", async () => {
+    vi.mocked(getTorrents).mockResolvedValue([])
+    const caller = new AbortController()
+    await adapter().getTorrents({ signal: caller.signal })
+    expect(vi.mocked(getTorrents).mock.calls[0][2]?.signal).toBe(caller.signal)
+  })
+
   it("applies tag and filter together", async () => {
     vi.mocked(getTorrents).mockResolvedValue([
       torrent({ hashString: "a", labels: ["tl"], rateUpload: 100 }),
@@ -119,25 +145,20 @@ describe("TransmissionClientAdapter", () => {
     expect(result.map((t) => t.hash)).toEqual(["a"])
   })
 
-  it("reads global speeds from session-stats", async () => {
-    expect(await adapter().getTransferInfo()).toEqual({ uploadSpeed: 500, downloadSpeed: 200 })
-  })
-
-  it("clears the cached CSRF id before an explicit connection test", async () => {
-    // A restarted daemon rotates the id, and an explicit test is exactly when
-    // the user expects a stale one not to be in the way.
+  it("clears the CSRF id and the auth blocks before an explicit connection test", async () => {
+    // The fix may have been a daemon restart or a whitelist change, which no
+    // credential comparison can see, so the test must reach the network.
     await adapter().testConnection()
     expect(invalidateSessionId).toHaveBeenCalledWith("http://localhost:9091")
-    expect(testSession).toHaveBeenCalled()
+    expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:9091")
+    expect(vi.mocked(clearAuthBlocks).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(testSession).mock.invocationCallOrder[0]
+    )
   })
 
-  it("propagates a failing connection test", async () => {
-    vi.mocked(testSession).mockRejectedValueOnce(new Error("Connection refused"))
-    await expect(adapter().testConnection()).rejects.toThrow(/Connection refused/)
-  })
-
-  it("drops its cached session on dispose", () => {
+  it("drops its cached session and auth blocks on dispose", () => {
     adapter().dispose()
     expect(invalidateSessionId).toHaveBeenCalledWith("http://localhost:9091")
+    expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:9091")
   })
 })

@@ -1,16 +1,25 @@
 // src/lib/download-clients/transmission/transport.ts
 //
 // Available functions:
-//   rpcPath                    - Compose the RPC endpoint URL from a base URL
-//   invalidateSessionId        - Drop a cached CSRF session id (i.e. on 409)
-//   clearAllTransmissionSessions - Drop every cached session id (called on logout)
-//   rpcCall                    - Issue one RPC method, handling the 409 handshake
-//   getTorrents                - torrent-get for the declared field list
-//   getSessionStats            - session-stats (global transfer speeds)
-//   testSession                - session-get, used purely to prove reachability
+//   invalidateSessionId - Drop a cached CSRF session id and the client's sync store
+//   rpcEndpoint         - The RPC URL for a base URL and URL path
+//   authHeaders         - Basic auth header, or none for blank credentials
+//   postRpc             - One POST to the RPC endpoint, with the transport's error wording
+//   rpcCall             - Issue one read-only RPC method, handling the 409 handshake
+//   getTorrents         - torrent-get for the declared field list
+//   getSessionStats     - session-stats (global transfer speeds)
+//   testSession         - session-get, used to prove reachability and credentials
 
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { ADAPTER_FETCH_TIMEOUT_MS, TRANSMISSION_RESPONSE_MAX_BYTES } from "@/lib/limits"
 import { resetStore } from "../sync-store"
+import {
+  blockKeyFor,
+  describeFetchError,
+  fetchSignal,
+  getAuthBlock,
+  readCappedJson,
+  setAuthBlock,
+} from "../transport"
 import type { ClientCredentials } from "../types"
 import {
   isTransmissionTorrentList,
@@ -20,34 +29,13 @@ import {
   type TransmissionTorrent,
 } from "./types"
 
-/**
- * Transmission serves its whole RPC surface from one path. `/transmission/rpc`
- * is the default and the only value the WebUI ships with; a user who has
- * changed `rpc-url` in settings.json will need that reflected here, which is
- * why it is a named constant rather than inlined.
- */
-const RPC_PATH = "/transmission/rpc"
-
-export function rpcPath(baseUrl: string): string {
-  return `${baseUrl}${RPC_PATH}`
-}
-
 // ---------------------------------------------------------------------------
 // CSRF session id cache.
 //
-// Transmission answers any RPC request lacking a valid X-Transmission-Session-Id
-// with 409 and the correct id in that same response header. The id is a CSRF
-// token, not an authenticator: it is handed out freely, rotates when the daemon
-// restarts, and carries no credential. Caching it per baseUrl turns the
-// handshake into a once-per-process cost instead of doubling every poll.
-//
-// Deliberately NOT paired with an auth-failure circuit breaker like the
-// qBittorrent transport's. That breaker exists because qBittorrent bans the
-// calling IP after MaxAuthenticationFailCount failed logins, so retrying bad
-// credentials locks the user out for an hour. Transmission has no such counter
-// — a wrong password is answered with a plain 401 every time, indefinitely and
-// harmlessly — so a breaker here would add a global cache and a stale-state
-// failure mode to defend against a ban that cannot happen.
+// Transmission answers a request without the current X-Transmission-Session-Id
+// with 409 and the id in that same header. The id is a CSRF token, not a
+// credential, and it rotates about hourly and on restart, so a request is
+// replayed once with the id the 409 handed back.
 // ---------------------------------------------------------------------------
 
 const gSession = globalThis as typeof globalThis & {
@@ -61,76 +49,70 @@ export function invalidateSessionId(baseUrl: string): void {
   resetStore(baseUrl)
 }
 
-export function clearAllTransmissionSessions(): void {
-  sessionIds.clear()
-}
+// ---------------------------------------------------------------------------
+// Auth-failure breaker.
+//
+// Transmission's anti-brute-force setting, off by default, counts failed logins
+// on one global counter and, at its threshold (100 by default), answers every
+// client with 403 until the daemon restarts. A stale password on the 5s
+// heartbeat would trip it in about eight minutes, so a 401 is not retried.
+//
+// The block is keyed by baseUrl and a credential fingerprint, so an edited
+// credential is not blocked. It clears when this app restarts, on Test
+// Connection and on dispose. A 403 is never latched: it is the IP whitelist or a lockout that has
+// already tripped, retrying makes neither worse, and a latch would outlive the
+// restart that clears the lockout.
+// ---------------------------------------------------------------------------
 
 const CREDENTIALS_REJECTED =
-  "Authentication failed — Transmission rejected the username and password"
+  "Authentication failed. Transmission rejected the username and password"
+const BLANK_CREDENTIALS_REJECTED =
+  "Authentication failed. Transmission requires a username and password"
 const API_KEY_UNSUPPORTED =
-  "Transmission has no API-key authentication. Set this client to username and password " +
-  "(leave both blank if rpc-authentication-required is false)"
+  "Transmission has no API-key authentication. Set this client to username and password"
+const FORBIDDEN =
+  "Transmission refused the request. Either its IP whitelist does not include this app, or " +
+  "its anti-brute-force lockout has tripped and only a restart clears it"
+const HOSTNAME_REFUSED =
+  "Transmission refused the hostname. Add it to rpc-host-whitelist, or turn on password " +
+  "authentication"
+const SESSION_ID_MISSING = "Transmission returned 409 without an X-Transmission-Session-Id header"
+const RPC_REFUSED = "Transmission refused the RPC call"
+const UNEXPECTED = "Transmission sent an unexpected response"
 
 /**
- * Basic auth header, or nothing at all.
- *
- * Transmission with `rpc-authentication-required: false` accepts unauthenticated
- * requests, which is the common setup behind a reverse proxy or on a private
- * network. Sending `Authorization: Basic OjA=` in that case is harmless but
- * noisy in the daemon log, so blank credentials send no header.
+ * A URL path replaces Transmission's default `/transmission` base, the way
+ * Sonarr and Radarr treat it, so it reaches a custom rpc-url and a proxy that
+ * renames the path. The base URL keeps the path either way, since it is the
+ * sync store key.
  */
-function authHeaders(creds: ClientCredentials): Record<string, string> {
-  if (creds.authMethod === "apikey") {
-    // Unreachable via the UI, which offers password auth only for this client
-    // type — but the credential union permits it, so it fails loudly rather
-    // than silently authenticating as nobody.
-    throw new Error(API_KEY_UNSUPPORTED)
-  }
-  const { username, password } = creds
-  if (!username && !password) return {}
-  const encoded = Buffer.from(`${username}:${password}`).toString("base64")
-  return { Authorization: `Basic ${encoded}` }
+function rpcEndpoint(baseUrl: string, urlPath: string): string {
+  return urlPath ? `${baseUrl}/rpc` : `${baseUrl}/transmission/rpc`
 }
 
-// Extract a useful detail string from a fetch rejection. Node's fetch wraps
-// every network fault in a TypeError and puts the real cause underneath.
-function describeFetchError(err: unknown): string {
-  const cause =
-    err !== null && typeof err === "object" && "cause" in (err as object)
-      ? (err as { cause: unknown }).cause
-      : undefined
-  if (cause instanceof Error) {
-    const code = "code" in cause ? (cause as NodeJS.ErrnoException).code : undefined
-    if (code) return code
-    if (cause.message) return cause.message
-  }
-  if (err instanceof Error) {
-    const code = "code" in err ? (err as NodeJS.ErrnoException).code : undefined
-    if (code) return code
-    if (err.message && err.message !== "fetch failed") return err.message
-  }
-  return "Unknown network error"
+/** Blank credentials send no header, for a daemon with rpc-authentication-required off. */
+function authHeaders(username: string, password: string): Record<string, string> {
+  if (!username && !password) return {}
+  return { Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}` }
 }
 
 async function postRpc(
   url: string,
   host: string,
-  creds: ClientCredentials,
+  headers: Record<string, string>,
   body: string,
-  sessionId: string | undefined
+  sessionId: string | undefined,
+  signal: AbortSignal | undefined
 ): Promise<Response> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...authHeaders(creds),
-  }
-  if (sessionId) headers["X-Transmission-Session-Id"] = sessionId
-
   try {
     return await fetch(url, {
       method: "POST",
-      headers,
+      headers: sessionId ? { ...headers, "X-Transmission-Session-Id": sessionId } : headers,
       body,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
+      // A followed redirect would feed the parser a body from wherever the
+      // Location points. Manual mode surfaces the 3xx as non-ok instead.
+      redirect: "manual",
+      signal: fetchSignal(signal),
     })
   } catch (err) {
     const errName =
@@ -140,76 +122,100 @@ async function postRpc(
     if (errName === "TimeoutError" || errName === "AbortError") {
       throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
     }
-    throw new Error(`Failed to connect to ${url}: ${describeFetchError(err)}`)
+    // The hostname only. The scheduler logs this raw, and the URL path can
+    // carry a proxy key.
+    throw new Error(`Failed to connect to ${host}: ${describeFetchError(err)}`)
   }
 }
 
-/**
- * Issue one RPC method and return its `arguments` payload.
- *
- * The 409 handshake is handled here and nowhere else: a request that comes back
- * 409 carries the correct session id in its response header, so it is cached and
- * the request replayed exactly once. A second 409 is a real failure rather than
- * a rotation, so it propagates.
- */
-export async function rpcCall<T>(
+type RpcMethod = "session-get" | "session-stats" | "torrent-get"
+
+async function rpcCall<T>(
   baseUrl: string,
   creds: ClientCredentials,
-  method: string,
-  args?: Record<string, unknown>
+  method: RpcMethod,
+  args?: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<T> {
-  const url = rpcPath(baseUrl)
+  if (creds.authMethod === "apikey") throw new Error(API_KEY_UNSUPPORTED)
+  const { username, password, urlPath } = creds
+
+  const blockKey = blockKeyFor(baseUrl, username, password)
+  const blocked = getAuthBlock(blockKey)
+  if (blocked) throw new Error(blocked)
+
+  const url = rpcEndpoint(baseUrl, urlPath)
   const host = new URL(baseUrl).hostname
+  const headers = { "Content-Type": "application/json", ...authHeaders(username, password) }
   const body = JSON.stringify(args ? { method, arguments: args } : { method })
 
-  let response = await postRpc(url, host, creds, body, sessionIds.get(baseUrl))
-
+  let response = await postRpc(url, host, headers, body, sessionIds.get(baseUrl), signal)
   if (response.status === 409) {
     const fresh = response.headers.get("x-transmission-session-id")
-    if (!fresh) {
-      throw new Error("Transmission returned 409 without an X-Transmission-Session-Id header")
-    }
+    if (!fresh) throw new Error(SESSION_ID_MISSING)
+    // Read nothing from the 409, but release its body before the replay.
+    await response.body?.cancel()
     sessionIds.set(baseUrl, fresh)
-    response = await postRpc(url, host, creds, body, fresh)
+    response = await postRpc(url, host, headers, body, fresh, signal)
   }
 
   if (response.status === 401) {
-    throw new Error(CREDENTIALS_REJECTED)
+    const rejection = username || password ? CREDENTIALS_REJECTED : BLANK_CREDENTIALS_REJECTED
+    setAuthBlock(blockKey, rejection)
+    throw new Error(rejection)
   }
+  if (response.status === 403) throw new Error(FORBIDDEN)
+  if (response.status === 421) throw new Error(HOSTNAME_REFUSED)
   if (!response.ok) {
     throw new Error(`Transmission RPC error: ${response.status} ${response.statusText}`)
   }
 
-  const payload = (await response.json()) as TransmissionRpcResponse<T>
-  // Transmission answers a malformed or refused method with HTTP 200 and a
-  // failure string in `result`, so the status code alone proves nothing.
-  if (payload.result !== "success") {
-    throw new Error(`Transmission RPC error: ${payload.result || "unknown error"}`)
+  let payload: TransmissionRpcResponse<T> | null
+  try {
+    payload = await readCappedJson<TransmissionRpcResponse<T> | null>(
+      response,
+      host,
+      TRANSMISSION_RESPONSE_MAX_BYTES
+    )
+  } catch (err) {
+    // A proxy route answering with an HTML page is the usual cause.
+    if (err instanceof SyntaxError) throw new Error(`${UNEXPECTED}: the body was not JSON`)
+    throw err
   }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error(`${UNEXPECTED}: no RPC envelope`)
+  }
+  // Transmission answers a refused method with HTTP 200 and a failure string in
+  // `result`. The string is host-sent, so it stays out of the message.
+  if (payload.result !== "success") throw new Error(RPC_REFUSED)
   if (payload.arguments === undefined) {
-    throw new Error(`Transmission RPC error: ${method} returned no arguments`)
+    throw new Error(`${UNEXPECTED}: ${method} returned no arguments`)
   }
   return payload.arguments
 }
 
 /**
- * Every torrent, with the declared field list.
- *
- * Deliberately unfiltered: Transmission's `ids` argument selects by id or hash,
- * not by label or activity, so tag and activity filtering happens in the adapter
- * against the mapped records. One `torrent-get` for several hundred torrents measures well
- * under the fetch timeout, and asking once is cheaper than the per-tag fan-out
- * the qBittorrent path needs.
+ * Every torrent with the declared field list, or with `recentlyActive` only
+ * those that moved data in the last minute. torrent-get selects by id, hash or
+ * recently-active, never by label, so tag filtering stays with the adapter.
  */
 export async function getTorrents(
   baseUrl: string,
-  creds: ClientCredentials
+  creds: ClientCredentials,
+  options?: { recentlyActive?: boolean; signal?: AbortSignal }
 ): Promise<TransmissionTorrent[]> {
-  const args = await rpcCall<unknown>(baseUrl, creds, "torrent-get", {
-    fields: [...TORRENT_FIELDS],
-  })
+  const args = await rpcCall<unknown>(
+    baseUrl,
+    creds,
+    "torrent-get",
+    {
+      fields: [...TORRENT_FIELDS],
+      ...(options?.recentlyActive ? { ids: "recently-active" } : {}),
+    },
+    options?.signal
+  )
   if (!isTransmissionTorrentList(args)) {
-    throw new Error("Invalid torrent-get response from Transmission")
+    throw new Error(`${UNEXPECTED}: torrent-get returned no torrent list`)
   }
   return args.torrents as TransmissionTorrent[]
 }
@@ -218,18 +224,14 @@ export async function getSessionStats(
   baseUrl: string,
   creds: ClientCredentials
 ): Promise<TransmissionSessionStats> {
-  const stats = await rpcCall<Partial<TransmissionSessionStats>>(
-    baseUrl,
-    creds,
-    "session-stats"
-  )
-  return {
-    uploadSpeed: stats.uploadSpeed ?? 0,
-    downloadSpeed: stats.downloadSpeed ?? 0,
+  const stats = await rpcCall<Partial<TransmissionSessionStats>>(baseUrl, creds, "session-stats")
+  // Transmission always sends both, so a missing one is refused, never read as 0.
+  if (typeof stats.uploadSpeed !== "number" || typeof stats.downloadSpeed !== "number") {
+    throw new Error(`${UNEXPECTED}: session-stats had no transfer speeds`)
   }
+  return { uploadSpeed: stats.uploadSpeed, downloadSpeed: stats.downloadSpeed }
 }
 
-/** Prove the daemon is reachable and the credentials are accepted. */
 export async function testSession(baseUrl: string, creds: ClientCredentials): Promise<void> {
-  await rpcCall<unknown>(baseUrl, creds, "session-get", { fields: ["version", "rpc-version"] })
+  await rpcCall<unknown>(baseUrl, creds, "session-get", { fields: ["version"] })
 }

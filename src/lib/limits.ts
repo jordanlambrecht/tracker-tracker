@@ -148,6 +148,14 @@ export const SYNC_STORE_MAX_TORRENTS = 100_000
 export const QBT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_560
 
 /**
+ * Ceiling on a Transmission RPC body, for the same reason. torrent-get returns
+ * every trackerStats sub-field, so a torrent with two trackers is about 2.1 KB
+ * and each further tracker adds about 0.8 KB. 3 KB leaves room for long paths
+ * and a third tracker.
+ */
+export const TRANSMISSION_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 3_072
+
+/**
  * Ceiling on a decoded proxied response when the caller set no maxBytes.
  * Tracker pages and API responses are kilobytes, so this only has to stop a
  * decompression bomb.

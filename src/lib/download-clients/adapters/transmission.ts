@@ -1,5 +1,6 @@
 // src/lib/download-clients/adapters/transmission.ts
 
+import { parseTorrentTags } from "@/lib/fleet"
 import { mapTransmissionTorrent } from "../field-map"
 import {
   getSessionStats,
@@ -7,28 +8,13 @@ import {
   testSession,
   getTorrents as trGetTorrents,
 } from "../transmission/transport"
-import { buildBaseUrl } from "../transport"
+import { buildBaseUrl, clearAuthBlocks } from "../transport"
 import type { ClientAdapter, ClientCredentials, TorrentRecord, TransferStats } from "../types"
 
 /**
- * Transmission adapter.
- *
- * Two things set it apart from the qBittorrent adapter it sits beside:
- *
- *  1. **No delta sync.** Transmission has no `sync/maindata` equivalent, so
- *     getDeltaSync is not implemented and the scheduler takes its existing
- *     full-fetch path (`if (adapter.getDeltaSync)`). One `torrent-get` returns
- *     every torrent with every field, which is cheap enough that the delta
- *     would buy little: a library of several hundred torrents measures well
- *     inside the fetch timeout.
- *
- *  2. **Filtering is local.** Transmission's `ids` argument selects by id or
- *     hash only — there is no server-side label or activity filter — so `tag`
- *     and `filter` are applied here, against the mapped records.
- *
- * Session handling is the CSRF `X-Transmission-Session-Id` handshake, and lives
- * entirely in the transport. It is not an authenticator, so unlike the qBT
- * adapter there is no login step and nothing to retry on credential expiry.
+ * Transmission adapter. It has no delta sync, so the scheduler takes its
+ * full-fetch path, and torrent-get cannot select by label, so tag filtering
+ * happens here against the mapped records.
  */
 export class TransmissionClientAdapter implements ClientAdapter {
   readonly type = "transmission" as const
@@ -44,37 +30,35 @@ export class TransmissionClientAdapter implements ClientAdapter {
   }
 
   async testConnection(): Promise<void> {
-    // Drop the cached CSRF id first. An explicit user-initiated test must reach
-    // the network, and a stale id is one of the few things a restart of the
-    // daemon can leave behind that a test should clear.
+    // An explicit test always reaches the network: the fix may have been a
+    // daemon restart or a settings change no credential comparison can see.
     invalidateSessionId(this.baseUrl)
+    clearAuthBlocks(this.baseUrl)
     await testSession(this.baseUrl, this.creds)
   }
 
-  async getTorrents(options?: { tag?: string; filter?: string }): Promise<TorrentRecord[]> {
-    const raw = await trGetTorrents(this.baseUrl, this.creds)
+  async getTorrents(options?: {
+    tag?: string
+    filter?: string
+    signal?: AbortSignal
+  }): Promise<TorrentRecord[]> {
+    // "active" means bytes are moving now, the way qBittorrent's filter does.
+    // recently-active narrows the request to torrents that moved data in the
+    // last minute, a superset, and the rate check below keeps the moving ones.
+    const active = options?.filter === "active"
+    const raw = await trGetTorrents(this.baseUrl, this.creds, {
+      recentlyActive: active,
+      signal: options?.signal,
+    })
     let torrents = raw.map(mapTransmissionTorrent)
 
     if (options?.tag) {
-      // Case-insensitive on both sides, matching parseTorrentTags() and the
-      // warm-store path in fetch.ts. qBittorrent's server-side tag filter is
-      // case-sensitive; agreeing with the rest of this codebase matters more
-      // than reproducing that.
       const wanted = options.tag.trim().toLowerCase()
-      torrents = torrents.filter((t) =>
-        t.tags
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .includes(wanted)
-      )
+      torrents = torrents.filter((t) => parseTorrentTags(t.tags).includes(wanted))
     }
-
-    // The only filter any caller passes. qBittorrent's "active" means bytes are
-    // moving in either direction, which is what this reproduces.
-    if (options?.filter === "active") {
+    if (active) {
       torrents = torrents.filter((t) => t.uploadSpeed > 0 || t.downloadSpeed > 0)
     }
-
     return torrents
   }
 
@@ -84,5 +68,6 @@ export class TransmissionClientAdapter implements ClientAdapter {
 
   dispose(): void {
     invalidateSessionId(this.baseUrl)
+    clearAuthBlocks(this.baseUrl)
   }
 }
