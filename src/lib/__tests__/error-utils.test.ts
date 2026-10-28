@@ -537,6 +537,14 @@ describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
   })
 })
 
+describe("sanitizeNetworkError RuTracker captcha", () => {
+  it("returns the captcha message unchanged", () => {
+    expect(
+      sanitizeNetworkError("Enter the RuTracker captcha on the tracker page", "Poll failed")
+    ).toBe("Enter the RuTracker captcha on the tracker page")
+  })
+})
+
 describe("sanitizeNetworkError Cloudflare challenge", () => {
   it("names the challenge instead of falling back to Poll failed", () => {
     expect(

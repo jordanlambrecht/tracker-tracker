@@ -148,6 +148,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | ---------------- | ------------ |
     | Cathode-Ray.Tube | CRT          |
 
+=== "RuTracker"
+
+    | Name      | Abbreviation |
+    | --------- | ------------ |
+    | RuTracker | RuT          |
+
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can use them as quicklinks, but they won't poll yet.
 
@@ -316,6 +322,21 @@ Location varies by platform:
 
     !!! warning "Unverified"
         Luminance support hasn't been tested against a live account. If a poll fails or a stat looks wrong, open an issue naming the tracker.
+
+=== "RuTracker"
+
+    RuTracker has no API, so Tracker Tracker logs in with your **username and password** and reads your profile. RuTracker shows no download figure, so it shows your account (name, role or title, join date), your upload figures and seeding count when you share them, and no ratio, charts or history.
+
+    !!! warning "Cloudflare challenge"
+        RuTracker sometimes puts its pages behind a Cloudflare challenge. A poll that meets one fails with "Cloudflare challenge blocked the request" and the next poll tries again.
+
+    The password is encrypted at rest with the same key as every other tracker credential. The login session is kept between polls, so the password is sent again only when the session expires.
+
+    !!! warning "Captcha"
+        When the RuTracker login requires a captcha, the tracker page shows it with a field for the answer; the tracker is polled again once the answer is accepted.
+
+    !!! info "Upload figures need statistics switched on"
+        Upload figures are hidden unless statistics are switched on. In your profile settings (**Профиль → Настройки**), set **Включить учет отданного** to **Да**. With it off, only the account overview is shown.
 
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.

@@ -77,6 +77,31 @@ describe("parsePlatformMeta", () => {
 })
 
 describe("serializeTrackerResponse", () => {
+  // RuTracker's polls are overviews: the account is read from the platform data.
+  it("reads an overview tracker's username and class from its platform data", () => {
+    const tracker = {
+      ...mockTracker,
+      platformType: "rutracker" as const,
+      platformMeta: JSON.stringify({ role: "User", title: "VIP (Adm)", username: "someone" }),
+    }
+    const result = serializeTrackerResponse(tracker, null, (v) => v ?? null)
+    expect(result.latestStats).toBeNull()
+    expect(result.overview).toEqual({ username: "someone", group: "VIP (Adm)" })
+  })
+
+  it("takes the role as the class without a title, and masks both like a snapshot's", () => {
+    const tracker = {
+      ...mockTracker,
+      platformType: "rutracker" as const,
+      platformMeta: JSON.stringify({ role: "User", username: "someone" }),
+    }
+    expect(serializeTrackerResponse(tracker, null, (v) => v ?? null).overview?.group).toBe("User")
+    expect(serializeTrackerResponse(tracker, null, (v) => (v ? "▓" : null)).overview).toEqual({
+      username: "▓",
+      group: "▓",
+    })
+  })
+
   it("has no overview for a tracker that never reported one", () => {
     expect(serializeTrackerResponse(mockTracker, null, (v) => v ?? null).overview).toBeNull()
   })

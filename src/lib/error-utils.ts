@@ -76,7 +76,7 @@ const PROXY_UNUSABLE = new RegExp(`^Failed to connect to \\S+ via proxy: ${PROXY
 const CREDENTIAL_REFUSALS: readonly RegExp[] = [
   /^(?:API key is|Credentials are) missing or invalid for tracker "/,
   /^Invalid (?:API token|username): /,
-  /^Invalid (?:TorrentLeech|Luminance) credentials$/,
+  /^Invalid (?:TorrentLeech|Luminance|RuTracker) credentials$/,
   /^Invalid BTN API key$/,
   /^DigitalCore credentials: (?:uid|pass) contains invalid characters /,
   /^MAM session cookie \(mam_id\) contains invalid characters /,
@@ -251,6 +251,13 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   }
   // Ahead of the ban rule, which would read its "rate limited" as an IP ban.
   if (raw.startsWith(BTN_RATE_LIMITED_CAUSE)) return BTN_RATE_LIMITED_ERROR
+  // RuTracker shows a captcha after repeated logins. The message is returned
+  // unchanged because the tracker page shows the captcha form when it matches.
+  if (/Enter the RuTracker captcha/i.test(raw)) {
+    return "Enter the RuTracker captcha on the tracker page"
+  }
+  if (/Wrong captcha/i.test(raw)) return "Wrong captcha, try the new one"
+  if (/captcha is pending/i.test(raw)) return "No captcha is pending"
   // A tracker answer the adapter could not use, such as a 2xx body it could
   // not read or a scraper's redirect with no readable Location. "Unexpected
   // response from <host>: ..." is the wording the adapters and the shared fetch

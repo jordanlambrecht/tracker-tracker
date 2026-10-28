@@ -6,10 +6,16 @@
 // and username are read from the platform data its last poll stored on the
 // tracker row.
 
-import type { PlatformMeta } from "@/types/tracker-stats"
+import type { PlatformMeta, RuTrackerPlatformMeta } from "@/types/tracker-stats"
 
 /** Each overview platform's class, read from its platform data. */
-const OVERVIEW_CLASS: Partial<Record<string, (meta: PlatformMeta) => string | null>> = {}
+const OVERVIEW_CLASS: Partial<Record<string, (meta: PlatformMeta) => string | null>> = {
+  // The title when the profile shows one, else the role, as the adapter names the class.
+  rutracker: (meta) => {
+    const { title, role } = meta as RuTrackerPlatformMeta
+    return title ?? role ?? null
+  },
+}
 
 export function isOverviewPlatform(platformType: string): boolean {
   return Object.hasOwn(OVERVIEW_CLASS, platformType)
