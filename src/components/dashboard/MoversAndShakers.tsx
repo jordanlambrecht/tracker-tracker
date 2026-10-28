@@ -86,7 +86,7 @@ export function MoversAndShakers({ movers, day = "today" }: MoversAndShakersProp
     } else if (unmatchedTorrents > 0) {
       message =
         `${unmatchedTorrents} torrent${unmatchedTorrents === 1 ? "" : "s"} found, but none ` +
-        "belong to a tracked tracker. Check the tracker's URL, or set a qBittorrent tag on it."
+        "belong to a tracked tracker. Check the tracker's URL, or set a client tag on it."
     } else {
       message = `No torrent activity ${day}`
     }

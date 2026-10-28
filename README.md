@@ -99,7 +99,7 @@ You can check out a few other, longer, screenshots in the docs folder.
 | Client       | Status       | Notes                                                                |
 | ------------ | ------------ | -------------------------------------------------------------------- |
 | qBittorrent  | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history |
-| Transmission | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps. Resolves trackers from the torrent's own announce list, so per-tracker tags are optional |
+| Transmission | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history |
 | Deluge       | 📋 Planned   |                                                                      |
 | rTorrent     | 📋 Planned   |                                                                      |
 

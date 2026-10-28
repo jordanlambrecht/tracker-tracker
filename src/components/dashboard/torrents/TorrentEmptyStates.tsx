@@ -11,7 +11,7 @@ export function NoDownloadClientState() {
       <div className="flex flex-col items-center gap-2 text-center">
         <p className="text-sm font-sans text-secondary">No download client connected</p>
         <p className="text-xs font-sans text-muted max-w-sm">
-          Connect a qBittorrent client to see torrent data.{" "}
+          Connect a download client to see torrent data.{" "}
           <Link href="/settings" className="text-accent hover:underline">
             Go to Settings
           </Link>
@@ -22,7 +22,7 @@ export function NoDownloadClientState() {
 }
 
 /**
- * Shown when a tracker has no qBittorrent tag and nothing matched by announce URL.
+ * Shown when a tracker has no client tag and nothing matched by announce URL.
  *
  * Tags are no longer a prerequisite. Torrents are attributed by announce host
  * when untagged (issue #152). This state means "nothing found", not "not set up".
@@ -36,8 +36,7 @@ export function NoTagState({ trackerName }: { trackerName: string }) {
         <p className="text-sm font-sans text-secondary">No torrents matched {trackerName}</p>
         <p className="text-xs font-sans text-muted max-w-sm">
           Torrents are matched by announce URL, so no tag is needed, but nothing in your client
-          announces to {trackerName}. Set a qBittorrent tag in tracker settings to match by tag
-          instead.
+          announces to {trackerName}. Set a client tag in tracker settings to match by tag instead.
         </p>
       </div>
     </div>

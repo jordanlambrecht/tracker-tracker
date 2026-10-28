@@ -1,7 +1,7 @@
 // src/components/AddTrackerDialog.tsx
 "use client"
 
-import { H2 } from "@typography"
+import { H2, Subtext } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -466,7 +466,7 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
 
         <div className="flex flex-col gap-1">
           <Input
-            label="qBittorrent Tag"
+            label="Client Tag"
             name="tracker-qbt-tag"
             autoComplete="off"
             data-1p-ignore
@@ -474,6 +474,9 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
             onChange={(e) => setQbtTag(e.target.value)}
             placeholder={selectedEntry ? `i.e, ${selectedEntry.slug}` : "i.e, tracker-name"}
           />
+          <Subtext>
+            Optional. The qBittorrent tag or Transmission label on this tracker's torrents.
+          </Subtext>
           <QbtTagWarning tag={qbtTag} />
         </div>
 

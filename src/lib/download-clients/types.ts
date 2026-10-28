@@ -4,6 +4,17 @@ export const VALID_CLIENT_TYPES = ["qbittorrent", "transmission"] as const
 
 export type ClientType = (typeof VALID_CLIENT_TYPES)[number]
 
+/** The port each client's web API listens on out of the box. */
+export const DEFAULT_CLIENT_PORTS: Record<ClientType, number> = {
+  qbittorrent: 8080,
+  transmission: 9091,
+}
+
+/** Transmission's RPC takes HTTP Basic and nothing else. */
+export function clientSupportsApiKey(type: string): boolean {
+  return type === "qbittorrent"
+}
+
 export const VALID_AUTH_METHODS = ["password", "apikey"] as const
 
 export type AuthMethod = (typeof VALID_AUTH_METHODS)[number]

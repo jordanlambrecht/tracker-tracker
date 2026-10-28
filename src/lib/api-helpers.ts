@@ -4,13 +4,14 @@
 //            validateHttpUrl, validateMouseholeUrl, validateMouseholeToken,
 //            validateHexColor, validatePort, validatePastDate, validateJoinedAt,
 //            validateLastAccessAt, validateIntRange, validateMaxLength,
-//            validateAuthMethod, validateUrlPath, validateClientHost, decodeKey
+//            validateAuthMethod, validateAuthMethodForType, validateUrlPath,
+//            validateClientHost, decodeKey
 
 import { NextResponse } from "next/server"
 import { clearSession, readSession, STALE_SESSION_MESSAGE } from "@/lib/auth"
 // Imported from the module rather than the barrel: the barrel pulls in
 // credentials.ts, which is "server-only".
-import { VALID_AUTH_METHODS } from "@/lib/download-clients/types"
+import { clientSupportsApiKey, VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
 import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import { isUnsafeNetworkHost } from "@/lib/network"
@@ -208,6 +209,17 @@ export function validateAuthMethod(value: string): NextResponse | null {
   if (!(VALID_AUTH_METHODS as readonly string[]).includes(value)) {
     return NextResponse.json(
       { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+/** Reject an API key for a client type whose API has no key login. */
+export function validateAuthMethodForType(type: string, authMethod: string): NextResponse | null {
+  if (authMethod === "apikey" && !clientSupportsApiKey(type)) {
+    return NextResponse.json(
+      { error: "This client type has no API key login. Use a username and password" },
       { status: 400 }
     )
   }

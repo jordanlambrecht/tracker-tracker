@@ -111,7 +111,7 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
       <div className="flex min-h-[40vh] items-center justify-center flex-col gap-2">
         <p className="text-secondary text-sm font-mono">No torrent data available.</p>
         <p className="text-tertiary text-xs font-mono">
-          Make sure download clients are configured and trackers have qBT tags set.
+          Make sure a download client is connected and has torrents from trackers you've added.
         </p>
       </div>
     )

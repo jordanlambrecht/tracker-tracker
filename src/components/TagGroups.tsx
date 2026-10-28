@@ -198,9 +198,9 @@ function MemberRow({
             className="w-full font-mono text-sm text-primary bg-transparent focus:outline-none placeholder:text-muted disabled:opacity-40"
             value={tag}
             onChange={(e) => onTagChange(e.target.value)}
-            placeholder="qbt-tag"
+            placeholder="client-tag"
             disabled={disabled}
-            aria-label={isNew ? "New qBT Tag" : "qBT Tag"}
+            aria-label={isNew ? "New Client Tag" : "Client Tag"}
           />
         </div>
         <div className="w-px h-4 bg-border shrink-0" />
@@ -493,7 +493,7 @@ function TagGroupCard({ group, onUpdated }: TagGroupCardProps) {
       {/* Column headers */}
       <div className="flex items-center gap-3 px-3">
         <span className="shrink-0 text-sm leading-none w-4" aria-hidden="true" />
-        <H2 className="flex-1 uppercase tracking-wider">qBT Tag</H2>
+        <H2 className="flex-1 uppercase tracking-wider">Client Tag</H2>
         <div className="w-px h-3" />
         <H2 className="flex-1 uppercase tracking-wider">Display Label</H2>
         <span className="w-4" aria-hidden="true" />
@@ -622,7 +622,7 @@ function TagGroups() {
         <H2 id="tag-groups-heading" className="flex items-center gap-2">
           Tag Groups
           <InfoTip
-            content="Create tag groups to visualize your qBittorrent tags as charts."
+            content="Create tag groups to visualize your client tags as charts."
             docs={DOCS.TAG_GROUPS}
           />
         </H2>
@@ -637,8 +637,8 @@ function TagGroups() {
       </div>
 
       <Paragraph className="mb-6">
-        Bundle qBittorrent tags into named groups for breakdown charts on each tracker&apos;s
-        Torrents tab.
+        Bundle client tags into named groups for breakdown charts on each tracker&apos;s Torrents
+        tab.
       </Paragraph>
 
       {showAddForm && (
