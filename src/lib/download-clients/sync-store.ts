@@ -10,7 +10,8 @@
 //   isStoreFresh           - Whether the store is initialized and updated within a max age
 //   resetStore             - Clear a single client's store (forces rid=0 on next sync)
 //   clearAllStores         - Clear all stores (called on logout/scheduler stop)
-//   replaceStoreTorrents   - Replace all torrents for a client (for non-delta-sync clients)
+//   replaceStoreTorrents   - Replace all torrents for a client (for non-delta-sync clients),
+//                            reporting a refusal when the list would exceed the cap
 
 import { SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -56,8 +57,8 @@ function isTorrentRecord(value: unknown): value is TorrentRecord {
   )
 }
 
-/** Reported by applyMaindataUpdate when the cap refused the whole update. */
-export interface MaindataUpdateRefusal {
+/** Reported when the cap refused a whole update or full list. */
+export interface SyncStoreRefusal {
   held: number
   projected: number
   cap: number
@@ -85,7 +86,7 @@ function projectedSize(store: TorrentStore, data: DeltaSyncResponse): number {
 export function applyMaindataUpdate(
   baseUrl: string,
   data: DeltaSyncResponse
-): MaindataUpdateRefusal | undefined {
+): SyncStoreRefusal | undefined {
   const store = getOrCreateStore(baseUrl)
 
   // Counted before anything is mutated, and before a fullUpdate clears the
@@ -207,12 +208,27 @@ export function clearAllStores(): void {
   stores.clear()
 }
 
-export function replaceStoreTorrents(baseUrl: string, torrents: TorrentRecord[]): void {
+export function replaceStoreTorrents(
+  baseUrl: string,
+  torrents: TorrentRecord[]
+): SyncStoreRefusal | undefined {
   const store = getOrCreateStore(baseUrl)
-  store.torrents.clear()
-  for (const t of torrents) {
-    store.torrents.set(t.hash, t)
+
+  // Built aside and swapped in, so a refusal leaves the previous poll in place.
+  const next = new Map<string, TorrentRecord>()
+  for (const t of torrents) next.set(t.hash, t)
+  if (next.size > SYNC_STORE_MAX_TORRENTS) {
+    const refusal = {
+      held: store.torrents.size,
+      projected: next.size,
+      cap: SYNC_STORE_MAX_TORRENTS,
+    }
+    // Logged without the baseUrl, whose path can carry a proxy key.
+    log.warn(refusal, "sync-store: refused a full list that would exceed the torrent cap")
+    return refusal
   }
+
+  store.torrents = next
   store.initialized = true
   store.lastUpdatedAt = Date.now()
 }

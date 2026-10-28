@@ -351,9 +351,11 @@ export async function deepPollClient(
         (data.torrents != null && Object.keys(data.torrents).length > 0) ||
         (data.torrentsRemoved != null && data.torrentsRemoved.length > 0)
     } else {
-      // Full fetch path (rTorrent and other non-delta clients).
+      // Full fetch path, for clients without delta sync. A refusal fails the
+      // poll, as on the delta path.
       const allTorrents = await adapter.getTorrents()
-      replaceStoreTorrents(adapter.baseUrl, allTorrents)
+      const refused = replaceStoreTorrents(adapter.baseUrl, allTorrents)
+      if (refused) throw new SyncStoreRefusedError(refused.cap)
       hasChanges = true
       isFullSync = true
       syncSummary = `full fetch, ${allTorrents.length} torrents`

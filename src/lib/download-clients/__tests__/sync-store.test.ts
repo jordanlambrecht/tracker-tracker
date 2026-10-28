@@ -334,6 +334,57 @@ describe("replaceStoreTorrents", () => {
   })
 })
 
+describe("replaceStoreTorrents torrent cap", () => {
+  const CAP = SYNC_STORE_MAX_TORRENTS
+
+  function bulk(count: number, prefix: string) {
+    return Array.from({ length: count }, (_, i) => makeTorrent(`${prefix}${i}`))
+  }
+
+  it("accepts a list of exactly the cap", () => {
+    expect(replaceStoreTorrents(BASE, bulk(CAP, "a"))).toBeUndefined()
+    expect(getStoredTorrents(BASE)).toHaveLength(CAP)
+  })
+
+  it("refuses a list past the cap, keeping the last good state", () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"))
+      replaceStoreTorrents(BASE, bulk(10, "a"))
+      vi.advanceTimersByTime(6 * 60 * 1000)
+
+      const refusal = replaceStoreTorrents(BASE, bulk(CAP + 1, "b"))
+
+      expect(refusal).toEqual({ held: 10, projected: CAP + 1, cap: CAP })
+      expect(getStoredTorrents(BASE)).toHaveLength(10)
+      // A refusal is not a new poll. Marking the store fresh would let the warm
+      // read serve the old list as current.
+      expect(isStoreFresh(BASE, 5 * 60 * 1000)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("leaves a store that never synced uninitialised", () => {
+    // An initialised empty store reads as a client that holds no torrents.
+    expect(replaceStoreTorrents(BASE, bulk(CAP + 1, "b"))).toMatchObject({ cap: CAP })
+    expect(isStoreInitialized(BASE)).toBe(false)
+  })
+
+  it("logs the refusal without the base URL, whose path can carry a proxy key", () => {
+    const pathUrl = "http://localhost:8080/proxy/qui-client-key"
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+
+    replaceStoreTorrents(pathUrl, bulk(CAP + 1, "b"))
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      { held: 0, projected: CAP + 1, cap: CAP },
+      expect.any(String)
+    )
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("qui-client-key")
+  })
+})
+
 describe("applyMaindataUpdate validates a delta for a torrent it already holds", () => {
   // The insert path coerces and shape-checks. The update path used to be a
   // bare Object.assign, so once a hash had been seen, a hostile or buggy host
