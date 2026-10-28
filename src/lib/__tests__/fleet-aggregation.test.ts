@@ -624,7 +624,7 @@ describe("computeFleetAggregation", () => {
 
   // 13. Edge cases
   describe("edge cases", () => {
-    // ratio -1 sentinel (qBT's infinite ratio, see the ratio bucket note in fleet-aggregation)
+    // ratio -1 sentinel (qBT's infinite ratio, see INFINITE_TORRENT_RATIO in torrent-utils)
     describe("ratio -1 sentinel", () => {
       it("counts a ratio=-1 torrent in the top ratioDistribution bucket", () => {
         const infinite = makeTorrent({ hash: "inf1", tags: "aither", ratio: -1 })
@@ -646,6 +646,14 @@ describe("computeFleetAggregation", () => {
         // validRatioCount is 0, so avgRatio falls back to 0
         expect(aither?.avgRatio).toBe(0)
       })
+    })
+
+    it("excludes a bad negative ratio from trackerHealth.avgRatio", () => {
+      const good = makeTorrent({ hash: "neg1", tags: "aither", ratio: 2 })
+      const bad = makeTorrent({ hash: "neg2", tags: "aither", ratio: -0.5 })
+      const result = computeFleetAggregation([good, bad], TRACKER_TAGS, CROSS_SEED_TAGS)
+      const aither = result.trackerHealth.find((t) => t.name === "Aither")
+      expect(aither?.avgRatio).toBe(2)
     })
 
     // Torrent whose tags contain no matching tracker tag

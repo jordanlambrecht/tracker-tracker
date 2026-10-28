@@ -19,6 +19,7 @@ import {
   LEECHING_STATES,
   parseTorrentTags,
   SEEDING_STATES,
+  torrentRatioValue,
 } from "@/lib/torrent-utils"
 import type { QbitmanageTagConfig, TagGroup } from "@/types/api"
 
@@ -285,16 +286,16 @@ function useTrackerTorrents({
 
     const categoryStats: CategoryStats[] = [...categoryMap.entries()]
       .map(([name, items]) => {
-        // qBT sends -1 for an infinite ratio, which has no value to average.
-        // Excluded like fleet-aggregation's per-tracker average, not summed as a negative.
-        const measurable = items.filter((t) => t.ratio >= 0)
+        // Neither an infinite ratio nor a bad negative has a value to average, as in
+        // fleet-aggregation's per-tracker average.
+        const ratios = items
+          .map((t) => torrentRatioValue(t.ratio))
+          .filter((r) => Number.isFinite(r) && r >= 0)
         return {
           name,
           count: items.length,
           totalSize: items.reduce((s, t) => s + t.size, 0),
-          avgRatio: measurable.length
-            ? measurable.reduce((s, t) => s + t.ratio, 0) / measurable.length
-            : 0,
+          avgRatio: ratios.length ? ratios.reduce((s, r) => s + r, 0) / ratios.length : 0,
           avgSeedTime: items.reduce((s, t) => s + t.seedingTime, 0) / items.length,
           avgSwarmSeeds: items.reduce((s, t) => s + t.swarmSeeders, 0) / items.length,
         }

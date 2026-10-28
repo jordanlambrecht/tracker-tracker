@@ -248,6 +248,17 @@ describe("useTrackerTorrents — category stats", () => {
     expect(result.current.categoryStats[0]?.avgRatio).toBe(2)
   })
 
+  it("excludes a bad negative ratio from the category ratio average", async () => {
+    mockFetch({
+      live: makeResponse({
+        torrents: [makeTorrent("h1", { ratio: 2 }), makeTorrent("h2", { ratio: -0.5 })],
+      }),
+    })
+    const { result } = renderTracker("movies")
+    await waitFor(() => expect(result.current.torrents).toHaveLength(2))
+    expect(result.current.categoryStats[0]?.avgRatio).toBe(2)
+  })
+
   it("reports 0 when every ratio in the category is the sentinel", async () => {
     mockFetch({
       live: makeResponse({ torrents: [makeTorrent("h1", { ratio: -1 })] }),

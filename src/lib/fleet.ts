@@ -14,6 +14,7 @@ export interface TorrentRaw {
   category: string
   uploaded: number
   downloaded: number
+  /** -1 is INFINITE_TORRENT_RATIO (torrent-utils.ts). Read it with torrentRatioValue. */
   ratio: number
   size: number
   seedingTime: number
