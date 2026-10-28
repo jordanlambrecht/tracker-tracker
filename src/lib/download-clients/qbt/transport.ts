@@ -404,7 +404,12 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
       }
       arr = parsed
     } catch (err) {
-      log.warn({ err }, "parseCachedTorrents: JSON parse failed")
+      // The name, never the message. V8 quotes the input in it, and the cache
+      // holds torrent names and announce hosts.
+      log.warn(
+        { error: err instanceof Error ? err.name : typeof err },
+        "parseCachedTorrents: JSON parse failed"
+      )
       return []
     }
   } else if (Array.isArray(raw)) {

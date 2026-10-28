@@ -1066,13 +1066,20 @@ describe("computeSystemAlerts", () => {
   })
 
   it("generates client-error alerts for enabled clients with errors", () => {
+    const since = "2026-10-28T00:00:00.000Z"
     const result = computeSystemAlerts({
       currentVersion: "1.0.0",
       failedBackups: [],
       clients: [
-        { id: 1, name: "qBittorrent", enabled: true, lastError: "Connection refused" },
-        { id: 2, name: "Deluge", enabled: false, lastError: "Timed out" },
-        { id: 3, name: "Transmission", enabled: true, lastError: null },
+        {
+          id: 1,
+          name: "qBittorrent",
+          enabled: true,
+          lastError: "Connection refused",
+          errorSince: since,
+        },
+        { id: 2, name: "Deluge", enabled: false, lastError: "Timed out", errorSince: since },
+        { id: 3, name: "Transmission", enabled: true, lastError: null, errorSince: null },
       ],
       snapshotRetentionDays: 365,
     })
@@ -1084,6 +1091,29 @@ describe("computeSystemAlerts", () => {
     expect(clientAlert.trackerName).toBe("qBittorrent")
     expect(clientAlert.message).toBe("Connection refused")
     expect(clientAlert.dismissible).toBe(false)
+  })
+
+  // errorSince is the heartbeat's outage clock. A deep-poll failure on a client
+  // that still answers sets lastError alone, and must not read as an outage.
+  // Unlike the outage alert, the user may dismiss it.
+  it("warns instead of calling a reachable client down when only the deep poll failed", () => {
+    const result = computeSystemAlerts({
+      currentVersion: "1.0.0",
+      failedBackups: [],
+      clients: [
+        { id: 4, name: "Seedbox", enabled: true, lastError: "Stats paused", errorSince: null },
+      ],
+      snapshotRetentionDays: 365,
+    })
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({
+      key: "client-warning-4",
+      type: "client-warning",
+      trackerName: "Seedbox",
+      trackerColor: "var(--color-warn)",
+      message: "Stats paused",
+      dismissible: true,
+    })
   })
 
   it("generates retention-unconfigured alert when snapshotRetentionDays is null", () => {
@@ -1129,7 +1159,15 @@ describe("computeSystemAlerts", () => {
       latestVersion: "2.0.0",
       currentVersion: "1.0.0",
       failedBackups: [{ createdAt: "2026-01-15T03:00:00.000Z" }],
-      clients: [{ id: 1, name: "qBt", enabled: true, lastError: "Unreachable" }],
+      clients: [
+        {
+          id: 1,
+          name: "qBt",
+          enabled: true,
+          lastError: "Unreachable",
+          errorSince: "2026-01-15T03:00:00.000Z",
+        },
+      ],
       snapshotRetentionDays: null,
     })
     expect(result).toHaveLength(4)

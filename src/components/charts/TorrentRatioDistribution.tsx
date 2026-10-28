@@ -5,6 +5,7 @@ import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
 import { getRatioBuckets } from "@/lib/fleet"
 import { formatCount, formatPercent } from "@/lib/formatters"
+import { torrentRatioValue } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildBucketedBarOption } from "./lib/chart-helpers"
@@ -104,9 +105,8 @@ function TorrentRatioDistribution(props: TorrentRatioDistributionProps) {
       buckets,
       torrents: rawTorrents,
       getThreshold: (b) => b.max,
-      // qBT's -1 is an infinite ratio (see fleet-aggregation.ts), so it counts
-      // in the top bucket like the fleet chart.
-      getValue: (t) => (t.ratio === -1 ? Number.POSITIVE_INFINITY : t.ratio),
+      // An infinite ratio counts in the top bucket, as in the fleet chart.
+      getValue: (t) => torrentRatioValue(t.ratio),
       getLabel: (b) => b.label,
       getColor: (b) => b.color,
       labelPrefix: "Ratio",

@@ -66,6 +66,19 @@ describe("TorrentAgeScatter2D", () => {
     expect(rows[2][3]).toBe(10)
   })
 
+  it("caps qBittorrent's -1 infinite ratio at 10, as it caps the old 9999", () => {
+    optionSpy.mockClear()
+    const infinite = [
+      { addedAt: now - 10 * DAY, seedingTime: 5 * DAY, size: 2 * GIB, ratio: -1 },
+      { addedAt: now - 10 * DAY, seedingTime: 5 * DAY, size: 2 * GIB, ratio: 9999 },
+    ]
+    // biome-ignore lint/suspicious/noExplicitAny: fixture trimmed to what the chart reads
+    render(<TorrentAgeScatter2D torrents={infinite as any} accentColor="#00d4ff" />)
+
+    const rows = lastOption().dataset?.source ?? []
+    expect(rows.map((row) => row[3])).toEqual([10, 10])
+  })
+
   it("maps the third dimension to symbol size rather than dropping it", () => {
     optionSpy.mockClear()
     // biome-ignore lint/suspicious/noExplicitAny: fixture trimmed to what the chart reads

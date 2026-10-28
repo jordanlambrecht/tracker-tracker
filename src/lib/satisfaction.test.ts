@@ -176,8 +176,14 @@ describe("ratioProgress", () => {
   })
 
   it("treats a negative sentinel ratio as no progress", () => {
-    // Transmission uses -1 for "not applicable".
+    // qBittorrent's infinite ratio, INFINITE_TORRENT_RATIO in torrent-utils.
     expect(ratioProgress(-1, req)).toBe(0)
+  })
+
+  it("treats any other negative ratio as no progress", () => {
+    // A bad value from a client. A negative width is invalid CSS like NaN%, so
+    // the bar would fill.
+    expect(ratioProgress(-0.5, req)).toBe(0)
   })
 
   it("treats NaN as no progress", () => {

@@ -19,13 +19,17 @@ import { Dialog } from "@/components/ui/Dialog"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { Toggle } from "@/components/ui/Toggle"
-import { Subtext } from "@/components/ui/Typography"
 import { RETENTION_PROMPT_KEY, useRetentionPromptState } from "@/hooks/useRetentionPrompt"
 import {
   SNAPSHOT_RETENTION_DEFAULT,
   SNAPSHOT_RETENTION_MAX,
   SNAPSHOT_RETENTION_MIN,
 } from "@/lib/limits"
+
+// The dialog's own copy, read in full on first run. Subtext's muted gray is fine
+// print and too close to the dialog background, so this matches ConfirmAction's
+// message color.
+const BODY_TEXT = "text-xs font-sans text-primary leading-relaxed"
 
 interface RetentionPromptDialogProps {
   open: boolean
@@ -74,10 +78,10 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
       size="sm"
     >
       <div className="flex flex-col gap-4">
-        <Subtext>
+        <p className={BODY_TEXT}>
           Every poll stores a snapshot of your tracker stats. These power the charts and history,
           and keeping them costs a small amount of database space.
-        </Subtext>
+        </p>
 
         <Toggle
           label="Prune old snapshots automatically"
@@ -114,10 +118,10 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
           />
         )}
 
-        <Subtext>
+        <p className={BODY_TEXT}>
           Download client uptime data is pruned after 90 days either way, and that limit is separate
           and is not affected by this choice.
-        </Subtext>
+        </p>
 
         <Notice message={error ?? undefined} />
 
@@ -130,7 +134,7 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
           />
         </div>
 
-        <Subtext>You can change this at any time in Settings.</Subtext>
+        <p className={BODY_TEXT}>You can change this at any time in Settings.</p>
       </div>
     </Dialog>
   )

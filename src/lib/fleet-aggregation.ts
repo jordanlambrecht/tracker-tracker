@@ -18,6 +18,7 @@ import {
   type TrackerTag,
   toMonthKey,
 } from "@/lib/fleet"
+import { torrentRatioValue } from "@/lib/torrent-utils"
 import { trackerAnnounceKeys, trackerHostKey } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
 
@@ -274,13 +275,10 @@ export function computeFleetAggregation(
     if (isCrossSeed) crossSeededCount++
 
     // -- Ratio bucket --
-    // qBT 5.1.1+ sends -1 for an infinite ratio, meaning something uploaded with
-    // nothing downloaded and no pieces held. Older versions send their 9999 cap for
-    // the same torrent, so -1 counts in the top bucket. A complete cross-seed is finite.
-    if (torrent.ratio === -1) {
-      ratioCounts[RATIO_BUCKETS.length - 1]++
-    } else if (torrent.ratio >= 0) {
-      const rBucketIdx = RATIO_BUCKETS.findIndex((b: Bucket) => torrent.ratio < b.max)
+    // An infinite ratio is under no bucket's max, so the fallback puts it in the top one.
+    const ratio = torrentRatioValue(torrent.ratio)
+    if (ratio >= 0) {
+      const rBucketIdx = RATIO_BUCKETS.findIndex((b: Bucket) => ratio < b.max)
       ratioCounts[rBucketIdx === -1 ? RATIO_BUCKETS.length - 1 : rBucketIdx]++
     }
 
@@ -341,9 +339,10 @@ export function computeFleetAggregation(
       const acc = trackerAccMap.get(matchedTrackerTag)
       if (acc) {
         acc.torrentCount++
-        // -1 counts in the top ratio bucket above but has no value to average.
-        if (torrent.ratio >= 0) {
-          acc.ratioSum += torrent.ratio
+        // An infinite ratio counts in the top bucket above but has no value to
+        // average, and a bad negative is no ratio at all.
+        if (Number.isFinite(ratio) && ratio >= 0) {
+          acc.ratioSum += ratio
           acc.validRatioCount++
         }
         acc.uploadSpeedSum += torrent.uploadSpeed

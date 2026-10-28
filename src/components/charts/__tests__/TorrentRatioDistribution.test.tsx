@@ -37,15 +37,4 @@ describe("TorrentRatioDistribution per-tracker buckets", () => {
       ["10+", 1],
     ])
   })
-
-  it("leaves any other negative ratio in the bottom bucket", () => {
-    expect(bucketCounts([-0.5])).toEqual([
-      ["<0.5", 1],
-      ["0.5-1", 0],
-      ["1-2", 0],
-      ["2-5", 0],
-      ["5-10", 0],
-      ["10+", 0],
-    ])
-  })
 })

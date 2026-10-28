@@ -28,7 +28,13 @@ export function selectActiveTrackers(trackers: TrackerSummary[]) {
 }
 
 export function selectClientsForAlerts(clients: SafeDownloadClient[]) {
-  return clients.map(({ id, name, enabled, lastError }) => ({ id, name, enabled, lastError }))
+  return clients.map(({ id, name, enabled, lastError, errorSince }) => ({
+    id,
+    name,
+    enabled,
+    lastError,
+    errorSince,
+  }))
 }
 
 interface DashboardData {

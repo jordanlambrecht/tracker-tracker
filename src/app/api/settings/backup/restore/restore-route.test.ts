@@ -728,6 +728,20 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(recorder.inserts).toHaveLength(0)
   })
 
+  // The client routes refuse an unknown type, so one such client refuses the
+  // whole backup rather than restoring a row no adapter can be built for.
+  it("rejects a download client whose type is not a supported client", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(payload.downloadClients[0] as Record<string, unknown>).type = "deluge"
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: "Invalid or corrupted backup file" })
+    expect(recorder.inserts).toHaveLength(0)
+  })
+
   it("restores every snapshot column the backup carries", async () => {
     const { trackerSnapshots: snapshotsTable } =
       await vi.importActual<typeof import("@/lib/db/schema")>("@/lib/db/schema")

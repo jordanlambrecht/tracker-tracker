@@ -1750,6 +1750,12 @@ function checkLockdownFlowIntegrity(): CheckResult {
   if (!/\bauthenticate\s*\(/.test(code)) {
     findings.push({ file: rel, detail: "Lockdown must require active session via authenticate()" })
   }
+  if (!/\bverifyPassword\s*\(/.test(code)) {
+    findings.push({
+      file: rel,
+      detail: "Lockdown must require master password re-verification (intent confirmation)",
+    })
+  }
   if (!/\bstopScheduler\b/.test(code)) {
     findings.push({
       file: rel,

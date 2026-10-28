@@ -371,17 +371,16 @@ describe("replaceStoreTorrents torrent cap", () => {
     expect(isStoreInitialized(BASE)).toBe(false)
   })
 
-  it("logs the refusal without the base URL, whose path can carry a proxy key", () => {
-    const pathUrl = "http://localhost:8080/proxy/qui-client-key"
+  // The scheduler logs the refusal once, naming the client. A second line here
+  // would double every refusal, and the store only knows the base URL, whose
+  // path can carry a proxy key.
+  it("returns the refusal for the scheduler to log and logs nothing itself", () => {
     const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
 
-    replaceStoreTorrents(pathUrl, bulk(CAP + 1, "b"))
+    const refusal = replaceStoreTorrents(BASE, bulk(CAP + 1, "b"))
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      { held: 0, projected: CAP + 1, cap: CAP },
-      expect.any(String)
-    )
-    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("qui-client-key")
+    expect(refusal).toEqual({ held: 0, projected: CAP + 1, cap: CAP })
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 })
 
@@ -522,22 +521,19 @@ describe("applyMaindataUpdate torrent cap", () => {
     expect(getStoreRevision(BASE_URL)).toBe(1)
   })
 
-  it("logs the refusal without the base URL, whose path can carry a proxy key", () => {
-    const pathUrl = "http://localhost:8080/proxy/qui-client-key"
-    applyMaindataUpdate(pathUrl, bulk(10, "a"))
+  // See the full-list sibling: the scheduler logs it once, naming the client.
+  it("returns the refusal for the scheduler to log and logs nothing itself", () => {
+    applyMaindataUpdate(BASE_URL, bulk(10, "a"))
     const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
 
-    applyMaindataUpdate(pathUrl, {
+    const refusal = applyMaindataUpdate(BASE_URL, {
       rid: 99,
       fullUpdate: true,
       torrents: bulkTorrents(CAP + 1, "b"),
     } as DeltaSyncResponse)
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      { held: 10, projected: CAP + 1, cap: CAP },
-      expect.any(String)
-    )
-    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("qui-client-key")
+    expect(refusal).toEqual({ held: 10, projected: CAP + 1, cap: CAP })
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it("accepts a delta that only updates hashes it already holds", () => {

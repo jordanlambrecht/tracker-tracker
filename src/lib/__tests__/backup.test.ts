@@ -258,6 +258,34 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("downloadClients[0].port")
   })
 
+  // Passes every client check. No authMethod, like a backup from before API-key auth.
+  const validClient = () => ({
+    id: 1,
+    host: "192.168.1.1",
+    port: 8080,
+    type: "qbittorrent",
+    encryptedUsername: "enc",
+    encryptedPassword: "enc",
+  })
+
+  // The client routes refuse these, so a restore must not store them either.
+  it.each([
+    ["an unknown type", { type: "deluge" }, "type must be one of"],
+    ["no type", { type: undefined }, "type must be a string"],
+    ["a numeric type", { type: 1 }, "type must be a string"],
+    ["an unknown authMethod", { authMethod: "token" }, "authMethod must be one of"],
+  ])("rejects a download client with %s", (_case, fields, message) => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.downloadClients = [{ ...validClient(), ...fields }]
+    expect(() => validateBackupJson(p)).toThrow(`downloadClients[0].${message}`)
+  })
+
+  it("accepts a download client without authMethod", () => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.downloadClients = [validClient()]
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
   // The Prowlarr routes refuse these, so a restore must not store them either.
   it.each([
     "http://user:secret@prowlarr.test:9696",

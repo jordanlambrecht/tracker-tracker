@@ -284,6 +284,28 @@ describe("POST /api/alerts/dismissed — non-dismissible rejection", () => {
     expect((await res.json()).success).toBe(true)
   })
 
+  // A deep-poll failure on a client that still answers. Unlike client-error,
+  // the user may dismiss it.
+  it("allows dismissing client-warning alert type", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      key: "client-warning-1",
+      type: "client-warning",
+    })
+
+    const mockOnConflictDoNothing = vi.fn().mockResolvedValue(undefined)
+    const mockValues = vi.fn().mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "POST")
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect(mockValues).toHaveBeenCalledWith({
+      alertKey: "client-warning-1",
+      alertType: "client-warning",
+    })
+  })
+
   it("allows dismissing zero-seeding alert type", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       key: "some-key",

@@ -151,6 +151,10 @@ const MOCK_MAINDATA_RESPONSE = {
   torrentsRemoved: [],
 }
 
+/** The card text for a refusal of { held: 60_000, projected: 120_000, cap: 100_000 }. */
+const REFUSED_TEXT =
+  "This client has 120,000 torrents, more than the 100,000 Tracker Tracker tracks per client. Stats are paused and the last figures are kept."
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -998,10 +1002,12 @@ describe("heartbeat failure logging", () => {
     encryptedApiKey: "",
     encryptedUrlPath: "",
     crossSeedTags: null,
-    lastError: null,
+    errorSince: null as Date | null,
   }
 
   let scheduled: Map<string, () => Promise<void>>
+  /** What the heartbeat's select returns, so a test can stage the row's error state. */
+  let heartbeatRow: Record<string, unknown>
 
   /** Lets the floating promise started by startClientScheduler settle. */
   function flushAsync(): Promise<void> {
@@ -1018,7 +1024,7 @@ describe("heartbeat failure logging", () => {
       (columns: Record<string, unknown>) => {
         const cols = columns ?? {}
         const isHeartbeat = "encryptedUsername" in cols && !("pollIntervalSeconds" in cols)
-        const where = vi.fn().mockResolvedValue(isHeartbeat ? [HEARTBEAT_ROW] : [])
+        const where = vi.fn().mockResolvedValue(isHeartbeat ? [heartbeatRow] : [])
         return { from: vi.fn().mockReturnValue({ where }) }
       }
     )
@@ -1050,6 +1056,7 @@ describe("heartbeat failure logging", () => {
     stopClientScheduler()
     clearFailureLogGate()
 
+    heartbeatRow = { ...HEARTBEAT_ROW }
     mockHeartbeatOnlySelect()
     mockDbUpdateClient()
   })
@@ -1116,6 +1123,49 @@ describe("heartbeat failure logging", () => {
     mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
     await heartbeatTick()
     expect(vi.mocked(log.error)).toHaveBeenCalledTimes(2)
+  })
+
+  // errorSince is the heartbeat's outage clock. A deep-poll error on a client
+  // that still answers has none, and a heartbeat that cleared it would hide it
+  // within 5s of every poll.
+  it("leaves a deep-poll error in place when the heartbeat succeeds", async () => {
+    // The row as the DB holds it. The heartbeat must not act on lastError.
+    heartbeatRow = {
+      ...HEARTBEAT_ROW,
+      lastError: "Request timed out",
+      errorSince: null,
+    }
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    await heartbeatTick()
+
+    expect(mockSet).not.toHaveBeenCalled()
+  })
+
+  it("opens an outage with errorSince and closes it on the next good heartbeat", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    const failure = mockSet.mock.calls.at(-1)?.[0] as Record<string, unknown>
+    expect(failure.lastError).toBe("Connection failed")
+    // COALESCE(errorSince, NOW()), so the clock keeps the outage's first failure.
+    expect(failure.errorSince).toBeDefined()
+    expect(failure.errorSince).not.toBeNull()
+
+    heartbeatRow = { ...HEARTBEAT_ROW, errorSince: new Date() }
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    mockSet.mockClear()
+    await heartbeatTick()
+
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({ lastError: null, errorSince: null })
+    )
   })
 })
 
@@ -1312,9 +1362,29 @@ describe("deepPollClient durability", () => {
     expect(mockValues).not.toHaveBeenCalled()
     const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
     expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
-    // The cap is what the operator has to act on, so it survives into the card.
-    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
-    expect(setCalls.map((s) => String(s.lastError)).join(" ")).toContain("100000")
+    // The card shows lastError as written, so it is the user's sentence with
+    // grouped counts. No errorSince: the client still answers, so it is not down.
+    expect(setCalls).toEqual([{ lastError: REFUSED_TEXT, updatedAt: expect.any(Date) }])
+  })
+
+  // The store returns the refusal without logging it, so this is the one line,
+  // and it names the client without the base URL, whose path can carry a key.
+  it("logs a refusal once with the client and the store's counts", async () => {
+    setupFullHappyPathMocks()
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(refusal)
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(vi.mocked(log.error)).toHaveBeenCalledOnce()
+    expect(vi.mocked(log.error).mock.calls[0][0]).toMatchObject({
+      clientId: 1,
+      clientName: "Home qBT",
+      held: 60_000,
+      projected: 120_000,
+      cap: 100_000,
+    })
+    expect(JSON.stringify(vi.mocked(log.error).mock.calls)).not.toContain(mockAdapter.baseUrl)
   })
 
   it("does not re-sync from rid 0 after the store refuses an update", async () => {
@@ -1361,7 +1431,7 @@ describe("deepPollClient durability", () => {
     expect(mockValues).not.toHaveBeenCalled()
     const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
     expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
-    expect(setCalls.map((s) => String(s.lastError)).join(" ")).toContain("100000")
+    expect(setCalls).toEqual([{ lastError: REFUSED_TEXT, updatedAt: expect.any(Date) }])
   })
 
   it("writes no snapshot when the store cannot be re-initialised", async () => {
@@ -1558,5 +1628,149 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
       expect.any(Error),
       "Failed to flush uptime buckets during scheduler stop"
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A refusal waits the client's interval. lastPolledAt stays put on purpose, so
+// without the wait the client is overdue on every 30s tick and refetches its
+// whole library only to be refused again.
+// ---------------------------------------------------------------------------
+
+describe("deep poll backs off after a sync store refusal", () => {
+  const DEEP_POLL_CRON = "*/30 * * * * *"
+  const INTERVAL_S = 300
+  const START = new Date("2026-08-17T12:00:00Z").getTime()
+  const REFUSED_ROW = { ...MOCK_CLIENT, pollIntervalSeconds: INTERVAL_S, errorSince: null }
+
+  let scheduled: Map<string, () => Promise<void>>
+  /** The heartbeat's enabled list, emptied to stand for a disabled client. */
+  let heartbeatRows: unknown[]
+
+  /**
+   * Routes each select by its projection: the heartbeat list, the overdue list
+   * (never polled, so always overdue), the client row, the tracker read, and
+   * the prune's settings read.
+   */
+  function mockRefusingClientSelect() {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        if ("retention" in cols) {
+          return { from: () => ({ limit: async () => [{ retention: null }] }) }
+        }
+        if ("qbtTag" in cols) return { from: async () => [] }
+        if ("pollIntervalSeconds" in cols && "encryptedUsername" in cols) {
+          return { from: () => ({ where: () => ({ limit: async () => [REFUSED_ROW] }) }) }
+        }
+        if ("pollIntervalSeconds" in cols) {
+          const due = { id: 1, enabled: true, pollIntervalSeconds: INTERVAL_S, lastPolledAt: null }
+          return { from: () => ({ where: async () => [due] }) }
+        }
+        return { from: () => ({ where: async () => heartbeatRows }) }
+      }
+    )
+  }
+
+  async function deepPollTickAt(offsetMs: number): Promise<void> {
+    vi.setSystemTime(START + offsetMs)
+    const tick = scheduled.get(DEEP_POLL_CRON)
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  async function heartbeatTickAt(offsetMs: number): Promise<void> {
+    vi.setSystemTime(START + offsetMs)
+    const tick = scheduled.get("*/5 * * * * *")
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(START)
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    vi.mocked(applyMaindataUpdate).mockReturnValue(refusal)
+
+    scheduled = new Map()
+    vi.mocked(cron.schedule).mockImplementation(((
+      expression: string,
+      task: () => Promise<void>
+    ) => {
+      scheduled.set(expression, task)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    // Also clears the refusal wait, which lives on globalThis.
+    stopClientScheduler()
+    clearFailureLogGate()
+    const gt = globalThis as Record<string, unknown>
+    gt.__lastPruneAt = undefined
+    gt.__deepPollInFlight = undefined
+    gt.__heartbeatInFlight = undefined
+
+    heartbeatRows = [REFUSED_ROW]
+    mockRefusingClientSelect()
+    mockDbUpdateClient()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("does not poll a refused client again before its interval, and does after", async () => {
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    await deepPollTickAt(30_000)
+    await deepPollTickAt(INTERVAL_S * 1000 - 1)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    await deepPollTickAt(INTERVAL_S * 1000)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("keeps the fast retry for a client that failed for any other reason", async () => {
+    mockAdapter.getDeltaSync.mockRejectedValue(new Error("connect ECONNREFUSED 192.168.1.100:8080"))
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTickAt(30_000)
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  // A user over the cap may disable the client, trim the library and enable it
+  // again. The wait goes with the disable, so the next tick polls it.
+  it("forgets the wait once the client is disabled", async () => {
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    heartbeatRows = []
+    await heartbeatTickAt(10_000)
+    heartbeatRows = [REFUSED_ROW]
+    await deepPollTickAt(30_000)
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("retries a refused client at once after a scheduler restart", async () => {
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    stopClientScheduler()
+    vi.setSystemTime(START + 30_000)
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
   })
 })

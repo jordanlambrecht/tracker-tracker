@@ -95,11 +95,8 @@ export function applyMaindataUpdate(
   // previous poll and a caller that reads it now files stale figures as fresh.
   const projected = projectedSize(store, data)
   if (projected > SYNC_STORE_MAX_TORRENTS) {
-    const refusal = { held: store.torrents.size, projected, cap: SYNC_STORE_MAX_TORRENTS }
-    // Logged without the baseUrl, whose path can carry a proxy key. The
-    // scheduler names the client when it logs the SyncStoreRefusedError.
-    log.warn(refusal, "sync-store: refused an update that would exceed the torrent cap")
-    return refusal
+    // Not logged here: the scheduler logs it once, with the client's identity.
+    return { held: store.torrents.size, projected, cap: SYNC_STORE_MAX_TORRENTS }
   }
 
   if (data.fullUpdate) {
@@ -218,14 +215,8 @@ export function replaceStoreTorrents(
   const next = new Map<string, TorrentRecord>()
   for (const t of torrents) next.set(t.hash, t)
   if (next.size > SYNC_STORE_MAX_TORRENTS) {
-    const refusal = {
-      held: store.torrents.size,
-      projected: next.size,
-      cap: SYNC_STORE_MAX_TORRENTS,
-    }
-    // Logged without the baseUrl, whose path can carry a proxy key.
-    log.warn(refusal, "sync-store: refused a full list that would exceed the torrent cap")
-    return refusal
+    // Not logged here: the scheduler logs it once, with the client's identity.
+    return { held: store.torrents.size, projected: next.size, cap: SYNC_STORE_MAX_TORRENTS }
   }
 
   store.torrents = next

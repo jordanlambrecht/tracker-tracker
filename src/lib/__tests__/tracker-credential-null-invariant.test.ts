@@ -71,9 +71,12 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
 })
 
 import { POST as LockdownPOST } from "@/app/api/settings/lockdown/route"
+import { clearSession, verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { prowlarrInstances, trackers } from "@/lib/db/schema"
+import { downloadClients, prowlarrInstances, trackers } from "@/lib/db/schema"
 import { scrubAndDeleteAll } from "@/lib/nuke"
+import { stopScheduler } from "@/lib/scheduler"
+import { clearSchedulerKey } from "@/lib/scheduler-key-store"
 
 /** The value written to the vault column by the run under test. */
 function trackerVaultWrite(): Record<string, unknown> {
@@ -204,5 +207,42 @@ describe("nuke scrubs Prowlarr instances", () => {
     const deleteAt = ops.findIndex((o) => o.kind === "delete" && o.table === prowlarrInstances)
     expect(scrubAt).toBeGreaterThanOrEqual(0)
     expect(deleteAt).toBeGreaterThan(scrubAt)
+  })
+})
+
+// download_clients credential columns are NOT NULL, so lockdown blanks them to "".
+describe("emergency lockdown revokes download client credentials", () => {
+  it("blanks every credential, disables the client and says why", async () => {
+    await LockdownPOST(new Request("http://localhost/api/settings/lockdown", { method: "POST" }))
+
+    const found = writes.filter((w) => w.table === downloadClients)
+    expect(found).toHaveLength(1)
+    expect(found[0].values).toMatchObject({
+      encryptedUsername: "",
+      encryptedPassword: "",
+      encryptedApiKey: "",
+      encryptedUrlPath: "",
+      authMethod: "password",
+      enabled: false,
+      lastError: "Emergency lockdown: credentials revoked",
+    })
+  })
+})
+
+describe("emergency lockdown with a wrong master password", () => {
+  it("returns 401 and writes nothing", async () => {
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false)
+
+    const response = await LockdownPOST(
+      new Request("http://localhost/api/settings/lockdown", { method: "POST" })
+    )
+
+    expect(response.status).toBe(401)
+    expect(db.transaction).not.toHaveBeenCalled()
+    expect(writes).toEqual([])
+    expect(clearSession).not.toHaveBeenCalled()
+    // Polling stops outside the transaction, so it is checked on its own.
+    expect(stopScheduler).not.toHaveBeenCalled()
+    expect(clearSchedulerKey).not.toHaveBeenCalled()
   })
 })

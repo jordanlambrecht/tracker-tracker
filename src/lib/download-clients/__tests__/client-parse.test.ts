@@ -162,6 +162,20 @@ describe("parseCachedTorrents", () => {
       expect(parseCachedTorrents("{not valid json}")).toEqual([])
     })
 
+    it("logs the parse error's name, never its message", () => {
+      const warn = vi.mocked(log.warn)
+      warn.mockClear()
+      const raw = "must-not-be-logged"
+      // V8 quotes a short input in full in the message.
+      expect(() => JSON.parse(raw)).toThrow(raw)
+
+      expect(parseCachedTorrents(raw)).toEqual([])
+
+      expect(warn).toHaveBeenCalledOnce()
+      const [payload] = warn.mock.calls[0]
+      expect(payload).toEqual({ error: "SyntaxError" })
+    })
+
     it("returns [] for a JSON string of a plain number", () => {
       expect(parseCachedTorrents("42")).toEqual([])
     })
