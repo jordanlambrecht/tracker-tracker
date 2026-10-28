@@ -1,7 +1,7 @@
 // src/components/charts/__tests__/TagGroupBreakdownChart.test.tsx
 //
 // Tag-group charts render torrent COUNTS, and every count slot used to print the
-// raw number — a fleet with 12345 matching torrents showed "12345". The numbers
+// raw number, a fleet with 12345 matching torrents showed "12345". The numbers
 // mode of this same component already used formatCount(), so the bar/donut/treemap
 // modes were the odd ones out.
 //
@@ -99,7 +99,7 @@ describe("TagGroupBreakdownChart — thousand separators", () => {
       const option = optionFor("donut")
       const out = tooltipFormatter(option)({ name: "1080p", value: 12345, percent: 42 })
       expect(out).toContain("12,345")
-      expect(out).toContain("42%")
+      expect(out).toContain("(42.0%)")
     })
 
     it("separates thousands in the slice label", () => {

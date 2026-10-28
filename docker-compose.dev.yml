@@ -1,7 +1,7 @@
 # docker-compose.dev.yml
 #
 # Local qBittorrent servers for exercising the download-client auth paths by
-# hand. Not used by CI or by `docker-compose.yml` — start it explicitly:
+# hand. Not used by CI or by `docker-compose.yml`. Start it explicitly:
 #
 #   docker compose -f docker-compose.dev.yml up -d
 #
@@ -12,13 +12,13 @@
 # Three servers because the auth surface has three distinct shapes and none of
 # them can be faithfully mocked:
 #
-#   :8081  5.1.2   — legacy: login returns 200 "Ok." and a cookie named SID
-#   :8080  5.2.x   — modern: login returns 204 and a cookie named QBT_SID_8080,
-#                    and Preferences → Web UI → API keys can issue a Bearer key
-#   :9091  5.2.x   — same as above on a non-default port, so the cookie is
-#                    named QBT_SID_9091. Proves the client reads the name off
-#                    the response instead of deriving it from configuration —
-#                    a mistake no fixture on the default port can catch.
+#   :8081  5.1.2   legacy: login returns 200 "Ok." and a cookie named SID
+#   :8080  5.2.x   modern: login returns 204 and a cookie named QBT_SID_8080,
+#                  and Preferences → Web UI → API keys can issue a Bearer key
+#   :9091  5.2.x   same as above on a non-default port, so the cookie is
+#                  named QBT_SID_9091. Proves the client reads the name off
+#                  the response instead of deriving it from configuration,
+#                  a mistake no fixture on the default port can catch.
 #
 # Both images are pinned. A floating :latest tag would silently move off the
 # generation this file exists to reproduce.

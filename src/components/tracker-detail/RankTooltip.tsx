@@ -2,10 +2,12 @@
 "use client"
 
 import { SlotLabel } from "@typography"
+import clsx from "clsx"
 import { Badge } from "@/components/ui/Badge"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerUserClass } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
+import { OUTSIDE_LADDER_NOTE } from "@/lib/rank-ladder"
 
 interface RankTooltipProps {
   currentRank: string
@@ -24,7 +26,11 @@ export function RankTooltip({ currentRank, userClasses, accentColor }: RankToolt
             return (
               <div
                 key={uc.name}
-                className="px-3 py-1.5 text-xs font-mono flex items-center justify-between gap-2"
+                className={clsx(
+                  "px-3 py-1.5 text-xs font-mono flex items-center justify-between gap-2",
+                  uc.outsideLadder && "opacity-60"
+                )}
+                title={uc.outsideLadder ? OUTSIDE_LADDER_NOTE[uc.outsideLadder] : undefined}
                 style={
                   isCurrent
                     ? { color: accentColor, backgroundColor: hexToRgba(accentColor, 0.1) }

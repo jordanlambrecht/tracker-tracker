@@ -28,6 +28,7 @@ export const broadcasthenet: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "broadcas-the-net",
   statusPageUrl: "https://btn.trackerstatus.info/",
+  announceHosts: ["landof.tv"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

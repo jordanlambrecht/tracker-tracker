@@ -3,7 +3,6 @@
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/download-clients/qbt/transport", () => ({
-  buildBaseUrl: vi.fn(() => "http://localhost:8080"),
   login: vi.fn(),
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
@@ -12,21 +11,28 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
   withSessionRetry: vi.fn(),
 }))
 
+vi.mock("@/lib/download-clients/transport", () => ({
+  buildBaseUrl: vi.fn(() => "http://localhost:8080"),
+  clearAuthBlocks: vi.fn(),
+}))
+
 vi.mock("@/lib/download-clients/credentials", () => ({
   decryptClientCredentials: vi.fn(() => ({
     authMethod: "password",
     username: "admin",
     password: "pass",
+    urlPath: "",
   })),
 }))
 
 import {
   getTransferInfo,
+  invalidateSession,
   login,
   withSessionRetry,
 } from "@/lib/download-clients/qbt/transport"
 import { decryptClientCredentials } from "../credentials"
-import { createAdapterForClient } from "../factory"
+import { createAdapterForClient, disposeClient } from "../factory"
 
 describe("createAdapterForClient", () => {
   it("decrypts credentials and creates a qbittorrent adapter", () => {
@@ -39,6 +45,7 @@ describe("createAdapterForClient", () => {
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
       crossSeedTags: null,
       type: "qbittorrent",
     }
@@ -60,6 +67,7 @@ describe("createAdapterForClient", () => {
         encryptedUsername: "enc-user",
         encryptedPassword: "enc-pass",
         encryptedApiKey: "",
+        encryptedUrlPath: "",
         crossSeedTags: null,
         type: "transmission",
       },
@@ -80,6 +88,7 @@ describe("createAdapterForClient", () => {
       encryptedUsername: "enc-user",
       encryptedPassword: "enc-pass",
       encryptedApiKey: "",
+      encryptedUrlPath: "",
       crossSeedTags: null,
       type: "deluge",
     }
@@ -95,6 +104,7 @@ describe("createAdapterForClient", () => {
     vi.mocked(decryptClientCredentials).mockReturnValueOnce({
       authMethod: "apikey",
       apiKey: "qbt_x",
+      urlPath: "",
     })
 
     const adapter = createAdapterForClient(
@@ -107,6 +117,7 @@ describe("createAdapterForClient", () => {
         encryptedUsername: "",
         encryptedPassword: "",
         encryptedApiKey: "enc-key",
+        encryptedUrlPath: "",
         crossSeedTags: null,
         type: "qbittorrent",
       },
@@ -126,5 +137,41 @@ describe("createAdapterForClient", () => {
     })
     expect(withSessionRetry).not.toHaveBeenCalled()
     expect(login).not.toHaveBeenCalled()
+  })
+})
+
+describe("disposeClient", () => {
+  const row = {
+    name: "Test",
+    host: "localhost",
+    port: 8080,
+    useSsl: false,
+    authMethod: "password",
+    encryptedUsername: "enc-user",
+    encryptedPassword: "enc-pass",
+    encryptedApiKey: "",
+    encryptedUrlPath: "",
+    crossSeedTags: null,
+    type: "qbittorrent",
+  }
+
+  it("drops what was cached under the row's URL", () => {
+    vi.mocked(invalidateSession).mockClear()
+
+    disposeClient(row, Buffer.alloc(32))
+
+    expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
+  })
+
+  // The routes call this after the row is already written or deleted, so a
+  // throw here would report a finished change as failed.
+  it("does nothing for a row that will not decrypt under the key", () => {
+    vi.mocked(invalidateSession).mockClear()
+    vi.mocked(decryptClientCredentials).mockImplementationOnce(() => {
+      throw new Error('decrypt credentials failed for client "Test": bad decrypt')
+    })
+
+    expect(() => disposeClient(row, Buffer.alloc(32))).not.toThrow()
+    expect(invalidateSession).not.toHaveBeenCalled()
   })
 })

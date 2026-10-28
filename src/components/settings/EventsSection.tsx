@@ -128,7 +128,7 @@ export function EventsSection() {
           .replace("T", " ")
           .replace(/\.\d{3}Z$/, "")
         const parts = [`[${ts}]`, `[${e.level}]`, `[${e.category}]`, e.title]
-        if (e.detail) parts.push(`— ${e.detail}`)
+        if (e.detail) parts.push(`- ${e.detail}`)
         return parts.join(" ")
       })
       .join("\n")
@@ -326,7 +326,7 @@ export function EventsSection() {
                         </span>
                         <span className="text-secondary shrink-0">{event.title}</span>
                         {hasDetail && !isExpanded && !hasBatch && (
-                          <span className="text-tertiary truncate">— {event.detail}</span>
+                          <span className="text-tertiary truncate">· {event.detail}</span>
                         )}
                       </div>
                       {isExpanded && !hasBatch && event.detail && (

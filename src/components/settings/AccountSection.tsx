@@ -174,7 +174,9 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
           placeholder="••••••••"
           disabled={savingPassword}
         />
-        <Paragraph>Re-encrypts all stored API tokens. You will be logged out.</Paragraph>
+        <Paragraph>
+          Re-encrypts all stored API tokens. Every signed-in device is logged out, this one too.
+        </Paragraph>
         <SaveDiscardBar
           dirty
           saving={savingPassword}

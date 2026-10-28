@@ -30,15 +30,23 @@ export const avistaz: TrackerRegistryEntry = {
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Banned", requirements: "Violated site rules" },
-    { name: "Leech", requirements: "Ratio below 1.0. 1 download per 7 days, 1 week old+ only" },
+    { name: "Banned", requirements: "Violated site rules", outsideLadder: "below" },
+    {
+      name: "Leech",
+      requirements: "Ratio below 1.0. 1 download per 7 days, 1 week old+ only",
+      outsideLadder: "below",
+    },
     {
       name: "Newbie",
       requirements: "New user. 5 downloads/day, 1 week old+ only. No uploads or RSS",
     },
     { name: "Member", requirements: "5 GB upload, ratio >= 1.0, 7+ days. 50 downloads/day" },
-    { name: "V.I.P.", requirements: "Donor/distinguished. 100 downloads/day" },
-    { name: "Uploader", requirements: "Staff promoted. 200 downloads/day" },
+    {
+      name: "V.I.P.",
+      requirements: "Donor/distinguished. 100 downloads/day",
+      outsideLadder: "above",
+    },
+    { name: "Uploader", requirements: "Staff promoted. 200 downloads/day", outsideLadder: "above" },
   ],
   releaseGroups: [],
   bannedGroups: [],

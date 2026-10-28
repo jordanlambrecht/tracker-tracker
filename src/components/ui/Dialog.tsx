@@ -66,8 +66,14 @@ function Dialog({
 
   // Wrap transition end to close native dialog before unmount (restores focus to trigger)
   const onTransitionEnd = useCallback(
-    (e: { propertyName: string }) => {
-      if (!visible) dialogRef.current?.close()
+    (e: React.TransitionEvent) => {
+      // Only the panel's own watched fade may close the native dialog. A
+      // bubbled child transition landing here while the entry was still
+      // pending used to force-close it into a ghost state: content mounted
+      // and painting, but no top layer.
+      if (e.target === e.currentTarget && e.propertyName === "opacity" && !visible) {
+        dialogRef.current?.close()
+      }
       baseOnTransitionEnd(e)
     },
     [visible, baseOnTransitionEnd]
@@ -98,7 +104,7 @@ function Dialog({
 
   const titleIsString = typeof title === "string"
   const panelCls = clsx(
-    "relative w-full flex flex-col bg-elevated nm-raised rounded-nm-xl overflow-hidden",
+    "relative w-full flex flex-col bg-overlay nm-float rounded-nm-xl overflow-hidden",
     resolvedMaxWidth
   )
   const panelStyle = {
@@ -151,7 +157,11 @@ function Dialog({
       ref={dialogRef}
       data-overlay
       data-visible={visible || undefined}
-      className="fixed inset-0 m-0 p-4 w-screen h-screen bg-transparent flex items-center justify-center outline-none"
+      // `hidden open:flex`, not a bare `flex`: an unconditional display class
+      // is an author style, so it beats the UA's `dialog:not([open])
+      // { display: none }` and a force-closed dialog kept painting in normal
+      // flow behind the page.
+      className="fixed inset-0 m-0 p-4 w-screen h-screen bg-transparent hidden open:flex items-center justify-center outline-none"
       aria-modal="true"
       aria-label={ariaLabel ?? (titleIsString ? (title as string) : undefined)}
       onCancel={(e) => {

@@ -2,7 +2,7 @@
 "use client"
 
 import { getComplementaryColor, hexToRgba } from "@/lib/color-utils"
-import { formatCount } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildDonutShell } from "./lib/chart-helpers"
@@ -23,7 +23,7 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
 
   const secondaryColor = getComplementaryColor(accentColor)
 
-  const crossPct = total > 0 ? ((crossSeeded / total) * 100).toFixed(1) : "0"
+  const crossPct = formatPercent(total > 0 ? (crossSeeded / total) * 100 : 0)
 
   const option = {
     backgroundColor: "transparent",
@@ -31,8 +31,8 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
       borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; color: string }
-        const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0"
-        return `<span style="color:${p.color};">●</span> <b>${escHtml(p.name)}</b><br/>${formatCount(p.value)} torrents · ${pct}%`
+        const pct = formatPercent(total > 0 ? (p.value / total) * 100 : 0)
+        return `<span style="color:${p.color};">●</span> <b>${escHtml(p.name)}</b><br/>${formatCount(p.value)} torrents · ${pct}`
       },
     }),
     graphic: [
@@ -41,7 +41,7 @@ function TorrentCrossSeedDonut({ crossSeeded, unique, accentColor }: TorrentCros
         left: "center",
         top: "38%",
         style: {
-          text: `${crossPct}%`,
+          text: crossPct,
           fill: CHART_THEME.textPrimary,
           fontSize: 24,
           fontWeight: "bold",

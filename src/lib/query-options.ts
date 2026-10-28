@@ -12,12 +12,19 @@
 
 import { queryOptions } from "@tanstack/react-query"
 import type { FleetAggregation } from "@/lib/fleet-aggregation"
-import type { SafeDownloadClient, TrackerSummary } from "@/types/api"
+import type {
+  ProwlarrIndexerOption,
+  SafeDownloadClient,
+  SafeProwlarrInstance,
+  TrackerSummary,
+} from "@/types/api"
 
 export const clientQueryOptions = queryOptions({
   queryKey: ["clients"] as const,
   queryFn: async ({ signal }) => {
-    const res = await fetch("/api/clients", { signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]) })
+    const res = await fetch("/api/clients", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
     if (!res.ok) return [] as SafeDownloadClient[]
     return res.json() as Promise<SafeDownloadClient[]>
   },
@@ -39,8 +46,34 @@ export const fleetCachedQueryOptions = queryOptions({
 export const trackerQueryOptions = queryOptions({
   queryKey: ["trackers"] as const,
   queryFn: async ({ signal }) => {
-    const res = await fetch("/api/trackers", { signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]) })
+    const res = await fetch("/api/trackers", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
     if (!res.ok) return [] as TrackerSummary[]
     return res.json() as Promise<TrackerSummary[]>
+  },
+})
+
+export const prowlarrQueryOptions = queryOptions({
+  queryKey: ["prowlarr"] as const,
+  queryFn: async ({ signal }) => {
+    const res = await fetch("/api/prowlarr", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
+    if (!res.ok) return [] as SafeProwlarrInstance[]
+    const data: unknown = await res.json()
+    return Array.isArray(data) ? (data as SafeProwlarrInstance[]) : []
+  },
+})
+
+export const prowlarrIndexerQueryOptions = queryOptions({
+  queryKey: ["prowlarr-indexers"] as const,
+  queryFn: async ({ signal }) => {
+    const res = await fetch("/api/prowlarr/indexers", {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    })
+    if (!res.ok) return [] as ProwlarrIndexerOption[]
+    const data: unknown = await res.json()
+    return Array.isArray(data) ? (data as ProwlarrIndexerOption[]) : []
   },
 })

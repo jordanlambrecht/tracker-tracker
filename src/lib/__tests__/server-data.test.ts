@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Mocks — must be declared before any import that touches the DB
+// Mocks
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => ({
@@ -46,7 +46,7 @@ vi.mock("@/lib/db/schema", () => ({
     backupEncryptionEnabled: "backupEncryptionEnabled",
     encryptedBackupPassword: "encryptedBackupPassword",
     backupStoragePath: "backupStoragePath",
-    // These are the sensitive columns that must NOT appear in settingsColumns:
+    // These are the sensitive columns that must not appear in settingsColumns:
     passwordHash: "passwordHash",
     encryptionSalt: "encryptionSalt",
     totpSecret: "totpSecret",
@@ -59,6 +59,7 @@ vi.mock("@/lib/db/schema", () => ({
     id: "id",
     name: "name",
     baseUrl: "baseUrl",
+    registrySlug: null,
     apiPath: "apiPath",
     platformType: "platformType",
     encryptedApiToken: "encryptedApiToken",
@@ -108,6 +109,8 @@ vi.mock("@/lib/db/schema", () => ({
     createdAt: "createdAt",
     updatedAt: "updatedAt",
   },
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {
     id: "id",
     name: "name",
@@ -148,7 +151,12 @@ vi.mock("@/lib/privacy-db", () => ({
 // ---------------------------------------------------------------------------
 
 import type { SettingsRow } from "@/lib/server-data"
-import { serializeSettingsResponse, settingsColumns, trackerColumns } from "@/lib/server-data"
+import {
+  prowlarrInstanceColumns,
+  serializeSettingsResponse,
+  settingsColumns,
+  trackerColumns,
+} from "@/lib/server-data"
 
 // ---------------------------------------------------------------------------
 // 1. Settings column projection: encrypted fields structurally excluded
@@ -345,6 +353,7 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       id: 1,
       name: "Test",
       baseUrl: "https://example.com",
+      registrySlug: null,
       apiPath: "/api/user",
       platformType: "unit3d",
       encryptedApiToken: "SECRET_CIPHERTEXT_MUST_NOT_LEAK",
@@ -358,6 +367,7 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       color: "#00d4ff",
       qbtTag: null,
       mouseholeUrl: null,
+      hasMouseholeToken: false,
       hideUnreadBadges: false,
       remoteUserId: null,
       platformMeta: null,
@@ -372,6 +382,9 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       joinedAt: null,
       lastAccessAt: null,
       profileUrl: null,
+      prowlarrInstanceId: null,
+      prowlarrIndexerId: null,
+      prowlarrOptOut: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -396,6 +409,11 @@ describe("trackerColumns security invariant", () => {
     expect(columnKeys).not.toContain("encryptedApiToken")
   })
 
+  it("does NOT include encryptedMouseholeToken, only its presence flag", () => {
+    expect(columnKeys).not.toContain("encryptedMouseholeToken")
+    expect(columnKeys).toContain("hasMouseholeToken")
+  })
+
   it("does NOT include avatarData (large binary, served via dedicated route)", () => {
     expect(columnKeys).not.toContain("avatarData")
     expect(columnKeys).not.toContain("avatarMimeType")
@@ -417,6 +435,7 @@ describe("trackerColumns security invariant", () => {
       "color",
       "qbtTag",
       "mouseholeUrl",
+      "hasMouseholeToken",
       "useProxy",
       "countCrossSeedUnsatisfied",
       "isFavorite",
@@ -430,5 +449,37 @@ describe("trackerColumns security invariant", () => {
     for (const key of expectedKeys) {
       expect(columnKeys).toContain(key)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 5. prowlarrInstanceColumns: the API key is reduced to a presence flag
+// ---------------------------------------------------------------------------
+
+describe("prowlarrInstanceColumns security invariant", () => {
+  // Pinned exactly, so a column added here has to be added to this list on purpose.
+  it("is exactly the client-safe column set", () => {
+    expect(Object.keys(prowlarrInstanceColumns).sort()).toEqual(
+      [
+        "id",
+        "name",
+        "url",
+        "hasApiKey",
+        "enabled",
+        "lastPolledAt",
+        "indexersReadAt",
+        "statsReadAt",
+        "lastError",
+        "errorSince",
+        "version",
+        "indexerCount",
+        "createdAt",
+        "updatedAt",
+      ].sort()
+    )
+  })
+
+  it("does NOT include encryptedApiKey", () => {
+    expect(Object.keys(prowlarrInstanceColumns)).not.toContain("encryptedApiKey")
   })
 })

@@ -5,7 +5,7 @@ description: Get alerts in Discord when your ratio drops, a tracker goes down, o
 
 # Webhooks
 
-Tracker Tracker sends you alerts when things change on your trackers — ratio drops, hit-and-runs, outages, rank changes, and more.
+Tracker Tracker sends you alerts when things change on your trackers: ratio drops, hit-and-runs, outages, rank changes, and more.
 
 ## Supported Platforms
 
@@ -26,7 +26,7 @@ Tracker Tracker sends you alerts when things change on your trackers — ratio d
 3. Name it (i.e., "Tracker Alerts")
 4. Copy the webhook URL
 
-Keep this URL private — anyone with it can post to your channel.
+Keep this URL private, because anyone with it can post to your channel.
 
 ![Discord webhook setup showing name and channel](../assets/images/webhooks-discord-setup.png)
 
@@ -72,15 +72,15 @@ Two thresholds can be adjusted per target:
 
 ## Scoping to Specific Trackers
 
-By default, a target receives events from all trackers. You can limit it to specific trackers instead — events from others are ignored. Great for one Discord channel per tracker, or if you only want alerts for certain sites.
+By default, a target receives events from all trackers. You can limit it to specific trackers instead, and events from others are ignored. Great for one Discord channel per tracker, or if you only want alerts for certain sites.
 
 ## Multiple Targets
 
 Set up as many targets as you need:
 
-- **One channel per tracker** — scope each target to a single tracker
-- **Urgent vs. routine** — ratio danger and outages in one channel, rank changes and anniversaries in another
-- **Private vs. shared** — disable "Include tracker name" on public channels
+- **One channel per tracker**: scope each target to a single tracker
+- **Urgent vs. routine**: ratio danger and outages in one channel, rank changes and anniversaries in another
+- **Private vs. shared**: disable "Include tracker name" on public channels
 
 ## Privacy
 
@@ -88,16 +88,16 @@ Use the **Include tracker name** toggle to hide the tracker name in messages if 
 
 If you disable **Store usernames** in app settings, usernames are masked in alerts too.
 
-Webhook URLs stay encrypted in the database — they never show up in API responses or logs.
+Webhook URLs stay encrypted in the database, so they never show up in API responses or logs.
 
 ## What the Messages Look Like
 
 Notifications arrive as Discord embeds with a colored sidebar:
 
-- **Red** — urgent: tracker down, hit-and-run, ratio below minimum, account warning
-- **Amber** — caution: ratio drop, zero active seeds
-- **Cyan** — positive: rank change, anniversary
-- **Green** — milestone: buffer threshold crossed
+- **Red** is urgent: tracker down, hit-and-run, ratio below minimum, account warning
+- **Amber** is caution: ratio drop, zero active seeds
+- **Cyan** is positive: rank change, anniversary
+- **Green** is milestone: buffer threshold crossed
 
 ## Troubleshooting
 

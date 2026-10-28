@@ -2,10 +2,11 @@
 //
 // Functions: startScheduler, stopScheduler, ensureSchedulerRunning
 //
-// Master scheduler orchestrator. Coordinates all three polling subsystems:
+// Master scheduler orchestrator. Coordinates all four polling subsystems:
 //   tracker-scheduler. Polls tracker APIs for stats.
 //   download-client-scheduler. Polls download clients for torrent data.
 //   backup-scheduler. Runs automated backups.
+//   prowlarr-scheduler. Reads indexer health from Prowlarr.
 
 import { startBackupScheduler, stopBackupScheduler } from "@/lib/backup-scheduler"
 import { ensureIndexes } from "@/lib/db/ensure-indexes"
@@ -16,6 +17,11 @@ import {
 } from "@/lib/download-client-scheduler"
 import { log } from "@/lib/logger"
 import {
+  ensureProwlarrSchedulerRunning,
+  startProwlarrScheduler,
+  stopProwlarrScheduler,
+} from "@/lib/prowlarr-scheduler"
+import {
   isTrackerPollingRunning,
   startTrackerPolling,
   stopTrackerPolling,
@@ -25,12 +31,14 @@ export function startScheduler(encryptionKey: Buffer): void {
   startTrackerPolling(encryptionKey)
   startClientScheduler(encryptionKey)
   startBackupScheduler(encryptionKey)
+  startProwlarrScheduler(encryptionKey)
 }
 
 export function stopScheduler(): void {
   stopTrackerPolling()
   stopClientScheduler()
   stopBackupScheduler()
+  stopProwlarrScheduler()
 }
 
 // Graceful shutdown: zero-fill encryption key and stop cron tasks before exit.
@@ -51,6 +59,7 @@ export function ensureSchedulerRunning(encryptionKeyHex: string): void {
   const key = Buffer.from(encryptionKeyHex, "hex")
   startScheduler(key)
   ensureClientSchedulerRunning(encryptionKeyHex)
+  ensureProwlarrSchedulerRunning(encryptionKeyHex)
   // Fire-and-forget: create covering indexes that Drizzle's schema DSL can't express.
   // Idempotent (IF NOT EXISTS), guarded by globalThis flag, non-fatal on failure.
   ensureIndexes().catch((err) => {

@@ -21,7 +21,8 @@ export const gazellegames: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#7b1fa2",
-  logo: "",
+  logo: "/tracker-logos/gazellegames_logo.png",
+  bonusName: "Gold",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "gazelle-games",

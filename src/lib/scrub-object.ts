@@ -8,6 +8,11 @@ export const SCRUB_KEYS = new Set([
   "passkey",
   "ip",
   "api_token",
+  // Both spellings of the same thing. A UNIT3D fork returns a top-level
+  // api_key object and Anthelion names its query parameter apikey, and the
+  // match is exact rather than substring, so api_token does not cover them.
+  "api_key",
+  "apikey",
   "key",
   "torrent_pass",
   // DigitalCore returns these in both /api/v1/status and /api/v1/users/:id.

@@ -1,17 +1,11 @@
 // src/app/api/auth/username/username-route.test.ts
 //
-// This route sits under "/api/auth/", which src/proxy.ts treats as a PUBLIC_PREFIX
-// — the proxy waves the request through before it looks at a session cookie. The
-// handler's own authenticate() call is the entire access control story, so the
-// unauthenticated case is tested first and by name rather than left implied.
-//
-// The validation cases are lifted from the setup route deliberately: both call
-// the same validateUsername(), and a divergence between them would mean an
-// account could be given a username that its own login form could not have
-// created.
+// The validation cases match the setup route's because both call
+// validateUsername(). A divergence would let an account hold a username the
+// setup form could not have created.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { getSession } from "@/lib/auth"
+import { readSession } from "@/lib/auth"
 import { db } from "@/lib/db"
 
 vi.mock("@/lib/db", () => ({
@@ -26,7 +20,7 @@ vi.mock("@/lib/db/schema", () => ({
 }))
 
 vi.mock("@/lib/auth", () => ({
-  getSession: vi.fn(),
+  readSession: vi.fn(),
 }))
 
 vi.mock("@/lib/logger", () => ({
@@ -58,7 +52,10 @@ function post(body: unknown) {
 
 /** Signed in with a real (non-pending) session and no username stored yet. */
 function signedInWithoutUsername() {
-  ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "deadbeef" })
+  ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+    status: "valid",
+    encryptionKey: "deadbeef",
+  })
   mockSettingsRow({ id: 1, username: null })
   return mockUpdateChain()
 }
@@ -71,17 +68,10 @@ describe("POST /api/auth/username", () => {
   // "/api/auth/" is a PUBLIC_PREFIX in src/proxy.ts, so the proxy waves this path
   // through without looking at a cookie. This 401 is the whole boundary.
   //
-  // It also covers the TOTP-pending case, and deliberately does not re-test it: a
-  // password-only login that still owes a code holds a pending token, which is
-  // returned in the response body and never written to tt_session, and getSession()
-  // rejects any payload carrying a `purpose` claim (src/lib/auth.ts:82). Both roads
-  // arrive here as "no session". Proving that branch needs a REAL pending token
-  // driven through the real getSession, which is exactly what
-  // src/lib/__tests__/auth-jwe.test.ts:166 does — a duplicate here with getSession
-  // mocked to null would assert nothing and would keep passing if the guard were
-  // deleted.
+  // A TOTP-pending login also arrives here as no session. src/lib/__tests__/auth-jwe.test.ts
+  // covers that branch with a real pending token, which a mocked null here could not.
   it("rejects an unauthenticated caller", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     mockSettingsRow({ id: 1, username: null })
     const { set } = mockUpdateChain()
 
@@ -98,11 +88,11 @@ describe("POST /api/auth/username", () => {
     const { set } = signedInWithoutUsername()
 
     const { POST } = await import("./route")
-    const response = await POST(post({ username: "jordy" }))
+    const response = await POST(post({ username: "tealotter" }))
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ success: true, username: "jordy" })
-    expect(set).toHaveBeenCalledWith({ username: "jordy" })
+    await expect(response.json()).resolves.toEqual({ success: true, username: "tealotter" })
+    expect(set).toHaveBeenCalledWith({ username: "tealotter" })
   })
 
   it("stores the trimmed value, not the raw input", async () => {
@@ -190,7 +180,10 @@ describe("POST /api/auth/username", () => {
   })
 
   it("returns 400 when the instance has not been set up", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "deadbeef" })
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "valid",
+      encryptionKey: "deadbeef",
+    })
     mockSettingsRow(null)
     const { set } = mockUpdateChain()
 
@@ -205,7 +198,10 @@ describe("POST /api/auth/username", () => {
   // This endpoint only ever fills a NULL. Renaming is Settings › Account's job,
   // so a stale prompt left open in a second tab cannot rename the account.
   it("refuses to overwrite a username that is already set", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "deadbeef" })
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "valid",
+      encryptionKey: "deadbeef",
+    })
     mockSettingsRow({ id: 1, username: "existing" })
     const { set } = mockUpdateChain()
 

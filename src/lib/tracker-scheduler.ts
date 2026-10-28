@@ -7,16 +7,11 @@ import type { Agent as HttpAgent } from "node:http"
 
 import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { findRegistryEntry } from "@/data/tracker-registry"
-import { buildFetchOptions, getAdapter } from "@/lib/adapters"
-import type {
-  AvistazPlatformMeta,
-  DigitalCorePlatformMeta,
-  MamPlatformMeta,
-} from "@/lib/adapters/types"
+import { registryEntryFor } from "@/data/tracker-registry"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { pruneCoverageGaps } from "@/lib/app-liveness"
 import { decrypt } from "@/lib/crypto"
+import { withCycleDeadline } from "@/lib/cycle-deadline"
 import { db } from "@/lib/db"
 import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
 import {
@@ -28,15 +23,33 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { errMsg, sanitizeNetworkError } from "@/lib/error-utils"
-import { localDateStr } from "@/lib/formatters"
-import { POLL_INTERVAL_DEFAULT } from "@/lib/limits"
+import { localDateStr, trackerDateStr } from "@/lib/formatters"
+import { POLL_CYCLE_DEADLINE_MS, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
-import { getPauseState } from "@/lib/tracker-status"
+import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
+import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
+import type {
+  AvistazPlatformMeta,
+  C411PlatformMeta,
+  DigitalCorePlatformMeta,
+  HawkePlatformMeta,
+  MamPlatformMeta,
+} from "@/types/tracker-stats"
+
+// Platforms whose only platform alert is download-revoked, read from
+// platformMeta.canDownload.
+const DOWNLOAD_ALERT_ONLY_PLATFORMS = new Set(["c411", "hawke"])
+// Platforms whose download-revoked alert compares this poll's meta with the last.
+const DOWNLOAD_ALERT_PLATFORMS = new Set([
+  "avistaz",
+  "digitalcore",
+  ...DOWNLOAD_ALERT_ONLY_PLATFORMS,
+])
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job (it keeps firing)
@@ -74,6 +87,7 @@ const POLL_TRACKER_COLUMNS = {
   isActive: trackers.isActive,
   encryptedApiToken: trackers.encryptedApiToken,
   platformType: trackers.platformType,
+  registrySlug: trackers.registrySlug,
   baseUrl: trackers.baseUrl,
   apiPath: trackers.apiPath,
   useProxy: trackers.useProxy,
@@ -89,6 +103,28 @@ const POLL_TRACKER_COLUMNS = {
   updatedAt: trackers.updatedAt,
 } as const
 
+/**
+ * The URL to poll. The row names its registry entry by slug; the URL it stores is
+ * only the address, so when the registry's URL differs (a site moved, or the row was
+ * restored with an older spelling) the registry wins and is written back. A domain
+ * change then ships as a registry edit rather than a per-user fix.
+ */
+async function pollUrlFor(tracker: {
+  id: number
+  name: string
+  baseUrl: string
+  registrySlug: string | null
+}): Promise<string> {
+  const entry = registryEntryFor(tracker)
+  if (!entry || entry.url === tracker.baseUrl) return tracker.baseUrl
+  await db.update(trackers).set({ baseUrl: entry.url }).where(eq(trackers.id, tracker.id))
+  log.info(
+    { trackerId: tracker.id, tracker: tracker.name, from: tracker.baseUrl, to: entry.url },
+    "tracker URL refreshed from the registry"
+  )
+  return entry.url
+}
+
 export const POLL_FAILURE_THRESHOLD = 4
 
 /**
@@ -100,9 +136,9 @@ export const POLL_FAILURE_THRESHOLD = 4
 const BATCH_TOLERANCE_MS = 60_000
 
 /**
- * Fetch fresh stats from a tracker's API without writing a snapshot.
- * Used by the (currently unreleased) transit papers report route to get live data for the report.
- * Also updates tracker metadata side effects (remoteUserId, joinedAt, lastAccessAt, platformMeta, avatarUrl).
+ * Fetch fresh stats from a tracker's API without writing a snapshot. Also
+ * writes the metadata side effects (remoteUserId, joinedAt, lastAccessAt,
+ * platformMeta, avatarRemoteUrl).
  */
 export async function fetchTrackerStats(
   trackerId: number,
@@ -135,11 +171,13 @@ export async function fetchTrackerStats(
     throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
   }
 
-  const fetchOptions = buildFetchOptions(tracker.baseUrl, {
+  const baseUrl = await pollUrlFor(tracker)
+  const fetchOptions = buildFetchOptions({
+    registrySlug: tracker.registrySlug,
     proxyAgent: tracker.useProxy ? proxyAgent : undefined,
     remoteUserId: tracker.remoteUserId ?? undefined,
   })
-  const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+  const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
   // Write metadata side effects
   const metaUpdates: Partial<TrackerRow> = {}
@@ -147,12 +185,12 @@ export async function fetchTrackerStats(
     metaUpdates.remoteUserId = stats.remoteUserId
   }
   if (stats.joinedDate && !tracker.joinedAt) {
-    const parsed = new Date(stats.joinedDate)
-    if (!Number.isNaN(parsed.getTime())) metaUpdates.joinedAt = localDateStr(parsed)
+    const joined = trackerDateStr(stats.joinedDate)
+    if (joined) metaUpdates.joinedAt = joined
   }
   if (stats.lastAccessDate) {
-    const parsed = new Date(stats.lastAccessDate)
-    if (!Number.isNaN(parsed.getTime())) metaUpdates.lastAccessAt = localDateStr(parsed)
+    const lastAccess = trackerDateStr(stats.lastAccessDate)
+    if (lastAccess) metaUpdates.lastAccessAt = lastAccess
   }
   if (stats.platformMeta) metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
   if (stats.avatarUrl) metaUpdates.avatarRemoteUrl = stats.avatarUrl
@@ -191,7 +229,7 @@ export async function pollTracker(
       const cause = errMsg(err)
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
     }
-    // See pollTracker: an empty token authenticates against nothing.
+    // See fetchTrackerStats: an empty token decrypts cleanly but never authenticates.
     if (!apiToken) {
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
@@ -199,19 +237,18 @@ export async function pollTracker(
     if (tracker.useProxy && !proxyAgent) {
       throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
     }
-    const fetchOptions = buildFetchOptions(tracker.baseUrl, {
+    const baseUrl = await pollUrlFor(tracker)
+    const fetchOptions = buildFetchOptions({
+      registrySlug: tracker.registrySlug,
       proxyAgent: tracker.useProxy ? proxyAgent : undefined,
       remoteUserId: tracker.remoteUserId ?? undefined,
     })
-    const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+    const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
 
-    // Snapshot the previous platformMeta BEFORE writing the current poll's metadata to DB.
+    // Snapshot the previous platformMeta before writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
     let previousPlatformMeta: Record<string, unknown> | null = null
-    if (
-      (tracker.platformType === "avistaz" || tracker.platformType === "digitalcore") &&
-      tracker.platformMeta
-    ) {
+    if (DOWNLOAD_ALERT_PLATFORMS.has(tracker.platformType) && tracker.platformMeta) {
       try {
         previousPlatformMeta = JSON.parse(tracker.platformMeta) as Record<string, unknown>
       } catch (err) {
@@ -228,16 +265,12 @@ export async function pollTracker(
       metaUpdates.remoteUserId = stats.remoteUserId
     }
     if (stats.joinedDate && !tracker.joinedAt) {
-      const parsed = new Date(stats.joinedDate)
-      if (!Number.isNaN(parsed.getTime())) {
-        metaUpdates.joinedAt = localDateStr(parsed)
-      }
+      const joined = trackerDateStr(stats.joinedDate)
+      if (joined) metaUpdates.joinedAt = joined
     }
     if (stats.lastAccessDate) {
-      const parsed = new Date(stats.lastAccessDate)
-      if (!Number.isNaN(parsed.getTime())) {
-        metaUpdates.lastAccessAt = localDateStr(parsed)
-      }
+      const lastAccess = trackerDateStr(stats.lastAccessDate)
+      if (lastAccess) metaUpdates.lastAccessAt = lastAccess
     }
     if (stats.platformMeta) {
       metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
@@ -333,6 +366,10 @@ export async function pollTracker(
           ? (stats.platformMeta as DigitalCorePlatformMeta | undefined)
           : undefined
 
+      const canDownloadMeta = DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+        ? (stats.platformMeta as C411PlatformMeta | HawkePlatformMeta | undefined)
+        : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -354,7 +391,7 @@ export async function pollTracker(
           trackerIsActive: tracker.isActive,
           trackerPausedAt: null,
           trackerJoinedAt: tracker.joinedAt ?? null,
-          minimumRatio: findRegistryEntry(tracker.baseUrl)?.rules?.minimumRatio,
+          minimumRatio: resolveRequiredRatio(stats.requiredRatio, tracker) ?? undefined,
           platformContext:
             tracker.platformType === "mam"
               ? {
@@ -370,8 +407,9 @@ export async function pollTracker(
                 }
               : tracker.platformType === "avistaz"
                 ? {
-                    currentSeedbonus: stats.seedbonus ?? null,
-                    previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                    // The 99,999 bonus cap these feed is MAM's.
+                    currentSeedbonus: null,
+                    previousSeedbonus: null,
                     vipUntil: avistazMeta?.vipExpiry ?? null,
                     unsatisfiedCount: null,
                     unsatisfiedLimit: null,
@@ -383,8 +421,9 @@ export async function pollTracker(
                   }
                 : tracker.platformType === "digitalcore"
                   ? {
-                      currentSeedbonus: stats.seedbonus ?? null,
-                      previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                      // The 99,999 bonus cap these feed is MAM's.
+                      currentSeedbonus: null,
+                      previousSeedbonus: null,
                       vipUntil: null,
                       unsatisfiedCount: null,
                       unsatisfiedLimit: null,
@@ -403,7 +442,20 @@ export async function pollTracker(
                             ? true
                             : null,
                     }
-                  : undefined,
+                  : DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+                    ? {
+                        currentSeedbonus: null,
+                        previousSeedbonus: null,
+                        vipUntil: null,
+                        unsatisfiedCount: null,
+                        unsatisfiedLimit: null,
+                        inactiveHnrCount: null,
+                        previousInactiveHnrCount: null,
+                        canDownload: canDownloadMeta?.canDownload ?? null,
+                        previousCanDownload:
+                          (previousPlatformMeta?.canDownload as boolean | null) ?? null,
+                      }
+                    : undefined,
         },
         encryptionKey,
         enabledTargets
@@ -450,6 +502,14 @@ export async function pollTracker(
         trackerName: tracker?.name,
         source: isManual ? "manual" : "scheduled",
         previousFailures: tracker?.consecutiveFailures ?? "unknown",
+        // `message` is what the UI stores and is deliberately lossy. Keep the
+        // raw cause in the server log too, or an adapter choking on a changed
+        // payload is indistinguishable from a dead host (issue #214). Adapters
+        // name the hostname in their errors, never the URL, so a query-string
+        // api_token cannot ride along; the one thing to drop is the bound
+        // params of a drizzle "Failed query" error, which for the snapshot
+        // insert include the username when privacy mode is off.
+        cause: raw.split("\nparams:")[0],
       },
       `Poll failed for tracker ${trackerId}: ${message}`
     )
@@ -498,7 +558,7 @@ export async function pollTracker(
 
     // Write the failure into the connectability ledger that backs this tracker's
     // outage bands. Separate from the columns updated above, which are current
-    // state and are wiped by the next success — see the header of
+    // state and are wiped by the next success. See the header of
     // tracker-outages.ts. Recording is failure-only and every row is written
     // closed, so there is deliberately no matching call on the success path.
     // recordTrackerPollFailure never throws, so this needs no guard of its own.
@@ -684,13 +744,13 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       log.error(error, "Checkpoint pruning failed")
     }
 
-    // Coverage gaps expire on the SAME schedule and the SAME horizon as the
+    // Coverage gaps expire on the same schedule and the same horizon as the
     // snapshots they explain. This coupling is deliberate and load-bearing: if
     // gaps were pruned on a different horizon, charts would outlive their own
     // explanations and a region with no gap record would be indistinguishable from
     // a healthy one. This same retention asymmetry makes inferring downtime from
     // missing rows a lie. Keep this call inside this guard, sharing this retention
-    // value. NEVER prune gaps more aggressively than snapshots (pruneCoverageGaps
+    // value. Never prune gaps more aggressively than snapshots (pruneCoverageGaps
     // keys on endedAt for exactly that reason).
     try {
       const prunedGaps = await pruneCoverageGaps(settings.snapshotRetentionDays)
@@ -703,7 +763,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       log.error(error, "Coverage gap pruning failed")
     }
 
-    // Tracker outages expire on the SAME horizon, for the same reason and inside
+    // Tracker outages expire on the same horizon, for the same reason and inside
     // the same guard. A tracker chart that outlives its own outage records would
     // show an unexplained flat stretch, which is the exact failure this ledger
     // exists to prevent.
@@ -744,12 +804,14 @@ export function startTrackerPolling(encryptionKey: Buffer): void {
     log.error(error, "Initial poll error")
   })
 
-  // Then check every 5 minutes for overdue trackers
+  // Then check every 5 minutes for overdue trackers. The latch below is only
+  // released by the finally, so the await is bounded: a cycle whose promise
+  // never settles must not lock every later tick out.
   const task = cron.schedule("*/5 * * * *", async () => {
     if (getPollInFlight()) return
     setPollInFlight(true)
     try {
-      await pollAllTrackers(encryptionKey)
+      await withCycleDeadline(pollAllTrackers(encryptionKey), POLL_CYCLE_DEADLINE_MS, "poll cycle")
     } catch (error) {
       log.error(error, "Scheduler error")
     } finally {

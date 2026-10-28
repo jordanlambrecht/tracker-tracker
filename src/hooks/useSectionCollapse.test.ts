@@ -90,7 +90,7 @@ describe("useSectionCollapse", () => {
     await act(async () => {})
 
     expect(result.current.hydrated).toBe(true)
-    // Unknown id just behaves like any other collapsed id — querying it doesn't throw,
+    // Unknown id just behaves like any other collapsed id, querying it doesn't throw,
     // and it does not affect the state of ids that are actually rendered.
     expect(() => result.current.isCollapsed("stale-section-id")).not.toThrow()
     expect(result.current.isCollapsed("trackers")).toBe(true)

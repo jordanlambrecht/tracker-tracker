@@ -2,10 +2,12 @@
 //
 // Functions: formatBytesFromString, bytesToGiB, formatBytesNum,
 // formatRatio, formatAccountAge, formatJoinedDate, formatStatValue,
-// formatDuration, formatTimeAgo, splitValueUnit,
+// formatDuration, formatSpanInWords, formatTimeAgo, splitValueUnit,
 // localDateStr, formatSpeed,
-// formatRatioDisplay, formatCount, formatPercent, formatDateTime
+// formatRatioDisplay, formatCount, formatPercent, formatSignedChange,
+// formatDateTime
 
+import type { TrendDirection } from "@/components/ui/StatCard"
 import type { TrackerLatestStats } from "@/types/api"
 
 /**
@@ -13,10 +15,7 @@ import type { TrackerLatestStats } from "@/types/api"
  * Returns "—" for null/undefined/empty values.
  *
  * Scales on the magnitude and re-attaches the sign, the way formatBytesNum
- * does. Buffer is signed, and comparing the scaled value against `>= 1`
- * directly is false for every negative. So a -2.39 TiB buffer fell through to
- * the MiB branch and rendered "-2505575 MiB". Positive output is unchanged,
- * which matters because uploaded/downloaded flow through here too.
+ * does: buffer is signed, and a negative never passes a `>= 1` check.
  */
 export function formatBytesFromString(bytesStr: string | null | undefined): string {
   if (!bytesStr) return "—"
@@ -86,10 +85,13 @@ export function formatRatio(ratio: number | null | undefined, suffix = ""): stri
  */
 export function formatAccountAge(joinedAt: string | null): string | null {
   if (!joinedAt) return null
-  const joined = new Date(joinedAt)
-  const now = new Date()
-  const diffMs = now.getTime() - joined.getTime()
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  // Whole calendar days between local midnights, read the way formatJoinedDate
+  // reads the date. A bare date parsed as UTC midnight is still in the future
+  // east of UTC, which made the join day read as -1 days.
+  const joined = new Date(`${joinedAt}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.max(0, Math.round((today.getTime() - joined.getTime()) / 86_400_000))
   if (days < 30) return `${days} day${days !== 1 ? "s" : ""}`
   const months = Math.floor(days / 30)
   if (months < 12) {
@@ -159,6 +161,22 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Formats a span of time in words, to the hour: "45 minutes", "3 hours",
+ * "2 days, 5 hours". Days are left out under one day, minutes from one hour on.
+ */
+export function formatSpanInWords(ms: number): string {
+  if (!Number.isFinite(ms)) return "—"
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
+  const minutes = Math.floor(Math.abs(ms) / 60_000)
+  if (minutes < 1) return "less than a minute"
+  if (minutes < 60) return unit(minutes, "minute")
+  const days = Math.floor(minutes / 1440)
+  const hours = Math.floor((minutes % 1440) / 60)
+  if (days === 0) return unit(hours, "hour")
+  return hours === 0 ? unit(days, "day") : `${unit(days, "day")}, ${unit(hours, "hour")}`
+}
+
+/**
  * Formats a Date or ISO string as a compact relative time, i.e "just now", "5m ago", "3h ago", "2d ago".
  */
 export function formatTimeAgo(dateOrIso: Date | string): string {
@@ -190,6 +208,27 @@ export function localDateStr(date?: Date | number): string {
   return d.toLocaleDateString("en-CA")
 }
 
+/** A date with no time part, which `new Date()` reads as UTC rather than local. */
+const DATE_ONLY = /^(\d{4}-\d{2}-\d{2})$/
+
+/**
+ * Normalizes the date strings adapters return, which arrive in at least five
+ * shapes because TrackerStats puts no format contract on them.
+ *
+ * A bare YYYY-MM-DD is already the calendar date the tracker meant, so it is
+ * returned untouched. Passing it through `new Date()` would not be harmless:
+ * ECMA-262 reads a date-only form as UTC midnight, and rendering that back in
+ * any negative-offset zone yields the previous day. Shapes that carry a time
+ * do have an instant to convert, so those still go through localDateStr.
+ */
+export function trackerDateStr(value: string): string | undefined {
+  const bare = value.trim().match(DATE_ONLY)
+  if (bare) return bare[1]
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? undefined : localDateStr(parsed)
+}
+
 export function formatSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return "0 B/s"
   return `${formatBytesNum(bytesPerSec)}/s`
@@ -206,10 +245,59 @@ export function formatCount(n: number | null | undefined): string {
   return n.toLocaleString("en-US")
 }
 
-/** Formats a percentage value with configurable decimal places. */
-export function formatPercent(value: number, decimals = 1): string {
+/**
+ * Formats an integer as an English ordinal. The teens take "th" whatever their
+ * last digit is, which is why the suffix cannot be read off that digit alone.
+ */
+export function formatOrdinal(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—"
+  const abs = Math.abs(n)
+  const lastTwo = abs % 100
+  const last = abs % 10
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13
+      ? "th"
+      : last === 1
+        ? "st"
+        : last === 2
+          ? "nd"
+          : last === 3
+            ? "rd"
+            : "th"
+  return `${n.toLocaleString("en-US")}${suffix}`
+}
+
+/**
+ * Formats a percentage value, one decimal by default. The sign comes from the
+ * rounded value, so -0.04 reads "0.0%", and signed mode never prints "+0.0%".
+ */
+export function formatPercent(
+  value: number,
+  { decimals = 1, signed = false }: { decimals?: number; signed?: boolean } = {}
+): string {
   if (!Number.isFinite(value)) return "—"
-  return `${value.toFixed(decimals)}%`
+  const digits = Math.abs(value).toFixed(decimals)
+  if (Number(digits) === 0) return `${digits}%`
+  const sign = value < 0 ? "-" : signed ? "+" : ""
+  return `${sign}${digits}%`
+}
+
+const CHANGE_SIGN: Record<TrendDirection, string> = { up: "+", down: "-", flat: "" }
+
+/**
+ * Formats a change with its sign, taking the sign and direction from the value
+ * rounded to `decimals`, so a change that displays as zero reads "0.0" and not
+ * "+0.0" or "-0.0". `format` receives the unsigned magnitude and must round to
+ * the same `decimals`, or a zero can still print with a sign.
+ */
+export function formatSignedChange(
+  value: number,
+  decimals: number,
+  format: (magnitude: number) => string = (v) => v.toFixed(decimals)
+): { text: string; direction: TrendDirection } {
+  const magnitude = Number(Math.abs(value).toFixed(decimals))
+  const direction = magnitude === 0 ? "flat" : value > 0 ? "up" : "down"
+  return { text: CHANGE_SIGN[direction] + format(magnitude), direction }
 }
 
 /** Formats a Date, ISO string, or timestamp as a locale-pinned datetime string. */

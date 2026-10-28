@@ -16,7 +16,7 @@ export interface UploadResult {
   viewerUrl?: string
   /** Thumbnail URL (if available) */
   thumbUrl?: string
-  /** Image ID for programmatic deletion — requires API key + this ID (if available) */
+  /** Image ID for programmatic deletion, requires API key + this ID (if available) */
   deleteId?: string
   /** Which host was used */
   host: ImageHostId

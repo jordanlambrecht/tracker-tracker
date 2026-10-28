@@ -13,6 +13,7 @@ export const anthelion: TrackerRegistryEntry = {
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "nebulance",
+  nebulanceAuthParam: "apikey",
   apiPath: "/api.php",
 
   // ── Content ─────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ export const anthelion: TrackerRegistryEntry = {
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#3eaca7",
   logo: "/tracker-logos/anthelion_logo.png",
+  bonusName: "Orbs",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "anthelion",

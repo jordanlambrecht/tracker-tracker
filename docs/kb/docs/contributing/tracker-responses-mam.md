@@ -12,9 +12,9 @@ Add `snatch_summary` for torrent breakdown by category, and `notif` for notifica
 
 Optional parameters (not used by the adapter):
 
-- `clientStats` — per-client connectivity info (30-min cache)
-- `pretty` — pretty-prints JSON
-- `id={userid}` — load specific user data (limited public data for others)
+- `clientStats`: per-client connectivity info (30-min cache)
+- `pretty`: pretty-prints JSON
+- `id={userid}`: load specific user data (limited public data for others)
 
 **Note:** The `?id=` parameter doesn't add fields like join date. The `created` and `update` fields are cache timestamps, not account dates (see Quirks).
 
@@ -28,13 +28,13 @@ Cookie: mam_id={SESSION_COOKIE}
 
 Get it from User Preferences → Security. Create an IP-locked or ASN-locked session for API use. MAM rotates these monthly, so refresh periodically.
 
-Auth fails silently — you get HTML instead of JSON. We detect it by checking if `username` is missing.
+Auth fails silently, and you get HTML instead of JSON. That HTML fails the JSON parse and reads as an unexpected response; a JSON body with no `username` is caught by checking for it.
 
 ## Example Response
 
 ```json
 {
-  "username": "thesneakyrobot",
+  "username": "lanternfoxtail",
   "uid": 230500,
   "classname": "VIP",
   "ratio": 26.7,
@@ -45,28 +45,31 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
   "seedbonus": 99999,
   "wedges": 207,
   "vip_until": "2026-06-10 06:44:38",
-  "connectable": "offline",
   "country_code": "us",
   "country_name": "United States",
-  "created": 1774543581,
   "update": 1774543581,
-  "ipv6_mac": false,
-  "v6_connectable": null,
-  "partial": false,
-  "recently_deleted": 45,
-  "leeching": { "name": "Leeching Torrents", "count": 0, "red": false, "size": null },
-  "sSat": { "name": "Seeding - Satisfied", "count": 0, "red": false, "size": null },
-  "seedHnr": { "name": "Seeding - H&R - Not Yet Satisfied", "count": 0, "red": true, "size": null },
-  "seedUnsat": { "name": "Seeding - pre-H&R - Not Yet Satisfied", "count": 0, "red": false, "size": null },
-  "upAct": { "name": "Seeding - Uploads", "count": 0, "red": false, "size": null },
-  "upInact": { "name": "Not Seeding - Uploads", "count": 0, "red": false, "size": null },
-  "inactHnr": { "name": "Not Seeding - H&R - Not Yet Satisfied", "count": 0, "red": true, "size": null },
-  "inactSat": { "name": "Not Seeding - Satisfied", "count": 2306, "red": false, "size": 477079402691 },
-  "inactUnsat": { "name": "Not Seeding - pre-H&R - Not Yet Satisfied", "count": 0, "red": true, "size": null },
-  "unsat": { "name": "Unsatisfied", "count": 0, "red": false, "limit": 150, "size": null },
-  "duplicates": { "name": "Duplicate peer entries", "count": 0, "red": true },
-  "reseed": { "name": "Reseed requests", "count": 0, "inactive": 0, "red": false },
-  "ite": { "name": "Important Tracker Errors", "count": 0, "latest": 0 }
+  "snatch_summary": {
+    "connectable": "offline",
+    "created": 1774543581,
+    "created_at": "2026-03-26 16:46:21",
+    "ipv6_mac": false,
+    "v6_connectable": null,
+    "partial": false,
+    "recently_deleted": 45,
+    "leeching": { "name": "Leeching Torrents", "count": 0, "size": null },
+    "sSat": { "name": "Seeding - Satisfied", "count": 0, "size": null },
+    "seedHnr": { "name": "Seeding - H&R - Not Yet Satisfied", "count": 0, "size": null },
+    "seedUnsat": { "name": "Seeding - Not Yet Satisfied", "count": 0, "size": null },
+    "upAct": { "name": "Seeding - Uploads", "count": 0, "size": null },
+    "upInact": { "name": "Not Seeding - Uploads", "count": 0, "size": null },
+    "inactHnr": { "name": "Not Seeding - H&R - Not Yet Satisfied", "count": 0, "size": null },
+    "inactSat": { "name": "Not Seeding - Satisfied", "count": 2306, "size": 477079402691 },
+    "inactUnsat": { "name": "Not Seeding - Not Yet Satisfied", "count": 0, "size": null },
+    "unsat": { "name": "Unsatisfied", "count": 0, "limit": 150, "size": null },
+    "duplicates": { "name": "Duplicate peer entries", "count": 0 },
+    "reseed": { "name": "Reseed requests", "count": 0, "inactive": 0 },
+    "ite": { "name": "Important Tracker Errors", "count": 0, "latest": 0 }
+  }
 }
 ```
 
@@ -75,18 +78,18 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | TrackerStats field | MAM path | Type | Notes |
 | --- | --- | --- | --- |
 | `username` | `username` | `string` | Direct |
-| `group` | `classname` | `string` | Falls back to `"Unknown"` |
+| `group` | `classname` | `string` | `null` when absent or blank |
 | `remoteUserId` | `uid` | `number` | Cached for future use |
-| `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
-| `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()` — raw bytes, no parsing needed |
-| `ratio` | `ratio` | `number` | Direct float value |
-| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes` — signed, negative on a deficit account |
-| `seedingCount` | `sSat.count + seedHnr.count + seedUnsat.count + upAct.count` | `number` | Sum of all seeding snatch categories |
-| `leechingCount` | `leeching.count` | `number` | Direct |
+| `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()`, raw bytes, no parsing needed |
+| `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()`, raw bytes, no parsing needed |
+| `ratio` | — | — | Calculated: `uploadedBytes / downloadedBytes`. MAM's own `ratio` is a display value, not a number (an account that has downloaded nothing reports `"∞"`), so it is not read |
+| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes`, signed, negative on a deficit account |
+| `seedingCount` | `snatch_summary.{sSat,seedHnr,seedUnsat,upAct}.count` | `number \| null` | Sum of the seeding categories; `null` when none of them arrived |
+| `leechingCount` | `snatch_summary.leeching.count` | `number \| null` | Direct; `null` when absent |
 | `seedbonus` | `seedbonus` | `number` | Direct; MAM caps at 99,999 |
-| `hitAndRuns` | `inactHnr.count` | `number` | Only inactive (not seeding) HnR torrents |
-| `requiredRatio` | — | — | Always `null` — MAM uses class-based ratio thresholds |
-| `warned` | — | — | Always `null` — not exposed in API |
+| `hitAndRuns` | `snatch_summary.inactHnr.count` | `number \| null` | Only inactive (not seeding) HnR torrents; `null` when absent |
+| `requiredRatio` | — | — | Always `null`, MAM uses class-based ratio thresholds |
+| `warned` | — | — | Always `null`, not exposed in API |
 | `freeleechTokens` | `wedges` | `number` | MAM calls them "FL Wedges" |
 | `joinedDate` | — | — | Not available from this endpoint |
 | `lastAccessDate` | — | — | Not available from this endpoint |
@@ -97,14 +100,15 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | Field | MAM path | Type | Notes |
 | --- | --- | --- | --- |
 | `vipUntil` | `vip_until` | `string \| null` | VIP expiry date (`"2026-06-10 06:44:38"`) |
-| `connectable` | `connectable` | `string` | `"offline"` or `"online"` |
-| `unsatisfiedCount` | `unsat.count` | `number` | Current unsatisfied torrent count |
-| `unsatisfiedLimit` | `unsat.limit` | `number` | Class-dependent limit (User=50, PU=100, VIP=150, above VIP=200) |
-| `inactiveSatisfiedCount` | `inactSat.count` | `number` | Completed torrents no longer seeding |
-| `seedingHnrCount` | `seedHnr.count` | `number` | HnR torrents being actively resolved |
-| `inactiveUnsatisfiedCount` | `inactUnsat.count` | `number` | Pre-HnR torrents not being seeded (ticking clock) |
-| `trackerErrorCount` | `ite.count` | `number` | Important Tracker Errors |
-| `recentlyDeleted` | `recently_deleted` | `number` | Recently deleted torrents |
+| `connectable` | `snatch_summary.connectable` | `string` | `"yes"` in the 2026-09-24 response, `"offline"` in the 2026-03 capture |
+| `unsatisfiedCount` | `snatch_summary.unsat.count` | `number` | Current unsatisfied torrent count |
+| `unsatisfiedLimit` | `snatch_summary.unsat.limit` | `number` | Class-dependent limit (User=50, PU=100, VIP=150, above VIP=200) |
+| `inactiveSatisfiedCount` | `snatch_summary.inactSat.count` | `number` | Completed torrents no longer seeding |
+| `seedingHnrCount` | `snatch_summary.seedHnr.count` | `number` | HnR torrents being actively resolved |
+| `seedingUnsatisfiedCount` | `snatch_summary.seedUnsat.count` | `number` | Torrents seeding toward the 72h requirement |
+| `inactiveUnsatisfiedCount` | `snatch_summary.inactUnsat.count` | `number` | Pre-HnR torrents not being seeded (ticking clock) |
+| `trackerErrorCount` | `snatch_summary.ite.count` | `number` | Important Tracker Errors |
+| `recentlyDeleted` | `snatch_summary.recently_deleted` | `number` | Recently deleted torrents |
 
 ## Snatch Summary Categories
 
@@ -112,20 +116,22 @@ Auth fails silently — you get HTML instead of JSON. We detect it by checking i
 | --- | --- | --- | --- |
 | Seeding - Satisfied | `sSat` | Past 72h, active | No |
 | Seeding - H&R - Not Yet Satisfied | `seedHnr` | Active HnR being resolved | Yes |
-| Seeding - pre-H&R - Not Yet Satisfied | `seedUnsat` | Seeding toward 72h | No |
+| Seeding - Not Yet Satisfied | `seedUnsat` | Seeding toward 72h | No |
 | Seeding - Uploads | `upAct` | Own uploads, seeding | No |
-| Not Seeding - H&R - Not Yet Satisfied | `inactHnr` | Inactive HnR — urgent | Yes |
-| Not Seeding - pre-H&R - Not Yet Satisfied | `inactUnsat` | Ticking clock to HnR | Yes |
+| Not Seeding - H&R - Not Yet Satisfied | `inactHnr` | Inactive HnR, urgent | Yes |
+| Not Seeding - Not Yet Satisfied | `inactUnsat` | Ticking clock to HnR | Yes |
 | Not Seeding - Satisfied | `inactSat` | Completed | No |
 | Not Seeding - Uploads | `upInact` | Own uploads, inactive | No |
 | Leeching | `leeching` | Downloading | No |
 | Unsatisfied | `unsat` | Total unsatisfied | No |
 
-Each object: `name`, `count`, `red` (boolean alert flag), `size` (bytes or null).
+Each object: `name`, `count`, `size` (bytes or null). The 2026-03 capture also carried `red`, a boolean alert flag; the 2026-09-24 response does not.
 
 ## Quirks
 
-**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. We use raw bytes with `BigInt()` — no parsing needed.
+**The summary moved under `snatch_summary` on 2026-09-23.** Since then the snatch categories, `connectable`, `created`, `created_at` (new), `ipv6_mac`, `partial`, `recently_deleted` and `v6_connectable` arrive nested under `snatch_summary`; before, they sat at the top level. The adapter reads `{ ...data, ...data.snatch_summary }`, so both shapes parse.
+
+**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. We use raw bytes with `BigInt()`, so no parsing is needed.
 
 **Bonus points cap at 99,999.** Hard ceiling. Anything above is lost.
 
@@ -133,7 +139,7 @@ Each object: `name`, `count`, `red` (boolean alert flag), `size` (bytes or null)
 
 **Cookie auth only.** Set `mam_id` as IP-locked or ASN-locked in Security Settings. Monthly rotations are normal.
 
-**`created` and `update` are cache timestamps.** They change on each API call — they're not account dates. MAM doesn't expose join date via API.
+**`created` and `update` are cache timestamps.** They change on each API call, so they're not account dates. MAM doesn't expose join date via API.
 
 **`unsat.limit` is class-dependent.** User=50, Power User=100, VIP=150, above VIP=200.
 
@@ -153,7 +159,7 @@ Without `?id=`: empty array. With `?id={uid}` (your ID): full breakdown:
 {
   "clientStats": {
     "uid": 230500,
-    "username": "thesneakyrobot",
+    "username": "lanternfoxtail",
     "seedbonus": 99999,
     "uploaded": "5.125 TiB",
     "downloaded": "196.47 GiB",
@@ -200,14 +206,14 @@ Without `?id=`: empty array. With `?id={uid}` (your ID): full breakdown:
 | `ip` | string | IP address MAM sees the client connecting from |
 | `port` | number | Port the client announces |
 | `agent` | string | Torrent client user agent string |
-| `connectable` | string | `"yes"` or `"no"` — whether MAM can reach the client |
+| `connectable` | string | `"yes"` or `"no"`, whether MAM can reach the client |
 | `subResponse` | string | `"Connect"` (success) or `"timeout"` (unreachable) |
 | `startTime` | number | Unix timestamp of first seen |
 | `count` | number | Number of torrents associated with this client entry |
 | `lastcheck` | number | Unix timestamp of last connectivity check |
 | `timeTaken` | number | Milliseconds for the connectivity check |
 
-Note: A single user can have multiple client entries across different IPs/ports (e.g., home connection + VPN + seedbox). The top-level `"connectable"` field on the main response is `"yes"` if ANY client entry is connectable.
+Note: A single user can have multiple client entries across different IPs/ports (a home connection, a VPN and a seedbox, say). The `"connectable"` field in the main response's `snatch_summary` is `"yes"` if ANY client entry is connectable.
 
 ### `/jsonLoad.php?notif`
 

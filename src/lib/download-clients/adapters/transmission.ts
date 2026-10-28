@@ -1,15 +1,13 @@
 // src/lib/download-clients/adapters/transmission.ts
 
 import { mapTransmissionTorrent } from "../field-map"
-// buildBaseUrl is client-agnostic despite living under qbt/ — fetch.ts imports
-// it from there for the same reason.
-import { buildBaseUrl } from "../qbt/transport"
 import {
   getSessionStats,
   invalidateSessionId,
   testSession,
   getTorrents as trGetTorrents,
 } from "../transmission/transport"
+import { buildBaseUrl } from "../transport"
 import type { ClientAdapter, ClientCredentials, TorrentRecord, TransferStats } from "../types"
 
 /**
@@ -42,7 +40,7 @@ export class TransmissionClientAdapter implements ClientAdapter {
     ssl: boolean,
     private readonly creds: ClientCredentials
   ) {
-    this.baseUrl = buildBaseUrl(host, port, ssl)
+    this.baseUrl = buildBaseUrl(host, port, ssl, creds.urlPath)
   }
 
   async testConnection(): Promise<void> {

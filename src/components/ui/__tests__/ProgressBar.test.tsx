@@ -143,27 +143,27 @@ describe("ProgressBar glow", () => {
 describe("ProgressBar showLabel prop", () => {
   it("does not render label by default", () => {
     const { queryByText } = render(<ProgressBar percent={50} />)
-    expect(queryByText("50%")).toBeNull()
+    expect(queryByText("50.0%")).toBeNull()
   })
 
   it("does not render label on lg size when percent <= 10", () => {
     const { queryByText } = render(<ProgressBar percent={10} size="lg" showLabel />)
-    expect(queryByText("10%")).toBeNull()
+    expect(queryByText("10.0%")).toBeNull()
   })
 
   it("renders label text on lg size when percent > 10 and showLabel is true", () => {
     const { getByText } = render(<ProgressBar percent={50} size="lg" showLabel />)
-    expect(getByText("50%")).toBeDefined()
+    expect(getByText("50.0%")).toBeDefined()
   })
 
   it("does not render label on md size even when showLabel is true", () => {
     const { queryByText } = render(<ProgressBar percent={50} size="md" showLabel />)
-    expect(queryByText("50%")).toBeNull()
+    expect(queryByText("50.0%")).toBeNull()
   })
 
-  it("rounds the percent label to the nearest integer", () => {
-    const { getByText } = render(<ProgressBar percent={50.7} size="lg" showLabel />)
-    expect(getByText("51%")).toBeDefined()
+  it("rounds the percent label to one decimal", () => {
+    const { getByText } = render(<ProgressBar percent={50.66} size="lg" showLabel />)
+    expect(getByText("50.7%")).toBeDefined()
   })
 })
 

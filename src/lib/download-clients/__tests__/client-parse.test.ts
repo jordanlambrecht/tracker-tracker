@@ -1,6 +1,7 @@
 // src/lib/download-clients/__tests__/client-parse.test.ts
 
 import { describe, expect, it, vi } from "vitest"
+import { log } from "@/lib/logger"
 import { parseCachedTorrents } from "../qbt/transport"
 
 // Silence the warn calls that parseCachedTorrents makes on failure paths
@@ -106,7 +107,7 @@ describe("parseCachedTorrents", () => {
   // slimTorrentForCache now stores a derived announce host as `tracker` (issue #152).
   // Rows written before that change have no such key, and they stay in the jsonb
   // column until the scheduler's next successful deep poll rewrites them. They must
-  // keep parsing — isQbtTorrent spot-checks hash/name/state/size/ratio only, so the
+  // keep parsing, isQbtTorrent spot-checks hash/name/state/size/ratio only, so the
   // new field is not part of the validated shape in either direction.
   describe("cached rows predating the stored announce host", () => {
     it("parses an old row that has no tracker key at all", () => {
@@ -214,6 +215,19 @@ describe("parseCachedTorrents", () => {
     it("returns [] when first element is a plain string", () => {
       expect(parseCachedTorrents(["not-an-object"])).toEqual([])
     })
+
+    it("logs the element's type and field names, never its values", () => {
+      const warn = vi.mocked(log.warn)
+      warn.mockClear()
+      const bad = { ...VALID_TORRENT, hash: 123, name: "must-not-be-logged" }
+
+      parseCachedTorrents([bad])
+
+      expect(warn).toHaveBeenCalledOnce()
+      const [payload] = warn.mock.calls[0]
+      expect(payload).toEqual({ type: "object", keys: Object.keys(bad) })
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("must-not-be-logged")
+    })
   })
 
   describe("non-array non-string inputs", () => {
@@ -228,7 +242,7 @@ describe("parseCachedTorrents", () => {
 
   describe("only first element checked", () => {
     it("returns all elements when first is valid, even if later elements are malformed", () => {
-      // parseCachedTorrents only validates index 0 — subsequent items pass through unchecked
+      // parseCachedTorrents only validates index 0, subsequent items pass through unchecked
       const malformed = { hash: "bad", missing_name: true }
       const result = parseCachedTorrents([VALID_TORRENT, malformed])
       expect(result).toHaveLength(2)

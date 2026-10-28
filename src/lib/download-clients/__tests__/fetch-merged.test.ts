@@ -5,6 +5,7 @@
 //   makeTorrent - Build a minimal TorrentRecord for tests
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { encrypt } from "@/lib/crypto"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { fetchAndMergeTorrents } from "../fetch"
 import type { DownloadClientRow } from "../types"
@@ -29,7 +30,7 @@ vi.mock("@/lib/download-clients/factory", () => ({
   createAdapterForClient: vi.fn(() => mockAdapter),
 }))
 
-vi.mock("../qbt/transport", () => ({
+vi.mock("../transport", () => ({
   buildBaseUrl: vi.fn(() => "http://localhost:8080"),
 }))
 
@@ -49,8 +50,8 @@ vi.mock("../sync-store", () => ({
 // ---------------------------------------------------------------------------
 
 import { createAdapterForClient } from "@/lib/download-clients/factory"
-import { buildBaseUrl } from "../qbt/transport"
 import { getFilteredTorrents, getStoredTorrents, isStoreFresh } from "../sync-store"
+import { buildBaseUrl } from "../transport"
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -66,6 +67,7 @@ function makeClient(overrides: Partial<DownloadClientRow> = {}): DownloadClientR
     encryptedUsername: "enc-admin",
     encryptedPassword: "enc-pass",
     encryptedApiKey: "",
+    encryptedUrlPath: "",
     crossSeedTags: null,
     type: "qbittorrent",
     ...overrides,
@@ -185,7 +187,7 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(buildBaseUrl).toHaveBeenCalledWith("localhost", 8080, false)
+    expect(buildBaseUrl).toHaveBeenCalledWith("localhost", 8080, false, "")
     expect(isStoreFresh).toHaveBeenCalledWith("http://localhost:8080", expect.any(Number))
   })
 
@@ -225,6 +227,54 @@ describe("fetchAndMergeTorrents — fast path (store is fresh, no filter)", () =
     )
 
     expect(result.clientCount).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A client behind a URL path
+//
+// The scheduler keys the sync store by the adapter's baseUrl, which carries
+// the path. A lookup that leaves the path off misses the store every time.
+// ---------------------------------------------------------------------------
+
+describe("fetchAndMergeTorrents — a client behind a URL path", () => {
+  const PATH_URL = "http://localhost:8080/proxy/qui-client-key"
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(buildBaseUrl).mockImplementation(
+      (host: string, port: number, ssl: boolean, urlPath: string) =>
+        `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
+    )
+
+    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
+    mockAdapter.getTorrents.mockResolvedValue([])
+  })
+
+  it("serves the store kept under the full path URL without building an adapter", async () => {
+    vi.mocked(isStoreFresh).mockImplementation((url: string) => url === PATH_URL)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (url: string, pred: (t: TorrentRecord) => boolean) =>
+        url === PATH_URL ? [makeTorrent("h1", { tags: "aither" })].filter(pred) : []
+    )
+    const client = makeClient({ encryptedUrlPath: encrypt("/proxy/qui-client-key", makeKey()) })
+
+    const result = await fetchAndMergeTorrents([client], ["aither"], makeKey())
+
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(result.torrents.map((t) => t.hash)).toEqual(["h1"])
+  })
+
+  it("reports a path the session key cannot decrypt as a stale session", async () => {
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    const staleKey = Buffer.alloc(32, 0xcd)
+    const client = makeClient({ encryptedUrlPath: encrypt("/proxy/qui-client-key", staleKey) })
+
+    const result = await fetchAndMergeTorrents([client], ["aither"], makeKey())
+
+    expect(createAdapterForClient).not.toHaveBeenCalled()
+    expect(result.sessionExpired).toBe(true)
+    expect(result.clientErrors).toEqual(["Home qBT: Credential decryption failed"])
   })
 })
 
@@ -276,7 +326,7 @@ describe("fetchAndMergeTorrents — fast path tag filtering", () => {
       (_url: string, pred: (t: TorrentRecord) => boolean) => stored.filter(pred)
     )
 
-    // Tags requested in lowercase — stored tags have mixed case
+    // Tags requested in lowercase, stored tags have mixed case
     const result = await fetchAndMergeTorrents([makeClient()], ["aither", "blutopia"], makeKey())
 
     expect(createAdapterForClient).not.toHaveBeenCalled()
@@ -325,7 +375,7 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
   })
 
   it("calls createAdapterForClient instead of reading the store when filter is provided", async () => {
-    // Store is fresh but filter is present — must fall back to live fetch
+    // Store is fresh but filter is present, must fall back to live fetch
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey(), "active")
 
     expect(createAdapterForClient).toHaveBeenCalled()
@@ -343,7 +393,11 @@ describe("fetchAndMergeTorrents — fast path skipped when filter is present", (
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey(), "active")
 
-    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither", filter: "active" })
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({
+      tag: "aither",
+      filter: "active",
+      signal: expect.any(AbortSignal),
+    })
   })
 })
 
@@ -378,7 +432,10 @@ describe("fetchAndMergeTorrents — fast path skipped when store is stale", () =
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({
+      tag: "aither",
+      signal: expect.any(AbortSignal),
+    })
     expect(result.torrents).toHaveLength(1)
     expect(result.torrents[0].hash).toBe("live1")
   })
@@ -407,7 +464,7 @@ describe("fetchAndMergeTorrents — fast path skipped when store is uninitialize
   })
 
   it("calls createAdapterForClient when store has never been initialized (isStoreFresh returns false)", async () => {
-    // isStoreFresh returns false for both stale AND uninitialized stores
+    // isStoreFresh returns false for both stale and uninitialized stores
     vi.mocked(isStoreFresh).mockReturnValue(false)
 
     await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
@@ -537,7 +594,13 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
   it("does not early-exit on null tags the way an empty tag array does", async () => {
     mockAdapter.getTorrents.mockResolvedValue([makeTorrent("h1")])
 
-    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+    const result = await fetchAndMergeTorrents(
+      [makeClient()],
+      null,
+      makeKey(),
+      undefined,
+      () => true
+    )
 
     expect(createAdapterForClient).toHaveBeenCalled()
     expect(result.torrents).toHaveLength(1)
@@ -546,7 +609,10 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
   it("asks qBT for every torrent — no tag parameter", async () => {
     await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
 
-    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ filter: undefined })
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({
+      filter: undefined,
+      signal: expect.any(AbortSignal),
+    })
     expect(mockAdapter.getTorrents).not.toHaveBeenCalledWith(
       expect.objectContaining({ tag: expect.anything() })
     )
@@ -555,7 +621,10 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
   it("still forwards the filter, so the active poll does not drag the whole list across", async () => {
     await fetchAndMergeTorrents([makeClient()], null, makeKey(), "active", () => true)
 
-    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ filter: "active" })
+    expect(mockAdapter.getTorrents).toHaveBeenCalledWith({
+      filter: "active",
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it("reads the whole warm store rather than filtering it by tag", async () => {
@@ -565,7 +634,13 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
       makeTorrent("untagged", { tags: "" }),
     ])
 
-    const result = await fetchAndMergeTorrents([makeClient()], null, makeKey(), undefined, () => true)
+    const result = await fetchAndMergeTorrents(
+      [makeClient()],
+      null,
+      makeKey(),
+      undefined,
+      () => true
+    )
 
     expect(getStoredTorrents).toHaveBeenCalledWith("http://localhost:8080")
     expect(getFilteredTorrents).not.toHaveBeenCalled()
@@ -618,5 +693,35 @@ describe("fetchAndMergeTorrents — null tags with a select predicate", () => {
     expect(seen).toEqual(["https://lst.gg/announce/SECRET"])
     // ...and is still stripped out of the response.
     expect(result.torrents[0]).not.toHaveProperty("tracker")
+  })
+})
+
+describe("fetchAndMergeTorrents cancels a client that overruns its deadline", () => {
+  // The 5s deadline used to release the caller and leave the work running,
+  // holding a socket and a response buffer open until the 15s transport
+  // timeout. The signal is what actually stops a stalling host.
+  beforeEach(() => {
+    vi.useRealTimers()
+    mockAdapter.getTorrents.mockReset()
+  })
+
+  it("aborts the signal it handed the adapter", async () => {
+    vi.useFakeTimers()
+    let captured: AbortSignal | undefined
+    mockAdapter.getTorrents.mockImplementation(
+      (opts?: { signal?: AbortSignal }) =>
+        new Promise(() => {
+          captured = opts?.signal
+        })
+    )
+
+    const promise = fetchAndMergeTorrents([makeClient()], null, Buffer.alloc(32))
+    await vi.advanceTimersByTimeAsync(5_001)
+    const result = await promise
+
+    expect(captured).toBeDefined()
+    expect(captured?.aborted).toBe(true)
+    expect(result.clientErrors.length).toBeGreaterThan(0)
+    vi.useRealTimers()
   })
 })

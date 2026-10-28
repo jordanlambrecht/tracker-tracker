@@ -12,9 +12,12 @@ import {
   bytesToGiB,
   formatCount,
   formatDateTime,
+  formatOrdinal,
   formatPercent,
   formatRatio,
   formatRatioDisplay,
+  formatSignedChange,
+  formatSpanInWords,
 } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
@@ -187,13 +190,27 @@ describe("formatPercent", () => {
   })
 
   it("respects custom decimal places", () => {
-    expect(formatPercent(85, 0)).toBe("85%")
-    expect(formatPercent(33.333, 2)).toBe("33.33%")
+    expect(formatPercent(85, { decimals: 0 })).toBe("85%")
+    expect(formatPercent(33.333, { decimals: 2 })).toBe("33.33%")
   })
 
   it("handles edge values", () => {
     expect(formatPercent(-5.1)).toBe("-5.1%")
-    expect(formatPercent(0.05, 0)).toBe("0%")
+    expect(formatPercent(0.05, { decimals: 0 })).toBe("0%")
+    expect(formatPercent(Number.POSITIVE_INFINITY, { signed: true })).toBe("—")
+  })
+
+  it("drops the minus from a negative that rounds to zero", () => {
+    expect(formatPercent(-0.04)).toBe("0.0%")
+    expect(formatPercent(-0.4, { decimals: 0 })).toBe("0%")
+  })
+
+  it("signs the rounded value in signed mode", () => {
+    expect(formatPercent(5.79, { signed: true })).toBe("+5.8%")
+    expect(formatPercent(-2.96, { signed: true })).toBe("-3.0%")
+    expect(formatPercent(0.04, { signed: true })).toBe("0.0%")
+    expect(formatPercent(-0.04, { signed: true })).toBe("0.0%")
+    expect(formatPercent(0.4, { decimals: 0, signed: true })).toBe("0%")
   })
 })
 
@@ -243,7 +260,7 @@ describe("floatBytesToBigInt", () => {
     expect(floatBytesToBigInt(0.1)).toBe(0n)
   })
 
-  // This clamp is load-bearing and must NOT be loosened for symmetry with the
+  // This clamp is load-bearing and must not be loosened for symmetry with the
   // signed helper: every caller converts uploaded/downloaded, which are
   // monotonic counters, so a negative there is a malformed API response and the
   // clamp is what stops it reaching the snapshots table.
@@ -293,7 +310,7 @@ describe("computeBufferBytes", () => {
   })
 
   // Buffer is signed on a private tracker. Clamping a deficit to 0n drew a flat
-  // line on the buffer chart while the account got worse — indistinguishable
+  // line on the buffer chart while the account got worse, indistinguishable
   // from holding steady at breakeven.
   it("returns a negative buffer when download exceeds upload", () => {
     expect(computeBufferBytes(100n, 500n)).toBe(-400n)
@@ -303,5 +320,73 @@ describe("computeBufferBytes", () => {
   it("returns 0n only at genuine breakeven", () => {
     expect(computeBufferBytes(500n, 500n)).toBe(0n)
     expect(computeBufferBytes(0n, 0n)).toBe(0n)
+  })
+})
+
+describe("formatOrdinal", () => {
+  it("uses st, nd and rd for one, two and three", () => {
+    expect(formatOrdinal(1)).toBe("1st")
+    expect(formatOrdinal(2)).toBe("2nd")
+    expect(formatOrdinal(3)).toBe("3rd")
+    expect(formatOrdinal(4)).toBe("4th")
+  })
+
+  it("keeps th through the teens, where the last digit lies", () => {
+    expect(formatOrdinal(11)).toBe("11th")
+    expect(formatOrdinal(12)).toBe("12th")
+    expect(formatOrdinal(13)).toBe("13th")
+  })
+
+  it("reads the last digit again above twenty", () => {
+    expect(formatOrdinal(21)).toBe("21st")
+    expect(formatOrdinal(22)).toBe("22nd")
+    expect(formatOrdinal(23)).toBe("23rd")
+    expect(formatOrdinal(32)).toBe("32nd")
+    expect(formatOrdinal(111)).toBe("111th")
+    expect(formatOrdinal(101)).toBe("101st")
+  })
+
+  it("returns a dash for a missing value", () => {
+    expect(formatOrdinal(null)).toBe("—")
+    expect(formatOrdinal(undefined)).toBe("—")
+  })
+})
+
+describe("formatSignedChange", () => {
+  it("signs a change by its direction", () => {
+    expect(formatSignedChange(0.0123, 4)).toEqual({ text: "+0.0123", direction: "up" })
+    expect(formatSignedChange(-0.0123, 4)).toEqual({ text: "-0.0123", direction: "down" })
+  })
+
+  it("shows a change that rounds to zero without a sign", () => {
+    expect(formatSignedChange(0, 4)).toEqual({ text: "0.0000", direction: "flat" })
+    expect(formatSignedChange(0.00004, 4)).toEqual({ text: "0.0000", direction: "flat" })
+    expect(formatSignedChange(-0.04, 1)).toEqual({ text: "0.0", direction: "flat" })
+  })
+
+  it("passes the unsigned, rounded magnitude to the formatter", () => {
+    expect(formatSignedChange(-1234, 0, formatCount).text).toBe("-1,234")
+    expect(formatSignedChange(-0.04, 1, (v) => formatPercent(v)).text).toBe("0.0%")
+    expect(formatSignedChange(12.34, 1, (v) => formatPercent(v)).text).toBe("+12.3%")
+  })
+})
+
+const SPAN_MINUTE = 60_000
+const SPAN_HOUR = 60 * SPAN_MINUTE
+const SPAN_DAY = 24 * SPAN_HOUR
+
+describe("formatSpanInWords", () => {
+  it.each([
+    [30_000, "less than a minute"],
+    [SPAN_MINUTE, "1 minute"],
+    [45 * SPAN_MINUTE, "45 minutes"],
+    [SPAN_HOUR, "1 hour"],
+    [3 * SPAN_HOUR + 59 * SPAN_MINUTE, "3 hours"],
+    [SPAN_DAY, "1 day"],
+    [2 * SPAN_DAY + 5 * SPAN_HOUR, "2 days, 5 hours"],
+    [SPAN_DAY + SPAN_HOUR, "1 day, 1 hour"],
+    [-3 * SPAN_HOUR, "3 hours"],
+  ])("formats %d ms as %s", (ms, text) => {
+    expect(formatSpanInWords(ms)).toBe(text)
   })
 })

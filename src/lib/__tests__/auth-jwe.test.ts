@@ -1,7 +1,7 @@
 // src/lib/__tests__/auth-jwe.test.ts
 //
 // Tests JWE (AES-256-GCM) encryption round-trips via jose.
-// Only next/headers is mocked; jose is NOT mocked.
+// next/headers, the app_settings read and the logger are mocked; jose is NOT mocked.
 //
 // jose v6 uses the Web Crypto API internally. The jsdom environment ships its
 // own Uint8Array which fails jose's instanceof check, so we opt into the
@@ -10,7 +10,9 @@
 // @vitest-environment node
 
 import crypto from "node:crypto"
+import { EncryptJWT } from "jose"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { masterKeyFingerprint } from "@/lib/crypto"
 
 // ---------------------------------------------------------------------------
 // Cookie store: shared across all calls within a single test
@@ -39,6 +41,20 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => createCookieStore()),
 }))
 
+// The app_settings row readSession compares each session's fingerprint with
+const HASH = "$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$aGFzaGhhc2g"
+const SALT = "5a".repeat(32)
+const FP = masterKeyFingerprint(HASH, SALT)
+let settingsRow: { passwordHash: string; encryptionSalt: string }
+
+vi.mock("@/lib/db", () => ({
+  db: { select: () => ({ from: () => ({ limit: async () => [settingsRow] }) }) },
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}))
+
 // ---------------------------------------------------------------------------
 // Fresh module import per test: avoids stale env cache in getSessionKey()
 // ---------------------------------------------------------------------------
@@ -63,6 +79,7 @@ const SAMPLE_KEY = "a]3$kF9!mZq2vR7xLp0wN5sT8yU1eH4j" // 32-char encryption key
 describe("auth JWE real crypto", () => {
   beforeEach(() => {
     cookieState = new Map()
+    settingsRow = { passwordHash: HASH, encryptionSalt: SALT }
     vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
     vi.stubEnv("NODE_ENV", "test")
   })
@@ -76,7 +93,7 @@ describe("auth JWE real crypto", () => {
   it("should round-trip an encryption key through real JWE encrypt/decrypt", async () => {
     const { createSession, getSession } = await loadAuth()
 
-    await createSession(SAMPLE_KEY, 30)
+    await createSession(SAMPLE_KEY, FP, 30)
 
     const session = await getSession()
     expect(session).not.toBeNull()
@@ -86,7 +103,7 @@ describe("auth JWE real crypto", () => {
   it("should round-trip with default maxAge when timeoutMinutes is null", async () => {
     const { createSession, getSession } = await loadAuth()
 
-    await createSession(SAMPLE_KEY, null)
+    await createSession(SAMPLE_KEY, FP, null)
 
     const session = await getSession()
     expect(session).not.toBeNull()
@@ -98,7 +115,7 @@ describe("auth JWE real crypto", () => {
   it("should produce a compact JWE token, not plain JSON", async () => {
     const { createSession } = await loadAuth()
 
-    const token = await createSession(SAMPLE_KEY, 10)
+    const token = await createSession(SAMPLE_KEY, FP, 10)
 
     // JWE compact serialization has 5 dot-separated base64url segments
     expect(token.split(".")).toHaveLength(5)
@@ -118,7 +135,7 @@ describe("auth JWE real crypto", () => {
   it("should return null from getSession when SESSION_SECRET changes", async () => {
     const { createSession } = await loadAuth()
 
-    await createSession(SAMPLE_KEY, 30)
+    await createSession(SAMPLE_KEY, FP, 30)
 
     // Confirm the cookie was set
     expect(cookieState.has("tt_session")).toBe(true)
@@ -136,11 +153,42 @@ describe("auth JWE real crypto", () => {
   it("should round-trip a pending token with real JWE", async () => {
     const { createPendingToken, verifyPendingToken } = await loadAuth()
 
-    const token = await createPendingToken(SAMPLE_KEY)
+    const token = await createPendingToken(SAMPLE_KEY, FP)
 
     const result = await verifyPendingToken(token)
     expect(result).not.toBeNull()
     expect(result?.encryptionKey).toBe(SAMPLE_KEY)
+    expect(result?.fingerprint).toBe(FP)
+  })
+
+  it("should refuse a pending token that carries no fingerprint", async () => {
+    const { verifyPendingToken } = await loadAuth()
+
+    // What the previous release minted for the TOTP step
+    const key = new Uint8Array(
+      crypto.hkdfSync("sha256", TEST_SECRET_A, "", "tracker-tracker:session-v1", 32)
+    )
+    const legacy = await new EncryptJWT({ ek: SAMPLE_KEY, purpose: "pending" })
+      .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+      .setIssuedAt()
+      .setExpirationTime("60s")
+      .encrypt(key)
+
+    expect(await verifyPendingToken(legacy)).toBeNull()
+  })
+
+  it("should mint a stale session from a pending token minted before a password change", async () => {
+    const { createPendingToken, createSession, readSession, verifyPendingToken } = await loadAuth()
+
+    const pendingToken = await createPendingToken(SAMPLE_KEY, FP)
+    // Another device changes the password while this one is on the TOTP step
+    settingsRow = { passwordHash: "$argon2id$v=19$new", encryptionSalt: SALT }
+
+    const pending = await verifyPendingToken(pendingToken)
+    if (!pending) throw new Error("pending token should still verify")
+    await createSession(pending.encryptionKey, pending.fingerprint, 10)
+
+    expect(await readSession()).toEqual({ status: "stale" })
   })
 
   it("should reject a pending token when purpose does not match", async () => {
@@ -156,7 +204,7 @@ describe("auth JWE real crypto", () => {
   it("should reject a session JWE as a pending token (no purpose claim)", async () => {
     const { createSession, verifyPendingToken } = await loadAuth()
 
-    const sessionToken = await createSession(SAMPLE_KEY, 10)
+    const sessionToken = await createSession(SAMPLE_KEY, FP, 10)
 
     // Session tokens have no purpose field. verifyPendingToken should reject
     const result = await verifyPendingToken(sessionToken)
@@ -166,7 +214,7 @@ describe("auth JWE real crypto", () => {
   it("should reject a pending token as a session (getSession ignores purpose tokens)", async () => {
     const { createPendingToken, getSession } = await loadAuth()
 
-    const pendingToken = await createPendingToken(SAMPLE_KEY)
+    const pendingToken = await createPendingToken(SAMPLE_KEY, FP)
 
     // Simulate an attacker manually setting the pending token as the session cookie
     cookieState.set("tt_session", { value: pendingToken })
@@ -204,7 +252,7 @@ describe("auth JWE real crypto", () => {
   it("should reject a pending token when verified as a setup token", async () => {
     const { createPendingToken, verifySetupToken } = await loadAuth()
 
-    const pendingToken = await createPendingToken(SAMPLE_KEY)
+    const pendingToken = await createPendingToken(SAMPLE_KEY, FP)
 
     const result = await verifySetupToken(pendingToken)
     expect(result).toBeNull()
@@ -243,8 +291,8 @@ describe("auth JWE real crypto", () => {
   it("should produce distinct JWE tokens for the same payload (different iat/iv)", async () => {
     const { createSession } = await loadAuth()
 
-    const token1 = await createSession(SAMPLE_KEY, 10)
-    const token2 = await createSession(SAMPLE_KEY, 10)
+    const token1 = await createSession(SAMPLE_KEY, FP, 10)
+    const token2 = await createSession(SAMPLE_KEY, FP, 10)
 
     expect(token1).not.toBe(token2)
   })
@@ -259,7 +307,7 @@ describe("getSession config error propagation", () => {
     // Create a valid token with a good secret first
     vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
     const { createSession: createWithGoodKey } = await loadAuth()
-    const token = await createWithGoodKey(SAMPLE_KEY, 10)
+    const token = await createWithGoodKey(SAMPLE_KEY, FP, 10)
 
     // Now unset the secret and try to read the session
     vi.stubEnv("SESSION_SECRET", "")
@@ -274,7 +322,7 @@ describe("getSession config error propagation", () => {
     // Create a valid token with a good secret
     vi.stubEnv("SESSION_SECRET", TEST_SECRET_A)
     const { createSession } = await loadAuth()
-    const token = await createSession(SAMPLE_KEY, 10)
+    const token = await createSession(SAMPLE_KEY, FP, 10)
 
     // Now set a short secret
     vi.stubEnv("SESSION_SECRET", "tooshort")

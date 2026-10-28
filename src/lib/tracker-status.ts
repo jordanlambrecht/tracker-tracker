@@ -1,28 +1,22 @@
 // src/lib/tracker-status.ts
 //
-// Functions: getPauseState, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthPulseDot
+// Functions: getPauseState, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthPulseDot
 //
 // Single source of truth for tracker health status. Includes type, derivation
 // logic, and all visual mappings (PulseDot status, Badge variant, labels,
-// descriptions).
+// descriptions). Ratio bands are requirement-aware: each tracker is judged
+// against its own required ratio, not a global cutoff.
 
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { PulseDotStatus } from "@/components/ui/PulseDot"
+import { registryEntryFor } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
 
-// Ordered loosely by severity, ascending. "warning" and "no-seeds" were a
-// single conflated pill until they were split: a thin ratio and zero active
-// seeds are unrelated conditions calling for different fixes, and neither is
-// implied by the other.
+// Ordered loosely by severity, ascending. "warning" and "no-seeds" are
+// separate: a thin ratio and zero active seeds are unrelated and need different
+// fixes.
 type TrackerHealth =
-  | "healthy"
-  | "warning"
-  | "no-seeds"
-  | "critical"
-  | "error"
-  | "paused"
-  | "paused-user"
-  | "offline"
+  "healthy" | "warning" | "no-seeds" | "critical" | "error" | "paused" | "paused-user" | "offline"
 
 interface HealthMeta {
   label: string
@@ -34,13 +28,16 @@ interface HealthMeta {
 const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   healthy: {
     label: "Healthy",
-    description: "Ratio \u2265 2.0 \u2014 healthy buffer",
+    description: "Ratio at least double the required ratio",
     pulseDot: "healthy",
     badge: "accent",
   },
   warning: {
-    label: "Warning",
-    description: "Ratio 1.0\u20132.0 \u2014 thin buffer",
+    // Named for what the model actually measures, which is ratio against the
+    // tracker's requirement. It never sees the buffer, so neither label nor
+    // description may claim one. The amber badge already signals watch.
+    label: "Above Min",
+    description: "Ratio above the required ratio, below double it",
     pulseDot: "warning",
     badge: "warn",
   },
@@ -49,18 +46,15 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   // rather than giving every id its own color.
   "no-seeds": {
     label: "No Seeds",
-    description: "Zero active seeds \u2014 nothing is uploading",
-    // Its own dot status, not "critical". The two look identical on purpose \u2014
-    // they share the danger palette the way paused and critical already do \u2014
-    // but the dot-only surfaces (sidebar list, overview grid) expose the status
-    // name to screen readers, and announcing "Critical" for a tracker that is
-    // simply seeding nothing describes the wrong problem.
+    description: "Zero active seeds, nothing is uploading",
+    // Its own dot status, not "critical": dot-only surfaces expose the status
+    // name to screen readers, and "Critical" would describe the wrong problem.
     pulseDot: "no-seeds",
     badge: "danger",
   },
   critical: {
     label: "Critical",
-    description: "Ratio < 1.0 \u2014 needs seeding",
+    description: "Ratio below the required ratio",
     pulseDot: "critical",
     badge: "danger",
   },
@@ -104,6 +98,36 @@ function getPauseState(tracker: {
   return { isPaused: false }
 }
 
+// The ratio a tracker actually holds this account to. Live requiredRatio wins
+// over the registry's minimumRatio because sliding-ratio sites (Gazelle) report
+// the current figure per account, and 0 is a real value there, hence the
+// explicit checks rather than `??` or `||`. Null means no requirement is on
+// record anywhere, which is not the same as no requirement existing.
+//
+// Takes the row rather than its slug so a caller cannot hand it a base URL and
+// get a silent null: the registry is reached by slug only.
+function resolveRequiredRatio(
+  liveRequiredRatio: number | null | undefined,
+  tracker: { registrySlug: string | null }
+): number | null {
+  if (
+    typeof liveRequiredRatio === "number" &&
+    Number.isFinite(liveRequiredRatio) &&
+    liveRequiredRatio >= 0
+  ) {
+    return liveRequiredRatio
+  }
+  const registryMinimum = registryEntryFor(tracker)?.rules?.minimumRatio
+  if (
+    typeof registryMinimum === "number" &&
+    Number.isFinite(registryMinimum) &&
+    registryMinimum >= 0
+  ) {
+    return registryMinimum
+  }
+  return null
+}
+
 function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   const pause = getPauseState(tracker)
   if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
@@ -123,22 +147,23 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
     // Uploads with zero downloads is the best possible standing.
     status = "healthy"
   } else {
+    // Unknown requirement falls back to the historical bands, which are the
+    // 2x formula at an assumed minimum of 1.0. A known requirement of 0
+    // (Phoenix fully seeding) means nothing is demanded, so no ratio can be
+    // unhealthy; an amber band above a zero requirement would claim risk that
+    // does not exist.
+    const requirement = resolveRequiredRatio(tracker.latestStats.requiredRatio, tracker)
+    const minimum = requirement ?? 1
     const value = ratio ?? 0
-    if (value >= 2) status = "healthy"
-    else if (value >= 1) status = "warning"
+    if (minimum === 0 || value >= 2 * minimum) status = "healthy"
+    else if (value >= minimum) status = "warning"
     else status = "critical"
   }
 
-  // Zero active seeds is its own condition, not a ratio band. No ratio value
-  // implies it, and the fix differs: start seeding at all vs. seed more of what
-  // is already loaded. It outranks both non-critical ratio statuses because an
-  // account uploading nothing cannot improve its ratio. This includes "warning",
-  // which is the case this split exists to disambiguate.
-  //
-  // It deliberately does NOT override "critical". Ratio < 1.0 and a tracker
-  // warning (returned above) both carry account-action risk that this label
-  // would erase, and the pre-split override never reached them either. Final
-  // severity order: critical > no-seeds > warning > healthy.
+  // Zero active seeds is its own condition, not a ratio band. It outranks
+  // healthy and warning because an account uploading nothing cannot improve its
+  // ratio. It does not override critical: a low ratio or a tracker warning
+  // carries account risk this label would hide.
   //
   // A null seedingCount means the adapter does not report the field (BTN), so
   // the strict === 0 check leaves those trackers on their ratio status.
@@ -155,8 +180,37 @@ function getHealthLabel(status: TrackerHealth): string {
   return HEALTH_META[status].label
 }
 
-function getHealthDescription(status: TrackerHealth): string {
-  return HEALTH_META[status].description
+// Requirement values come from registry literals and adapter figures, so plain
+// interpolation is enough; the trailing-zero pad only keeps whole numbers
+// reading as ratios ("1.0", not "1").
+function formatRequirement(value: number): string {
+  return Number.isInteger(value) ? value.toFixed(1) : String(value)
+}
+
+// With a tracker, the ratio-band descriptions carry that tracker's actual
+// numbers and say when the bands are assumed. Without one, the static wording
+// applies. The warned check comes first: a warned account is "critical"
+// whatever its ratio, and a band description would explain the wrong thing.
+function getHealthDescription(status: TrackerHealth, tracker?: TrackerSummary): string {
+  if (!tracker || (status !== "healthy" && status !== "warning" && status !== "critical")) {
+    return HEALTH_META[status].description
+  }
+  if (status === "critical" && tracker.latestStats?.warned === true) {
+    return "Warned by the tracker"
+  }
+  const requirement = resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker)
+  if (requirement === 0) return "No ratio requirement on this tracker"
+  const minimum = formatRequirement(requirement ?? 1)
+  const healthyLine = formatRequirement((requirement ?? 1) * 2)
+  if (requirement === null) {
+    if (status === "healthy") return `Ratio ${healthyLine} or higher (no requirement on record)`
+    if (status === "warning")
+      return `Ratio between ${minimum} and ${healthyLine} (no requirement on record)`
+    return `Ratio below ${minimum} (no requirement on record)`
+  }
+  if (status === "healthy") return `Ratio ${healthyLine} or higher (2x the ${minimum} requirement)`
+  if (status === "warning") return `Ratio between ${minimum} and ${healthyLine}`
+  return `Ratio below the ${minimum} requirement`
 }
 
 function getHealthPulseDot(status: TrackerHealth): PulseDotStatus {
@@ -171,4 +225,5 @@ export {
   getHealthPulseDot,
   getPauseState,
   getTrackerHealth,
+  resolveRequiredRatio,
 }

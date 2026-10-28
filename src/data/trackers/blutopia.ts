@@ -28,6 +28,7 @@ export const blutopia: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "blutopia",
   statusPageUrl: "",
+  announceHosts: ["blutopia.cc"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
@@ -35,6 +36,7 @@ export const blutopia: TrackerRegistryEntry = {
     {
       name: "Leech",
       requirements: "Ratio below 0.4 — download, invite, and request privileges revoked",
+      outsideLadder: "below",
     },
     {
       name: "User",
@@ -77,18 +79,42 @@ export const blutopia: TrackerRegistryEntry = {
       requirements:
         "Seed size ≥ 20 TiB, age ≥ 90 days, avg seedtime ≥ 90 days. H&R immune, global freeleech, global 2x upload, 150 download slots",
     },
-    // Static — staff-assigned
-    { name: "Junior Uploader", requirements: "Staff — brings fresh content" },
-    { name: "Uploader", requirements: "Staff — brings quality content" },
-    { name: "Trustee", requirements: "Staff — former staff, former internals, close associates" },
-    { name: "Internal", requirements: "Staff — internal release group members" },
-    { name: "Editor", requirements: "Staff — fixes torrent pages" },
-    { name: "Torrent Moderator", requirements: "Staff — moderates torrent queue" },
-    { name: "Moderator", requirements: "Staff" },
-    { name: "Super Mod", requirements: "Staff" },
-    { name: "systemd", requirements: "Staff — site and infrastructure management" },
-    { name: "Administrator", requirements: "Staff" },
-    { name: "Super Admin", requirements: "Staff — site and infrastructure" },
+    // Staff-assigned
+    {
+      name: "Junior Uploader",
+      requirements: "Staff — brings fresh content",
+      outsideLadder: "above",
+    },
+    { name: "Uploader", requirements: "Staff — brings quality content", outsideLadder: "above" },
+    {
+      name: "Trustee",
+      requirements: "Staff — former staff, former internals, close associates",
+      outsideLadder: "above",
+    },
+    {
+      name: "Internal",
+      requirements: "Staff — internal release group members",
+      outsideLadder: "above",
+    },
+    { name: "Editor", requirements: "Staff — fixes torrent pages", outsideLadder: "above" },
+    {
+      name: "Torrent Moderator",
+      requirements: "Staff — moderates torrent queue",
+      outsideLadder: "above",
+    },
+    { name: "Moderator", requirements: "Staff", outsideLadder: "above" },
+    { name: "Super Mod", requirements: "Staff", outsideLadder: "above" },
+    {
+      name: "systemd",
+      requirements: "Staff — site and infrastructure management",
+      outsideLadder: "above",
+    },
+    { name: "Administrator", requirements: "Staff", outsideLadder: "above" },
+    {
+      name: "Super Admin",
+      requirements: "Staff — site and infrastructure",
+      outsideLadder: "above",
+    },
   ],
   releaseGroups: [
     "BLURANiUM",

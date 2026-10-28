@@ -1,16 +1,17 @@
 // src/components/tracker-detail/__tests__/CoreStatCards.test.ts
 //
 // Regression coverage: an infinite ratio (uploaded > 0, downloaded === 0)
-// crosses the wire as `ratio: null` plus `ratioIsInfinite`. The ratio
-// descriptor used to read `ratio` alone and render "—" with no trend,
-// identical to a tracker with no stats at all.
+// crosses the wire as `ratio: null` plus `ratioIsInfinite`. Reading `ratio`
+// alone renders a dash with no trend, identical to a tracker with no stats at
+// all.
 //
-// Also covers the Hit & Runs descriptor: a count of nothing is zero, so a
-// snapshot with no recorded hit & runs must render "0" rather than the "—"
-// reserved for "no snapshot at all".
+// Also covers the Hit & Runs descriptor: a measured zero renders "0", while a
+// null count (the adapter cannot read the field) renders "—" like a missing
+// snapshot, so unknown never reads as clean.
 
 import { describe, expect, it } from "vitest"
 import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
+import type { TrendDirection } from "@/components/ui/StatCard"
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 const baseStats: TrackerLatestStats = {
@@ -59,7 +60,7 @@ function ratioDescriptor(stats: TrackerLatestStats | null) {
 }
 
 describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
-  it("renders '∞' with unit 'x' and an 'up' trend for a zero-download account", () => {
+  it("renders '∞' with unit 'x' for a zero-download account", () => {
     const stats: TrackerLatestStats = {
       ...baseStats,
       ratioIsInfinite: true,
@@ -70,7 +71,6 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
     const descriptor = ratioDescriptor(stats)
     expect(descriptor.value).toBe("∞")
     expect(descriptor.unit).toBe("x")
-    expect(descriptor.trend).toBe("up")
   })
 
   it("does not flag an infinite ratio as below a required ratio", () => {
@@ -105,7 +105,27 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
     const descriptor = ratioDescriptor(stats)
     expect(descriptor.value).toBe("2.50")
     expect(descriptor.unit).toBe("x")
-    expect(descriptor.trend).toBe("up")
+  })
+})
+
+describe("ratio trend", () => {
+  const trendOf = (stats: TrackerLatestStats | null, trend?: TrendDirection) =>
+    buildCoreStatDescriptors(stats, null, undefined, trend).find((d) => d.key === "ratio")?.trend
+
+  it("shows the trend it is given, not a level from the ratio itself", () => {
+    const stats: TrackerLatestStats = { ...baseStats, ratio: 4.48 }
+    expect(trendOf(stats)).toBeUndefined()
+    expect(trendOf(stats, "flat")).toBe("flat")
+    expect(trendOf(stats, "down")).toBe("down")
+  })
+
+  it("shows an infinite ratio's trend", () => {
+    expect(trendOf({ ...baseStats, ratioIsInfinite: true }, "up")).toBe("up")
+  })
+
+  it("shows no trend beside an unknown ratio", () => {
+    expect(trendOf(baseStats, "up")).toBeUndefined()
+    expect(trendOf(null, "up")).toBeUndefined()
   })
 })
 
@@ -116,13 +136,13 @@ function hnrDescriptor(latestSnapshot: Snapshot | null) {
   return descriptor
 }
 
-describe("buildCoreStatDescriptors hit & runs (zero is not unknown)", () => {
+describe("buildCoreStatDescriptors hit & runs (zero is not unknown, null is)", () => {
   it("renders '0' when the snapshot reports zero hit & runs", () => {
     expect(hnrDescriptor({ ...baseSnapshot, hitAndRuns: 0 }).value).toBe("0")
   })
 
-  it("renders '0' when a snapshot exists but recorded no hit & runs", () => {
-    expect(hnrDescriptor({ ...baseSnapshot, hitAndRuns: null }).value).toBe("0")
+  it("renders '—' when the snapshot carries no hit & run count at all", () => {
+    expect(hnrDescriptor({ ...baseSnapshot, hitAndRuns: null }).value).toBe("—")
   })
 
   it("renders '—' when there is no snapshot at all", () => {

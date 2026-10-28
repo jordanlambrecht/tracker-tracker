@@ -18,6 +18,7 @@ import { DataSection } from "@/components/settings/DataSection"
 import { EventsSection } from "@/components/settings/EventsSection"
 import { ImageHostingSection } from "@/components/settings/ImageHostingSection"
 import { PrivacySection } from "@/components/settings/PrivacySection"
+import { ProwlarrSection } from "@/components/settings/ProwlarrSection"
 import { ProxySection } from "@/components/settings/ProxySection"
 import { SecurityPoliciesSection } from "@/components/settings/SecurityPoliciesSection"
 import { TwoFactorSection } from "@/components/settings/TwoFactorSection"
@@ -131,6 +132,8 @@ export function SettingsClient({
             }}
             trackers={initialProxyTrackers}
           />
+
+          <ProwlarrSection />
 
           <DangerZoneSection />
         </>

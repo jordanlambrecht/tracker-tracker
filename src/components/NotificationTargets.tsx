@@ -24,7 +24,7 @@ import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 import { DOCS } from "@/lib/constants"
 import { formatTimeAgo } from "@/lib/formatters"
-import type { NotificationTargetType } from "@/lib/notifications/types"
+import { NOTIFY_TOGGLE_KEYS, type NotificationTargetType } from "@/lib/notifications/types"
 import type { SafeNotificationTarget } from "@/types/api"
 
 type NotificationTarget = SafeNotificationTarget
@@ -51,25 +51,17 @@ interface NotificationCardProps {
   onRemove: (id: number) => void
 }
 
-/** Fields tracked for dirty detection (excludes transient fields). */
+/**
+ * Fields tracked for dirty detection (excludes transient fields). A toggle
+ * missing here is switched in the UI and left out of the PATCH body, so it
+ * reverts on the next load; the toggles come from the same list the PATCH
+ * route allows rather than a second copy that can fall behind it.
+ */
 const DRAFT_KEYS: (keyof NotificationTarget)[] = [
   "name",
   "type",
   "enabled",
-  "notifyRatioDrop",
-  "notifyHitAndRun",
-  "notifyTrackerDown",
-  "notifyBufferMilestone",
-  "notifyWarned",
-  "notifyRatioDanger",
-  "notifyZeroSeeding",
-  "notifyRankChange",
-  "notifyAnniversary",
-  "notifyBonusCap",
-  "notifyVipExpiring",
-  "notifyUnsatisfiedLimit",
-  "notifyActiveHnrs",
-  "notifyDownloadDisabled",
+  ...NOTIFY_TOGGLE_KEYS,
   "thresholds",
   "includeTrackerName",
   "scope",
@@ -141,7 +133,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
       setChangingConfig(false)
       setNewWebhookUrl("")
     } catch {
-      setConfigError("Network error — could not save webhook URL")
+      setConfigError("Network error. Could not save webhook URL")
     }
   }
 
@@ -356,7 +348,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Bonus Points Capped"
           checked={draft.notifyBonusCap}
           onChange={(v) => updateDraft({ notifyBonusCap: v })}
-          description="Alert when seedbonus hits the cap (i.e. 99,999 on MAM)"
+          description="Alert when bonus points hit the 99,999 cap (MAM)"
         />
 
         <Toggle
@@ -384,7 +376,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           label="Download Privileges Revoked"
           checked={draft.notifyDownloadDisabled}
           onChange={(v) => updateDraft({ notifyDownloadDisabled: v })}
-          description="Alert when an AvistaZ network tracker revokes download access"
+          description="Alert when a tracker revokes download access (AvistaZ network, DigitalCore.Club, HAWKE-UNO, C411)"
         />
       </div>
 
@@ -426,7 +418,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
             : webhookStatus === "success"
               ? "Sent"
               : webhookStatus === "failed"
-                ? "Failed — Retry"
+                ? "Failed. Retry"
                 : "Test Webhook"}
         </Button>
 

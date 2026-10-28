@@ -4,7 +4,7 @@
 //
 // The guard is the last line between whatever came out of decrypt() and code
 // that indexes into `.sections[].fields[]`. It must reject everything malformed
-// WITHOUT throwing, because callers use it as a boolean in an if, and it must
+// without throwing, because callers use it as a boolean in an if, and it must
 // tolerate unknown keys, because the whole additive-optional-key design in the
 // architecture depends on a newer build's extra fields surviving an older reader.
 
@@ -24,7 +24,7 @@ function validVault(): TrackerCredentialVault {
         id: "irc",
         title: "IRC",
         fields: [
-          { id: "irc_nick", label: "Nick", value: "jordy", secret: false },
+          { id: "irc_nick", label: "Nick", value: "tealotter", secret: false },
           { id: "irc_nickserv", label: "NickServ password", value: "hunter2", secret: true },
         ],
       },
@@ -36,7 +36,7 @@ function validVault(): TrackerCredentialVault {
 //
 // A type predicate cannot mutate its input, so "secret defaults to true" is
 // satisfied by this accessor rather than by the guard rewriting the object.
-// Reading `field.secret` directly would fail OPEN on an absent value.
+// Reading `field.secret` directly would fail open on an absent value.
 
 describe("isFieldSecret", () => {
   it("treats an ABSENT secret flag as secret — fail closed", () => {

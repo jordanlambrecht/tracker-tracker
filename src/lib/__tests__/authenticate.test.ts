@@ -1,14 +1,15 @@
 // src/lib/__tests__/authenticate.test.ts
 //
 // Integration tests for the authenticate() function with JWE crypto.
-// Only next/headers is mocked (infrastructure); jose, getSession, and
-// authenticate are all exercised as-is.
+// next/headers, the app_settings read and the logger are mocked (infrastructure);
+// jose, the fingerprint, getSession, and authenticate are all exercised as-is.
 
 // @vitest-environment node
 
 import { hkdfSync } from "node:crypto"
 import { EncryptJWT } from "jose"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { masterKeyFingerprint } from "@/lib/crypto"
 
 // Stub SESSION_SECRET before any module that depends on it can be loaded
 const TEST_SECRET = "test-session-secret-at-least-32ch" // 34 chars
@@ -52,6 +53,21 @@ vi.mock("next/headers", () => ({
   })),
 }))
 
+// The app_settings row readSession compares each session's fingerprint with
+const HASH = "$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$aGFzaGhhc2g"
+const SALT = "5a".repeat(32)
+const FP = masterKeyFingerprint(HASH, SALT)
+let settingsRow: { passwordHash: string; encryptionSalt: string } | undefined
+const selectLimit = vi.hoisted(() => vi.fn())
+
+vi.mock("@/lib/db", () => ({
+  db: { select: () => ({ from: () => ({ limit: selectLimit }) }) },
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}))
+
 // ---------------------------------------------------------------------------
 // Module under test: imported AFTER the mock is registered
 // ---------------------------------------------------------------------------
@@ -75,15 +91,22 @@ afterAll(() => {
 
 beforeEach(() => {
   cookieStore = new Map()
+  settingsRow = { passwordHash: HASH, encryptionSalt: SALT }
+  selectLimit.mockReset()
+  selectLimit.mockImplementation(async () => (settingsRow ? [settingsRow] : []))
 })
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a valid JWE exactly the way createSession does. */
-async function mintValidToken(encryptionKey: string, maxAgeSeconds = 604_800): Promise<string> {
-  return new EncryptJWT({ ek: encryptionKey })
+/** Build a valid JWE exactly the way createSession does, unless `claims` replaces the fingerprint. */
+async function mintValidToken(
+  encryptionKey: string,
+  maxAgeSeconds = 604_800,
+  claims: Record<string, unknown> = { fp: FP }
+): Promise<string> {
+  return new EncryptJWT({ ek: encryptionKey, ...claims })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()
     .setExpirationTime(`${maxAgeSeconds}s`)
@@ -267,5 +290,58 @@ describe("authenticate() with real JWE crypto", () => {
 
     // They should be different
     expect(key1).not.toBe(key2)
+  })
+})
+
+describe("authenticate() and the master-key fingerprint", () => {
+  const STALE = { error: "Your session is out of date. Sign in again." }
+
+  it("refuses a session minted before a password change and clears its cookie", async () => {
+    setCookie(SESSION_COOKIE, await mintValidToken("cd".repeat(32)))
+    // change-password wrote a new hash. This cookie still holds the old key.
+    settingsRow = { passwordHash: "$argon2id$v=19$new", encryptionSalt: SALT }
+
+    expect(await getSession()).toBeNull()
+    const { status, body } = await readResponse((await authenticate()) as Response)
+    expect(status).toBe(401)
+    expect(body).toEqual(STALE)
+    expect(cookieStore.has(SESSION_COOKIE)).toBe(false)
+  })
+
+  it("refuses a second device after an emergency lockdown rotates only the salt", async () => {
+    setCookie(SESSION_COOKIE, await mintValidToken("cd".repeat(32)))
+    settingsRow = { passwordHash: HASH, encryptionSalt: "e7".repeat(32) }
+
+    const { status, body } = await readResponse((await authenticate()) as Response)
+    expect(status).toBe(401)
+    expect(body).toEqual(STALE)
+  })
+
+  it.each([
+    ["has no fingerprint (minted before this release)", {}],
+    ["has a fingerprint of another length", { fp: "abc123" }],
+  ])("signs out a session that %s instead of throwing", async (_label, claims) => {
+    setCookie(SESSION_COOKIE, await mintValidToken("cd".repeat(32), 604_800, claims))
+
+    const { status, body } = await readResponse((await authenticate()) as Response)
+    expect(status).toBe(401)
+    expect(body).toEqual(STALE)
+  })
+
+  it("lets a database error surface as a 500 instead of signing the user out", async () => {
+    setCookie(SESSION_COOKIE, await mintValidToken("cd".repeat(32)))
+    selectLimit.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:5432"))
+
+    await expect(authenticate()).rejects.toThrow("ECONNREFUSED")
+    expect(cookieStore.has(SESSION_COOKIE)).toBe(true)
+  })
+
+  it("returns Unauthorized once app_settings is gone (after a nuke)", async () => {
+    setCookie(SESSION_COOKIE, await mintValidToken("cd".repeat(32)))
+    settingsRow = undefined
+
+    const { status, body } = await readResponse((await authenticate()) as Response)
+    expect(status).toBe(401)
+    expect(body).toEqual({ error: "Unauthorized" })
   })
 })

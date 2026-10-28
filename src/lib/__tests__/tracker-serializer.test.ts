@@ -6,6 +6,7 @@ const mockTracker = {
   id: 1,
   name: "Test Tracker",
   baseUrl: "https://example.com",
+  registrySlug: null,
   apiPath: "/api/user",
   platformType: "unit3d",
   encryptedApiToken: "should-never-appear",
@@ -19,6 +20,7 @@ const mockTracker = {
   color: "#00d4ff",
   qbtTag: null,
   mouseholeUrl: null,
+  hasMouseholeToken: false,
   hideUnreadBadges: false,
   remoteUserId: null,
   platformMeta: null,
@@ -33,6 +35,9 @@ const mockTracker = {
   joinedAt: null,
   lastAccessAt: null,
   profileUrl: null,
+  prowlarrInstanceId: null,
+  prowlarrIndexerId: null,
+  prowlarrOptOut: false,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
 }
@@ -77,11 +82,33 @@ describe("serializeTrackerResponse", () => {
     expect(result.latestStats).toBeNull()
     expect(result).not.toHaveProperty("encryptedApiToken")
   })
+  it("exposes hasMouseholeToken as a boolean and never the ciphertext column", () => {
+    // A variable rather than a literal, because the input type omits the
+    // ciphertext column; the row still carries it, as a careless caller's would.
+    const row = {
+      ...mockTracker,
+      hasMouseholeToken: true,
+      encryptedMouseholeToken: "ciphertext-must-not-appear",
+    }
+    const result = serializeTrackerResponse(row, null, (v) => v ?? null)
+    expect(result.hasMouseholeToken).toBe(true)
+    expect(result).not.toHaveProperty("encryptedMouseholeToken")
+    expect(JSON.stringify(result)).not.toContain("ciphertext-must-not-appear")
+  })
   it("serializes tracker with stats and applies privacy mask", () => {
     const mask = () => "▓▓▓"
     const result = serializeTrackerResponse(mockTracker, mockSnapshot, mask)
     expect(result.latestStats?.username).toBe("▓▓▓")
     expect(result.latestStats?.uploadedBytes).toBe("1000")
+  })
+})
+
+describe("serializeTrackerResponse infinite ratio", () => {
+  it("reports an infinite ratio, not a stored 0, when nothing was downloaded", () => {
+    const snapshot = { ...mockSnapshot, ratio: 0, downloadedBytes: BigInt(0) }
+    const result = serializeTrackerResponse(mockTracker, snapshot, (v) => v ?? null)
+    expect(result.latestStats?.ratioIsInfinite).toBe(true)
+    expect(result.latestStats?.ratio).toBeNull()
   })
 })
 

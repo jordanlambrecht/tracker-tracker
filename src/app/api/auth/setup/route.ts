@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   // Setup is the reference definition of a valid username, so it reads it from
-  // the shared validator rather than owning a private copy — POST
+  // the shared validator rather than owning a private copy. POST
   // /api/auth/username has to agree with it exactly or an account created here
   // could not be renamed there, and vice versa.
   const usernameCheck = validateUsername(username)
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   // Fast pre-flight: skip expensive hashing if already configured
   const preCheck = await db.select({ id: appSettings.id }).from(appSettings).limit(1)
   if (preCheck.length > 0) {
-    log.warn({ route: "POST /api/auth/setup" }, "setup rejected — already configured")
+    log.warn({ route: "POST /api/auth/setup" }, "setup rejected: already configured")
     return NextResponse.json({ error: "Already configured" }, { status: 400 })
   }
 

@@ -1,0 +1,563 @@
+// src/lib/credential-forms.ts
+//
+// Functions: resolveFieldLabel, tokenForm, credentialFormFor, credentialFormForPlatform,
+//            maxTokenLengthFor, cleanCookies, checkToken, checkCookies,
+//            validateCredentialValues, buildCredentialBlob
+
+// ---------------------------------------------------------------------------
+// One row per platform: what the credential UI asks for, what a valid answer
+// looks like, and what gets stored. Client-safe: it imports no adapter code.
+// ---------------------------------------------------------------------------
+
+import type { PlatformType } from "@/data/platform-types"
+import { LARGE_TOKEN_MAX, TRACKER_TOKEN_MAX } from "@/lib/limits"
+import { validateCookieHeader } from "@/lib/tracker-credentials/cookie-header"
+import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
+import { validateTrackerUsername } from "@/lib/tracker-credentials/tracker-username"
+
+export type CredentialKind =
+  "token" | "token-username" | "cookies" | "cookies-username" | "uid-pass" | "login"
+
+/**
+ * A label may depend on the tracker's display name. The AvistaZ network is one
+ * platform across several sites, and the Add Tracker dialog names the site the
+ * username belongs to.
+ */
+export type FieldLabel = string | ((trackerName: string) => string)
+
+export interface CredentialFieldCopy {
+  /** Omitted where the field renders without one, as the sheet's token input does. */
+  label?: FieldLabel
+  placeholder?: string
+  tooltip?: string
+  /** Attach the "adding a tracker" docs link beside the tooltip icon. */
+  docs?: boolean
+  rows?: number
+  /** Warn while typing that the pasted value carries an ellipsis. */
+  warnsOnTruncation?: boolean
+}
+
+/**
+ * Copy for one surface. Which entries are read is decided by the kind, so a
+ * `login` row has no `secret` and a `cookies` row has no `password`.
+ */
+export interface CredentialSurfaceCopy {
+  /** The cookie textarea or the token input, whichever the kind renders. */
+  secret?: CredentialFieldCopy
+  username?: CredentialFieldCopy
+  password?: CredentialFieldCopy
+  alt2FA?: CredentialFieldCopy
+  /** A `login` row's session cookie textarea, bound to `cookies`. */
+  sessionCookie?: CredentialFieldCopy
+}
+
+interface CredentialFormBase {
+  /** Hides the manual Join Date field; the adapter reports the date itself. */
+  hidesJoinDate: boolean
+  dialog: CredentialSurfaceCopy
+  sheet: CredentialSurfaceCopy
+}
+
+/** The kinds whose answer is a pasted Cookie header. */
+type CookieKind = Extract<CredentialKind, "cookies" | "cookies-username">
+
+/** The adapter's validateCookieHeader options for a pasted Cookie header. */
+interface CookieRule {
+  example: string
+  extraCookieNames?: readonly string[]
+  requiredCookieNames?: readonly string[]
+}
+
+/**
+ * The cookie kinds carry an `example` because `validateCookieHeader` quotes it
+ * back to the user. Splitting the union is what makes tsc require one on
+ * exactly those rows. A `login` row with `sessionCookie` also takes a pasted
+ * browser session in place of the password, for an account the app cannot log
+ * in to.
+ */
+export type CredentialForm =
+  | (CredentialFormBase & { kind: Exclude<CredentialKind, CookieKind | "login"> })
+  | (CredentialFormBase & { kind: "login"; sessionCookie?: CookieRule })
+  | (CredentialFormBase & {
+      kind: CookieKind
+      example: string
+      extraCookieNames?: readonly string[]
+    })
+
+export interface CredentialValues {
+  token: string
+  cookies: string
+  username: string
+  password: string
+  alt2FAToken: string
+}
+
+export const EMPTY_CREDENTIAL_VALUES: CredentialValues = {
+  token: "",
+  cookies: "",
+  username: "",
+  password: "",
+  alt2FAToken: "",
+}
+
+export function resolveFieldLabel(
+  label: FieldLabel | undefined,
+  trackerName: string
+): string | undefined {
+  return typeof label === "function" ? label(trackerName) : label
+}
+
+// ---------------------------------------------------------------------------
+// The table
+//
+// Copy is per surface and the tests pin both: the dialog says "TorrentLeech
+// Username" where the sheet, already under a Credentials heading, says
+// "Username". `example` and `extraCookieNames` mirror each adapter's own
+// validateCookieHeader call, so the pre-save message matches the server's.
+// ---------------------------------------------------------------------------
+
+const SHEET_TOKEN: CredentialSurfaceCopy = { secret: { placeholder: "Paste API token" } }
+
+function tokenForm(placeholder: string, hidesJoinDate = false): CredentialForm {
+  return {
+    kind: "token",
+    hidesJoinDate,
+    dialog: { secret: { label: "API Token", placeholder } },
+    sheet: SHEET_TOKEN,
+  }
+}
+
+const UNIT3D_TOKEN = "Your UNIT3D API token"
+
+export const CREDENTIAL_FORMS = {
+  unit3d: tokenForm(UNIT3D_TOKEN),
+  gazelle: tokenForm("Your Gazelle API key"),
+  ggn: tokenForm("Your GGn API key", true),
+  nebulance: tokenForm(UNIT3D_TOKEN),
+  mam: tokenForm("Your mam_id session cookie"),
+  custom: tokenForm(UNIT3D_TOKEN),
+  btn: tokenForm(UNIT3D_TOKEN),
+  hawke: tokenForm(UNIT3D_TOKEN),
+  tr4ker: tokenForm("Your TR4KER API key"),
+  c411: tokenForm("Your C411 API key, with the Profile (reading) scope", true),
+  animebytes: {
+    kind: "token-username",
+    hidesJoinDate: false,
+    dialog: {
+      username: {
+        label: "AnimeBytes Username",
+        tooltip: "The AnimeBytes API does not report your username, so it is asked for here.",
+        placeholder: "Your AnimeBytes username",
+      },
+      secret: { label: "API Token", placeholder: "Your AnimeBytes API key" },
+    },
+    sheet: {
+      username: { label: "Username" },
+      secret: { label: "API Token", placeholder: "Paste API token" },
+    },
+  },
+
+  avistaz: {
+    kind: "cookies-username",
+    example: "cf_clearance=abc123; session=xyz",
+    extraCookieNames: ["love"],
+    hidesJoinDate: true,
+    dialog: {
+      username: {
+        label: (trackerName: string) => `${trackerName} Username`,
+        placeholder: "Your username on this tracker",
+      },
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "Open DevTools (F12) → Network tab → click any request → find the Cookie header → right-click it → Copy Value. Do not select the text directly, as Firefox truncates long values in the display.",
+        docs: true,
+        placeholder: "F12 → Network → any request → Cookie header → right-click → Copy Value",
+        rows: 3,
+        warnsOnTruncation: true,
+      },
+    },
+    sheet: {
+      username: { label: "Username", placeholder: "Your username on this tracker" },
+      secret: {
+        label: "Browser Cookies",
+        placeholder: "Paste Cookie header from DevTools",
+        rows: 3,
+      },
+    },
+  },
+
+  digitalcore: {
+    kind: "uid-pass",
+    hidesJoinDate: true,
+    dialog: {
+      secret: {
+        label: "Session Cookies",
+        tooltip:
+          "DigitalCore uses session cookies instead of API keys. Open DevTools (F12) → Network → any request → copy the Cookie header value.",
+        docs: true,
+        placeholder: "uid=56954; pass=abc123def456...",
+        rows: 2,
+      },
+    },
+    sheet: {
+      secret: {
+        label: "Session Cookies",
+        tooltip: "Open DevTools (F12) → Network → any request → copy the Cookie header value.",
+        docs: true,
+        placeholder: "uid=56954; pass=abc123def456...",
+        rows: 2,
+      },
+    },
+  },
+
+  iptorrents: {
+    kind: "cookies",
+    example: "uid=123; pass=abc123",
+    extraCookieNames: ["uid", "pass"],
+    hidesJoinDate: true,
+    dialog: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "IPTorrents has no API, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "cf_clearance=...; uid=123456; pass=abc123def456...",
+        rows: 3,
+      },
+    },
+    sheet: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "Open DevTools (F12) → Network → any request to IPTorrents → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "cf_clearance=...; uid=123456; pass=abc123...",
+        rows: 3,
+      },
+    },
+  },
+
+  filelist: {
+    kind: "cookies",
+    example: "uid=123; pass=abc123",
+    extraCookieNames: ["uid", "pass"],
+    hidesJoinDate: true,
+    dialog: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "FileList's API is torrent-search only, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "uid=123456; pass=abc123def456...",
+        rows: 3,
+      },
+    },
+    sheet: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "Open DevTools (F12) → Network → any request to FileList → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "uid=123456; pass=abc123def456...",
+        rows: 3,
+      },
+    },
+  },
+
+  retrotoon: {
+    kind: "cookies",
+    example: "PHPSESSID=abc123def456",
+    extraCookieNames: ["PHPSESSID", "uid", "pass"],
+    hidesJoinDate: true,
+    dialog: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "RetroToon's API key only uploads torrents, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "PHPSESSID=abc123def456...",
+        rows: 3,
+      },
+    },
+    sheet: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "Open DevTools (F12) → Network → any request to RetroToon → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "PHPSESSID=abc123def456...",
+        rows: 3,
+      },
+    },
+  },
+
+  torrentleech: {
+    kind: "login",
+    hidesJoinDate: false,
+    dialog: {
+      username: {
+        label: "TorrentLeech Username",
+        placeholder: "Your TorrentLeech username",
+      },
+      password: {
+        label: "TorrentLeech Password",
+        tooltip:
+          "TorrentLeech has no API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential.",
+        docs: true,
+        placeholder: "Your TorrentLeech password",
+      },
+      alt2FA: {
+        label: "Alt 2FA Token (optional)",
+        tooltip:
+          "Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code.",
+        docs: true,
+        placeholder: "Only if 2FA is enabled on your account",
+      },
+    },
+    sheet: {
+      username: { label: "Username" },
+      password: { label: "Password" },
+      alt2FA: {
+        label: "Alt 2FA Token (optional)",
+        placeholder: "Only if 2FA is enabled on your account",
+      },
+    },
+  },
+  luminance: {
+    kind: "login",
+    hidesJoinDate: true,
+    sessionCookie: { example: "sid=abc123", extraCookieNames: ["sid"], requiredCookieNames: ["sid"] },
+    dialog: {
+      username: {
+        label: (trackerName: string) => `${trackerName} Username`,
+        placeholder: "Your username on this tracker",
+      },
+      password: {
+        label: (trackerName: string) => `${trackerName} Password`,
+        tooltip:
+          "Luminance has no stats API, so stats are read by logging in on your behalf. Your password is encrypted at rest with the same key as every other tracker credential.",
+        docs: true,
+        placeholder: "Your password on this tracker",
+      },
+      sessionCookie: {
+        label: "Session Cookie (2FA accounts)",
+        tooltip:
+          'Only for an account with 2FA, which this app cannot log in to. Leave the password empty. Log in on the site with "Lock this session to my IP address" unticked, since polls come from this server, then open DevTools (F12) → Network → any request to the site → copy the full Cookie header value.',
+        docs: true,
+        placeholder: "Only if 2FA is enabled on your account",
+        rows: 2,
+      },
+    },
+    sheet: {
+      username: { label: "Username" },
+      password: { label: "Password" },
+      sessionCookie: {
+        label: "Session Cookie (2FA accounts)",
+        placeholder: "Only if 2FA is enabled on your account",
+        rows: 2,
+      },
+    },
+  },
+} satisfies Record<PlatformType, CredentialForm>
+
+/**
+ * Enrichment is switched on per tracker rather than per platform, so whether a
+ * Gazelle row hides the Join Date cannot be read from the table alone. The
+ * settings sheet passes a stored row's platform, so the lookup keeps the
+ * unknown-platform fallback.
+ */
+export function credentialFormFor(entry: {
+  platform: PlatformType
+  gazelleEnrich?: boolean
+}): CredentialForm {
+  const form = credentialFormForPlatform(entry.platform)
+  return entry.gazelleEnrich ? { ...form, hidesJoinDate: true } : form
+}
+
+/**
+ * For a stored row. The column is unconstrained and a backup restore can carry
+ * a platform this build does not know, so an unknown value gets the plain
+ * token form rather than a crash.
+ */
+export function credentialFormForPlatform(platform: string): CredentialForm {
+  // hasOwn, not `??`: "constructor" or "__proto__" would resolve to an
+  // inherited function and skip the fallback.
+  if (!Object.hasOwn(CREDENTIAL_FORMS, platform)) return CREDENTIAL_FORMS.custom
+  return CREDENTIAL_FORMS[platform as PlatformType]
+}
+
+/**
+ * Longest stored credential each kind accepts. The cookie, uid-pass and login
+ * kinds store a pasted cookie header or a login blob, and an IPTorrents cookie
+ * header alone can run past 1 KB. A key with a username stays small because
+ * the username stops at 100 characters. A new kind fails tsc until it has one.
+ */
+const CREDENTIAL_CAP: Record<CredentialKind, number> = {
+  token: TRACKER_TOKEN_MAX,
+  "token-username": TRACKER_TOKEN_MAX,
+  cookies: LARGE_TOKEN_MAX,
+  "cookies-username": LARGE_TOKEN_MAX,
+  "uid-pass": LARGE_TOKEN_MAX,
+  login: LARGE_TOKEN_MAX,
+}
+
+/** The routes' cap on a stored credential. An unknown platform gets the token cap. */
+export function maxTokenLengthFor(platform: string | null | undefined): number {
+  if (!platform) return TRACKER_TOKEN_MAX
+  return CREDENTIAL_CAP[credentialFormForPlatform(platform).kind]
+}
+
+// ---------------------------------------------------------------------------
+// Validation and blob building
+// ---------------------------------------------------------------------------
+
+const UID_COOKIE = /(?:^|;\s*)uid=([^;]+)/
+const PASS_COOKIE = /(?:^|;\s*)pass=([^;]+)/
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional control-char check
+const CONTROL_CHAR = /[\x00-\x1F\x7F]/
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional byte-range check
+const NON_LATIN1 = /[^\x00-\xFF]/
+
+/** Same normalization the adapters apply, so the stored value round-trips. */
+function cleanCookies(cookies: string): string {
+  return cookies.trim().replace(/^Cookie:\s*/i, "")
+}
+
+function checkToken(value: string): string | null {
+  const token = value.trim()
+  if (!token) return "API token is required"
+  // The check the token adapters run before sending the token, so the
+  // pre-save message matches a poll's.
+  try {
+    validateHeaderToken(token)
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : "API token doesn't look right"
+  }
+}
+
+function checkCookies(rule: CookieRule, cookies: string): string | null {
+  if (!cookies.trim()) return "Browser cookies are required"
+  try {
+    validateCookieHeader(cookies, {
+      extraCookieNames: rule.extraCookieNames,
+      requiredCookieNames: rule.requiredCookieNames,
+      example: rule.example,
+    })
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : "Cookie string doesn't look right"
+  }
+}
+
+/** The first thing wrong with what the user typed, or null. */
+export function validateCredentialValues(
+  form: CredentialForm,
+  values: CredentialValues
+): string | null {
+  switch (form.kind) {
+    case "token":
+      return checkToken(values.token)
+    case "token-username":
+      if (!values.username.trim()) return "Username is required"
+      // The adapter's own check, so the pre-save message matches a poll's.
+      try {
+        validateTrackerUsername(values.username)
+      } catch (error) {
+        return error instanceof Error ? error.message : "Username doesn't look right"
+      }
+      return checkToken(values.token)
+    case "cookies":
+      return checkCookies(form, values.cookies)
+    case "cookies-username":
+      if (!values.username.trim()) return "Username is required"
+      return checkCookies(form, values.cookies)
+    case "uid-pass": {
+      const trimmed = values.cookies.trim()
+      if (!trimmed) return "Session cookies are required"
+      if (!UID_COOKIE.test(trimmed)) {
+        return "Cookie string is missing uid value. Paste the full Cookie header from DevTools."
+      }
+      if (!PASS_COOKIE.test(trimmed)) {
+        return "Cookie string is missing pass value. Paste the full Cookie header from DevTools."
+      }
+      // What the DigitalCore adapter rejects once uid and pass are split out.
+      // Its third guard, the semicolon, cannot fire here: UID_COOKIE and
+      // PASS_COOKIE stop at the first one.
+      if (CONTROL_CHAR.test(trimmed)) {
+        return "Cookie values contain a control character. Paste the full Cookie header from DevTools."
+      }
+      if (NON_LATIN1.test(trimmed)) {
+        return "Cookie values contain a non-ASCII character, usually a truncation mark. Re-copy the full Cookie header from DevTools."
+      }
+      return null
+    }
+    case "login":
+      if (!values.username.trim()) return "Username is required"
+      if (form.sessionCookie && values.cookies.trim()) {
+        return checkCookies(form.sessionCookie, values.cookies)
+      }
+      if (!values.password) {
+        return form.sessionCookie
+          ? "Password or session cookie is required"
+          : "Password is required"
+      }
+      return null
+  }
+}
+
+/**
+ * The stored credential in the exact shape the adapter's parseCredentialJson
+ * expects; a renamed or dropped key breaks polling for existing trackers.
+ * `userAgent` is the submitting browser's, because the cookie trackers
+ * fingerprint the session against the agent it was issued to.
+ */
+export function buildCredentialBlob(
+  form: CredentialForm,
+  values: CredentialValues,
+  userAgent: string
+): string {
+  switch (form.kind) {
+    case "token":
+      return values.token.trim()
+    case "token-username":
+      return JSON.stringify({ token: values.token.trim(), username: values.username.trim() })
+    case "cookies":
+      return JSON.stringify({ cookies: cleanCookies(values.cookies), userAgent })
+    case "cookies-username":
+      return JSON.stringify({
+        cookies: cleanCookies(values.cookies),
+        userAgent,
+        username: values.username.trim(),
+      })
+    case "uid-pass": {
+      // The stored blob never reaches the client, so a rebuild here cannot
+      // preserve an existing UA. Omitting the capture reverts the tracker to
+      // the server default.
+      const trimmed = values.cookies.trim()
+      return JSON.stringify({
+        uid: trimmed.match(UID_COOKIE)?.[1]?.trim() ?? "",
+        pass: trimmed.match(PASS_COOKIE)?.[1]?.trim() ?? "",
+        userAgent,
+      })
+    }
+    case "login": {
+      // A pasted session replaces the password, so the blob carries no
+      // password key at all.
+      const cookies = form.sessionCookie ? cleanCookies(values.cookies) : ""
+      if (cookies) {
+        return JSON.stringify({ username: values.username.trim(), cookies, userAgent })
+      }
+      const alt2FAToken = values.alt2FAToken.trim()
+      return JSON.stringify({
+        username: values.username.trim(),
+        // Never trimmed: leading or trailing spaces are part of the secret.
+        password: values.password,
+        // Absent, not empty, for accounts without 2FA, so their stored blob
+        // stays the shape it has always been.
+        ...(alt2FAToken ? { alt2FAToken } : {}),
+      })
+    }
+  }
+}

@@ -67,4 +67,15 @@ describe("ptpimgAdapter", () => {
 
     expect(result.url).toBe("https://ptpimg.me/xyz.jpg")
   })
+
+  it("does not follow a redirect, which would replay the key at another host", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(null, { status: 307, headers: { Location: "https://elsewhere.example/" } })
+    )
+
+    await expect(ptpimgAdapter.upload(Buffer.from("img"), "test.png", "key")).rejects.toThrow(
+      "PTPImg upload failed (307)"
+    )
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ redirect: "manual" })
+  })
 })

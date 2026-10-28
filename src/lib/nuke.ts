@@ -13,6 +13,8 @@ import {
   downloadClients,
   notificationDeliveryState,
   notificationTargets,
+  prowlarrIndexers,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups,
   torrentDailyCheckpoints,
@@ -45,6 +47,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
       // NULL is already its designed "no vault" state. Overwriting buys nothing
       // anyway. The rows are deleted at the bottom of this same transaction.
       encryptedCredentials: null,
+      encryptedMouseholeToken: null,
       name: randomHex(8),
       baseUrl: randomHex(16),
       lastError: null,
@@ -71,6 +74,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
       encryptedUsername: randomHex(64),
       encryptedPassword: randomHex(64),
       encryptedApiKey: randomHex(64),
+      encryptedUrlPath: randomHex(64),
       name: randomHex(8),
       host: randomHex(16),
       lastError: null,
@@ -80,6 +84,14 @@ export async function scrubAndDeleteAll(): Promise<void> {
       encryptedConfig: randomHex(64),
       name: randomHex(8),
       lastDeliveryError: null,
+    })
+
+    // NULL rather than random hex for the same reason as encryptedCredentials.
+    await tx.update(prowlarrInstances).set({
+      encryptedApiKey: null,
+      name: randomHex(8),
+      url: randomHex(16),
+      lastError: null,
     })
 
     await tx.delete(dismissedAlerts)
@@ -100,6 +112,8 @@ export async function scrubAndDeleteAll(): Promise<void> {
     await tx.delete(notificationDeliveryState)
     await tx.delete(notificationTargets)
     await tx.delete(downloadClients)
+    await tx.delete(prowlarrIndexers)
+    await tx.delete(prowlarrInstances)
     await tx.delete(trackers)
     await tx.delete(appSettings)
   })

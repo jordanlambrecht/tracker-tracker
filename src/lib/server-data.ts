@@ -5,9 +5,10 @@
 // getSnapshotsForTracker, getFleetSnapshots, getTagGroupsWithMembers,
 // getProxyTrackers, getDatabaseSize, getDatabaseSizeBytes, recordDatabaseSize,
 // getDbSizeHistory, fetchDownloadClients, serializeDownloadClientResponse,
-// fetchNotificationTargets, serializeNotificationTarget
+// fetchNotificationTargets, serializeNotificationTarget, fetchProwlarrInstances,
+// serializeProwlarrInstance
 // Constants: settingsColumns, trackerColumns, snapshotColumns, clientColumns,
-// notificationTargetColumns
+// notificationTargetColumns, prowlarrInstanceColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
 // that return client-safe shapes. Used by both API route handlers and
@@ -19,8 +20,10 @@
 //     failedLoginAttempts, lockedUntil, encryptedProxyPassword,
 //     encryptedBackupPassword, encryptedSchedulerKey
 //   trackers: encryptedApiToken
-//   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey
+//   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey,
+//     encryptedUrlPath
 //   notificationTargets: encryptedConfig
+//   prowlarrInstances: encryptedApiKey
 
 import "server-only"
 
@@ -32,6 +35,8 @@ import {
   dbSizeHistory,
   downloadClients,
   notificationTargets,
+  prowlarrIndexers,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups as tagGroupsTable,
   trackerSnapshots,
@@ -41,8 +46,15 @@ import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defau
 import { localDateStr } from "@/lib/formatters"
 import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { loadTrackerProwlarrStates } from "@/lib/prowlarr/sync"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
-import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
+import type {
+  SafeProwlarrInstance,
+  Snapshot,
+  TagGroup,
+  TagGroupChartType,
+  TrackerSummary,
+} from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -52,10 +64,8 @@ import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/ty
  * Explicit column projection for appSettings. Uses allowlisted columns only.
  * Encrypted/sensitive fields are structurally excluded at the query level.
  *
- * Note: `hasProxyPassword` and `hasBackupPassword` select the encrypted column
- * references so the serializer can coerce them to booleans. The raw ciphertext
- * is never returned to clients and serializeSettingsResponse() converts these to
- * `!!value` before the data leaves the server.
+ * The has* entries select encrypted columns so serializeSettingsResponse() can
+ * reduce them to booleans before anything leaves the server.
  */
 export const settingsColumns = {
   storeUsernames: appSettings.storeUsernames,
@@ -159,11 +169,13 @@ export const clientColumns = {
   // Whether a credential has ever been stored, per auth mode. Deliberately
   // tests the ciphertext, not the secret: a blank username/password is a valid
   // qBittorrent localhost-bypass setup and still counts as configured.
-  hasCredentials:
-    sql<boolean>`(CASE WHEN ${downloadClients.authMethod} = 'apikey'
+  hasCredentials: sql<boolean>`(CASE WHEN ${downloadClients.authMethod} = 'apikey'
         THEN ${downloadClients.encryptedApiKey} <> ''
         ELSE ${downloadClients.encryptedUsername} IS NOT NULL AND ${downloadClients.encryptedPassword} IS NOT NULL
       END)`.as("has_credentials"),
+  // The URL path prefix may carry a proxy API key, so it is reduced to a
+  // presence boolean before leaving the server.
+  hasUrlPath: sql<boolean>`(${downloadClients.encryptedUrlPath} <> '')`.as("has_url_path"),
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
   isDefault: downloadClients.isDefault,
   crossSeedTags: downloadClients.crossSeedTags,
@@ -185,6 +197,50 @@ export function serializeDownloadClientResponse(row: DownloadClientListRow) {
     ...row,
     crossSeedTags: row.crossSeedTags ?? [],
     lastPolledAt: row.lastPolledAt?.toISOString() ?? null,
+    errorSince: row.errorSince?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prowlarr instances
+// ---------------------------------------------------------------------------
+
+/** Reduces the API key to a presence boolean in SQL, like clientColumns. */
+export const prowlarrInstanceColumns = {
+  id: prowlarrInstances.id,
+  name: prowlarrInstances.name,
+  url: prowlarrInstances.url,
+  hasApiKey: sql<boolean>`(${prowlarrInstances.encryptedApiKey} IS NOT NULL)`.as("has_api_key"),
+  enabled: prowlarrInstances.enabled,
+  lastPolledAt: prowlarrInstances.lastPolledAt,
+  lastError: prowlarrInstances.lastError,
+  errorSince: prowlarrInstances.errorSince,
+  indexersReadAt: prowlarrInstances.indexersReadAt,
+  statsReadAt: prowlarrInstances.statsReadAt,
+  version: prowlarrInstances.version,
+  indexerCount:
+    sql<number>`(SELECT COUNT(*)::int FROM ${prowlarrIndexers} WHERE ${prowlarrIndexers.instanceId} = ${prowlarrInstances.id})`.as(
+      "indexer_count"
+    ),
+  createdAt: prowlarrInstances.createdAt,
+  updatedAt: prowlarrInstances.updatedAt,
+}
+
+export function fetchProwlarrInstances() {
+  return db.select(prowlarrInstanceColumns).from(prowlarrInstances).orderBy(prowlarrInstances.id)
+}
+
+export type ProwlarrInstanceListRow = Awaited<ReturnType<typeof fetchProwlarrInstances>>[number]
+
+export function serializeProwlarrInstance(row: ProwlarrInstanceListRow): SafeProwlarrInstance {
+  return {
+    ...row,
+    indexerCount: Number(row.indexerCount) || 0,
+    lastPolledAt: row.lastPolledAt?.toISOString() ?? null,
+    indexersReadAt: row.indexersReadAt?.toISOString() ?? null,
+    statsReadAt: row.statsReadAt?.toISOString() ?? null,
     errorSince: row.errorSince?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -251,7 +307,8 @@ export function serializeNotificationTarget(row: NotificationTargetRow) {
 
 /**
  * Explicit column projection for trackers. Excludes encryptedApiToken at the
- * query level so the ciphertext never enters server process memory. Also
+ * query level so the ciphertext never enters server process memory, and
+ * reduces encryptedMouseholeToken to a boolean in SQL for the same reason. Also
  * excludes avatarData (potentially large base64) since the serializer
  * doesn't include it. Avatars are served via a dedicated API route.
  */
@@ -261,6 +318,7 @@ export const trackerColumns = {
   baseUrl: trackers.baseUrl,
   apiPath: trackers.apiPath,
   platformType: trackers.platformType,
+  registrySlug: trackers.registrySlug,
   isActive: trackers.isActive,
   lastPolledAt: trackers.lastPolledAt,
   lastError: trackers.lastError,
@@ -271,6 +329,9 @@ export const trackerColumns = {
   color: trackers.color,
   qbtTag: trackers.qbtTag,
   mouseholeUrl: trackers.mouseholeUrl,
+  hasMouseholeToken: sql<boolean>`(${trackers.encryptedMouseholeToken} IS NOT NULL)`.as(
+    "has_mousehole_token"
+  ),
   remoteUserId: trackers.remoteUserId,
   platformMeta: trackers.platformMeta,
   useProxy: trackers.useProxy,
@@ -281,6 +342,9 @@ export const trackerColumns = {
   joinedAt: trackers.joinedAt,
   lastAccessAt: trackers.lastAccessAt,
   profileUrl: trackers.profileUrl,
+  prowlarrInstanceId: trackers.prowlarrInstanceId,
+  prowlarrIndexerId: trackers.prowlarrIndexerId,
+  prowlarrOptOut: trackers.prowlarrOptOut,
   createdAt: trackers.createdAt,
   updatedAt: trackers.updatedAt,
 }
@@ -301,16 +365,18 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
 
   // Enforce masking at response time
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do NOT change to false.
+  // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
+  const prowlarrByTracker = await loadTrackerProwlarrStates(allTrackers)
 
   // SECURITY: Never include encryptedApiToken in response
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
   return allTrackers.map((tracker) => {
     const latest = snapshotByTracker.get(tracker.id) ?? null
-    return serializeTrackerResponse(tracker, latest, mask)
+    const prowlarr = prowlarrByTracker.get(tracker.id) ?? null
+    return serializeTrackerResponse(tracker, latest, mask, prowlarr)
   })
 }
 
@@ -338,12 +404,12 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
   if (!tracker) return null
 
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do NOT change to false.
-  // Why? Because I said so.
+  // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
+  const prowlarr = (await loadTrackerProwlarrStates([tracker])).get(tracker.id) ?? null
 
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
-  return serializeTrackerResponse(tracker, latest ?? null, mask)
+  return serializeTrackerResponse(tracker, latest ?? null, mask, prowlarr)
 }
 
 // ---------------------------------------------------------------------------
@@ -379,13 +445,8 @@ export function getSnapshotBucket(days: number): "hour" | "day" | null {
 /**
  * How many days of snapshots actually exist, for sizing the "All" bucket.
  *
- * getSnapshotBucket is deliberately pure and answers for a REQUESTED range. It
- * maps 0 to "day", the only sensible answer without knowing what is stored.
- * Passing 0 made All coarser than any bounded range: an install holding a few
- * hours of snapshots collapsed to one point per tracker, which fires every "need
- * at least 2 days of data" empty state. Measuring the real span first and asking
- * for THAT range keeps the function pure and gives a young install raw points
- * and a mature one day buckets.
+ * getSnapshotBucket maps 0 to "day", which would collapse a young install to
+ * one point per tracker, so the "All" range passes the stored span instead.
  *
  * Returns 1 when nothing is stored, so callers still get a valid bucket.
  */
@@ -467,7 +528,7 @@ function serializeSnapshot(
     polledAt: s.polledAt.toISOString(),
     uploadedBytes: s.uploadedBytes?.toString() ?? "0",
     downloadedBytes: s.downloadedBytes?.toString() ?? "0",
-    ratio: s.ratio,
+    ratio: s.downloadedBytes === 0n && (s.uploadedBytes ?? 0n) > 0n ? null : s.ratio,
     // Same predicate tracker-serializer.ts uses for TrackerLatestStats. `ratio`
     // is null here because JSON cannot carry Infinity, so without this flag the
     // consumer cannot tell an infinite ratio from a never-measured one.
@@ -488,7 +549,7 @@ function serializeSnapshot(
 }
 
 /**
- * Fetches bucketed snapshots for ALL trackers in a single query.
+ * Fetches bucketed snapshots for all trackers in a single query.
  * Same bucketing logic as getSnapshotsForTracker but partitioned by tracker_id.
  * Eliminates N+1 queries from the dashboard.
  */
@@ -555,7 +616,7 @@ export async function getTagGroupsWithMembers(): Promise<TagGroup[]> {
       })
       .from(tagGroupsTable)
       .orderBy(asc(tagGroupsTable.sortOrder), asc(tagGroupsTable.id)),
-    // Projected to exactly TagGroupMember — these rows are returned to the client
+    // Projected to exactly TagGroupMember, these rows are returned to the client
     // verbatim below, so a bare select() would leak any column added later.
     db
       .select({
@@ -634,7 +695,7 @@ export async function getDatabaseSizeBytes(): Promise<bigint> {
   return raw ? BigInt(raw) : 0n
 }
 
-/** Record today's database size. Upserts — safe to call multiple times per day. */
+/** Record today's database size. Upserts, safe to call multiple times per day. */
 export async function recordDatabaseSize(): Promise<void> {
   const totalBytes = await getDatabaseSizeBytes()
   const today = localDateStr(new Date())

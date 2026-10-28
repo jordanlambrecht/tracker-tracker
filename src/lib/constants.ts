@@ -47,6 +47,10 @@ export const DOCS = {
     href: `${DOCS_URL}/features/download-clients/`,
     description: "Connect qBittorrent to track torrents by tag",
   },
+  PROWLARR: {
+    href: `${DOCS_URL}/features/prowlarr/`,
+    description: "Show the status of each tracker's Prowlarr indexer",
+  },
   TAG_GROUPS: {
     href: `${DOCS_URL}/features/tag-groups/`,
     description: "Bundle qBittorrent tags into groups for breakdown charts",

@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { createAdapterForClient } from "@/lib/download-clients"
+import { createAdapterForClient, disposeClient } from "@/lib/download-clients"
 import { CREDENTIAL_MAX } from "@/lib/limits"
-import { PATCH } from "./[id]/route"
+import { DELETE, PATCH } from "./[id]/route"
 import { GET } from "./[id]/torrents/route"
 import { POST } from "./route"
 
@@ -43,7 +43,9 @@ const mockAdapter = {
 }
 
 vi.mock("@/lib/download-clients", () => ({
+  CLIENT_CONNECTION_COLUMNS: {},
   createAdapterForClient: vi.fn(() => mockAdapter),
+  disposeClient: vi.fn(),
   VALID_CLIENT_TYPES: ["qbittorrent", "deluge", "transmission", "rtorrent"],
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
@@ -72,6 +74,7 @@ const MOCK_CLIENT = {
   useSsl: false,
   encryptedUsername: "enc-admin",
   encryptedPassword: "enc-secret",
+  encryptedUrlPath: "",
   pollIntervalSeconds: 30,
   isDefault: true,
   crossSeedTags: ["cross-seed"],
@@ -162,7 +165,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Input validation — client ID
+  // Input validation, client ID
   // -------------------------------------------------------------------------
 
   it("returns 400 for non-numeric client ID", async () => {
@@ -192,7 +195,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Input validation — tag parameter
+  // Input validation, tag parameter
   // -------------------------------------------------------------------------
 
   it("returns 400 when tag query parameter is missing", async () => {
@@ -270,7 +273,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   it("returns 502 when qBT login fails with authentication error", async () => {
     mockDbSelectClient(MOCK_CLIENT)
     mockAdapter.getTorrents.mockRejectedValue(
-      new Error("Authentication failed — check username and password")
+      new Error("Authentication failed. Check username and password")
     )
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
@@ -307,14 +310,14 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Information disclosure — the route must not add credentials to errors
+  // Information disclosure, the route must not add credentials to errors
   // -------------------------------------------------------------------------
 
   it("does not add decrypted credentials to upstream error messages", async () => {
     // Simulates a poorly-written upstream library that embeds credentials in
     // the error message. The route's own catch block must not re-inject them.
     // Note: if the upstream error already contains them, that is a known risk
-    // outside this handler's control — this test validates the handler itself.
+    // outside this handler's control, this test validates the handler itself.
     mockDbSelectClient(MOCK_CLIENT)
     mockAdapter.getTorrents.mockRejectedValue(
       new Error("upstream error with no credential content")
@@ -351,7 +354,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   })
 
   // -------------------------------------------------------------------------
-  // Tag passthrough — verifies the per-tag optimization actually fires
+  // Tag passthrough, verifies the per-tag optimization actually fires
   // -------------------------------------------------------------------------
 
   it("passes the tag to getTorrents for server-side filtering", async () => {
@@ -362,7 +365,7 @@ describe("GET /api/clients/[id]/torrents", () => {
     await GET(request, { params })
 
     // If this assertion fails, the route is not passing the tag to adapter.getTorrents,
-    // meaning it would fall back to fetching all torrents — the optimization is broken.
+    // meaning it would fall back to fetching all torrents, the optimization is broken.
     expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
     expect(mockAdapter.getTorrents).toHaveBeenCalledWith({ tag: "aither" })
   })
@@ -370,7 +373,7 @@ describe("GET /api/clients/[id]/torrents", () => {
   it("trims whitespace from tag before querying getTorrents", async () => {
     mockDbSelectClient(MOCK_CLIENT)
 
-    // %20aither%20 decodes to " aither " — should be trimmed to "aither"
+    // %20aither%20 decodes to " aither ", should be trimmed to "aither"
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=%20aither%20")
     const params = Promise.resolve({ id: "1" })
     await GET(request, { params })
@@ -381,11 +384,11 @@ describe("GET /api/clients/[id]/torrents", () => {
 })
 
 // ---------------------------------------------------------------------------
-// POST /api/clients — credentials are optional (issue #150)
+// POST /api/clients, credentials are optional (issue #150)
 //
 // qBittorrent skips authentication entirely for loopback clients when "Bypass
 // authentication for clients on localhost" is set, so a blank username and
-// password is a valid configuration. PATCH has always accepted "" — these
+// password is a valid configuration. PATCH has always accepted "", these
 // tests pin the matching behaviour on create.
 // ---------------------------------------------------------------------------
 
@@ -422,11 +425,13 @@ describe("POST /api/clients", () => {
   }
 
   it("creates a client when username and password are blank strings", async () => {
-    const res = await POST(postBody({ name: "Local qBT", host: "localhost", username: "", password: "" }))
+    const res = await POST(
+      postBody({ name: "Local qBT", host: "localhost", username: "", password: "" })
+    )
 
     expect(res.status).toBe(201)
     expect(inserted).not.toBeNull()
-    // Stored as real ciphertext, not NULL — the NOT NULL columns are satisfied.
+    // Stored as real ciphertext, not NULL, the NOT NULL columns are satisfied.
     expect(typeof inserted?.encryptedUsername).toBe("string")
     expect(inserted?.encryptedUsername).not.toBe("")
   })
@@ -504,7 +509,7 @@ describe("POST /api/clients", () => {
 
     expect(res.status).toBe(201)
     expect(inserted?.authMethod).toBe("apikey")
-    // Real encrypt() runs here — the plaintext must not survive into the row.
+    // Real encrypt() runs here, the plaintext must not survive into the row.
     expect(inserted?.encryptedApiKey).not.toBe("")
     expect(JSON.stringify(inserted)).not.toContain("qbt_examplekey")
     expect(decrypt(inserted?.encryptedApiKey as string, Buffer.from(VALID_KEY, "hex"))).toBe(
@@ -523,9 +528,7 @@ describe("POST /api/clients", () => {
   })
 
   it("rejects apikey auth with no key", async () => {
-    const res = await POST(
-      postBody({ name: "Local qBT", host: "localhost", authMethod: "apikey" })
-    )
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", authMethod: "apikey" }))
 
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/apiKey is required/)
@@ -539,10 +542,59 @@ describe("POST /api/clients", () => {
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/authMethod must be one of/)
   })
+
+  it("stores a URL path encrypted and never returns it", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        username: "admin",
+        password: "pw",
+        urlPath: "/user-example/example/proxy",
+      })
+    )
+
+    expect(res.status).toBe(201)
+    expect(inserted?.encryptedUrlPath).not.toBe("")
+    expect(JSON.stringify(inserted)).not.toContain("/user-example/example/proxy")
+    expect(
+      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
+    ).toBe("/user-example/example/proxy")
+  })
+
+  it("rejects a URL path with parent-directory segments", async () => {
+    const res = await POST(
+      postBody({
+        name: "Local qBT",
+        host: "localhost",
+        urlPath: "/user-example/../example/proxy",
+      })
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/must be a plain path/)
+  })
+
+  it("stores a URL path without its trailing slash", async () => {
+    const res = await POST(postBody({ name: "Local qBT", host: "localhost", urlPath: "/qbt/" }))
+
+    expect(res.status).toBe(201)
+    expect(
+      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
+    ).toBe("/qbt")
+  })
+
+  it("rejects a host carrying its own port", async () => {
+    const res = await POST(postBody({ name: "Qui", host: "qui:7476", urlPath: "/proxy/k" }))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/Host must not include a port/)
+    expect(inserted).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
-// PATCH /api/clients/[id] — the mode and its secret move together
+// PATCH /api/clients/[id], the mode and its secret move together
 //
 // The invariant these pin: naming an auth method without supplying that
 // method's credential is refused. Without it, PATCH {"authMethod":"apikey"}
@@ -587,7 +639,7 @@ describe("PATCH /api/clients/[id] credential handling", () => {
 
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/apiKey is required/)
-    // Nothing was written — the stored password was not re-labelled.
+    // Nothing was written, the stored password was not re-labelled.
     expect(updates).toBeNull()
   })
 
@@ -599,10 +651,7 @@ describe("PATCH /api/clients/[id] credential handling", () => {
   })
 
   it("blanks the password columns when switching to a key", async () => {
-    const res = await PATCH(
-      patchBody({ authMethod: "apikey", apiKey: "qbt_newkey" }),
-      routeProps
-    )
+    const res = await PATCH(patchBody({ authMethod: "apikey", apiKey: "qbt_newkey" }), routeProps)
 
     expect(res.status).toBe(200)
     expect(updates?.authMethod).toBe("apikey")
@@ -660,5 +709,102 @@ describe("PATCH /api/clients/[id] credential handling", () => {
     expect(updates).not.toHaveProperty("authMethod")
     expect(updates).not.toHaveProperty("encryptedPassword")
     expect(updates).not.toHaveProperty("encryptedApiKey")
+  })
+
+  it("encrypts a URL path when supplied", async () => {
+    const res = await PATCH(patchBody({ urlPath: "/user-example/example/proxy" }), routeProps)
+
+    expect(res.status).toBe(200)
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedUrlPath as string, key)).toBe("/user-example/example/proxy")
+  })
+
+  it("stores a URL path without its trailing slash", async () => {
+    const res = await PATCH(patchBody({ urlPath: "/qbt/" }), routeProps)
+
+    expect(res.status).toBe(200)
+    const key = Buffer.from(VALID_KEY, "hex")
+    expect(decrypt(updates?.encryptedUrlPath as string, key)).toBe("/qbt")
+  })
+
+  it("leaves the stored URL path alone when the patch omits it", async () => {
+    const res = await PATCH(patchBody({ name: "Renamed" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.name).toBe("Renamed")
+    expect(updates).not.toHaveProperty("encryptedUrlPath")
+  })
+
+  it("clears a URL path when an empty string is supplied", async () => {
+    const res = await PATCH(patchBody({ urlPath: "" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.encryptedUrlPath).toBe("")
+  })
+
+  it("rejects a host carrying its own port", async () => {
+    const res = await PATCH(patchBody({ host: "qui:7476" }), routeProps)
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/Host must not include a port/)
+    expect(updates).toBeNull()
+  })
+
+  // The scheduler keys its session, auth blocks and torrent store by the
+  // client's URL, so a new address strands what was cached under the old one.
+  it("drops what was cached under the old address when the host changes", async () => {
+    const res = await PATCH(patchBody({ host: "10.0.0.5" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).toHaveBeenCalledWith(
+      expect.objectContaining({ host: "192.168.1.100" }),
+      Buffer.from(VALID_KEY, "hex")
+    )
+  })
+
+  it.each([
+    ["the URL path", { urlPath: "/proxy/new-key" }],
+    ["the port", { port: 9090 }],
+    ["SSL", { useSsl: true }],
+  ])("drops it when %s changes", async (_, patch) => {
+    const res = await PATCH(patchBody(patch), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps it when the patch leaves the address alone", async () => {
+    const res = await PATCH(
+      patchBody({ name: "Renamed", username: "admin", password: "pw" }),
+      routeProps
+    )
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).not.toHaveBeenCalled()
+  })
+})
+
+describe("DELETE /api/clients/[id]", () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: VALID_KEY })
+    mockDbSelectClient({ ...MOCK_CLIENT, isDefault: false })
+    ;(db as unknown as { transaction: ReturnType<typeof vi.fn> }).transaction = vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({ delete: () => ({ where: async () => undefined }) })
+      )
+  })
+
+  it("drops what was cached under the deleted client's URL", async () => {
+    const res = await DELETE(new Request("http://localhost/api/clients/1", { method: "DELETE" }), {
+      params: Promise.resolve({ id: "1" }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(disposeClient).toHaveBeenCalledWith(
+      expect.objectContaining({ host: "192.168.1.100" }),
+      Buffer.from(VALID_KEY, "hex")
+    )
   })
 })

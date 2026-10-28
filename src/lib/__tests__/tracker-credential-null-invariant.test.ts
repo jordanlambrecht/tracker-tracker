@@ -17,6 +17,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 type Write = { table: unknown; values: Record<string, unknown> }
 let writes: Write[]
+/** Every update and delete in call order, for checks that a scrub precedes a delete. */
+let ops: { kind: "update" | "delete"; table: unknown }[]
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -33,6 +35,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackerSnapshots: {},
   trackerRoles: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {},
   notificationDeliveryState: {},
   dismissedAlerts: {},
@@ -68,7 +72,7 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
 
 import { POST as LockdownPOST } from "@/app/api/settings/lockdown/route"
 import { db } from "@/lib/db"
-import { trackers } from "@/lib/db/schema"
+import { prowlarrInstances, trackers } from "@/lib/db/schema"
 import { scrubAndDeleteAll } from "@/lib/nuke"
 
 /** The value written to the vault column by the run under test. */
@@ -81,6 +85,7 @@ function trackerVaultWrite(): Record<string, unknown> {
 beforeEach(() => {
   vi.clearAllMocks()
   writes = []
+  ops = []
   ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({
     from: () => ({ limit: () => Promise.resolve([{ id: 1, passwordHash: "hash" }]) }),
   })
@@ -91,11 +96,15 @@ beforeEach(() => {
           set: (values: Record<string, unknown>) => {
             const done = Promise.resolve([])
             writes.push({ table, values })
+            ops.push({ kind: "update", table })
             // nuke calls .set() bare; lockdown chains .where(). Both resolve.
             return Object.assign(done, { where: () => done })
           },
         }),
-        delete: () => Promise.resolve([]),
+        delete: (table: unknown) => {
+          ops.push({ kind: "delete", table })
+          return Promise.resolve([])
+        },
       }
       return cb(tx)
     }
@@ -139,5 +148,61 @@ describe("nuke — trackers.encryptedCredentials", () => {
     // why the two columns legitimately differ.
     expect(typeof values.encryptedApiToken).toBe("string")
     expect(values.encryptedApiToken).toMatch(/^[0-9a-f]{128}$/)
+  })
+})
+
+// trackers.encrypted_mousehole_token is nullable under the same rule, and is
+// cleared by the same two paths.
+describe("emergency lockdown clears trackers.encryptedMouseholeToken", () => {
+  it("writes NULL, never the API token's marker", async () => {
+    const response = await LockdownPOST(
+      new Request("http://localhost/api/settings/lockdown", { method: "POST" })
+    )
+    expect(response.status).toBe(200)
+
+    const values = trackerVaultWrite()
+    expect(values).toHaveProperty("encryptedMouseholeToken")
+    expect(values.encryptedMouseholeToken).toBeNull()
+  })
+})
+
+describe("nuke scrubs trackers.encryptedMouseholeToken", () => {
+  it("writes NULL, never a random hex blob", async () => {
+    await scrubAndDeleteAll()
+
+    const values = trackerVaultWrite()
+    expect(values).toHaveProperty("encryptedMouseholeToken")
+    expect(values.encryptedMouseholeToken).toBeNull()
+  })
+})
+
+// prowlarr_instances.encrypted_api_key is nullable under the same rule.
+describe("emergency lockdown revokes Prowlarr API keys", () => {
+  it("writes NULL, disables the instance and says why", async () => {
+    await LockdownPOST(new Request("http://localhost/api/settings/lockdown", { method: "POST" }))
+
+    const found = writes.filter((w) => w.table === prowlarrInstances)
+    expect(found).toHaveLength(1)
+    expect(found[0].values).toMatchObject({
+      encryptedApiKey: null,
+      enabled: false,
+      lastError: "Emergency lockdown: API key revoked",
+    })
+  })
+})
+
+describe("nuke scrubs Prowlarr instances", () => {
+  it("writes NULL over the key and scrubs the row before deleting it", async () => {
+    await scrubAndDeleteAll()
+
+    const found = writes.filter((w) => w.table === prowlarrInstances)
+    expect(found).toHaveLength(1)
+    expect(found[0].values.encryptedApiKey).toBeNull()
+    expect(found[0].values.url).toMatch(/^[0-9a-f]+$/)
+
+    const scrubAt = ops.findIndex((o) => o.kind === "update" && o.table === prowlarrInstances)
+    const deleteAt = ops.findIndex((o) => o.kind === "delete" && o.table === prowlarrInstances)
+    expect(scrubAt).toBeGreaterThanOrEqual(0)
+    expect(deleteAt).toBeGreaterThan(scrubAt)
   })
 })

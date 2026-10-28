@@ -1,6 +1,6 @@
 // src/app/api/trackers/[id]/route.ts
 //
-// Functions: GET, PATCH, DELETE
+// Functions: isRowId, GET, PATCH, DELETE
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -11,24 +11,26 @@ import {
   parseTrackerId,
   type RouteContext,
   validateHexColor,
-  validateHttpUrl,
   validateJoinedAt,
   validateLastAccessAt,
   validateMaxLength,
+  validateMouseholeToken,
+  validateMouseholeUrl,
 } from "@/lib/api-helpers"
+import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackers } from "@/lib/db/schema"
+import { prowlarrInstances, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
-import {
-  LONG_STRING_MAX,
-  maxTokenLengthFor,
-  TRACKER_NAME_MAX,
-  TRACKER_TAG_MAX,
-  TRACKER_URL_MAX,
-} from "@/lib/limits"
+import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
+import { isIntegerInRange } from "@/lib/validators"
+
+// A Postgres integer id.
+function isRowId(value: unknown): value is number {
+  return typeof value === "number" && isIntegerInRange(value, 1, 2_147_483_647)
+}
 
 export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -67,13 +69,8 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (nameErr) return nameErr
     updates.name = body.name.trim()
   }
-  if (typeof body.baseUrl === "string") {
-    const urlLenErr = validateMaxLength(body.baseUrl, TRACKER_URL_MAX, "URL")
-    if (urlLenErr) return urlLenErr
-    const urlErr = validateHttpUrl(body.baseUrl as string)
-    if (urlErr) return urlErr
-    updates.baseUrl = (body.baseUrl as string).trim()
-  }
+  // No baseUrl: the URL is registry data copied in when the tracker was added, so
+  // an edit body carrying one, valid or hostile, is ignored.
   if (typeof body.isActive === "boolean") updates.isActive = body.isActive
   if (typeof body.color === "string") {
     const colorErr = validateHexColor(body.color)
@@ -87,15 +84,45 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
+  // Clearing the URL clears the token with it, so no token outlives its URL.
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
       const mouseholeUrlErr = validateMaxLength(trimmed, LONG_STRING_MAX, "Mousehole URL")
       if (mouseholeUrlErr) return mouseholeUrlErr
-      const mouseUrlErr = validateHttpUrl(trimmed, "Mousehole URL")
+      const mouseUrlErr = validateMouseholeUrl(trimmed)
       if (mouseUrlErr) return mouseUrlErr
     }
     updates.mouseholeUrl = trimmed || null
+    if (!trimmed) updates.encryptedMouseholeToken = null
+  }
+
+  // An empty string clears the token; a body without the key leaves it alone.
+  if (typeof body.mouseholeToken === "string") {
+    const trimmedMouseholeToken = body.mouseholeToken.trim()
+    if (trimmedMouseholeToken) {
+      const mouseholeTokenErr = validateMouseholeToken(trimmedMouseholeToken)
+      if (mouseholeTokenErr) return mouseholeTokenErr
+      // A token is only sent to the saved URL, so a token without one is refused.
+      let mouseholeUrl = typeof body.mouseholeUrl === "string" ? body.mouseholeUrl.trim() : null
+      if (mouseholeUrl === null) {
+        const [row] = await db
+          .select({ mouseholeUrl: trackers.mouseholeUrl })
+          .from(trackers)
+          .where(eq(trackers.id, trackerId))
+          .limit(1)
+        mouseholeUrl = row?.mouseholeUrl ?? ""
+      }
+      if (!mouseholeUrl) {
+        return NextResponse.json(
+          { error: "Mousehole API token needs a Mousehole URL" },
+          { status: 400 }
+        )
+      }
+    }
+    updates.encryptedMouseholeToken = trimmedMouseholeToken
+      ? encrypt(trimmedMouseholeToken, decodeKey(auth))
+      : null
   }
 
   if (typeof body.useProxy === "boolean") updates.useProxy = body.useProxy
@@ -103,6 +130,31 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.hideUnreadBadges === "boolean") updates.hideUnreadBadges = body.hideUnreadBadges
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
+  // A null pin returns the tracker to hostname matching.
+  if (body.prowlarrPin !== undefined) {
+    const pin = body.prowlarrPin as { instanceId?: unknown; indexerId?: unknown } | null
+    if (pin === null) {
+      updates.prowlarrInstanceId = null
+      updates.prowlarrIndexerId = null
+    } else if (typeof pin === "object" && isRowId(pin.instanceId) && isRowId(pin.indexerId)) {
+      const [instance] = await db
+        .select({ id: prowlarrInstances.id })
+        .from(prowlarrInstances)
+        .where(eq(prowlarrInstances.id, pin.instanceId))
+        .limit(1)
+      if (!instance) {
+        return NextResponse.json({ error: "Prowlarr instance not found" }, { status: 400 })
+      }
+      updates.prowlarrInstanceId = pin.instanceId
+      updates.prowlarrIndexerId = pin.indexerId
+    } else {
+      return NextResponse.json(
+        { error: "prowlarrPin must be null or { instanceId, indexerId }" },
+        { status: 400 }
+      )
+    }
+  }
+  if (typeof body.prowlarrOptOut === "boolean") updates.prowlarrOptOut = body.prowlarrOptOut
   if (typeof body.pollingPaused === "boolean") {
     updates.userPausedAt = body.pollingPaused ? new Date() : null
     if (!body.pollingPaused) {
@@ -155,12 +207,18 @@ export async function PATCH(request: Request, props: RouteContext) {
       .from(trackers)
       .where(eq(trackers.id, trackerId))
       .limit(1)
-    const maxTokenLength =
-      maxTokenLengthFor(tracker?.platformType)
+    const maxTokenLength = maxTokenLengthFor(tracker?.platformType)
     const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(trimmedToken, key)
+    // A new token can belong to another account, so the old account's cached id
+    // and avatar are cleared. The next poll fetches them again.
+    updates.remoteUserId = null
+    updates.avatarData = null
+    updates.avatarMimeType = null
+    updates.avatarCachedAt = null
+    updates.avatarRemoteUrl = null
   }
 
   try {

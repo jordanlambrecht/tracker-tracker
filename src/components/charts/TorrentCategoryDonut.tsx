@@ -4,7 +4,7 @@
 
 import type { EChartsOption } from "echarts"
 import { generatePalette } from "@/lib/color-utils"
-import { formatBytesNum } from "@/lib/formatters"
+import { formatBytesNum, formatPercent } from "@/lib/formatters"
 import type { CategoryStats } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
@@ -38,7 +38,7 @@ function TorrentCategoryDonut({ categories, accentColor }: TorrentCategoryDonutP
         if (!cat) return ""
         return [
           `<span style="color:${p.color};font-weight:600;">${escHtml(p.name)}</span>`,
-          chartTooltipRow(p.color, "Torrents", `${cat.count} (${p.percent.toFixed(1)}%)`),
+          chartTooltipRow(p.color, "Torrents", `${cat.count} (${formatPercent(p.percent)})`),
           chartTooltipRow(CHART_THEME.neutral, "Size", formatBytesNum(cat.totalSize)),
         ].join("<br/>")
       },

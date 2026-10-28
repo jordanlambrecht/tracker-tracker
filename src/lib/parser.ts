@@ -8,6 +8,7 @@ const BINARY_UNITS: Record<string, bigint> = {
   MiB: BigInt(1024 ** 2),
   GiB: BigInt(1024 ** 3),
   TiB: BigInt(2) ** BigInt(40),
+  PiB: BigInt(2) ** BigInt(50),
 }
 
 const DECIMAL_UNITS: Record<string, bigint> = {
@@ -15,6 +16,7 @@ const DECIMAL_UNITS: Record<string, bigint> = {
   MB: BigInt(1000 ** 2),
   GB: BigInt(1000 ** 3),
   TB: BigInt(1000 ** 4),
+  PB: BigInt(1000) ** BigInt(5),
 }
 
 /**

@@ -3,7 +3,7 @@
 // Functions: GET
 
 import { NextResponse } from "next/server"
-import { authenticate } from "@/lib/api-helpers"
+import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { fetchFleetAggregation } from "@/lib/download-clients"
 import { log } from "@/lib/logger"
 import { getTagGroupsWithMembers } from "@/lib/server-data"
@@ -11,6 +11,7 @@ import { getTagGroupsWithMembers } from "@/lib/server-data"
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const key = decodeKey(auth)
 
   try {
     // Tag groups are opt-in and most installs have none, in which case the aggregation
@@ -18,7 +19,7 @@ export async function GET() {
     // one source of truth for which torrents belong to which tracker, and lets the dashboard's
     // Tag Groups section share this response with the Torrent Fleet tab.
     const tagGroups = await getTagGroupsWithMembers().catch(() => [])
-    const result = await fetchFleetAggregation({ tagGroups })
+    const result = await fetchFleetAggregation(key, { tagGroups })
     return NextResponse.json(result)
   } catch (error) {
     log.error(

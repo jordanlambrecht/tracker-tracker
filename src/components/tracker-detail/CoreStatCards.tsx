@@ -11,7 +11,7 @@ import {
   TriangleWarningIcon,
   UploadArrowIcon,
 } from "@/components/ui/Icons"
-import type { AlertLevel } from "@/components/ui/StatCard"
+import type { AlertLevel, TrendDirection } from "@/components/ui/StatCard"
 import {
   formatBytesFromString,
   formatCount,
@@ -27,7 +27,7 @@ export interface StatDescriptor {
   value: string
   unit?: string
   subtitle?: string
-  trend?: "up" | "flat" | "down"
+  trend?: TrendDirection
   tooltip?: string
   alert?: AlertLevel
   alertReason?: string
@@ -36,7 +36,8 @@ export interface StatDescriptor {
 export function buildCoreStatDescriptors(
   stats: TrackerLatestStats | null,
   latestSnapshot: Snapshot | null,
-  minimumRatio?: number
+  minimumRatio?: number,
+  ratioTrend?: TrendDirection
 ): StatDescriptor[] {
   const [upVal, upUnit] = formatBytesFromString(stats?.uploadedBytes ?? null).split(" ")
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
@@ -81,14 +82,7 @@ export function buildCoreStatDescriptors(
       icon: <RatioIcon width="16" height="16" />,
       value: formatRatio(ratio),
       unit: ratio != null ? "x" : undefined,
-      trend:
-        ratio == null
-          ? undefined
-          : ratio >= 2
-            ? "up"
-            : ratio >= 1
-              ? "flat"
-              : "down",
+      trend: ratio == null ? undefined : ratioTrend,
       alert: ratioBelowRequired ? "danger" : undefined,
       alertReason: ratioAlertReason,
     },
@@ -117,11 +111,9 @@ export function buildCoreStatDescriptors(
       key: "hnr",
       label: "Hit & Runs",
       icon: <TriangleWarningIcon width="16" height="16" />,
-      // A count of nothing is zero, not unknown: once a snapshot exists, "no
-      // hit & runs recorded" is the good outcome and must read "0". Only the
-      // absence of any snapshot is genuinely unknown, hence the gate rather
-      // than a bare `?? 0` (which slot-registry.ts uses for the same field).
-      value: latestSnapshot ? formatCount(latestSnapshot.hitAndRuns ?? 0) : "—",
+      // Adapters that cannot read hit & runs store null, and null must not
+      // read as a clean "0".
+      value: latestSnapshot?.hitAndRuns != null ? formatCount(latestSnapshot.hitAndRuns) : "—",
     },
     {
       key: "req-ratio",

@@ -22,7 +22,7 @@ export const hdbits: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#ffd700",
-  logo: "",
+  logo: "/tracker-logos/hdbits_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "hd-bits",

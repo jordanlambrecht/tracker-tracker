@@ -7,6 +7,7 @@ import {
   checkAnniversaryMilestone,
   checkBonusCapReached,
   checkBufferMilestoneCrossed,
+  checkDownloadDisabled,
   checkHnrIncrease,
   checkRankChange,
   checkRatioBelowMinimum,
@@ -204,11 +205,11 @@ describe("checkAnniversaryMilestone", () => {
   it("returns null when no milestone is near", () => {
     // Use a date that isn't near any milestone
     const farDate = new Date()
-    farDate.setMonth(farDate.getMonth() - 3) // 3 months ago — not near 1mo, 6mo, or 1yr
+    farDate.setMonth(farDate.getMonth() - 3) // 3 months ago, not near 1mo, 6mo, or 1yr
     farDate.setDate(farDate.getDate() + 15) // shift away from window
     expect(checkAnniversaryMilestone(farDate.toISOString().split("T")[0])).toBeNull()
   })
-  // Note: testing exact milestone hits requires date mocking — cover in integration
+  // Note: testing exact milestone hits requires date mocking, cover in integration
 })
 
 // ── Edge cases identified by test architect ──────────────────────────────────
@@ -429,5 +430,23 @@ describe("checkActiveHnrs", () => {
   })
   it("returns false when count decreased (resolving HnRs)", () => {
     expect(checkActiveHnrs(2, 5)).toBe(false)
+  })
+})
+
+describe("checkDownloadDisabled", () => {
+  it("returns true when downloads go from allowed to revoked (transition)", () => {
+    expect(checkDownloadDisabled(false, true)).toBe(true)
+  })
+  it("returns false when already revoked (already notified)", () => {
+    expect(checkDownloadDisabled(false, false)).toBe(false)
+  })
+  it("returns false when downloads are restored", () => {
+    expect(checkDownloadDisabled(true, false)).toBe(false)
+  })
+  it("returns false when the previous state is unknown (first poll)", () => {
+    expect(checkDownloadDisabled(false, null)).toBe(false)
+  })
+  it("returns false when this poll carries no flag", () => {
+    expect(checkDownloadDisabled(null, true)).toBe(false)
   })
 })

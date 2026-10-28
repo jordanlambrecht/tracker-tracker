@@ -9,13 +9,13 @@ export type {
   MamPlatformMeta,
   NebulancePlatformMeta,
   PlatformMeta,
-} from "@/lib/adapters/types"
+} from "@/types/tracker-stats"
 
-import type { PlatformType } from "@/lib/adapters/constants"
-import type { PlatformMeta } from "@/lib/adapters/types"
-import type { DownloadClientRow, NotificationTargetRow } from "@/lib/db/schema"
+import type { PlatformType } from "@/data/platform-types"
+import type { DownloadClientRow, NotificationTargetRow, ProwlarrInstanceRow } from "@/lib/db/schema"
 import type { SystemEvent } from "@/lib/events"
 import type { NotificationThresholds } from "@/lib/notifications/types"
+import type { PlatformMeta } from "@/types/tracker-stats"
 
 /** Fields shared between TrackerLatestStats and Snapshot */
 interface TrackerStatFields {
@@ -26,11 +26,8 @@ interface TrackerStatFields {
    * represent Infinity. Without this flag, an infinite ratio is indistinguishable
    * from "never measured".
    *
-   * Lives on the shared base rather than on TrackerLatestStats alone. When the
-   * latter carried it alone, every Snapshot consumer had to re-derive the state
-   * from byte totals or, more often, silently drop the point. RatioStabilityChart
-   * filtered `ratio !== null` and rendered an empty chart for exactly the accounts
-   * issues #154 and #172 were filed about.
+   * On the shared base so a Snapshot consumer can tell an infinite ratio from a
+   * missing one without re-deriving it from byte totals (issues #154 and #172).
    */
   ratioIsInfinite: boolean
   seedingCount: number | null
@@ -55,6 +52,7 @@ export interface TrackerSummary {
   id: number
   name: string
   baseUrl: string
+  registrySlug: string | null
   platformType: PlatformType
   isActive: boolean
   lastPolledAt: string | null
@@ -66,6 +64,7 @@ export interface TrackerSummary {
   color: string
   qbtTag: string | null
   mouseholeUrl: string | null
+  hasMouseholeToken: boolean
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
@@ -77,6 +76,61 @@ export interface TrackerSummary {
   platformMeta: PlatformMeta | null
   createdAt: string
   latestStats: TrackerLatestStats | null
+  /** A pinned Prowlarr indexer, or null for hostname matching. */
+  prowlarrPin?: { instanceId: number; indexerId: number } | null
+  /** True when the tracker is kept out of Prowlarr matching. */
+  prowlarrOptOut?: boolean
+  /** The Prowlarr indexers this tracker matched. Null when none did. */
+  prowlarr?: TrackerProwlarrState | null
+}
+
+export interface TrackerProwlarrIndexer {
+  instanceId: number
+  instanceName: string
+  instanceUrl: string
+  /** The instance's last poll error. While set, the fields below are stale. */
+  instanceError: string | null
+  /** True when the last reading is too old to show (the poller has stopped). */
+  stale: boolean
+  indexerId: number
+  name: string
+  enabled: boolean
+  disabledTill: string | null
+  mostRecentFailure: string | null
+  initialFailure: string | null
+  checkedAt: string
+  /** Null when never read or no longer current, which statsStaleSince then reports. */
+  stats24h: ProwlarrIndexerStats | null
+  stats7d: ProwlarrIndexerStats | null
+  /** When the oldest stats window left out for its age was last read, or null. */
+  statsStaleSince: string | null
+}
+
+/** One Prowlarr indexer's counters over a stats window. */
+export interface ProwlarrIndexerStats {
+  averageResponseTime: number
+  queries: number
+  grabs: number
+  rssQueries: number
+  authQueries: number
+  failedQueries: number
+  failedGrabs: number
+  failedRssQueries: number
+  failedAuthQueries: number
+}
+
+export interface TrackerProwlarrState {
+  matchedBy: "auto" | "manual"
+  indexers: TrackerProwlarrIndexer[]
+}
+
+/** An indexer offered as a manual match in the tracker settings sheet. */
+export interface ProwlarrIndexerOption {
+  instanceId: number
+  instanceName: string
+  indexerId: number
+  name: string
+  hosts: string[]
 }
 
 export interface Snapshot extends TrackerStatFields {
@@ -128,16 +182,19 @@ export interface QbitmanageTagConfig {
 export interface DashboardSettings {
   showHealthIndicators: boolean
   showLoginTimers: boolean
+  showRankStacks: boolean
   showTodayAtAGlance: boolean
   /** When false, WebGL charts are swapped for 2D substitutes. Defaults to true. */
   enable3DCharts: boolean
   /**
    * Hatched background bands marking ranges where nothing was being collected.
    * On by default: a flat region with no explanation is the failure this
-   * feature exists to prevent, so the explanation has to be opt-OUT.
+   * feature exists to prevent, so the explanation has to be opt-out.
    */
   showOutageBands: boolean
 }
+
+export type GlanceDay = "today" | "yesterday"
 
 export interface TodayAtAGlance {
   fleet: {
@@ -188,7 +245,6 @@ export interface TodayAtAGlance {
   clientLastUpdated: string | null
 }
 
-/** Response from GET /api/auth/status */
 /** Response from GET /api/settings/events */
 export interface EventsPageResponse {
   events: SystemEvent[]
@@ -206,6 +262,7 @@ export type DayRange = 0 | 1 | 7 | 30 | 90 | 365
 export const DASHBOARD_SETTINGS_DEFAULTS: DashboardSettings = {
   showHealthIndicators: true,
   showLoginTimers: true,
+  showRankStacks: true,
   showTodayAtAGlance: true,
   enable3DCharts: true,
   showOutageBands: true,
@@ -217,6 +274,7 @@ export type SafeDownloadClient = Omit<
   | "encryptedUsername"
   | "encryptedPassword"
   | "encryptedApiKey"
+  | "encryptedUrlPath"
   | "cachedTorrents"
   | "cachedTorrentsAt"
   | "lastPolledAt"
@@ -225,6 +283,7 @@ export type SafeDownloadClient = Omit<
   | "updatedAt"
 > & {
   hasCredentials: boolean
+  hasUrlPath: boolean
   lastPolledAt: string | null
   errorSince: string | null
   createdAt: string
@@ -239,6 +298,29 @@ export type SafeNotificationTarget = Omit<
   hasConfig: boolean
   thresholds: NotificationThresholds | null
   lastDeliveryAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** API response shape for Prowlarr instances (API key stripped, dates serialized) */
+export type SafeProwlarrInstance = Omit<
+  ProwlarrInstanceRow,
+  | "encryptedApiKey"
+  | "lastPolledAt"
+  | "indexersReadAt"
+  | "statsReadAt"
+  | "statsAttemptedAt"
+  | "stats7dReadAt"
+  | "errorSince"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  hasApiKey: boolean
+  indexerCount: number
+  lastPolledAt: string | null
+  indexersReadAt: string | null
+  statsReadAt: string | null
+  errorSince: string | null
   createdAt: string
   updatedAt: string
 }

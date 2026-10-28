@@ -9,9 +9,14 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { parseJsonBody } from "@/lib/api-helpers"
-import { createSession, verifyPendingToken } from "@/lib/auth"
+import {
+  createSession,
+  fingerprintMatches,
+  STALE_SESSION_MESSAGE,
+  verifyPendingToken,
+} from "@/lib/auth"
 import { extractClientIp } from "@/lib/client-ip"
-import { decrypt, encrypt } from "@/lib/crypto"
+import { decrypt, encrypt, masterKeyFingerprint } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
@@ -53,14 +58,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid backup code format" }, { status: 400 })
     }
   } else if (!TOTP_CODE_RE.test(code)) {
-    return NextResponse.json({ error: "Invalid TOTP code — must be 6 digits" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid TOTP code, must be 6 digits" }, { status: 400 })
   }
 
   const pending = await verifyPendingToken(pendingToken)
   if (!pending) {
     log.warn(
       { route: "POST /api/auth/totp/verify" },
-      "TOTP verify rejected — invalid or expired pending token"
+      "TOTP verify rejected: invalid or expired pending token"
     )
     return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
   }
@@ -68,6 +73,17 @@ export async function POST(request: Request) {
   const [settings] = await db.select().from(appSettings).limit(1)
   if (!settings?.totpSecret) {
     return NextResponse.json({ error: "TOTP is not enabled" }, { status: 400 })
+  }
+
+  // A pending token from before a password or salt change carries a key that no
+  // longer decrypts the TOTP secret. Refuse it here, not with a 500 below.
+  const current = masterKeyFingerprint(settings.passwordHash, settings.encryptionSalt)
+  if (!fingerprintMatches(pending.fingerprint, current)) {
+    log.warn(
+      { route: "POST /api/auth/totp/verify" },
+      "TOTP verify rejected: pending token predates the current master password or salt"
+    )
+    return NextResponse.json({ error: STALE_SESSION_MESSAGE }, { status: 401 })
   }
 
   const lockout = checkLockout(settings)
@@ -124,7 +140,7 @@ export async function POST(request: Request) {
   await resetFailedAttempts(settings.id)
 
   try {
-    await createSession(pending.encryptionKey, settings.sessionTimeoutMinutes)
+    await createSession(pending.encryptionKey, pending.fingerprint, settings.sessionTimeoutMinutes)
     await persistSchedulerKey(key, settings.id)
     startScheduler(key)
   } catch (err) {

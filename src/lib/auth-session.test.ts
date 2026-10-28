@@ -3,6 +3,24 @@
 // Functions: resetCookieState, getCookieOptions, createCookieStore, loadAuthModule
 
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { masterKeyFingerprint } from "@/lib/crypto"
+
+// The app_settings row readSession compares each session's fingerprint with
+const HASH = "$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$aGFzaGhhc2g"
+const SALT = "5a".repeat(32)
+const FP = masterKeyFingerprint(HASH, SALT)
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    select: () => ({
+      from: () => ({ limit: async () => [{ passwordHash: HASH, encryptionSalt: SALT }] }),
+    }),
+  },
+}))
+
+vi.mock("@/lib/logger", () => ({
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}))
 
 type CookieEntry = {
   value: string
@@ -102,7 +120,7 @@ describe("auth session cookies", () => {
   it("sets HttpOnly strict session cookies and decrypts them through getSession", async () => {
     const { createSession, getSession } = await loadAuthModule()
 
-    const token = await createSession("a".repeat(64), 30)
+    const token = await createSession("a".repeat(64), FP, 30)
 
     expect(cookieState.get("tt_session")?.value).toBe(token)
     expect(cookieState.get("tt_max_age")?.value).toBe("1800")
@@ -128,8 +146,8 @@ describe("auth session cookies", () => {
     vi.stubEnv("SECURE_COOKIES", "true")
     const { createSession } = await loadAuthModule()
 
-    const first = await createSession("b".repeat(64), null)
-    const second = await createSession("b".repeat(64), null)
+    const first = await createSession("b".repeat(64), FP, null)
+    const second = await createSession("b".repeat(64), FP, null)
 
     expect(first).not.toBe(second)
     expect(getCookieOptions("tt_session")).toMatchObject({
@@ -142,7 +160,7 @@ describe("auth session cookies", () => {
     vi.stubEnv("BASE_URL", "https://trackertracker.example.com")
     const { createSession } = await loadAuthModule()
 
-    await createSession("f".repeat(64), null)
+    await createSession("f".repeat(64), FP, null)
 
     expect(getCookieOptions("tt_session")).toMatchObject({
       secure: true,
@@ -153,7 +171,7 @@ describe("auth session cookies", () => {
     vi.stubEnv("NODE_ENV", "production")
     const { createSession } = await loadAuthModule()
 
-    await createSession("g".repeat(64), null)
+    await createSession("g".repeat(64), FP, null)
 
     expect(getCookieOptions("tt_session")).toMatchObject({
       secure: false,
@@ -164,7 +182,7 @@ describe("auth session cookies", () => {
     vi.stubEnv("BASE_URL", "http://trackertracker.local")
     const { createSession } = await loadAuthModule()
 
-    await createSession("h".repeat(64), null)
+    await createSession("h".repeat(64), FP, null)
 
     expect(getCookieOptions("tt_session")).toMatchObject({
       secure: false,
@@ -178,7 +196,7 @@ describe("auth session cookies", () => {
     vi.stubEnv("SECURE_COOKIES", "false")
     const { createSession } = await loadAuthModule()
 
-    await createSession("i".repeat(64), null)
+    await createSession("i".repeat(64), FP, null)
 
     expect(getCookieOptions("tt_session")).toMatchObject({
       secure: false,
@@ -189,7 +207,7 @@ describe("auth session cookies", () => {
     vi.stubEnv("BASE_URL", "HTTPS://trackertracker.example.com")
     const { createSession } = await loadAuthModule()
 
-    await createSession("j".repeat(64), null)
+    await createSession("j".repeat(64), FP, null)
 
     expect(getCookieOptions("tt_session")).toMatchObject({
       secure: true,
@@ -199,7 +217,7 @@ describe("auth session cookies", () => {
   it("clears both cookies on logout", async () => {
     const { clearSession, createSession } = await loadAuthModule()
 
-    await createSession("c".repeat(64), 15)
+    await createSession("c".repeat(64), FP, 15)
     await clearSession()
 
     expect(deletedCookies).toEqual(["tt_session", "tt_max_age"])
@@ -210,12 +228,13 @@ describe("auth session cookies", () => {
     const { createPendingToken, createSession, getSession, verifyPendingToken } =
       await loadAuthModule()
 
-    const pendingToken = await createPendingToken("d".repeat(64))
+    const pendingToken = await createPendingToken("d".repeat(64), FP)
     await expect(verifyPendingToken(pendingToken)).resolves.toEqual({
       encryptionKey: "d".repeat(64),
+      fingerprint: FP,
     })
 
-    await createSession("e".repeat(64), 10)
+    await createSession("e".repeat(64), FP, 10)
     cookieState.set("tt_session", { value: "not-a-real-jwe" })
 
     await expect(getSession()).resolves.toBeNull()

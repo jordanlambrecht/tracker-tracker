@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   if (!valid) {
     log.warn(
       { route: "POST /api/settings/reset-stats" },
-      "stats reset rejected — incorrect password"
+      "stats reset rejected: incorrect password"
     )
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }

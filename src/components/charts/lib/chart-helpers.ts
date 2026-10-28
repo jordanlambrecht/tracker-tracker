@@ -1,13 +1,14 @@
 // src/components/charts/lib/chart-helpers.ts
 //
-// Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
+// Functions: fmtNum, CHANGE_COLOR, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
 // autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle,
 // buildAxisPointer, buildThemeRiverSingleAxis, floorTimestamp, adaptiveDotSize,
 // buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
+import type { TrendDirection } from "@/components/ui/StatCard"
 import { hexToRgba } from "@/lib/color-utils"
-import { formatCount } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import type { StackedAreaSeries } from "@/types/charts"
 import {
   CHART_THEME,
@@ -21,12 +22,19 @@ import {
   formatChartTimestamp,
 } from "./theme"
 
-/** Locale-formatted number with fixed decimal places — used in chart tooltips and axis labels */
+/** Locale-formatted number with fixed decimal places, used in chart tooltips and axis labels */
 export function fmtNum(v: number, decimals = 2): string {
   return v.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
+}
+
+/** Tooltip colour for a change, by the direction formatSignedChange reports */
+export const CHANGE_COLOR: Record<TrendDirection, string> = {
+  up: CHART_THEME.positive,
+  down: CHART_THEME.negative,
+  flat: CHART_THEME.neutral,
 }
 
 /** Formats a GiB value with automatic TiB scaling for display in chart tooltips. */
@@ -113,9 +121,13 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
 
   const enriched = buckets.map((bucket, i) => {
     const prevThreshold = i === 0 ? -Infinity : getThreshold(buckets[i - 1])
-    const count = torrents.filter(
-      (t) => getValue(t) >= prevThreshold && getValue(t) < getThreshold(bucket)
-    ).length
+    // The top bucket has no ceiling, so an infinite value counts there, the same
+    // rule fleet-aggregation applies to its ratio buckets.
+    const isTop = i === buckets.length - 1
+    const count = torrents.filter((t) => {
+      const value = getValue(t)
+      return value >= prevThreshold && (isTop || value < getThreshold(bucket))
+    }).length
     return { bucket, count }
   })
 
@@ -157,12 +169,12 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         const p = params as { name: string; value: number; color: string; dataIndex: number }
         const entry = enriched[p.dataIndex]
         if (!entry) return ""
-        const pct = total > 0 ? ((entry.count / total) * 100).toFixed(1) : "0.0"
+        const pct = formatPercent(total > 0 ? (entry.count / total) * 100 : 0)
         return (
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${labelPrefix} ${getLabel(entry.bucket)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatCount(entry.count)} torrents</span>` +
-          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%${pctSuffix}</span>`
+          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}${pctSuffix}</span>`
         )
       },
     }),
@@ -282,7 +294,7 @@ export function adaptiveDotSize(count: number, thresholds: [number, number] = [1
 
 /**
  * Standard time-axis xAxis config.
- * Uses ECharts cascading label formatter for automatic granularity —
+ * Uses ECharts cascading label formatter for automatic granularity.
  * ECharts picks month/day/hour format based on the visible data range.
  */
 export function buildTimeXAxis(overrides?: Record<string, unknown>): Record<string, unknown> {
@@ -313,7 +325,7 @@ export function insideZoom(dataPointCount: number, minPoints = 14): EChartsOptio
 }
 
 /**
- * Shared donut chart shell — common radius, border, emphasis, and label config.
+ * Shared donut chart shell with common radius, border, emphasis, and label config.
  * Consumers provide `data`, `label` overrides, and optional extras.
  */
 export function buildDonutShell(overrides?: {

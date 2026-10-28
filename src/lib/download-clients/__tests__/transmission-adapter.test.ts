@@ -48,7 +48,7 @@ function torrent(over: Partial<TransmissionTorrent>): TransmissionTorrent {
   }
 }
 
-const CREDS = { authMethod: "password" as const, username: "admin", password: "p" }
+const CREDS = { authMethod: "password" as const, username: "admin", password: "p", urlPath: "" }
 
 function adapter() {
   return new TransmissionClientAdapter("localhost", 9091, false, CREDS)

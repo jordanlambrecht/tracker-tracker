@@ -22,7 +22,7 @@ export const bibliotik: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#8b5cf6",
-  logo: "",
+  logo: "/tracker-logos/bibliotik_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "bibliotik",

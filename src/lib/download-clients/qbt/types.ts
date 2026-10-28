@@ -18,12 +18,12 @@ export interface QbtTorrent {
   num_complete: number // total seeders in swarm
   num_incomplete: number // total leechers in swarm
   tracker: string // primary tracker URL
-  added_on: number // unix timestamp — when torrent was added
-  completion_on: number // unix timestamp — when download completed (-1 if incomplete)
-  last_activity: number // unix timestamp — last transfer activity
+  added_on: number // unix timestamp, when torrent was added
+  completion_on: number // unix timestamp, when download completed (-1 if incomplete)
+  last_activity: number // unix timestamp, last transfer activity
   seeding_time: number // seconds spent seeding
   time_active: number // seconds total active time
-  seen_complete: number // unix timestamp — last time a complete copy was seen in swarm
+  seen_complete: number // unix timestamp, last time a complete copy was seen in swarm
   availability: number // float 0-1, piece availability
   amount_left: number // bytes remaining to download
   progress: number // float 0-1, download progress

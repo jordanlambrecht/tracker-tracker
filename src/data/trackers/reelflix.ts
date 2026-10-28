@@ -27,10 +27,11 @@ export const reelflix: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
   statusPageUrl: "",
+  announceHosts: ["reelflix.cc", "reelflix.xyz"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
-    { name: "Leech", requirements: "Timeout zone — DL Slots: 0" },
+    { name: "Leech", requirements: "Timeout zone — DL Slots: 0", outsideLadder: "below" },
     { name: "User", requirements: "Upload ≥ 50 GiB; Ratio ≥ 0.80 — DL Slots: 1" },
     {
       name: "Member",
@@ -76,16 +77,19 @@ export const reelflix: TrackerRegistryEntry = {
       name: "Celebrity",
       requirements:
         "Staff — internal / staff from other respected trackers. Refundable, Send Invite, Invite Forums, Request Torrents, Torrent Mod Bypass",
+      outsideLadder: "above",
     },
     {
       name: "Legend",
       requirements:
         "Staff — former internal / staff. 100% Freeleech, Send Invite, Invite Forums, Request Torrents, Torrent Mod Bypass",
+      outsideLadder: "above",
     },
     {
       name: "Internal",
       requirements:
         "Staff — internal release group members of ReelFliX. 100% Freeleech, Send Invite, Invite Forums, Request Torrents, Torrent Mod Bypass",
+      outsideLadder: "above",
     },
   ],
   releaseGroups: [],

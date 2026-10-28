@@ -5,10 +5,10 @@
 // the top of the file before any variable declarations, the mock factories use
 // inline string sentinels that match the schema mock values exactly.
 
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
-// Per-test data store — populated by seedStore() in each test
+// Per-test data store, populated by seedStore() in each test
 // ---------------------------------------------------------------------------
 
 // These string values must match the values returned by the schema mock below.
@@ -45,11 +45,11 @@ function seedStore(
 }
 
 // ---------------------------------------------------------------------------
-// DB mock — vi.mock factory is hoisted; use ONLY inline literals here
+// DB mock, vi.mock factory is hoisted; use ONLY inline literals here
 // ---------------------------------------------------------------------------
 
 vi.mock("@/lib/db", () => {
-  // NOTE: Cannot reference outer variables here — this factory is hoisted.
+  // NOTE: Cannot reference outer variables here, this factory is hoisted.
   // The store/storeDayBefore variables are module-level so they ARE accessible
   // after hoisting as long as we reference them by closure (not by value at
   // declaration time). Vitest hoists vi.mock but the factory closure still
@@ -86,7 +86,7 @@ vi.mock("@/lib/db", () => {
   }
 })
 
-// Schema mock — each table is a string sentinel matching the from() dispatch above
+// Schema mock, each table is a string sentinel matching the from() dispatch above
 vi.mock("@/lib/db/schema", () => ({
   trackers: "SENT_trackers",
   trackerSnapshots: "SENT_snapshots",
@@ -96,6 +96,8 @@ vi.mock("@/lib/db/schema", () => ({
 }))
 
 vi.mock("drizzle-orm", () => ({
+  and: vi.fn((..._conds: unknown[]) => ({ type: "and" })),
+  lt: vi.fn((_col: unknown, _val: unknown) => ({ type: "lt" })),
   eq: vi.fn((_col: unknown, _val: unknown) => ({ type: "eq" })),
   gte: vi.fn((_col: unknown, _val: unknown) => ({ type: "gte" })),
   inArray: vi.fn((_col: unknown, _vals: unknown) => ({ type: "inArray" })),
@@ -106,6 +108,7 @@ vi.mock("drizzle-orm", () => ({
 // Import under test (after mocks)
 // ---------------------------------------------------------------------------
 
+import { gte, inArray, lt } from "drizzle-orm"
 import { localDateStr } from "@/lib/formatters"
 import { computeTodayAtAGlance } from "@/lib/today"
 
@@ -391,6 +394,26 @@ describe("computeTodayAtAGlance — null bufferBytes on earliest, value on lates
 })
 
 // ---------------------------------------------------------------------------
+// A bonus that starts reporting partway through the day
+// ---------------------------------------------------------------------------
+
+describe("computeTodayAtAGlance on the day a tracker starts reporting its bonus", () => {
+  beforeEach(() => {
+    const tracker = makeTracker(1)
+    const now = Date.now()
+    const snaps = [null, 500, 700].map((bonus, i) =>
+      makeSnapshot(1, new Date(now - (2 - i) * 3600000), "1000000000", "500000000", null, null, bonus)
+    )
+    seedStore([tracker], snaps)
+  })
+
+  it("counts only what was gained after the first reading with a bonus", async () => {
+    const result = await computeTodayAtAGlance()
+    expect(result.fleet.seedbonusChange).toBe(200)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Yesterday comparison via checkpoint pairs
 // ---------------------------------------------------------------------------
 
@@ -560,7 +583,7 @@ describe("computeTodayAtAGlance — torrent movers tag filtering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Fleet aggregation — multiple trackers
+// Fleet aggregation, multiple trackers
 // ---------------------------------------------------------------------------
 
 describe("computeTodayAtAGlance — fleet aggregation with multiple trackers", () => {
@@ -640,9 +663,31 @@ describe("computeTodayAtAGlance — ratio weighted average", () => {
     expect(result.fleet.ratioChange as number).toBeCloseTo(0.28, 5)
   })
 
+  it("leaves an account with an infinite ratio out of the fleet ratio change", async () => {
+    const tracker1 = makeTracker(1)
+    const tracker2 = makeTracker(2)
+    const tracker3 = makeTracker(3)
+    const now = Date.now()
+    // Trackers 1 and 2 start at Infinity, so their changes are NaN and -Infinity.
+    // Only tracker 3's +0.2 is finite.
+    const snaps = [
+      makeSnapshot(1, new Date(now - 3600000), "1000000000", "0", null, Infinity),
+      makeSnapshot(2, new Date(now - 3600000), "2000000000", "0", null, Infinity),
+      makeSnapshot(3, new Date(now - 3600000), "1000000000", "1000000000", null, 1.0),
+      makeSnapshot(1, new Date(now), "2000000000", "0", null, Infinity),
+      makeSnapshot(2, new Date(now), "3200000000", "1000000000", null, 3.2),
+      makeSnapshot(3, new Date(now), "1200000000", "1000000000", null, 1.2),
+    ]
+    seedStore([tracker1, tracker2, tracker3], snaps)
+
+    const result = await computeTodayAtAGlance()
+    expect(result.fleet.ratioChange).not.toBeNull()
+    expect(result.fleet.ratioChange as number).toBeCloseTo(0.2, 5)
+  })
+
   it("returns null ratioChange when all upload deltas are zero (no progress this session)", async () => {
     const tracker = makeTracker(1)
-    // Both snapshots have same uploaded bytes — delta = 0, weight = 0
+    // Both snapshots have same uploaded bytes, delta = 0, weight = 0
     const snap1 = makeSnapshot(
       1,
       new Date(Date.now() - 3600000),
@@ -750,6 +795,177 @@ describe("computeTodayAtAGlance — activity counts", () => {
 // ---------------------------------------------------------------------------
 // Output shape invariants
 // ---------------------------------------------------------------------------
+
+describe("computeTodayAtAGlance — yesterday", () => {
+  const shift = (date: string, days: number) => {
+    const d = new Date(`${date}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + days)
+    return d.toISOString().slice(0, 10)
+  }
+  const today = localDateStr()
+  const yesterday = shift(today, -1)
+  const at = (date: string) => (cp: ReturnType<typeof makeTorrentCheckpoint>) => ({
+    ...cp,
+    checkpointDate: date,
+  })
+
+  it("measures movers between yesterday's and today's checkpoints", async () => {
+    const tracker = makeTracker(1, { qbtTag: "aither" })
+    const torrent = makeTorrent("hash1", "Some Movie", "aither", 9000000000, 9000000000)
+    const client = { id: 1, name: "qBit", cachedTorrents: JSON.stringify([torrent]) }
+    seedStore(
+      [tracker],
+      [],
+      [],
+      [],
+      [
+        at(yesterday)(makeTorrentCheckpoint(1, "hash1", "1000000000", "0")),
+        at(today)(makeTorrentCheckpoint(1, "hash1", "3000000000", "500")),
+      ],
+      [client]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.movers.topUploaders[0].uploadedToday).toBe("2000000000")
+    expect(result.movers.topDownloaders[0].downloadedToday).toBe("500")
+    expect(result.clientLastUpdated).toBeNull()
+  })
+
+  it("skips torrents without a checkpoint for the end of yesterday", async () => {
+    const tracker = makeTracker(1, { qbtTag: "aither" })
+    const torrent = makeTorrent("hash1", "Some Movie", "aither", 9000000000, 0)
+    const client = { id: 1, name: "qBit", cachedTorrents: JSON.stringify([torrent]) }
+    seedStore(
+      [tracker],
+      [],
+      [],
+      [],
+      [at(yesterday)(makeTorrentCheckpoint(1, "hash1", "1000000000", "0"))],
+      [client]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.movers.topUploaders).toHaveLength(0)
+  })
+
+  it("compares against the two days before yesterday", async () => {
+    const tracker = makeTracker(1)
+    const d2 = shift(today, -2)
+    const d3 = shift(today, -3)
+    seedStore(
+      [tracker],
+      [],
+      [makeTrackerCheckpoint(1, d2, "3000", "300")],
+      [makeTrackerCheckpoint(1, d3, "1000", "100")]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.uploadDeltaYesterday).toBe("2000")
+    expect(result.fleet.downloadDeltaYesterday).toBe("200")
+  })
+
+  it("takes the headline from the checkpoints at either end of yesterday", async () => {
+    const tracker = makeTracker(1)
+    // Intraday snapshots cover only part of the day and must not be used
+    const snaps = [
+      makeSnapshot(1, new Date(`${yesterday}T08:00:00`), "4000", "400"),
+      makeSnapshot(1, new Date(`${yesterday}T20:00:00`), "4500", "450"),
+    ]
+    seedStore(
+      [tracker],
+      snaps,
+      [makeTrackerCheckpoint(1, yesterday, "5000", "500", "4500")],
+      [makeTrackerCheckpoint(1, shift(today, -2), "3000", "300", "2700")]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.uploadDelta).toBe("2000")
+    expect(result.fleet.downloadDelta).toBe("200")
+    expect(result.fleet.bufferDelta).toBe("1800")
+    expect(result.trackers[0].uploadDelta).toBe("2000")
+  })
+
+  it("measures yesterday's bonus between the checkpoints at either end", async () => {
+    const tracker = makeTracker(1)
+    seedStore(
+      [tracker],
+      [],
+      [{ ...makeTrackerCheckpoint(1, yesterday, "5000", "500"), seedbonusEnd: 1300 }],
+      [{ ...makeTrackerCheckpoint(1, shift(today, -2), "3000", "300"), seedbonusEnd: 1000 }]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.seedbonusChange).toBe(300)
+  })
+
+  it("books no bonus for yesterday when the earlier checkpoint has none", async () => {
+    const tracker = makeTracker(1)
+    seedStore(
+      [tracker],
+      [],
+      [{ ...makeTrackerCheckpoint(1, yesterday, "5000", "500"), seedbonusEnd: 1300 }],
+      [makeTrackerCheckpoint(1, shift(today, -2), "3000", "300")]
+    )
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.fleet.seedbonusChange).toBe(0)
+  })
+
+  it("reports no movement for a tracker missing the checkpoint before yesterday", async () => {
+    const tracker = makeTracker(1)
+    seedStore([tracker], [], [makeTrackerCheckpoint(1, yesterday, "5000", "500")], [])
+
+    const result = await computeTodayAtAGlance("yesterday")
+
+    expect(result.trackers[0].uploadDelta).toBe("0")
+  })
+})
+
+describe("computeTodayAtAGlance — window across a daylight-saving change", () => {
+  const originalTz = process.env.TZ
+
+  beforeEach(() => {
+    // 00:30 local on the day after the 2026 US spring change, when the
+    // previous calendar day was only 23 hours long
+    process.env.TZ = "America/New_York"
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-03-09T04:30:00Z"))
+    vi.mocked(gte).mockClear()
+    vi.mocked(lt).mockClear()
+    vi.mocked(inArray).mockClear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    process.env.TZ = originalTz
+  })
+
+  it("summarises the previous calendar date, bounded by local midnights", async () => {
+    await computeTodayAtAGlance("yesterday")
+
+    expect(vi.mocked(gte).mock.calls[0][1]).toEqual(new Date("2026-03-08T05:00:00Z"))
+    expect(vi.mocked(lt).mock.calls[0][1]).toEqual(new Date("2026-03-09T04:00:00Z"))
+    const dates = vi.mocked(inArray).mock.calls.map((call) => call[1])
+    expect(dates).toContainEqual(["2026-03-08", "2026-03-07", "2026-03-06"])
+    expect(dates).toContainEqual(["2026-03-08", "2026-03-09"])
+  })
+
+  it("compares today against the two calendar dates before it", async () => {
+    await computeTodayAtAGlance()
+
+    expect(vi.mocked(gte).mock.calls[0][1]).toEqual(new Date("2026-03-09T04:00:00Z"))
+    expect(vi.mocked(lt)).not.toHaveBeenCalled()
+    expect(vi.mocked(inArray).mock.calls.map((call) => call[1])).toEqual([
+      ["2026-03-08", "2026-03-07"],
+    ])
+  })
+})
 
 describe("computeTodayAtAGlance — output shape", () => {
   it("fleet object has all required keys", async () => {

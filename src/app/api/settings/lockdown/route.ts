@@ -11,7 +11,7 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, verifyPassword } from "@/lib/auth"
 import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
+import { appSettings, downloadClients, prowlarrInstances, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   const valid = await verifyPassword(settings.passwordHash, password)
   if (!valid) {
-    log.warn({ route: "POST /api/settings/lockdown" }, "lockdown rejected — incorrect password")
+    log.warn({ route: "POST /api/settings/lockdown" }, "lockdown rejected: incorrect password")
     return NextResponse.json({ error: "Incorrect password" }, { status: 401 })
   }
 
@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         // state needs no sentinel, and recover.cjs already reads NULL as
         // "nothing to re-key" via isPlaintextSentinel().
         encryptedCredentials: null,
+        encryptedMouseholeToken: null,
         isActive: false,
         lastError: "Emergency lockdown: API token revoked",
         updatedAt: now,
@@ -71,11 +72,20 @@ export async function POST(request: Request) {
         encryptedUsername: "",
         encryptedPassword: "",
         encryptedApiKey: "",
+        encryptedUrlPath: "",
         // Back to the mode whose credentials the UI prompts for after a
         // lockdown; leaving "apikey" here would describe a key that is gone.
         authMethod: "password",
         enabled: false,
         lastError: "Emergency lockdown: credentials revoked",
+        updatedAt: now,
+      })
+
+      // 3b. Revoke the Prowlarr API keys. NULL, never a marker string.
+      await tx.update(prowlarrInstances).set({
+        encryptedApiKey: null,
+        enabled: false,
+        lastError: "Emergency lockdown: API key revoked",
         updatedAt: now,
       })
 

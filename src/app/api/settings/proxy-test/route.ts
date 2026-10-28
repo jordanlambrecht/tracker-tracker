@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       } catch {
         log.error(
           { route: "POST /api/settings/proxy-test" },
-          "proxy test failed — password decrypt error"
+          "proxy test failed: password decrypt error"
         )
         return NextResponse.json(
           { success: false, error: "Failed to decrypt stored proxy password" },

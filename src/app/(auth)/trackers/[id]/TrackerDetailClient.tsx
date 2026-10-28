@@ -17,10 +17,10 @@ import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
-import { findRegistryEntry } from "@/data/tracker-registry"
+import { registryBonusName, registryEntryFor } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { hexToRgba } from "@/lib/color-utils"
-import { computeDelta } from "@/lib/data-transforms"
+import { computeDelta, ratioTrend24h } from "@/lib/data-transforms"
 import type {
   DayRange,
   GazellePlatformMeta,
@@ -45,6 +45,8 @@ interface TrackerDetailClientProps {
   trackerId: number
   initialTracker: TrackerSummary
   initialAllTimeSnapshots: Snapshot[]
+  /** The last two days unbucketed, for the 24-hour figures */
+  initialRecentSnapshots: Snapshot[]
   initialTagGroups: TagGroup[]
   initialQbitmanageConfig: { enabled: boolean; tags: QbitmanageTagConfig } | null
   initialTab?: string | null
@@ -54,6 +56,7 @@ export function TrackerDetailClient({
   trackerId,
   initialTracker,
   initialAllTimeSnapshots,
+  initialRecentSnapshots,
   initialTagGroups,
   initialQbitmanageConfig,
   initialTab: initialTabProp,
@@ -67,6 +70,7 @@ export function TrackerDetailClient({
 
   const [tracker, setTracker] = useState<TrackerSummary>(initialTracker)
   const [allTimeSnapshots, setAllTimeSnapshots] = useState<Snapshot[]>(initialAllTimeSnapshots)
+  const [recentSnapshots, setRecentSnapshots] = useState<Snapshot[]>(initialRecentSnapshots)
   const tagGroups = initialTagGroups
   const qbitmanageConfig = initialQbitmanageConfig
   const [days, setDays] = useState<DayRange>(30)
@@ -80,11 +84,12 @@ export function TrackerDetailClient({
   const [debugLoading, setDebugLoading] = useState(false)
   const [debugError, setDebugError] = useState<string | null>(null)
   const [pauseLoading, setPauseLoading] = useState(false)
+  const [settingsSaves, setSettingsSaves] = useState(0)
 
   const torrentData = useTrackerTorrents({
     trackerId,
     qbtTag: tracker.qbtTag,
-    rules: findRegistryEntry(tracker.baseUrl)?.rules,
+    rules: registryEntryFor(tracker)?.rules,
     tagGroups,
     trackerSeedingCount: tracker.latestStats?.seedingCount,
     qbitmanageConfig,
@@ -151,7 +156,7 @@ export function TrackerDetailClient({
       setTracker(await res.json())
     } catch {
       setTracker((prev) => ({ ...prev, userPausedAt: originalUserPausedAt }))
-      setPollError("Failed to toggle pause — please try again")
+      setPollError("Failed to toggle pause. Please try again")
     } finally {
       setPauseLoading(false)
     }
@@ -166,12 +171,14 @@ export function TrackerDetailClient({
         const body = await res.json().catch(() => ({ error: "Poll failed" }))
         setPollError((body as { error?: string }).error ?? "Poll failed")
       } else {
-        const [trackerRes, allTimeRes] = await Promise.all([
+        const [trackerRes, allTimeRes, recentRes] = await Promise.all([
           fetch(`/api/trackers/${id}`),
           fetch(`/api/trackers/${id}/snapshots?days=0`),
+          fetch(`/api/trackers/${id}/snapshots?days=2`),
         ])
         if (trackerRes.ok) setTracker(await trackerRes.json())
         if (allTimeRes.ok) setAllTimeSnapshots(await allTimeRes.json())
+        if (recentRes.ok) setRecentSnapshots(await recentRes.json())
       }
     } catch {
       setPollError("Network error during poll")
@@ -213,7 +220,10 @@ export function TrackerDetailClient({
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
   const stats = tracker?.latestStats ?? null
-  const delta = useMemo(() => computeDelta(snapshots), [snapshots])
+  // The all-time series is bucketed by hour past two days stored and by day past 90,
+  // so the 24-hour figures read the raw last two days
+  const delta = useMemo(() => computeDelta(recentSnapshots), [recentSnapshots])
+  const ratioTrend = useMemo(() => ratioTrend24h(recentSnapshots), [recentSnapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
   const trackerStyle = useMemo(
@@ -225,8 +235,8 @@ export function TrackerDetailClient({
       }) as CSSProperties,
     [tc]
   )
-  const baseUrl = tracker?.baseUrl
-  const registryEntry = useMemo(() => (baseUrl ? findRegistryEntry(baseUrl) : undefined), [baseUrl])
+  const registrySlug = tracker?.registrySlug ?? null
+  const registryEntry = useMemo(() => registryEntryFor({ registrySlug }), [registrySlug])
 
   const { statCardSlots, badgeSlots, progressSlots } = useMemo(() => {
     if (!tracker) return { statCardSlots: [], badgeSlots: [], progressSlots: [] }
@@ -267,6 +277,7 @@ export function TrackerDetailClient({
         badgeSlots={badgeSlots}
         onTogglePause={handleTogglePause}
         pauseLoading={pauseLoading}
+        settingsSaves={settingsSaves}
       />
 
       {/* Rank Progression */}
@@ -285,9 +296,9 @@ export function TrackerDetailClient({
         registryEntry={registryEntry}
         tracker={tracker}
         onArchived={(updated) => {
-          // Same handling as the settings sheet's archive: the row has already
-          // been written through the shared cache, so there is nothing to
-          // re-fetch. An archived tracker just leaves the active dashboard.
+          // The row is already written through the shared cache, so there is
+          // nothing to re-fetch. An archived tracker just leaves the active
+          // dashboard.
           if (!updated.isActive) {
             router.push("/")
             return
@@ -337,6 +348,8 @@ export function TrackerDetailClient({
           onDaysChange={setDays}
           delta={delta}
           minimumRatio={registryEntry?.rules?.minimumRatio}
+          ratioTrend={ratioTrend}
+          bonusName={registryBonusName(registryEntry)}
           statCardSlots={statCardSlots}
           progressSlots={progressSlots}
         />
@@ -356,34 +369,34 @@ export function TrackerDetailClient({
         />
       )}
 
-      {/* Keyed on the tracker id for the same reason as the settings sheet:
-          navigating between trackers must not carry one tracker's draft vault
+      {/* Keyed on the tracker id so one tracker's draft vault does not carry
           into another's sheet. */}
       <TrackerCredentialsSheet
         key={`credentials-${tracker.id}`}
         open={showCredentials}
         trackerId={tracker.id}
         trackerName={tracker.name}
-        trackerBaseUrl={tracker.baseUrl}
+        trackerRegistrySlug={tracker.registrySlug}
         onClose={() => setShowCredentials(false)}
       />
 
       <TrackerSettingsSheet
+        // Remount per tracker: the sheet holds one credential slot for every
+        // platform, so without this a paste typed for one tracker would still
+        // be in the textarea when the next tracker's sheet opens.
         key={tracker.id}
         open={showSettings}
         tracker={tracker}
         onClose={() => setShowSettings(false)}
         onUpdated={(updated) => {
-          // `updated` is the PATCH response itself. This used to re-GET
-          // /api/trackers/{id} first, re-running the exact query the PATCH had
-          // just run and putting a second serial round trip in front of the
-          // redirect. The sheet has also already written this row into the
-          // shared ["trackers"] cache, so the sidebar is correct by now.
+          // `updated` is the PATCH response, and the sheet has already written
+          // it into the shared ["trackers"] cache, so no re-GET is needed.
           if (!updated.isActive) {
             router.push("/")
             return
           }
           setTracker(updated)
+          setSettingsSaves((n) => n + 1)
         }}
       />
 

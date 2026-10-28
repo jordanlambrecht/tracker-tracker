@@ -6,6 +6,7 @@ import { H1 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
+import { ProwlarrIndexerCard } from "@/components/tracker-detail/ProwlarrIndexerCard"
 import { MamMouseholeCard } from "@/components/tracker-detail/platform/MamMouseholeCard"
 import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"
 import { UserProfileCard } from "@/components/tracker-detail/UserProfileCard"
@@ -39,7 +40,7 @@ interface TrackerDetailHeaderProps {
   polling: boolean
   onPollNow: () => void
   onOpenSettings: () => void
-  /** Opens the credential vault sheet. Always available — the sheet itself
+  /** Opens the credential vault sheet. Always available, the sheet itself
    *  renders the opt-in explanation when the feature is disabled, so hiding the
    *  button would leave a disabled user with no route to turning it on. */
   onOpenCredentials: () => void
@@ -48,6 +49,7 @@ interface TrackerDetailHeaderProps {
   badgeSlots: ResolvedSlot[]
   onTogglePause: () => void
   pauseLoading: boolean
+  settingsSaves: number
 }
 
 export function TrackerDetailHeader({
@@ -64,8 +66,10 @@ export function TrackerDetailHeader({
   badgeSlots,
   onTogglePause,
   pauseLoading,
+  settingsSaves,
 }: TrackerDetailHeaderProps) {
   const health = getTrackerHealth(tracker)
+  const prowlarrIndexers = tracker.prowlarr?.indexers ?? []
 
   return (
     <div className="flex flex-col gap-5">
@@ -99,7 +103,9 @@ export function TrackerDetailHeader({
 
           {/* Meta badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getHealthBadgeVariant(health)}>{getHealthDescription(health)}</Badge>
+            <Badge variant={getHealthBadgeVariant(health)}>
+              {getHealthDescription(health, tracker)}
+            </Badge>
             <Badge variant="default">{tracker.platformType}</Badge>
             {registryEntry?.language && <Badge variant="default">{registryEntry.language}</Badge>}
             {!tracker.isActive && <Badge variant="warn">Archived</Badge>}
@@ -168,7 +174,8 @@ export function TrackerDetailHeader({
       </div>
 
       {(registryEntry?.trackerHubSlug ||
-        (tracker.platformType === "mam" && tracker.mouseholeUrl)) && (
+        (tracker.platformType === "mam" && tracker.mouseholeUrl) ||
+        prowlarrIndexers.length > 0) && (
         <div className="flex flex-col gap-3 my-4">
           {registryEntry?.trackerHubSlug && (
             <TrackerHubStatus
@@ -176,9 +183,15 @@ export function TrackerDetailHeader({
               statusPageUrl={registryEntry.statusPageUrl}
             />
           )}
+          {/* Remounted on each settings save so a new URL or token is fetched at once */}
           {tracker.platformType === "mam" && tracker.mouseholeUrl && (
-            <MamMouseholeCard trackerId={tracker.id} mouseholeUrl={tracker.mouseholeUrl} />
+            <MamMouseholeCard
+              key={settingsSaves}
+              trackerId={tracker.id}
+              mouseholeUrl={tracker.mouseholeUrl}
+            />
           )}
+          {prowlarrIndexers.length > 0 && <ProwlarrIndexerCard indexers={prowlarrIndexers} />}
         </div>
       )}
 

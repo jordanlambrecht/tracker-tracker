@@ -8,10 +8,11 @@ import type { ReactNode } from "react"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { formatBytesFromString } from "@/lib/formatters"
-import type { TodayAtAGlance } from "@/types/api"
+import type { GlanceDay, TodayAtAGlance } from "@/types/api"
 
 interface MoversAndShakersProps {
   movers: TodayAtAGlance["movers"]
+  day?: GlanceDay
 }
 
 interface TorrentRankListEntry {
@@ -73,7 +74,7 @@ function TorrentRankList({ label, entries }: { label: string; entries: TorrentRa
   )
 }
 
-export function MoversAndShakers({ movers }: MoversAndShakersProps) {
+export function MoversAndShakers({ movers, day = "today" }: MoversAndShakersProps) {
   const { topUploaders, topDownloaders, clientCount, unmatchedTorrents } = movers
 
   if (topUploaders.length === 0 && topDownloaders.length === 0) {
@@ -87,7 +88,7 @@ export function MoversAndShakers({ movers }: MoversAndShakersProps) {
         `${unmatchedTorrents} torrent${unmatchedTorrents === 1 ? "" : "s"} found, but none ` +
         "belong to a tracked tracker. Check the tracker's URL, or set a qBittorrent tag on it."
     } else {
-      message = "No torrent activity today"
+      message = `No torrent activity ${day}`
     }
 
     return <p className="text-xs font-mono text-muted p-4 text-center">{message}</p>

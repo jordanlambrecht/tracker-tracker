@@ -1,6 +1,6 @@
 // src/lib/__tests__/snapshot-bucket.test.ts
 //
-// Tests for getSnapshotBucket — the pure bucketing function that picks
+// Tests for getSnapshotBucket, the pure bucketing function that picks
 // a date_trunc granularity based on the requested day range.
 //
 // Boundary map:
@@ -31,6 +31,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackers: {},
   trackerSnapshots: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {},
   dbSizeHistory: {},
   tagGroups: {},

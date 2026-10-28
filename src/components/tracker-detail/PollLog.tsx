@@ -1,6 +1,7 @@
 // src/components/tracker-detail/PollLog.tsx
 "use client"
 
+import { InfinitySign } from "@icons"
 import clsx from "clsx"
 import { useState } from "react"
 import { Button } from "@/components/ui/Button"
@@ -29,6 +30,17 @@ function snapshotRatio(snap: Snapshot): number | null {
   return BigInt(snap.downloadedBytes) === 0n && BigInt(snap.uploadedBytes) > 0n
     ? Number.POSITIVE_INFINITY
     : snap.ratio
+}
+
+function RatioText({ ratio }: { ratio: number | null }) {
+  const text = formatRatioDisplay(ratio)
+  if (!text.startsWith("∞")) return text
+  return (
+    <>
+      <InfinitySign />
+      {text.slice(1)}
+    </>
+  )
 }
 
 export function PollLog({
@@ -94,7 +106,9 @@ export function PollLog({
                   <span className="text-secondary">
                     {formatBytesFromString(snap.downloadedBytes)} ↓
                   </span>
-                  <span className="text-secondary">{formatRatioDisplay(snapshotRatio(snap))}</span>
+                  <span className="text-secondary">
+                    <RatioText ratio={snapshotRatio(snap)} />
+                  </span>
                   {snap.isManual && (
                     <span className="text-accent/60 text-[10px] uppercase tracking-wider">
                       Manual

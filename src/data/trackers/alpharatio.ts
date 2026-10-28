@@ -23,7 +23,7 @@ export const alpharatio: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#9b59b6",
-  logo: "",
+  logo: "/tracker-logos/alpharatio_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "alpha-ratio",

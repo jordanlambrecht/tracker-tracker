@@ -6,16 +6,21 @@ import { DataCell } from "@typography"
 import { ProgressBar } from "@/components/ui/ProgressBar"
 import { compareBigIntDesc } from "@/lib/data-transforms"
 import { formatBytesFromString } from "@/lib/formatters"
-import type { TodayAtAGlance } from "@/types/api"
+import type { GlanceDay, TodayAtAGlance } from "@/types/api"
 
 interface TrackerBreakdownProps {
   trackers: TodayAtAGlance["trackers"]
   metric?: "upload" | "download"
+  day?: GlanceDay
 }
 
 const TOP_N = 5
 
-export function TrackerBreakdownBars({ trackers, metric = "upload" }: TrackerBreakdownProps) {
+export function TrackerBreakdownBars({
+  trackers,
+  metric = "upload",
+  day = "today",
+}: TrackerBreakdownProps) {
   if (trackers.length === 0) return null
 
   const getDelta = (t: TodayAtAGlance["trackers"][number]) =>
@@ -41,7 +46,7 @@ export function TrackerBreakdownBars({ trackers, metric = "upload" }: TrackerBre
   if (allZero) {
     return (
       <p className="text-xs font-mono text-muted text-center py-2">
-        No {metric} activity yet today
+        No {metric} activity {day === "today" ? "yet today" : day}
       </p>
     )
   }

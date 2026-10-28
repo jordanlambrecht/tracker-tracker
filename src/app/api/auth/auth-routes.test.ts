@@ -1,7 +1,14 @@
 // src/app/api/auth/auth-routes.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { clearSession, createSession, getSession, hashPassword, verifyPassword } from "@/lib/auth"
-import { deriveKey, generateSalt } from "@/lib/crypto"
+import {
+  clearSession,
+  createSession,
+  getSession,
+  hashPassword,
+  readSession,
+  verifyPassword,
+} from "@/lib/auth"
+import { deriveKey, generateSalt, masterKeyFingerprint } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { startScheduler, stopScheduler } from "@/lib/scheduler"
 
@@ -25,12 +32,14 @@ vi.mock("@/lib/auth", () => ({
   createSession: vi.fn(),
   createPendingToken: vi.fn(),
   getSession: vi.fn(),
+  readSession: vi.fn(),
   clearSession: vi.fn(),
 }))
 
 vi.mock("@/lib/crypto", () => ({
   generateSalt: vi.fn(),
   deriveKey: vi.fn(),
+  masterKeyFingerprint: vi.fn(),
 }))
 
 vi.mock("@/lib/scheduler", () => ({
@@ -322,6 +331,7 @@ describe("POST /api/auth/login", () => {
     ;(deriveKey as ReturnType<typeof vi.fn>).mockResolvedValue(fakeKey)
     ;(createSession as ReturnType<typeof vi.fn>).mockResolvedValue("token")
     ;(startScheduler as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+    vi.mocked(masterKeyFingerprint).mockReturnValue("fp-of-hash-and-salt")
 
     const { POST } = await import("./login/route")
     const req = new Request("http://localhost/api/auth/login", {
@@ -334,7 +344,13 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(200)
     expect(body).toEqual({ success: true })
-    expect(createSession).toHaveBeenCalledWith(fakeKey.toString("hex"), undefined)
+    // The fingerprint comes from the row that verified the password
+    expect(masterKeyFingerprint).toHaveBeenCalledWith("hash", "salt")
+    expect(createSession).toHaveBeenCalledWith(
+      fakeKey.toString("hex"),
+      "fp-of-hash-and-salt",
+      undefined
+    )
     expect(startScheduler).toHaveBeenCalledWith(fakeKey)
   })
 
@@ -504,11 +520,12 @@ describe("POST /api/auth/login", () => {
 describe("POST /api/auth/logout", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.clearAllMocks()
+    ;(clearSession as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
   })
 
   it("clears the session and returns 200 (scheduler keeps running)", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "abc123" })
-    ;(clearSession as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+    vi.mocked(readSession).mockResolvedValue({ status: "valid", encryptionKey: "abc123" })
 
     const { POST } = await import("./logout/route")
     const response = await POST()
@@ -520,13 +537,35 @@ describe("POST /api/auth/logout", () => {
     expect(clearSession).toHaveBeenCalledOnce()
   })
 
-  it("returns 401 when not authenticated", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  it("clears an out-of-date session too", async () => {
+    vi.mocked(readSession).mockResolvedValue({ status: "stale" })
+
+    const { POST } = await import("./logout/route")
+    const response = await POST()
+
+    expect(response.status).toBe(200)
+    expect(clearSession).toHaveBeenCalledOnce()
+  })
+
+  it("still clears the cookie when the database is down", async () => {
+    vi.mocked(readSession).mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:5432"))
+
+    const { POST } = await import("./logout/route")
+    const response = await POST()
+
+    expect(response.status).toBe(200)
+    expect(clearSession).toHaveBeenCalledOnce()
+  })
+
+  it("returns 401 without clearing anything when no session cookie decrypts", async () => {
+    // A cross-site form POST carries no SameSite=strict cookie and reaches this branch
+    vi.mocked(readSession).mockResolvedValue(null)
 
     const { POST } = await import("./logout/route")
     const response = await POST()
 
     expect(response.status).toBe(401)
+    expect(clearSession).not.toHaveBeenCalled()
   })
 })
 

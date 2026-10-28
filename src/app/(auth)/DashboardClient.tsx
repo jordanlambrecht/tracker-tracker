@@ -3,6 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { H1 } from "@typography"
+import clsx from "clsx"
 import dynamic from "next/dynamic"
 import { useMemo, useState, useTransition } from "react"
 import { DashboardSkeleton } from "@/app/(auth)/DashboardSkeleton"
@@ -15,7 +16,8 @@ import { EcosystemStatsSection } from "@/components/dashboard/EcosystemStatsSect
 import { FleetDashboard } from "@/components/dashboard/FleetDashboard"
 import { LoginTimers } from "@/components/dashboard/LoginTimers"
 import { PollAllButton } from "@/components/dashboard/PollAllButton"
-import { RetentionPrompt } from "@/components/dashboard/RetentionPromptDialog"
+import { ProwlarrFailures } from "@/components/dashboard/ProwlarrFailures"
+import { RankStacks } from "@/components/dashboard/RankStacks"
 import { TagGroupsSection } from "@/components/dashboard/TagGroupsSection"
 import { TodayAtAGlance } from "@/components/dashboard/TodayAtAGlance"
 import { TodayAtAGlanceSkeleton } from "@/components/dashboard/TodayAtAGlanceSkeleton"
@@ -23,7 +25,7 @@ import { TrackerLeaderboard } from "@/components/dashboard/TrackerLeaderboard"
 import { TrackerOverviewGrid } from "@/components/dashboard/TrackerOverviewGrid"
 import { useChartPreferences } from "@/components/dashboard/useChartPreferences"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
-import { Button, Divider, GearIcon, TabBar } from "@/components/ui"
+import { Button, ClockIcon, Divider, GearIcon, TabBar } from "@/components/ui"
 import { SectionToggle } from "@/components/ui/SectionToggle"
 import { ChartGridSkeleton } from "@/components/ui/skeletons"
 import { useDashboardData } from "@/hooks/useDashboardData"
@@ -32,7 +34,7 @@ import { useSectionCollapse } from "@/hooks/useSectionCollapse"
 import { computeAggregateStats } from "@/lib/dashboard"
 import type { FleetAggregation } from "@/lib/fleet-aggregation"
 import { fleetCachedQueryOptions } from "@/lib/query-options"
-import type { Snapshot, TrackerSummary } from "@/types/api"
+import type { Snapshot, TodayAtAGlance as TodayAtAGlanceData, TrackerSummary } from "@/types/api"
 import type { TrackerSnapshotSeries } from "@/types/charts"
 
 const DashboardSettingsSheet = dynamic(
@@ -83,18 +85,26 @@ export function DashboardClient({
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Two-state tab pattern: dashboardTab updates immediately (drives TabBar pill animation),
   // deferredTab updates via startTransition (drives content switch + query gating).
-  // This prevents the 350ms React reconciliation from blocking the pill's CSS transition.
+  // This keeps the content render from blocking the pill's CSS transition.
   const [dashboardTab, setDashboardTab] = useState<"tracker-stats" | "torrent-fleet">(
     "tracker-stats"
   )
   const [deferredTab, setDeferredTab] = useState<"tracker-stats" | "torrent-fleet">("tracker-stats")
   const [, startTransition] = useTransition()
   const intervals = usePollingIntervals()
+  const [showYesterday, setShowYesterday] = useState(false)
+  const yesterdayQuery = useQuery({
+    queryKey: ["dashboard-today", "yesterday"],
+    enabled: showYesterday,
+    queryFn: async ({ signal }): Promise<TodayAtAGlanceData> => {
+      const res = await fetch("/api/dashboard/today?day=yesterday", { signal })
+      if (!res.ok) throw new Error("Failed to fetch yesterday data")
+      return res.json()
+    },
+  })
 
-  // Tag group counts share the Torrent Fleet tab's cached aggregation rather than being
-  // computed during SSR, so they cost this page nothing before first paint. Sharing the cache
-  // also means they go stale and refresh on the fleet's own schedule. Including the fleet
-  // tab's refresh button instead of being frozen until a full page reload.
+  // Tag group counts read the Torrent Fleet tab's cached aggregation, so they cost nothing
+  // before first paint and refresh on the fleet's schedule, its refresh button included.
   const { data: tagGroupBreakdowns = [], isPending: tagGroupsPending } = useQuery({
     ...fleetCachedQueryOptions,
     staleTime: intervals.clientRefetchMs,
@@ -119,6 +129,7 @@ export function DashboardClient({
   const leaderboardExpanded = isExpanded("leaderboard")
   const ecosystemStatsExpanded = isExpanded("ecosystem-stats")
   const loginTimersExpanded = isExpanded("login-timers")
+  const rankStacksExpanded = isExpanded("rank-stacks")
   const tagGroupsExpanded = isExpanded("tag-groups")
 
   if (data.loading) {
@@ -131,10 +142,6 @@ export function DashboardClient({
 
   return (
     <div className="flex flex-col gap-10 max-w-6xl mx-auto pb-12">
-      {/* Asks once, on first login, how long to keep snapshot history. Renders
-          nothing after it has been answered. */}
-      <RetentionPrompt />
-
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <H1>Dashboard</H1>
@@ -159,13 +166,34 @@ export function DashboardClient({
       {/* Today At A Glance */}
       {dashSettings.settings.showTodayAtAGlance && (
         <div className="flex flex-col gap-4">
-          <SectionToggle
-            label="Today At A Glance"
-            expanded={todayAtAGlanceExpanded}
-            onToggle={() => sectionCollapse.toggle("today-at-a-glance")}
-          />
+          <div className="flex items-center gap-2">
+            <SectionToggle
+              label={showYesterday ? "Yesterday At A Glance" : "Today At A Glance"}
+              expanded={todayAtAGlanceExpanded}
+              onToggle={() => sectionCollapse.toggle("today-at-a-glance")}
+            />
+            <button
+              type="button"
+              aria-pressed={showYesterday}
+              aria-label={showYesterday ? "Show today" : "Show yesterday"}
+              title={showYesterday ? "Show today" : "Show yesterday"}
+              onClick={() => setShowYesterday((v) => !v)}
+              className={clsx(
+                "cursor-pointer transition-colors duration-150",
+                showYesterday ? "text-accent" : "text-tertiary hover:text-secondary"
+              )}
+            >
+              <ClockIcon width={14} height={14} />
+            </button>
+          </div>
           {todayAtAGlanceExpanded &&
-            (data.todayData ? (
+            (showYesterday ? (
+              yesterdayQuery.data ? (
+                <TodayAtAGlance data={yesterdayQuery.data} day="yesterday" />
+              ) : yesterdayQuery.isLoading ? (
+                <TodayAtAGlanceSkeleton />
+              ) : null
+            ) : data.todayData ? (
               <TodayAtAGlance data={data.todayData} />
             ) : data.todayLoading ? (
               <TodayAtAGlanceSkeleton />
@@ -197,12 +225,24 @@ export function DashboardClient({
         />
       )}
 
+      {/* Failing Prowlarr indexers. Renders nothing while none is failing */}
+      <ProwlarrFailures trackers={data.trackers} />
+
       {/* Login Timers */}
       {dashSettings.settings.showLoginTimers && (
         <LoginTimers
           trackers={data.trackers}
           expanded={loginTimersExpanded}
           onToggleExpanded={() => sectionCollapse.toggle("login-timers")}
+        />
+      )}
+
+      {/* Ranks */}
+      {dashSettings.settings.showRankStacks && (
+        <RankStacks
+          trackers={data.trackers}
+          expanded={rankStacksExpanded}
+          onToggleExpanded={() => sectionCollapse.toggle("rank-stacks")}
         />
       )}
 
@@ -216,7 +256,6 @@ export function DashboardClient({
         {leaderboardExpanded && <TrackerLeaderboard trackers={data.trackers} />}
       </div>
 
-      {/* Divider */}
       <Divider />
 
       {/* Aggregate Stats */}
@@ -248,7 +287,6 @@ export function DashboardClient({
         </div>
       )}
 
-      {/* Divider */}
       <Divider />
 
       {/* Tab Switcher */}

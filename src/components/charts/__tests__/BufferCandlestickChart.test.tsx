@@ -129,7 +129,7 @@ describe("BufferCandlestickChart day bucketing (TZ=America/Chicago)", () => {
   })
 })
 
-// Buffer is signed, so a candle can straddle zero — an account that crosses from
+// Buffer is signed, so a candle can straddle zero, an account that crosses from
 // surplus into deficit within a day is exactly the movement this chart exists to
 // show.
 describe("BufferCandlestickChart with a signed buffer", () => {
@@ -148,7 +148,7 @@ describe("BufferCandlestickChart with a signed buffer", () => {
       1
     )
 
-    // [open, close, low, high] — open/close are first/last chronologically,
+    // [open, close, low, high], open/close are first/last chronologically,
     // low/high are the true extremes across the sign change.
     expect(ohlc).toHaveLength(1)
     expect(ohlc[0]).toEqual([2, -1, -3, 5])
@@ -209,7 +209,7 @@ describe("BufferCandlestickChart with a signed buffer", () => {
   it("drops a forced log axis when new data turns negative", async () => {
     // useLogScale keeps the user's override in state, so forcing log on while
     // everything was positive would otherwise survive the arrival of a negative
-    // snapshot — dropping the candle that just went into deficit, with the
+    // snapshot, dropping the candle that just went into deficit, with the
     // toggle now unmounted and no way to turn it back off.
     const user = userEvent.setup()
     const positives = series([
@@ -256,5 +256,37 @@ describe("BufferCandlestickChart with a signed buffer", () => {
     expect(option.yAxis?.name).toBe("TiB")
     // -2048 GiB is -2 TiB once the divisor is applied.
     expect(option.series?.[0]?.data?.[0]?.[1]).toBe(-2)
+  })
+})
+
+describe("BufferCandlestickChart tooltip change", () => {
+  type Formatter = (params: unknown) => string
+
+  function changeLine(open: number, close: number): string {
+    optionSpy.mockClear()
+    render(
+      <BufferCandlestickChart
+        trackerData={series([
+          snap("2026-08-01T12:00:00.000Z", 1),
+          snap("2026-08-02T12:00:00.000Z", 2),
+        ])}
+      />
+    )
+    const option = optionSpy.mock.calls.at(-1)?.[0] as { tooltip: { formatter: Formatter } }
+    const html = option.tooltip.formatter([
+      { seriesName: "Tracker A", color: "#00ff00", value: [0, open, close, open, close] },
+    ])
+    return (html.split("Change:</span>")[1] ?? "").replace(/<[^>]+>/g, "").trim()
+  }
+
+  it("shows a gain and a loss with their sign and arrow", () => {
+    expect(changeLine(1, 3.5)).toBe("+2.50 GiB (▲)")
+    expect(changeLine(3.5, 1)).toBe("-2.50 GiB (▼)")
+  })
+
+  it("shows a change that rounds to zero without a sign or arrow", () => {
+    expect(changeLine(1, 1)).toBe("0.00 GiB")
+    expect(changeLine(1, 1.001)).toBe("0.00 GiB")
+    expect(changeLine(1.001, 1)).toBe("0.00 GiB")
   })
 })

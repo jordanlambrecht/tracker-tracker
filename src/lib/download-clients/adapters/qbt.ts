@@ -2,8 +2,6 @@
 
 import { mapQbtDelta, mapQbtTorrent } from "../field-map"
 import {
-  buildBaseUrl,
-  clearAuthBlocks,
   invalidateSession,
   login,
   type QbtAuth,
@@ -12,6 +10,7 @@ import {
   syncMaindata,
   withSessionRetry,
 } from "../qbt/transport"
+import { buildBaseUrl, clearAuthBlocks } from "../transport"
 import type {
   ClientAdapter,
   ClientCredentials,
@@ -25,7 +24,7 @@ import type {
  * session cookies internally via withSessionRetry. Returns normalized
  * TorrentRecord/DeltaSyncResponse shapes (camelCase) rather than raw qBT types.
  *
- * API-key clients (qBittorrent 5.2.0+) skip the session machinery entirely —
+ * API-key clients (qBittorrent 5.2.0+) skip the session machinery entirely,
  * a Bearer key is stateless, so there is nothing to log in for, cache, or
  * retry on expiry. withAuth() is the single place that distinction is made.
  */
@@ -39,7 +38,7 @@ export class QbtClientAdapter implements ClientAdapter {
     private readonly ssl: boolean,
     private readonly creds: ClientCredentials
   ) {
-    this.baseUrl = buildBaseUrl(host, port, ssl)
+    this.baseUrl = buildBaseUrl(host, port, ssl, creds.urlPath)
   }
 
   /**
@@ -47,13 +46,25 @@ export class QbtClientAdapter implements ClientAdapter {
    * through withSessionRetry so an expired SID is refreshed once; key clients
    * call straight through.
    */
-  private withAuth<T>(op: (baseUrl: string, auth: QbtAuth) => Promise<T>): Promise<T> {
+  private withAuth<T>(
+    op: (baseUrl: string, auth: QbtAuth) => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> {
     if (this.creds.authMethod === "apikey") {
       return op(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
     }
-    const { username, password } = this.creds
-    return withSessionRetry(this.host, this.port, this.ssl, username, password, (baseUrl, sid) =>
-      op(baseUrl, { mode: "session", sid })
+    const { username, password, urlPath } = this.creds
+    // The signal reaches the login the wrapper may have to perform, so a
+    // password client with no cached SID shares the caller's deadline too.
+    return withSessionRetry(
+      this.host,
+      this.port,
+      this.ssl,
+      username,
+      password,
+      urlPath,
+      (baseUrl, sid) => op(baseUrl, { mode: "session", sid }),
+      signal
     )
   }
 
@@ -69,14 +80,20 @@ export class QbtClientAdapter implements ClientAdapter {
       await qbtGetTransferInfo(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
       return
     }
-    const { username, password } = this.creds
-    const sid = await login(this.host, this.port, this.ssl, username, password)
+    const { username, password, urlPath } = this.creds
+    const sid = await login(this.host, this.port, this.ssl, username, password, urlPath)
     await qbtGetTransferInfo(this.baseUrl, { mode: "session", sid })
   }
 
-  async getTorrents(options?: { tag?: string; filter?: string }): Promise<TorrentRecord[]> {
-    const raw = await this.withAuth((baseUrl, auth) =>
-      qbtGetTorrents(baseUrl, auth, options?.tag, options?.filter)
+  async getTorrents(options?: {
+    tag?: string
+    filter?: string
+    signal?: AbortSignal
+  }): Promise<TorrentRecord[]> {
+    const raw = await this.withAuth(
+      (baseUrl, auth) =>
+        qbtGetTorrents(baseUrl, auth, options?.tag, options?.filter, options?.signal),
+      options?.signal
     )
     return raw.map((t) => mapQbtTorrent(t as unknown as Record<string, unknown>))
   }
@@ -115,5 +132,6 @@ export class QbtClientAdapter implements ClientAdapter {
 
   dispose(): void {
     invalidateSession(this.baseUrl)
+    clearAuthBlocks(this.baseUrl)
   }
 }

@@ -576,7 +576,12 @@ function DailyVolumeChart({ trackerData, height = 360 }: DailyVolumeChartProps) 
         />
       </div>
       <ChartECharts key={mode} option={option} style={{ height, width: "100%" }} />
-      {bandable && <OutageBandLegend bands={outages} range={polledAtRange(trackerData.flatMap((t) => t.snapshots))} />}
+      {bandable && (
+        <OutageBandLegend
+          bands={outages}
+          range={polledAtRange(trackerData.flatMap((t) => t.snapshots))}
+        />
+      )}
     </div>
   )
 }

@@ -69,6 +69,7 @@ export interface DownloadClientRow {
   encryptedUsername: string
   encryptedPassword: string
   encryptedApiKey: string
+  encryptedUrlPath: string
   crossSeedTags: string[] | null
   type: string
 }
@@ -94,16 +95,14 @@ export function assertAuthMethod(authMethod: string): AuthMethod {
  * `password` off a key client, is a compile error.
  */
 export type ClientCredentials =
-  | { authMethod: "password"; username: string; password: string }
-  | { authMethod: "apikey"; apiKey: string }
+  | { authMethod: "password"; username: string; password: string; urlPath: string }
+  | { authMethod: "apikey"; apiKey: string; urlPath: string }
 
 /**
- * Download client adapter interface. Each supported client type (qBittorrent,
- * rTorrent) implements this contract. Adapters produce TorrentRecord-shaped
+ * Download client adapter interface. Adapters produce TorrentRecord-shaped
  * output so downstream code (charts, aggregation, merge) is client-agnostic.
  *
- * Session management is internal to each adapter. qBT uses SID cookies,
- * rTorrent uses Basic Auth per request. Callers don't manage sessions.
+ * Session management is internal to each adapter. Callers don't manage sessions.
  */
 export interface ClientAdapter {
   /** Client type identifier. */
@@ -112,9 +111,19 @@ export interface ClientAdapter {
   /** Test that the client is reachable and credentials are valid. Throws on failure. */
   testConnection(): Promise<void>
 
-  /** Fetch torrents, optionally filtered by tag or activity state.
-   *  Note: only handles single-tag filtering. Multi-tag fan-out is the caller's job. */
-  getTorrents(options?: { tag?: string; filter?: string }): Promise<TorrentRecord[]>
+  /**
+   * Fetch torrents, optionally filtered by tag or activity state. Single tag
+   * only; multi-tag fan-out is the caller's job.
+   *
+   * `signal` is the caller's own deadline. Without it, a client past its
+   * deadline is abandoned rather than cancelled and holds its socket open until
+   * the transport timeout.
+   */
+  getTorrents(options?: {
+    tag?: string
+    filter?: string
+    signal?: AbortSignal
+  }): Promise<TorrentRecord[]>
 
   /** Fetch global upload/download speeds. */
   getTransferInfo(): Promise<TransferStats>
@@ -130,6 +139,10 @@ export interface ClientAdapter {
   /** Base URL for this client (used as sync store key). */
   readonly baseUrl: string
 
-  /** Clean up cached sessions. Called on logout or scheduler stop. */
+  /**
+   * Drop everything cached under this client's URL. Called when the client's
+   * address changes or the client is deleted. Stopping the scheduler clears
+   * every client at once instead.
+   */
   dispose(): void
 }

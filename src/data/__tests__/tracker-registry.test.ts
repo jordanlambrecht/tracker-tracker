@@ -2,7 +2,7 @@
 //
 // Validates all tracker registry entries for consistency.
 // Catches platform/apiPath mismatches, duplicate slugs, invalid fields, etc.
-// Runs in CI — a bad tracker file will fail the PR.
+// Runs in CI, a bad tracker file will fail the PR.
 //
 // Draft trackers (draft: true) are exempt from strict validation.
 // Non-draft trackers must pass all required checks.
@@ -11,8 +11,11 @@
 import fs from "node:fs"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
+import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/data/platform-types"
 import {
   getTrackerBySlug,
+  registryEntryFor,
+  registryHostname,
   TRACKER_REGISTRY,
   type TrackerRegistryEntry,
 } from "@/data/tracker-registry"
@@ -23,11 +26,11 @@ import {
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
+  validateAnnounceHosts,
   validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
-import { DEFAULT_API_PATHS } from "@/lib/adapters"
-import { VALID_PLATFORM_TYPES } from "@/lib/adapters/constants"
+import { trackerHostKey } from "@/lib/tracker-matching"
 import { isValidHex } from "@/lib/validators"
 
 const VALID_PLATFORMS = VALID_PLATFORM_TYPES
@@ -35,13 +38,13 @@ const TRACKER_DIR = path.resolve(__dirname, "../../data/trackers")
 const LOGO_DIR = path.resolve(__dirname, "../../../public/tracker-logos")
 
 // ---------------------------------------------------------------------------
-// Warning collector — printed after all tests, does not fail CI
+// Warning collector, printed after all tests, does not fail CI
 // ---------------------------------------------------------------------------
 
 const warnings: string[] = []
 
 function warn(tracker: string, msg: string) {
-  warnings.push(`WARN: ${tracker} — ${msg}`)
+  warnings.push(`WARN: ${tracker} - ${msg}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +73,35 @@ describe("tracker registry", () => {
     expect(dupes, `Duplicate URLs: ${dupes.join(", ")}`).toEqual([])
   })
 
+  it("has no two entries sharing a hostname", () => {
+    // The startup backfill takes the first hostname match, so two entries on
+    // one hostname would give a pre-registry row the other one's slug.
+    const hosts = TRACKER_REGISTRY.map((t) => registryHostname(t.url))
+    const dupes = hosts.filter((h, i) => h !== undefined && hosts.indexOf(h) !== i)
+    expect(dupes, `Shared hostnames: ${dupes.join(", ")}`).toEqual([])
+  })
+
+  it("has no announce host shared with another entry", () => {
+    // resolveTorrentTracker takes the first tracker whose keys hold a torrent's
+    // host and fleet aggregation takes the last, so a shared alias hands one
+    // tracker's torrents to whichever wins.
+    const owners = new Map<string, Set<string>>()
+    const claim = (key: string | null, slug: string) => {
+      if (key) owners.set(key, (owners.get(key) ?? new Set()).add(slug))
+    }
+    for (const t of ALL_TRACKERS) {
+      claim(trackerHostKey(t.url), t.slug)
+      for (const host of t.announceHosts ?? []) claim(trackerHostKey(host), t.slug)
+    }
+    const aliasKeys = new Set(
+      ALL_TRACKERS.flatMap((t) => (t.announceHosts ?? []).map((h) => trackerHostKey(h)))
+    )
+    const shared = [...owners]
+      .filter(([key, slugs]) => aliasKeys.has(key) && slugs.size > 1)
+      .map(([key, slugs]) => `${key} (${[...slugs].join(", ")})`)
+    expect(shared, `Shared announce hosts: ${shared.join("; ")}`).toEqual([])
+  })
+
   it("every tracker has an explicit draft field (true or false)", () => {
     for (const tracker of ALL_TRACKERS) {
       expect(
@@ -84,7 +116,6 @@ describe("tracker registry", () => {
       .readdirSync(TRACKER_DIR)
       .filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.startsWith("_"))
       .map((f) => f.replace(/\.ts$/, ""))
-    // Read barrel to get actual imported filenames
     const barrelContent = fs.readFileSync(path.join(TRACKER_DIR, "index.ts"), "utf8")
     const unregistered = files.filter((f) => !barrelContent.includes(`./${f}`))
     expect(
@@ -93,7 +124,7 @@ describe("tracker registry", () => {
     ).toEqual([])
   })
 
-  // ── Draft trackers — basic format checks only ─────────────────────────
+  // ── Draft trackers, basic format checks only ─────────────────────────
 
   describe("draft trackers", () => {
     for (const tracker of DRAFT_TRACKERS) {
@@ -109,11 +140,16 @@ describe("tracker registry", () => {
         it("has a valid https URL", () => {
           expect(tracker.url).toMatch(/^https:\/\//)
         })
+
+        // Drafts are committed too, so a passkey here would reach git as well.
+        it("has valid announceHosts", () => {
+          expect(validateAnnounceHosts(tracker)).toEqual([])
+        })
       })
     }
   })
 
-  // ── Non-draft trackers — strict validation ────────────────────────────
+  // ── Non-draft trackers, strict validation ────────────────────────────
 
   describe("production trackers", () => {
     for (const tracker of PRODUCTION_TRACKERS) {
@@ -140,7 +176,7 @@ describe("tracker registry", () => {
           const expected = DEFAULT_API_PATHS[tracker.platform]
           expect(
             tracker.apiPath,
-            `${tracker.name} is platform "${tracker.platform}" but uses apiPath "${tracker.apiPath}" — expected "${expected}"`
+            `${tracker.name} is platform "${tracker.platform}" but uses apiPath "${tracker.apiPath}", expected "${expected}"`
           ).toBe(expected)
         })
 
@@ -148,16 +184,20 @@ describe("tracker registry", () => {
           if (tracker.platform === "custom") return
           // An absolute apiPath would be persisted per row and silently ignore
           // baseUrl at every `new URL(apiPath, baseUrl)` call site. A tracker
-          // whose API lives off-domain belongs in its adapter — see btn.ts.
+          // whose API lives off-domain belongs in its adapter. See btn.ts.
           expect(
             tracker.apiPath.startsWith("/"),
-            `${tracker.name} has apiPath "${tracker.apiPath}" — must be relative and start with "/". An off-domain API host belongs in the adapter, not the registry.`
+            `${tracker.name} has apiPath "${tracker.apiPath}", which must be relative and start with "/". An off-domain API host belongs in the adapter, not the registry.`
           ).toBe(true)
         })
 
         it("has a valid https URL", () => {
           expect(tracker.url).toMatch(/^https:\/\//)
           expect(() => new URL(tracker.url)).not.toThrow()
+        })
+
+        it("has no trailing slash, which adapters would double when they concatenate", () => {
+          expect(tracker.url).not.toMatch(/\/$/)
         })
 
         it("has at least one content category", () => {
@@ -201,11 +241,38 @@ describe("tracker registry", () => {
           expect(Number.isInteger(r), "rules.loginIntervalDays must be an integer").toBe(true)
         })
 
+        it("has a valid rules.satisfactionMode when it is set", () => {
+          const mode = tracker.rules?.satisfactionMode
+          if (mode === undefined) return
+          expect(
+            ["any", "all"].includes(mode),
+            'rules.satisfactionMode must be "any" or "all"'
+          ).toBe(true)
+          // A mode over no thresholds resolves to no requirement at all, so the
+          // entry would silently keep the empty table it was meant to fix.
+          const hasThreshold =
+            (tracker.rules?.seedTimeHours ?? 0) > 0 || (tracker.rules?.minimumRatio ?? 0) > 0
+          expect(
+            hasThreshold,
+            "rules.satisfactionMode needs a non-zero seedTimeHours or minimumRatio to act on"
+          ).toBe(true)
+        })
+
         it("has a non-placeholder description", () => {
           expect(
             PLACEHOLDER_RE.test(tracker.description.trim()),
-            `description is still "TODO" — fill it in before removing draft`
+            `description is still "TODO". Fill it in before removing draft`
           ).toBe(false)
+        })
+
+        it("lists each user class once, with a stack-safe ladder", () => {
+          const names = tracker.userClasses.map((c) => c.name.toLowerCase())
+          expect(new Set(names).size).toBe(names.length)
+          // A ladder whose every class is flagged drops the tracker from the
+          // Ranks section with no signal, which is always a flagging mistake.
+          if (tracker.userClasses.length > 0) {
+            expect(tracker.userClasses.some((c) => !c.outsideLadder)).toBe(true)
+          }
         })
 
         it("has no duplicate content categories", () => {
@@ -251,6 +318,10 @@ describe("tracker registry", () => {
           for (const w of warnings) warn(tracker.slug, w)
         })
 
+        it("has valid announceHosts", () => {
+          expect(validateAnnounceHosts(tracker)).toEqual([])
+        })
+
         // ── Warn-level fields (collected, not asserted) ──────────────
 
         it("collects warnings for incomplete fields", () => {
@@ -274,24 +345,22 @@ describe("tracker registry", () => {
             warn(tracker.slug, `missing ${missing.join(", ")}`)
           }
 
-          // Always passes — warnings don't fail the build
+          // Always passes, warnings don't fail the build
           expect(true).toBe(true)
         })
       })
     }
   })
 
-  // ── Migrated from src/data/tracker-registry.test.ts ──────────────────
+  // ── Lookups and auth styles ──────────────────────────────────────────
 
   it("has at least 2 trackers", () => {
     expect(TRACKER_REGISTRY.length).toBeGreaterThanOrEqual(2)
   })
 
   describe("gazelle auth styles", () => {
-    // Regression guard for issue #155. RED returned 401 for every user because
-    // it was configured with the prefixed `token <key>` form. Upstream Gazelle
-    // has a dedicated bare-token branch commented "this first case is for
-    // compatibility with RED", so the bare form is RED-specific.
+    // Issue #155. RED answers the prefixed `token <key>` form with a 401, so it
+    // must stay on the raw style.
     it("uses the raw (unprefixed) Authorization form for Redacted", () => {
       const red = getTrackerBySlug("redacted")
       expect(red).toBeDefined()
@@ -305,6 +374,23 @@ describe("tracker registry", () => {
         expect(tracker.platform).toBe("gazelle")
         expect(["token", "raw"]).toContain(tracker.gazelleAuthStyle)
       }
+    })
+  })
+
+  describe("registryEntryFor", () => {
+    // A tracker row records which registry entry it is; the URL it stores is
+    // the poll address and never the key. A null slug is a pre-registry custom
+    // site and resolves to nothing.
+    it("resolves a row by its slug", () => {
+      expect(registryEntryFor({ registrySlug: "anthelion" })?.nebulanceAuthParam).toBe("apikey")
+    })
+
+    it("resolves nothing for a row with no slug", () => {
+      expect(registryEntryFor({ registrySlug: null })).toBeUndefined()
+    })
+
+    it("resolves nothing for a slug the registry does not carry", () => {
+      expect(registryEntryFor({ registrySlug: "not-a-tracker" })).toBeUndefined()
     })
   })
 
@@ -329,5 +415,22 @@ describe("tracker registry", () => {
       }
       console.warn("──────────────────────────────────────────────────────\n")
     }
+  })
+})
+
+describe("TorrentLeech ladder", () => {
+  it("carries the six wiki classes with VIP as the only one above the ladder", () => {
+    const tl = getTrackerBySlug("torrentleech")
+    expect(tl?.userClasses.map((c) => c.name)).toEqual([
+      "Registered",
+      "Power User",
+      "Super User",
+      "Extreme User",
+      "TL GOD",
+      "VIP",
+    ])
+    expect(tl?.userClasses.filter((c) => c.outsideLadder === "above").map((c) => c.name)).toEqual([
+      "VIP",
+    ])
   })
 })

@@ -4,6 +4,7 @@
 import clsx from "clsx"
 import { useMemo, useState } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { formatPercent } from "@/lib/formatters"
 
 interface UptimeBucket {
   bucketTs: string
@@ -58,7 +59,7 @@ function UptimeBar({ buckets, uptimePercent, className = "" }: UptimeBarProps) {
     return result
   }, [buckets])
 
-  const percentLabel = uptimePercent != null ? `${uptimePercent}%` : "—"
+  const percentLabel = uptimePercent != null ? formatPercent(uptimePercent) : "—"
 
   return (
     <div className={clsx("flex flex-col gap-2", className)}>

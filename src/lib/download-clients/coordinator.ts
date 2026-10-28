@@ -12,23 +12,27 @@ import "server-only"
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
+import { log } from "@/lib/logger"
 import {
+  announceHostKeySet,
   createTrackedTorrentPredicate,
   resolveTorrentTracker,
+  trackerAnnounceKeys,
   trackerHostKey,
 } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
-import { CLIENT_CONNECTION_COLUMNS } from "./credentials"
+import { CLIENT_CONNECTION_COLUMNS, decryptClientUrlPath } from "./credentials"
 import { createAdapterForClient } from "./factory"
 import type { MergedResult } from "./fetch"
 import { fetchAndMergeTorrents } from "./fetch"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
-import { buildBaseUrl, parseCachedTorrents } from "./qbt/transport"
+import { parseCachedTorrents } from "./qbt/transport"
 import { getFilteredTorrents, isStoreFresh, STORE_MAX_AGE_MS } from "./sync-store"
 import { type SlimTorrent, slimTorrentForCache } from "./transforms"
+import { buildBaseUrl } from "./transport"
 import type { TorrentRecord } from "./types"
 
 // ---------------------------------------------------------------------------
@@ -42,13 +46,17 @@ const FETCH_CLIENT_COLUMNS = {
   type: downloadClients.type,
 } as const
 
-/** Columns for cached reads (no credentials, includes connection info for sync store lookup). */
+/**
+ * Columns for cached reads. No login credentials, but the encrypted URL path,
+ * which is part of the sync store key along with the connection info.
+ */
 const CACHED_CLIENT_COLUMNS = {
   id: downloadClients.id,
   name: downloadClients.name,
   host: downloadClients.host,
   port: downloadClients.port,
   useSsl: downloadClients.useSsl,
+  encryptedUrlPath: downloadClients.encryptedUrlPath,
   crossSeedTags: downloadClients.crossSeedTags,
   cachedTorrentsAt: downloadClients.cachedTorrentsAt,
 } as const
@@ -69,9 +77,15 @@ const TRACKER_MATCH_COLUMNS = {
   id: trackers.id,
   qbtTag: trackers.qbtTag,
   baseUrl: trackers.baseUrl,
+  registrySlug: trackers.registrySlug,
 } as const
 
-type TrackerMatchRow = { id: number; qbtTag: string | null; baseUrl: string }
+type TrackerMatchRow = {
+  id: number
+  qbtTag: string | null
+  baseUrl: string
+  registrySlug: string | null
+}
 
 /** The two fields matching reads off a torrent, on both the live and cached shapes. */
 interface MatchableTorrent {
@@ -104,7 +118,7 @@ function trackerTorrentMatcher(
   allTrackers: TrackerMatchRow[]
 ): (torrent: MatchableTorrent) => boolean {
   const ownTag = target.qbtTag?.trim().toLowerCase() || null
-  const targetHost = trackerHostKey(target.baseUrl)
+  const targetHosts = new Set(trackerAnnounceKeys(target))
 
   return (torrent) => {
     if (ownTag && parseTorrentTags(torrent.tags ?? "").includes(ownTag)) return true
@@ -114,16 +128,15 @@ function trackerTorrentMatcher(
     // return `target` from its tag branch. That branch fires only when a torrent
     // tag equals target.qbtTag, which step 1 already tested (and tested more
     // permissively, since it trims the configured tag first). So the only way
-    // target can still win is the announce branch, which requires exactly this
-    // host equality.
+    // target can still win is the announce branch, which requires the torrent's
+    // host to be one of the target's announce keys.
     //
-    // Worth doing: resolveTorrentTracker re-parses every tracker's baseUrl for
-    // every torrent, which measured 267ms per 10k torrents against 25 trackers.
-    // Hoisting the target's host out of the loop and rejecting on it first cuts
-    // that to 31ms, and the expensive path then runs only for the handful of
-    // torrents that really do announce to this tracker.
+    // Worth doing: resolveTorrentTracker walks every tracker for every torrent.
+    // Building the target's keys once and rejecting on them first means the full
+    // resolve runs only for the handful of torrents that really do announce to
+    // this tracker.
     const host = trackerHostKey(torrent.tracker)
-    if (host === null || host !== targetHost) return false
+    if (host === null || !targetHosts.has(host)) return false
 
     return resolveTorrentTracker(torrent, allTrackers)?.tracker.id === target.id
   }
@@ -183,7 +196,7 @@ export async function fetchTrackerTorrents(
 }
 
 // ---------------------------------------------------------------------------
-// Cached reads (no encryption key needed)
+// Cached reads (no live qBT requests)
 // ---------------------------------------------------------------------------
 
 export interface FleetAggregationResponse extends FleetAggregation {
@@ -200,8 +213,11 @@ export interface FleetAggregationResponse extends FleetAggregation {
  * `tagGroups` is optional: pass it to have the aggregation also count tag-group
  * membership across the fleet (the dashboard's Tag Groups section). Callers that omit
  * it get `tagGroupBreakdowns: []` and the aggregation skips the work entirely.
+ *
+ * `key` decrypts only each client's URL path, which the sync store key carries.
  */
 export async function fetchFleetAggregation(
+  key: Buffer,
   options?: { tagGroups?: TagGroup[] }
 ): Promise<FleetAggregationResponse> {
   const tagGroups = options?.tagGroups ?? []
@@ -226,6 +242,7 @@ export async function fetchFleetAggregation(
       name: trackers.name,
       color: trackers.color,
       baseUrl: trackers.baseUrl,
+      registrySlug: trackers.registrySlug,
     })
     .from(trackers)
 
@@ -238,13 +255,14 @@ export async function fetchFleetAggregation(
   // their torrents can be attributed without any tagging setup (issue #152).
   const trackerTagsWithMeta = trackerTagRows
     .map((r) => {
-      const key = r.qbtTag ?? trackerHostKey(r.baseUrl)
-      if (!key) return null
+      const tag = r.qbtTag ?? trackerHostKey(r.baseUrl)
+      if (!tag) return null
       return {
-        tag: key,
+        tag,
         name: r.name,
         color: r.color ?? "#01d4ff",
         baseUrl: r.baseUrl,
+        registrySlug: r.registrySlug,
       }
     })
     .filter((t): t is NonNullable<typeof t> => t !== null)
@@ -256,11 +274,7 @@ export async function fetchFleetAggregation(
   const tagSet = new Set(allTags.map((t) => t.toLowerCase()))
   // Announce hosts of every tracker we know about, so a torrent from a tracked
   // site is kept even when it carries no recognised tag.
-  const knownAnnounceHosts = new Set(
-    trackerTagRows
-      .map((r) => trackerHostKey(r.baseUrl))
-      .filter((h): h is string => h !== null)
-  )
+  const knownAnnounceHosts = announceHostKeySet(trackerTagRows)
   const tagPredicate = createTrackedTorrentPredicate(tagSet, knownAnnounceHosts)
 
   const clientTorrents: { clientName: string; torrents: (TorrentRecord | SlimTorrent)[] }[] = []
@@ -268,10 +282,27 @@ export async function fetchFleetAggregation(
   let oldestCacheAt: Date | null = null
 
   for (const client of clients) {
-    const baseUrl = buildBaseUrl(client.host, client.port, client.useSsl)
+    // A path that will not decrypt leaves no store key, so this client reads
+    // the JSONB copy instead of failing the whole fleet. The failure is still
+    // reported, as the live path reports it.
+    let baseUrl: string | null = null
+    try {
+      const urlPath = decryptClientUrlPath(client, key)
+      baseUrl = buildBaseUrl(client.host, client.port, client.useSsl, urlPath)
+    } catch (err) {
+      const raw = errMsg(err)
+      const message = isDecryptionError(err)
+        ? "Credential decryption failed"
+        : sanitizeNetworkError(raw)
+      clientErrors.push(`${client.name}: ${message}`)
+      log.warn(
+        { clientId: client.id, error: raw },
+        "fleet aggregation: URL path did not decrypt, reading the cached torrents"
+      )
+    }
     let torrents: TorrentRecord[] | SlimTorrent[]
 
-    if (isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
+    if (baseUrl !== null && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
       torrents = getFilteredTorrents(baseUrl, tagPredicate).map(slimTorrentForCache)
     } else {
       const [row] = await db
@@ -283,7 +314,8 @@ export async function fetchFleetAggregation(
     }
 
     if (torrents.length === 0) {
-      if (client.cachedTorrentsAt) {
+      // A client whose path did not decrypt was reported above, once.
+      if (client.cachedTorrentsAt && baseUrl !== null) {
         clientErrors.push(`${client.name}: cached data unavailable or corrupt`)
       }
       continue

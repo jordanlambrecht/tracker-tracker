@@ -5,7 +5,7 @@
 
 import { CHART_THEME } from "@/components/charts/lib/theme"
 
-/** Normalized torrent record shape returned by the API — shared by fleet charts and components */
+/** Normalized torrent record shape returned by the API, shared by fleet charts and components */
 export interface TorrentRaw {
   hash: string
   name: string
@@ -47,6 +47,8 @@ export interface TrackerTag {
   color: string
   /** Tracker web URL, used to match torrents by announce host (issue #152). */
   baseUrl?: string
+  /** Registry entry whose `announceHosts` also match. */
+  registrySlug: string | null
 }
 
 /** Parse comma-separated qBT tag string into trimmed array */

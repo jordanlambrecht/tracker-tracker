@@ -19,6 +19,7 @@ const CREDS: ClientCredentials = {
   authMethod: "password",
   username: "admin",
   password: "pass",
+  urlPath: "",
 }
 
 function ok(args: unknown): Response {
@@ -123,13 +124,17 @@ describe("authentication", () => {
   it("sends no Authorization header when both fields are blank", async () => {
     // rpc-authentication-required: false is the common reverse-proxied setup.
     vi.mocked(global.fetch).mockResolvedValueOnce(ok({}))
-    await rpcCall(BASE, { authMethod: "password", username: "", password: "" }, "session-get")
+    await rpcCall(
+      BASE,
+      { authMethod: "password", username: "", password: "", urlPath: "" },
+      "session-get"
+    )
     expect(headersOf(0).Authorization).toBeUndefined()
   })
 
   it("refuses an API-key credential rather than authenticating as nobody", async () => {
     await expect(
-      rpcCall(BASE, { authMethod: "apikey", apiKey: "k" }, "session-get")
+      rpcCall(BASE, { authMethod: "apikey", apiKey: "k", urlPath: "" }, "session-get")
     ).rejects.toThrow(/no API-key authentication/)
     expect(global.fetch).not.toHaveBeenCalled()
   })

@@ -128,7 +128,7 @@ function donutOption(
       borderColor: accentColor,
       formatter: (params: unknown) => {
         const p = params as { name: string; value: number; percent: number }
-        return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${formatCount(p.value)}</b> (${p.percent}%)</span>`
+        return `<span style="font-family:${CHART_THEME.fontMono}">${p.name}: <b>${formatCount(p.value)}</b> (${formatPercent(p.percent)})</span>`
       },
     }),
     series: [
@@ -286,7 +286,7 @@ function TagGroupBreakdownChart({
                   <span className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
                     {formatCount(m.count)}
                   </span>
-                  <span className="text-3xs font-mono text-tertiary">{formatPercent(pct, 0)}</span>
+                  <span className="text-3xs font-mono text-tertiary">{formatPercent(pct)}</span>
                 </div>
                 {/* Proportional bar */}
                 <div className="h-0.5 mt-0.5 rounded-full bg-control-bg">

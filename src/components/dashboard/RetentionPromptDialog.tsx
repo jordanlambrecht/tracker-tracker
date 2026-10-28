@@ -12,13 +12,15 @@
 
 "use client"
 
-import { useEffect, useId, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { useId, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Dialog } from "@/components/ui/Dialog"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { Toggle } from "@/components/ui/Toggle"
 import { Subtext } from "@/components/ui/Typography"
+import { RETENTION_PROMPT_KEY, useRetentionPromptState } from "@/hooks/useRetentionPrompt"
 import {
   SNAPSHOT_RETENTION_DEFAULT,
   SNAPSHOT_RETENTION_MAX,
@@ -55,7 +57,7 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
       }
       onSaved()
     } catch {
-      setError("Network error — could not save your choice.")
+      setError("Network error. Could not save your choice.")
     } finally {
       setSaving(false)
     }
@@ -73,8 +75,8 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
     >
       <div className="flex flex-col gap-4">
         <Subtext>
-          Every poll stores a snapshot of your tracker stats. These power the charts and history —
-          keeping them costs a small amount of database space.
+          Every poll stores a snapshot of your tracker stats. These power the charts and history,
+          and keeping them costs a small amount of database space.
         </Subtext>
 
         <Toggle
@@ -101,7 +103,10 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
               setDays(
                 Math.max(
                   SNAPSHOT_RETENTION_MIN,
-                  Math.min(SNAPSHOT_RETENTION_MAX, Number(e.target.value) || SNAPSHOT_RETENTION_DEFAULT)
+                  Math.min(
+                    SNAPSHOT_RETENTION_MAX,
+                    Number(e.target.value) || SNAPSHOT_RETENTION_DEFAULT
+                  )
                 )
               )
             }
@@ -110,8 +115,8 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
         )}
 
         <Subtext>
-          Download client uptime data is pruned after 90 days either way — that limit is separate and
-          is not affected by this choice.
+          Download client uptime data is pruned after 90 days either way, and that limit is separate
+          and is not affected by this choice.
         </Subtext>
 
         <Notice message={error ?? undefined} />
@@ -135,35 +140,25 @@ function RetentionPromptDialog({ open, onSaved }: RetentionPromptDialogProps) {
  * Container: asks the server whether the question has been answered yet, and
  * shows the dialog only if it has not. Self-contained so mounting it is one line.
  *
- * Fails closed — if the check errors, nothing is shown. An unanswered prompt is a
+ * Fails closed. If the check errors, nothing is shown. An unanswered prompt is a
  * far smaller problem than a modal the user cannot dismiss appearing on a broken
  * connection.
  */
 function RetentionPrompt() {
-  const [needed, setNeeded] = useState(false)
+  const queryClient = useQueryClient()
+  const { data } = useRetentionPromptState()
 
-  useEffect(() => {
-    let cancelled = false
-    async function check() {
-      try {
-        const res = await fetch("/api/settings/retention-prompt", {
-          signal: AbortSignal.timeout(15_000),
-        })
-        if (!res.ok) return
-        const data = (await res.json()) as { prompted: boolean }
-        if (!cancelled && !data.prompted) setNeeded(true)
-      } catch {
-        // Fail closed: leave the prompt hidden.
-      }
-    }
-    void check()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (!needed) return null
-  return <RetentionPromptDialog open onSaved={() => setNeeded(false)} />
+  // Fail closed: while loading or on error nothing is shown. An unanswered
+  // prompt is a far smaller problem than a modal appearing on a broken
+  // connection. Writing the cache on save is what lets the dashboard's
+  // retention banner react immediately, since it reads the same query.
+  if (data === undefined || data.prompted) return null
+  return (
+    <RetentionPromptDialog
+      open
+      onSaved={() => queryClient.setQueryData(RETENTION_PROMPT_KEY, { prompted: true })}
+    />
+  )
 }
 
 // RetentionPromptDialog and its props stay private: RetentionPrompt is the only

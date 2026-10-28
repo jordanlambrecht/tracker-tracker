@@ -4,6 +4,7 @@ import type { NextConfig } from "next"
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
   { key: "X-XSS-Protection", value: "0" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -40,11 +41,11 @@ const nextConfig: NextConfig = {
   //
   // The CLI gets a complete, self-contained copy of postgres.js copied straight
   // into /app/node_modules by the Dockerfile instead. That leaves the server's
-  // own database driver exactly where it is — bundled — so the recovery tooling
+  // own database driver exactly where it is, bundled, so the recovery tooling
   // carries no risk of changing how production loads Postgres.
   serverExternalPackages: ["argon2"],
   // next/dist/server/require-hook.js pulls @swc/helpers/esm/* at runtime, which
-  // static tracing cannot see — so standalone ships only the package's cjs/
+  // static tracing cannot see, so standalone ships only the package's cjs/
   // directory and the server dies on boot with MODULE_NOT_FOUND. Force the
   // whole package in. The glob targets pnpm's store layout, where the copy that
   // matters sits behind a symlink the tracer resolves but does not fully walk.

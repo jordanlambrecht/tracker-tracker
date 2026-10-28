@@ -1,14 +1,10 @@
 // src/lib/download-clients/qbt/transport.ts
 //
 // Available functions:
-//   buildBaseUrl          - Construct base URL from host/port/ssl
-//   credentialFingerprint - Non-reversible hash identifying some secret material
-//   blockKeyFor           - Compose the auth-block map key from baseUrl + fingerprint
-//   clearAuthBlocks       - Drop auth blocks for one baseUrl (explicit user retry)
 //   login                 - Authenticate with qBittorrent Web API, returns SID cookie
 //   getSession            - Return cached SID or perform a fresh login
 //   invalidateSession     - Remove a cached SID (i.e after 403)
-//   clearAllSessions      - Remove all cached SIDs and auth blocks (called on logout)
+//   clearAllSessions      - Remove all cached SIDs and auth blocks (called when the scheduler stops)
 //   withSessionRetry      - Run an operation with automatic session retry on expiry
 //   authHeaders           - Build the request headers for a QbtAuth value
 //   qbtFetch              - Shared fetch + error handler for authenticated qBT requests
@@ -17,12 +13,22 @@
 //   getTransferInfo       - Fetch global transfer stats from qBittorrent
 //   syncMaindata          - Fetch delta sync data from qBittorrent (maindata endpoint)
 
-import { createHash } from "node:crypto"
-import { sanitizeHost } from "@/lib/data-transforms"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { ADAPTER_FETCH_TIMEOUT_MS, QBT_RESPONSE_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { clearAllStores, resetStore } from "../sync-store"
 import type { SlimTorrent } from "../transforms"
+import {
+  blockKeyFor,
+  buildBaseUrl,
+  clearAllAuthBlocks,
+  describeFetchError,
+  fetchSignal,
+  getAuthBlock,
+  readCappedJson,
+  readCappedText,
+  rethrowRefusal,
+  setAuthBlock,
+} from "../transport"
 import {
   isQbtMaindataResponse,
   isQbtTorrent,
@@ -31,38 +37,21 @@ import {
   type QbtTransferInfo,
 } from "./types"
 
-// Extract detail string from a fetch error.
-function describeFetchError(err: unknown): string {
-  const cause =
-    err !== null && typeof err === "object" && "cause" in (err as object)
-      ? (err as { cause: unknown }).cause
-      : undefined
-  if (cause instanceof Error) {
-    const code = "code" in cause ? (cause as NodeJS.ErrnoException).code : undefined
-    if (code) return code
-    if (cause.message) return cause.message
-  }
-
-  if (err instanceof Error) {
-    const code = "code" in err ? (err as NodeJS.ErrnoException).code : undefined
-    if (code) return code
-    if (err.message && err.message !== "fetch failed") return err.message
-  }
-
-  return "Unknown network error"
-}
-
-export function buildBaseUrl(host: string, port: number, ssl: boolean): string {
-  // Strip any protocol the user may have included (i.e "http://myhost")
-  const cleanHost = sanitizeHost(host)
-  return `${ssl ? "https" : "http"}://${cleanHost}:${port}`
-}
-
 // ---------------------------------------------------------------------------
 // SID session cache to avoid re-authenticating on every poll cycle.
 // ---------------------------------------------------------------------------
 
-/** The session cookie qBittorrent assigns at login — name varies by version/port. */
+/**
+ * Characters that must never reach a Cookie header. `split(";", 1)` and
+ * `trim()` leave only an interior control character, and undici rejects CR and
+ * LF in a parsed response header, so this is unreachable today. It keeps the
+ * guarantee in this file because authHeaders interpolates the value straight
+ * into a header.
+ */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intentional control-char check
+const unsafeChars = /[;\r\n\x00-\x1F\x7F]/
+
+/** The session cookie qBittorrent assigns at login, name varies by version/port. */
 export type SidCookie = { name: string; value: string }
 
 /**
@@ -86,114 +75,59 @@ export async function getSession(
   port: number,
   ssl: boolean,
   username: string,
-  password: string
+  password: string,
+  urlPath: string,
+  signal?: AbortSignal
 ): Promise<{ baseUrl: string; sid: SidCookie }> {
-  const baseUrl = buildBaseUrl(host, port, ssl)
-  const cached = sidCache.get(baseUrl)
+  const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
+  // Keyed by credentials as well as origin, the same way the auth blocks are. Keyed
+  // by baseUrl alone, a second client row on the same host would ride the first
+  // row's session, and a row with a revoked password would still poll green.
+  const cacheKey = blockKeyFor(baseUrl, username, password)
+  const cached = sidCache.get(cacheKey)
   if (cached) return { baseUrl, sid: cached }
 
-  const sid = await login(host, port, ssl, username, password)
-  sidCache.set(baseUrl, sid)
+  const sid = await login(host, port, ssl, username, password, urlPath, signal)
+  sidCache.set(cacheKey, sid)
   return { baseUrl, sid }
 }
 
-/** Invalidate a cached SID */
+/**
+ * Drop every cached SID for a host, whatever credentials minted it. Callers
+ * only know the baseUrl, and a 403 from one row says nothing about which
+ * credential pair is stale, so the sweep matches clearAuthBlocks.
+ */
 export function invalidateSession(baseUrl: string): void {
-  sidCache.delete(baseUrl)
+  const prefix = `${baseUrl}\u0000`
+  for (const key of sidCache.keys()) {
+    if (key === baseUrl || key.startsWith(prefix)) sidCache.delete(key)
+  }
   resetStore(baseUrl)
 }
 
-/** Clear all cached SIDs, auth blocks, and torrent stores (called on logout/scheduler stop). */
+/** Clear all cached SIDs, auth blocks, and torrent stores (called when the scheduler stops). */
 export function clearAllSessions(): void {
   sidCache.clear()
-  authBlocks.clear()
+  clearAllAuthBlocks()
   clearAllStores()
 }
 
 // ---------------------------------------------------------------------------
 // Auth-failure circuit breaker.
 //
-// qBittorrent bans the calling IP for MaxAuthenticationFailCount (default 5)
-// failed logins and keeps rejecting for BanDuration (default 3600s) even once
-// the correct password is supplied. The heartbeat runs every 5 seconds, so a
-// client saved with bad credentials would be banned within ~25 seconds and the
-// user locked out for an hour after fixing it. Once a login is rejected we
-// therefore stop attempting it — no timer, no backoff, just "don't ask again".
+// qBittorrent bans the calling IP after MaxAuthenticationFailCount (default 5)
+// failed logins and keeps rejecting for BanDuration (default 3600s), even once
+// the password is fixed. The 5s heartbeat would get there in about 25 seconds,
+// so a rejected login is not retried.
 //
-// The block is keyed by baseUrl AND a fingerprint of the credentials, so a
-// user who edits the username or password is never stuck: different
-// credentials hash to a different key and simply are not blocked. It also
-// clears on process restart and on an explicit Test Connection.
+// The block is keyed by baseUrl and a credential fingerprint, so an edited
+// credential is not blocked. It also clears on restart, and on Test Connection,
+// since the fix may have been on the qBittorrent side, such as enabling
+// localhost bypass or waiting out a ban.
 //
-// Deliberately NOT applied to the 403 ban response. A ban is only ever
-// observed after this app has already stopped trying, so re-attempting cannot
-// prolong it — and requests made during a ban are rejected before credentials
-// are validated, so they cannot trip the counter again. Leaving the ban
-// unblocked is what lets a user who fixes their password mid-ban recover
-// automatically the moment the ban expires.
+// The 403 ban response is not blocked. Retrying during a ban cannot extend it,
+// and leaving it unblocked lets a fixed password recover once the ban expires.
 // ---------------------------------------------------------------------------
-
-const gBlocks = globalThis as typeof globalThis & {
-  __qbtAuthBlocks?: Map<string, string>
-}
-if (!gBlocks.__qbtAuthBlocks) gBlocks.__qbtAuthBlocks = new Map()
-/** Maps `${baseUrl}\0${credentialFingerprint}` to the error message to replay. */
-const authBlocks = gBlocks.__qbtAuthBlocks
-
-/**
- * Non-reversible identifier for a credential pair. Only ever compared, never
- * logged or persisted — it exists so a credential edit is detectable without
- * holding the plaintext.
- *
- * ── SHA-256 IS CORRECT HERE. Do not "upgrade" this to a slow KDF. ──────────
- * CodeQL flags this as "use of password hash with insufficient computational
- * effort" and suggests PBKDF2. That alert has been reviewed and dismissed as a
- * false positive; the rule is aimed at a threat model this code does not have.
- *
- * That rule protects CREDENTIAL STORAGE: you persist hash(password), an
- * attacker steals the store, and brute-forces it offline. A slow KDF makes that
- * expensive. None of that shape applies:
- *
- *   - The digest is a key in an in-memory Map (`authBlocks`) whose values are
- *     error strings to replay. It is never persisted, never logged, never sent.
- *   - It authenticates nobody. It answers one question — "are these the same
- *     credentials that were just rejected?" — so a user who fixes a password is
- *     not held by the circuit breaker.
- *   - Anyone able to read that Map has this process's memory, where the
- *     plaintext password already lives (login() builds it into a URLSearchParams
- *     body a few lines below). The digest discloses nothing new.
- *
- * And the suggested fix has a real cost. blockKeyFor() runs inside qbtFetch(),
- * which every qBittorrent API call passes through. Measured: SHA-256 is
- * ~0.0026 ms/call, PBKDF2 at 210k iterations is ~31.8 ms — about 12,000x
- * slower. That is ~32 ms of CPU added to every poll, permanently, to defend
- * against an attacker who by construction already holds the plaintext.
- *
- * If this ever needs to satisfy the scanner, the right move is HMAC-SHA256 under
- * a random per-process key (fast, and unbruteforceable even in principle — the
- * Map does not outlive the process, so a per-process key loses nothing). NOT a
- * slow KDF on a per-request path.
- */
-function credentialFingerprint(username: string, password: string): string {
-  return createHash("sha256").update(`${username}\u0000${password}`).digest("hex")
-}
-
-function blockKeyFor(baseUrl: string, username: string, password: string): string {
-  return `${baseUrl}\u0000${credentialFingerprint(username, password)}`
-}
-
-/**
- * Drop every auth block recorded for a baseUrl regardless of credentials.
- * Called when the user explicitly asks to test the connection — an explicit
- * retry should always reach the network, since the fix may have been on the
- * qBittorrent side (enabling localhost bypass, or waiting out a ban).
- */
-export function clearAuthBlocks(baseUrl: string): void {
-  const prefix = `${baseUrl}\u0000`
-  for (const key of authBlocks.keys()) {
-    if (key.startsWith(prefix)) authBlocks.delete(key)
-  }
-}
 
 /**
  * Run an operation that requires a qBT session, retrying once if the session
@@ -203,6 +137,9 @@ export function clearAuthBlocks(baseUrl: string): void {
  * sid and returns a Promise. On expiry the SID is invalidated, a fresh session
  * is obtained, and op is called a second time. Any other error propagates
  * immediately.
+ *
+ * `signal` bounds the login this may have to perform; `op` carries the caller's
+ * deadline into its own request.
  */
 export async function withSessionRetry<T>(
   host: string,
@@ -210,15 +147,17 @@ export async function withSessionRetry<T>(
   ssl: boolean,
   username: string,
   password: string,
-  op: (baseUrl: string, sid: SidCookie) => Promise<T>
+  urlPath: string,
+  op: (baseUrl: string, sid: SidCookie) => Promise<T>,
+  signal?: AbortSignal
 ): Promise<T> {
-  const { baseUrl, sid } = await getSession(host, port, ssl, username, password)
+  const { baseUrl, sid } = await getSession(host, port, ssl, username, password, urlPath, signal)
   try {
     return await op(baseUrl, sid)
   } catch (err) {
     if (err instanceof Error && err.message === "Session expired") {
       invalidateSession(baseUrl)
-      const fresh = await getSession(host, port, ssl, username, password)
+      const fresh = await getSession(host, port, ssl, username, password, urlPath, signal)
       return await op(baseUrl, fresh.sid)
     }
     throw err
@@ -226,42 +165,52 @@ export async function withSessionRetry<T>(
 }
 
 /**
- * Credentials qBittorrent rejected. Both strings start with "Authentication
- * failed" so callers matching on that keep working, and both carry wording
+ * Credentials qBittorrent rejected. Each string starts with "Authentication
+ * failed" so callers matching on that keep working, and each carries wording
  * distinctive enough for sanitizeNetworkError to tell them apart from a
  * transient network fault.
  */
 const BLANK_CREDENTIALS_REJECTED =
-  "Authentication failed — qBittorrent rejected the blank credentials. Blank credentials only " +
+  "Authentication failed. qBittorrent rejected the blank credentials. Blank credentials only " +
   'work when "Bypass authentication for clients on localhost" is enabled in qBittorrent'
-const CREDENTIALS_REJECTED = "Authentication failed — qBittorrent rejected the username and password"
-const IP_BANNED =
-  "qBittorrent has temporarily banned this IP after too many failed login attempts"
+// A blank login behind a URL path is usually Qui's client proxy, which answers
+// the login itself and refuses only a client API key it does not know, so the
+// bypass advice above would send the user the wrong way.
+const PATH_LOGIN_REJECTED =
+  "Authentication failed. The login through the URL path was refused with blank credentials"
+const CREDENTIALS_REJECTED = "Authentication failed. qBittorrent rejected the username and password"
+const IP_BANNED = "qBittorrent has temporarily banned this IP after too many failed login attempts"
 const API_KEY_REJECTED =
-  "Authentication failed — qBittorrent rejected the API key. Check that it has not been " +
+  "Authentication failed. qBittorrent rejected the API key. Check that it has not been " +
   "rotated, and that the server is running qBittorrent 5.2.0 or newer"
+
+function rejectionFor(username: string, password: string, urlPath: string): string {
+  if (username !== "" || password !== "") return CREDENTIALS_REJECTED
+  return urlPath ? PATH_LOGIN_REJECTED : BLANK_CREDENTIALS_REJECTED
+}
 
 export async function login(
   host: string,
   port: number,
   ssl: boolean,
   username: string,
-  password: string
+  password: string,
+  urlPath: string,
+  signal?: AbortSignal
 ): Promise<SidCookie> {
-  const baseUrl = buildBaseUrl(host, port, ssl)
+  const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
+  const hostname = new URL(baseUrl).hostname
   const url = `${baseUrl}/api/v2/auth/login`
   const body = new URLSearchParams({ username, password }).toString()
 
-  // Replay a previous rejection instead of asking again — see the auth-failure
+  // Replay a previous rejection instead of asking again. See the auth-failure
   // circuit breaker above. Editing either credential changes the key, so a user
   // who fixes their password is never held here.
   const blockKey = blockKeyFor(baseUrl, username, password)
-  const blocked = authBlocks.get(blockKey)
+  const blocked = getAuthBlock(blockKey)
   if (blocked) throw new Error(blocked)
 
-  const rejection = username === "" && password === ""
-    ? BLANK_CREDENTIALS_REJECTED
-    : CREDENTIALS_REJECTED
+  const rejection = rejectionFor(username, password, urlPath)
 
   let response: Response
   try {
@@ -269,7 +218,13 @@ export async function login(
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
+      // A 307 or 308 replays the method and the body at the new origin, and
+      // undici strips Cookie and Authorization when the origin changes but
+      // never the body. Following one hands the plaintext password to
+      // whatever host the configured client names. Manual mode surfaces the
+      // 3xx as non-ok, which the check below already throws on.
+      redirect: "manual",
+      signal: fetchSignal(signal),
     })
   } catch (err) {
     const errName =
@@ -279,48 +234,52 @@ export async function login(
     if (errName === "TimeoutError" || errName === "AbortError") {
       throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
     }
-    throw new Error(`Failed to connect to ${baseUrl}: ${describeFetchError(err)}`)
+    // The scheduler logs this message raw, so it names the client without the
+    // URL path, which can carry a proxy key.
+    const pathless = buildBaseUrl(host, port, ssl, "")
+    throw new Error(`Failed to connect to ${pathless}: ${describeFetchError(err)}`)
   }
 
   if (!response.ok) {
     // 401 is a definitive credential rejection: stop attempting this pair.
     if (response.status === 401) {
-      authBlocks.set(blockKey, rejection)
+      setAuthBlock(blockKey, rejection)
       throw new Error(rejection)
     }
     // qBittorrent answers 403 with a plain-text ban notice once the IP has
-    // tripped MaxAuthenticationFailCount. Not blocked deliberately — the ban
+    // tripped MaxAuthenticationFailCount. Not blocked deliberately, the ban
     // expires on its own and re-attempting cannot extend it.
     if (response.status === 403) {
-      const banBody = await response.text().catch(() => "")
+      const banBody =
+        (await readCappedText(response, hostname, QBT_RESPONSE_MAX_BYTES).catch(rethrowRefusal)) ??
+        ""
       if (/banned/i.test(banBody)) throw new Error(IP_BANNED)
       throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
     }
     throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
   }
 
-  const text = await response.text()
+  const text = await readCappedText(response, hostname, QBT_RESPONSE_MAX_BYTES)
   if (text !== "Ok." && response.status !== 204) {
     // Older qBittorrent answers a bad login with 200 + "Fails." rather than 401.
-    authBlocks.set(blockKey, rejection)
+    setAuthBlock(blockKey, rejection)
     throw new Error(rejection)
   }
 
-  // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` (the WebUI's
-  // own listen port baked into the name) instead of the legacy plain `SID`,
-  // so match that pattern specifically — the server rejects the value if sent
-  // back under a different cookie name (confirmed live: sending the correct
-  // value under the wrong name returns 403). `getSetCookie()` returns each
-  // Set-Cookie response header as its own array element, unlike `.get()`
-  // which comma-joins them into a single string that's unsafe to regex
-  // across (cookie values can legally contain commas).
+  // qBittorrent 5.2+ names its session cookie `QBT_SID_<port>` instead of the
+  // legacy `SID`, and rejects the value under any other name. getSetCookie()
+  // keeps each Set-Cookie header separate; .get() comma-joins them, and cookie
+  // values can contain commas.
   const sid = response.headers
     .getSetCookie()
     .map((cookie): SidCookie | null => {
       const eq = cookie.indexOf("=")
       if (eq === -1) return null
       const name = cookie.slice(0, eq).trim()
-      const value = cookie.slice(eq + 1).split(";", 1)[0].trim()
+      const value = cookie
+        .slice(eq + 1)
+        .split(";", 1)[0]
+        .trim()
       return { name, value }
     })
     .find((cookie): cookie is SidCookie => {
@@ -329,7 +288,12 @@ export async function login(
     })
 
   if (!sid) {
-    throw new Error("Authentication failed — SID cookie not found in response")
+    throw new Error("Authentication failed. SID cookie not found in response")
+  }
+  // Only the cookie actually selected is checked. An unrelated Set-Cookie on
+  // the same response is none of our business and must not fail the login.
+  if (unsafeChars.test(sid.value)) {
+    throw new Error("Authentication failed. Session cookie contained an unsafe character")
   }
 
   return sid
@@ -345,18 +309,19 @@ async function qbtFetch(
   url: string,
   host: string,
   baseUrl: string,
-  auth: QbtAuth
+  auth: QbtAuth,
+  signal?: AbortSignal
 ): Promise<Response> {
   // API keys never pass through login(), so the circuit breaker that guards
   // password auth has to be applied here instead. Without it a rotated key
-  // would be retried by every heartbeat forever — the same runaway the
+  // would be retried by every heartbeat forever, the same runaway the
   // password breaker exists to stop. Keyed through blockKeyFor so it shares
   // the per-baseUrl namespace clearAuthBlocks sweeps, with "apikey" in the
   // username slot keeping keys out of the fingerprint space ordinary
   // credentials occupy.
   const blockKey = auth.mode === "apikey" ? blockKeyFor(baseUrl, "apikey", auth.key) : null
   if (blockKey) {
-    const blocked = authBlocks.get(blockKey)
+    const blocked = getAuthBlock(blockKey)
     if (blocked) throw new Error(blocked)
   }
 
@@ -364,7 +329,11 @@ async function qbtFetch(
   try {
     response = await fetch(url, {
       headers: authHeaders(auth),
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
+      // Same reason as login(). No credential rides in this body, but a
+      // followed redirect would feed the parser a response from an origin the
+      // user never configured.
+      redirect: "manual",
+      signal: fetchSignal(signal),
     })
   } catch (err) {
     const errName =
@@ -377,32 +346,34 @@ async function qbtFetch(
     throw new Error(`Failed to connect to ${host}: ${describeFetchError(err)}`)
   }
 
-  // A rejected key is definitive — unlike a session cookie there is nothing to
+  // A rejected key is definitive, unlike a session cookie there is nothing to
   // refresh, so record it and stop asking. Editing the key changes the block
   // key, and Test Connection clears the whole baseUrl, so the user is never
   // stuck. Both 401 and 403 count, because qBittorrent has used each for an
   // unauthenticated WebAPI request across 5.x.
   //
-  // An IP ban is the one 403 that must NOT latch, exactly as on the password
+  // An IP ban is the one 403 that must not latch, exactly as on the password
   // path: the ban expires on its own, requests made during it are refused
   // before the credential is even looked at, and a ban is reachable without
-  // this key being wrong at all — a sibling password client on the same host
+  // this key being wrong at all, a sibling password client on the same host
   // can trip the counter. Latching it would outlive the ban and turn a
   // self-healing condition into a permanent one.
   if (blockKey && (response.status === 401 || response.status === 403)) {
     if (response.status === 403) {
-      const banBody = await response.text().catch(() => null)
+      const banBody = await readCappedText(response, host, QBT_RESPONSE_MAX_BYTES).catch(
+        rethrowRefusal
+      )
       if (banBody === null) {
         // The body is what tells a ban apart from a rejected key, so without
         // it there is nothing to decide on. Latching the wrong way disables a
         // valid key until the user intervenes, while not latching costs one
-        // more request — so defer to the next attempt, which will normally
+        // more request, so defer to the next attempt, which will normally
         // have a readable body and will latch then.
         throw new Error(`qBittorrent API error: ${response.status} ${response.statusText}`)
       }
       if (/banned/i.test(banBody)) throw new Error(IP_BANNED)
     }
-    authBlocks.set(blockKey, API_KEY_REJECTED)
+    setAuthBlock(blockKey, API_KEY_REJECTED)
     throw new Error(API_KEY_REJECTED)
   }
 
@@ -442,8 +413,15 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
     return []
   }
   if (arr.length === 0) return arr as SlimTorrent[]
-  if (!isQbtTorrent(arr[0])) {
-    log.warn({ sample: arr[0] }, "parseCachedTorrents: first element failed isQbtTorrent check")
+  const first = arr[0]
+  if (!isQbtTorrent(first)) {
+    // Field names and the type, never the values. A cached torrent's name, tags
+    // and announce host would put the library in the log.
+    const keys = first && typeof first === "object" ? Object.keys(first) : []
+    log.warn(
+      { type: typeof first, keys },
+      "parseCachedTorrents: first element failed isQbtTorrent check"
+    )
     return []
   }
   return arr as SlimTorrent[]
@@ -453,7 +431,8 @@ export async function getTorrents(
   baseUrl: string,
   auth: QbtAuth,
   tag?: string,
-  filter?: string
+  filter?: string,
+  signal?: AbortSignal
 ): Promise<QbtTorrent[]> {
   const parts: string[] = []
   if (tag) parts.push(`tag=${encodeURIComponent(tag)}`)
@@ -461,15 +440,28 @@ export async function getTorrents(
   const qs = parts.join("&")
   const url = `${baseUrl}/api/v2/torrents/info${qs ? `?${qs}` : ""}`
   const host = new URL(baseUrl).hostname
-  const response = await qbtFetch(url, host, baseUrl, auth)
-  return response.json() as Promise<QbtTorrent[]>
+  const response = await qbtFetch(url, host, baseUrl, auth, signal)
+  // Shape-checked like syncMaindata's body, so an object or a wrongly shaped
+  // entry never reaches mapQbtTorrent.
+  const data = await readCappedJson<unknown>(response, host, QBT_RESPONSE_MAX_BYTES)
+  if (!Array.isArray(data)) {
+    throw new Error(`Unexpected response from ${host}: torrent list was not an array`)
+  }
+  const valid = data.filter(isQbtTorrent)
+  if (valid.length !== data.length) {
+    log.warn(
+      { host, received: data.length, kept: valid.length },
+      "qbt: dropped torrents that failed the shape check"
+    )
+  }
+  return valid
 }
 
 export async function getTransferInfo(baseUrl: string, auth: QbtAuth): Promise<QbtTransferInfo> {
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, auth)
-  return response.json() as Promise<QbtTransferInfo>
+  return readCappedJson<QbtTransferInfo>(response, host, QBT_RESPONSE_MAX_BYTES)
 }
 
 export async function syncMaindata(
@@ -480,7 +472,7 @@ export async function syncMaindata(
   const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, auth)
-  const data: unknown = await response.json()
+  const data: unknown = await readCappedJson<unknown>(response, host, QBT_RESPONSE_MAX_BYTES)
   if (!isQbtMaindataResponse(data)) {
     throw new Error("Invalid maindata response from qBittorrent")
   }

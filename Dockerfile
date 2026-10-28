@@ -35,11 +35,16 @@ RUN pnpm build
 
 # ---------------------------------------------------------------------------
 # Stage 3 -  Deps for drizzle-kit
+#
+# --prod keeps the dev toolchain out: the TypeScript native compiler it would
+# pull in is a Go binary that fails the Trivy scan, and nothing here compiles
+# TypeScript - drizzle-kit uses its own bundled esbuild. --ignore-scripts is
+# required with it, since the "prepare": "husky" script is a devDependency.
 # ---------------------------------------------------------------------------
 FROM base AS schema-deps
 WORKDIR /schema-sync
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Stage 4 - Production runner
@@ -121,6 +126,6 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

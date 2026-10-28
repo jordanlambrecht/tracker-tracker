@@ -18,7 +18,7 @@ import {
   type TrackerTag,
   toMonthKey,
 } from "@/lib/fleet"
-import { trackerHostKey } from "@/lib/tracker-matching"
+import { trackerAnnounceKeys, trackerHostKey } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
 
 // Re-export types used by callers so they don't need to import from fleet.ts
@@ -132,7 +132,7 @@ export interface FleetAggregation {
 
   ageBands: AgeBandEntry[]
 
-  /** Empty unless the caller passed tag groups — they are opt-in and most installs have none. */
+  /** Empty unless the caller passed tag groups, they are opt-in and most installs have none. */
   tagGroupBreakdowns: TagGroupBreakdown[]
 }
 
@@ -182,8 +182,9 @@ export function computeFleetAggregation(
   // even when the user tags nothing per-tracker (issue #152).
   const announceKeyMap = new Map<string, string>()
   for (const tt of trackerTags) {
-    const host = trackerHostKey(tt.baseUrl)
-    if (host) announceKeyMap.set(host, tt.tag.toLowerCase())
+    for (const host of trackerAnnounceKeys(tt)) {
+      announceKeyMap.set(host, tt.tag.toLowerCase())
+    }
   }
   const keyForAnnounce = (announce: string | null | undefined): string | null => {
     const host = trackerHostKey(announce)
@@ -236,8 +237,8 @@ export function computeFleetAggregation(
   const categoryMonthMap = new Map<string, Map<string, number>>()
 
   // Tag groups: one counter per group, member tag -> torrents carrying it.
-  // Keyed by the member tag exactly as configured — NOT lowercased like `parsedTags`
-  // below — because the per-tracker breakdown matches member tags case-sensitively.
+  // Keyed by the member tag exactly as configured, NOT lowercased like `parsedTags`
+  // below, because the per-tracker breakdown matches member tags case-sensitively.
   // Folding case here would make the same group report different numbers on the
   // dashboard than on a tracker's detail page.
   const tagGroupCounters = tagGroups.map((group) => ({
@@ -273,10 +274,12 @@ export function computeFleetAggregation(
     if (isCrossSeed) crossSeededCount++
 
     // -- Ratio bucket --
-    // qBT returns ratio: -1 for infinite ratio (zero downloads, i.e. cross-seeded).
-    // Exclude these from the distribution since they don't have a meaningful ratio.
-    // Cross-seed coverage is shown by the dedicated cross-seed donut chart.
-    if (torrent.ratio >= 0) {
+    // qBT 5.1.1+ sends -1 for an infinite ratio, meaning something uploaded with
+    // nothing downloaded and no pieces held. Older versions send their 9999 cap for
+    // the same torrent, so -1 counts in the top bucket. A complete cross-seed is finite.
+    if (torrent.ratio === -1) {
+      ratioCounts[RATIO_BUCKETS.length - 1]++
+    } else if (torrent.ratio >= 0) {
       const rBucketIdx = RATIO_BUCKETS.findIndex((b: Bucket) => torrent.ratio < b.max)
       ratioCounts[rBucketIdx === -1 ? RATIO_BUCKETS.length - 1 : rBucketIdx]++
     }
@@ -320,9 +323,7 @@ export function computeFleetAggregation(
     }
 
     // -- Cross-seed network tracker matching (exclude cross-seed tags) --
-    const taggedNetworkKeys = parsedTags.filter(
-      (t) => !crossSeedSet.has(t) && trackerTagMap.has(t)
-    )
+    const taggedNetworkKeys = parsedTags.filter((t) => !crossSeedSet.has(t) && trackerTagMap.has(t))
     const networkTrackerTags =
       taggedNetworkKeys.length > 0
         ? taggedNetworkKeys
@@ -340,6 +341,7 @@ export function computeFleetAggregation(
       const acc = trackerAccMap.get(matchedTrackerTag)
       if (acc) {
         acc.torrentCount++
+        // -1 counts in the top ratio bucket above but has no value to average.
         if (torrent.ratio >= 0) {
           acc.ratioSum += torrent.ratio
           acc.validRatioCount++
@@ -545,7 +547,7 @@ export function computeFleetAggregation(
 
   // Tag group breakdowns. Members nothing is tagged with are dropped, and a group is
   // dropped entirely unless it has a matching member or unmatched torrents it was
-  // configured to count — otherwise the UI would render empty cards.
+  // configured to count, otherwise the UI would render empty cards.
   const tagGroupBreakdowns: TagGroupBreakdown[] = tagGroupCounters
     .map(({ group, counts, unmatchedCount }) => ({
       group,

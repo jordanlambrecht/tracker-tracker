@@ -27,6 +27,7 @@ export const hawkeuno: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "hawke-uno",
   statusPageUrl: "",
+  announceHosts: ["hawke.uno"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

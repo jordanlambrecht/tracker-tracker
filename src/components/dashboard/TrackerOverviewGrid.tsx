@@ -2,7 +2,7 @@
 "use client"
 
 import { useAutoAnimate } from "@formkit/auto-animate/react"
-import { ExternalLinkIcon, PlusIcon } from "@icons"
+import { ExternalLinkIcon, FavoriteStarIcon, InfinitySign, PlusIcon } from "@icons"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -15,7 +15,7 @@ import {
   PulseDot,
   RedactedText,
 } from "@/components/ui"
-import { findRegistryEntry, type TrackerRegistryEntry } from "@/data/tracker-registry"
+import { registryEntryFor, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { formatAccountAge, formatJoinedDate, formatRatioDisplay } from "@/lib/formatters"
@@ -74,15 +74,13 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
     selectedDrafts.includes(t.slug)
   )
 
-  // Resolve each tracker's registry entry once. The cards need the whole entry
-  // now (defunct status and categories). Since findRegistryEntry scans per call,
-  // doing it here is a single pass instead of once for filtering and once for
-  // rendering.
+  // Resolve each tracker's registry entry once. The cards need defunct status
+  // and categories, and the lookup scans the registry on every call.
   const { trackerEntries, allCategories } = useMemo(() => {
     const entryMap = new Map<number, TrackerRegistryEntry | undefined>()
     const catSet = new Set<string>()
     for (const t of trackers) {
-      const entry = findRegistryEntry(t.baseUrl)
+      const entry = registryEntryFor(t)
       entryMap.set(t.id, entry)
       for (const c of entry?.contentCategories ?? []) catSet.add(c)
     }
@@ -126,7 +124,6 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Filters: only when > 6 trackers */}
       {showFilters && (
         <div className="flex flex-col gap-2">
           {/* Mobile toggle */}
@@ -158,8 +155,14 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 active={favoritesOnly}
                 onClick={() => setFavoritesOnly((v) => !v)}
                 activeColor="text-accent"
+                className="inline-flex items-center gap-1"
               >
-                {favoritesOnly ? "★" : "☆"} Favorites
+                <FavoriteStarIcon
+                  width="12"
+                  height="12"
+                  fill={favoritesOnly ? "currentColor" : "none"}
+                />
+                Favorites
               </FilterPill>
             )}
 
@@ -225,10 +228,12 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                     {t.name}
                   </span>
                   <span className="font-mono text-xs text-tertiary tabular-nums shrink-0">
-                    {formatRatioDisplay(
-                      t.latestStats?.ratioIsInfinite
-                        ? Number.POSITIVE_INFINITY
-                        : t.latestStats?.ratio
+                    {t.latestStats?.ratioIsInfinite ? (
+                      <>
+                        <InfinitySign />x
+                      </>
+                    ) : (
+                      formatRatioDisplay(t.latestStats?.ratio)
                     )}
                   </span>
                   <a
@@ -326,7 +331,7 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 <Notice
                   variant="default"
                   box
-                  message="These trackers don't have adapter support yet — links only, no stats tracking."
+                  message="These trackers don't have adapter support yet, so they are links only with no stats tracking."
                   showIcon={false}
                   className="mb-2"
                 />

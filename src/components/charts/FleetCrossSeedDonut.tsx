@@ -4,7 +4,7 @@
 
 import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
-import { formatCount } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildDonutShell } from "./lib/chart-helpers"
@@ -22,8 +22,8 @@ function buildFleetCrossSeedOption(
   unique: number,
   total: number
 ): EChartsOption {
-  const crossPct = total > 0 ? ((crossSeeded / total) * 100).toFixed(1) : "0.0"
-  const uniquePct = total > 0 ? ((unique / total) * 100).toFixed(1) : "0.0"
+  const crossPct = formatPercent(total > 0 ? (crossSeeded / total) * 100 : 0)
+  const uniquePct = formatPercent(total > 0 ? (unique / total) * 100 : 0)
 
   return {
     backgroundColor: "transparent",
@@ -34,7 +34,7 @@ function buildFleetCrossSeedOption(
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatCount(p.value)} torrents</span>` +
-          `<span style="color:${CHART_THEME.textTertiary};"> · ${p.percent}%</span>`
+          `<span style="color:${CHART_THEME.textTertiary};"> · ${formatPercent(p.percent)}</span>`
         )
       },
     }),
@@ -74,8 +74,8 @@ function buildFleetCrossSeedOption(
           fontSize: CHART_THEME.fontSizeCompact,
           formatter: (params: unknown) => {
             const p = params as { name: string; value: number }
-            const pct = total > 0 ? ((p.value / total) * 100).toFixed(1) : "0.0"
-            return `${p.name}\n${pct}%`
+            const pct = formatPercent(total > 0 ? (p.value / total) * 100 : 0)
+            return `${p.name}\n${pct}`
           },
         },
         emphasis: {
@@ -89,7 +89,7 @@ function buildFleetCrossSeedOption(
             itemStyle: { color: CHART_THEME.accent },
             label: {
               color: CHART_THEME.accent,
-              formatter: () => `Cross-seeded\n${crossPct}%`,
+              formatter: () => `Cross-seeded\n${crossPct}`,
             },
           },
           {
@@ -98,7 +98,7 @@ function buildFleetCrossSeedOption(
             itemStyle: { color: CHART_THEME.borderMid },
             label: {
               color: CHART_THEME.textTertiary,
-              formatter: () => `Unique\n${uniquePct}%`,
+              formatter: () => `Unique\n${uniquePct}`,
             },
           },
         ],

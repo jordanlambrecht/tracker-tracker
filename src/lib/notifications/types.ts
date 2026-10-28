@@ -54,11 +54,7 @@ export interface EmailConfig {
 }
 
 export type NotificationConfig =
-  | DiscordConfig
-  | GotifyConfig
-  | TelegramConfig
-  | SlackConfig
-  | EmailConfig
+  DiscordConfig | GotifyConfig | TelegramConfig | SlackConfig | EmailConfig
 
 export interface SnapshotContext {
   trackerId: number
@@ -80,8 +76,11 @@ export interface SnapshotContext {
   trackerIsActive: boolean
   trackerPausedAt: string | null
   trackerJoinedAt: string | null
+  // The effective requirement: live requiredRatio when the adapter reports
+  // one, registry minimumRatio otherwise (resolveRequiredRatio).
   minimumRatio: number | undefined
-  // Platform-specific extended fields; populated for MAM and AvistaZ, undefined for others
+  // Platform-specific fields. pollTracker fills them for MAM and for the
+  // DOWNLOAD_ALERT_PLATFORMS in tracker-scheduler.ts, and leaves them undefined for others.
   platformContext?: {
     currentSeedbonus: number | null
     previousSeedbonus: number | null
@@ -133,6 +132,28 @@ export function isNotificationConfig(value: unknown): value is NotificationConfi
     return true
   return false
 }
+
+/**
+ * Every boolean notify column on notification_targets. The PATCH route writes
+ * only the keys listed here, so a column missing from this list is accepted
+ * and silently dropped. notification-toggle-keys.test.ts pins it to the schema.
+ */
+export const NOTIFY_TOGGLE_KEYS = [
+  "notifyRatioDrop",
+  "notifyHitAndRun",
+  "notifyTrackerDown",
+  "notifyBufferMilestone",
+  "notifyWarned",
+  "notifyRatioDanger",
+  "notifyZeroSeeding",
+  "notifyRankChange",
+  "notifyAnniversary",
+  "notifyBonusCap",
+  "notifyVipExpiring",
+  "notifyUnsatisfiedLimit",
+  "notifyActiveHnrs",
+  "notifyDownloadDisabled",
+] as const
 
 // Discord webhook URL pattern
 export const DISCORD_WEBHOOK_RE = /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/

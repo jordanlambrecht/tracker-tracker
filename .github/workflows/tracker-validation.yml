@@ -107,8 +107,13 @@ jobs:
               }
             }
 
+            // A pull_request run from a fork gets a read-only GITHUB_TOKEN, so any
+            // comment call returns 403. Results go to the job summary instead.
+            const isFork = context.payload.pull_request.head.repo?.full_name !== context.payload.repository.full_name;
+
             if (nonDraft.length === 0 || (!hasErrors && !hasWarnings)) {
-              await deleteAllPreviousComments();
+              await core.summary.addRaw('✅ Tracker registry validation passed').write();
+              if (!isFork) await deleteAllPreviousComments();
               return;
             }
 
@@ -136,7 +141,7 @@ jobs:
               if (r.warnings.length > 0) {
                 const heading = r.errors.length > 0
                   ? `Warnings for ${r.name}`
-                  : `${r.name} (\`${r.slug}\`) — Warnings`;
+                  : `Warnings for ${r.name} (\`${r.slug}\`)`;
                 lines.push(`<details>`);
                 lines.push(`<summary>${heading} (${r.warnings.length})</summary>`);
                 lines.push('');
@@ -158,6 +163,13 @@ jobs:
             lines.push('See `src/data/__tests__/tracker-registry.test.ts` for all validation rules.');
 
             const body = `${marker}\n${lines.join('\n')}`;
+
+            await core.summary.addRaw(body).write();
+
+            if (isFork) {
+              core.info('Fork pull request: results written to the job summary instead of a PR comment.');
+              return;
+            }
 
             const existing = await findPreviousComments();
             if (existing.length > 0) {

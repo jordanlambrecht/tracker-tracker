@@ -44,7 +44,7 @@ describe("checkLockout", () => {
 })
 
 // DISABLE_LOGIN_LOCKOUT exists because the in-app lockout toggle is behind
-// authenticate() — unreachable by the very person it locks out. These cases pin
+// authenticate(), unreachable by the very person it locks out. These cases pin
 // the two controls as independent: the env var overrides enforcement without
 // touching the DB toggle, and the DB toggle keeps working when the env var is
 // absent. Each case re-imports the module so the warn-once flag starts clean.
@@ -106,7 +106,7 @@ describe("checkLockout with DISABLE_LOGIN_LOCKOUT", () => {
     const warn = log.warn as unknown as ReturnType<typeof vi.fn>
     warn.mockClear()
 
-    // Warns even when nothing is actually locked — an armed switch on a healthy
+    // Warns even when nothing is actually locked, an armed switch on a healthy
     // instance is exactly the case that would otherwise stay silent forever.
     check({ ...locked, lockedUntil: null })
     check(locked)
@@ -141,7 +141,7 @@ describe("recordFailedAttempt", () => {
     expect(chain.set).toHaveBeenCalled()
     expect(chain.returning).toHaveBeenCalled()
     // The argument to .set() must contain a failedLoginAttempts key built from a
-    // drizzle sql`` expression — i.e. not a plain numeric literal — so that the
+    // drizzle sql`` expression, i.e. not a plain numeric literal, so that the
     // increment is atomic at the database level and avoids read-modify-write races.
     const setArg = chain.set.mock.calls[0][0] as Record<string, unknown>
     expect(setArg).toHaveProperty("failedLoginAttempts")

@@ -8,6 +8,7 @@ import clsx from "clsx"
 import Link from "next/link"
 import type { CSSProperties } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { FavoriteStarIcon, InfinitySign } from "@/components/ui/Icons"
 import { PulseDot } from "@/components/ui/PulseDot"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatStatValue, type StatMode } from "@/lib/formatters"
@@ -70,7 +71,16 @@ function SortableTrackerItem({
       )}
       <span className="flex-1 truncate text-sm font-semibold">{tracker.name}</span>
       <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
-        {archived ? "Archived" : stat}
+        {archived ? (
+          "Archived"
+        ) : stat.startsWith("∞") ? (
+          <>
+            <InfinitySign />
+            {stat.slice(1)}
+          </>
+        ) : (
+          stat
+        )}
       </span>
       {!unlocked && (
         // biome-ignore lint/a11y/useSemanticElements: Star must be inside parent button for visual layout
@@ -91,14 +101,18 @@ function SortableTrackerItem({
             }
           }}
           className={clsx(
-            "shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
+            "flex shrink-0 text-sm leading-none transition-all duration-150 cursor-pointer bg-transparent border-none p-0",
             tracker.isFavorite
               ? "text-warn opacity-100"
               : "text-muted opacity-0 group-hover:opacity-50 hover:opacity-100!"
           )}
           aria-label={tracker.isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
-          {tracker.isFavorite ? "★" : "☆"}
+          <FavoriteStarIcon
+            width="14"
+            height="14"
+            fill={tracker.isFavorite ? "currentColor" : "none"}
+          />
         </span>
       )}
     </>

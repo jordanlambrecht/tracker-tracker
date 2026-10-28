@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.8/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "files": {
     "includes": ["**", "!.next", "!node_modules", "!public", "!.history", "!docs/kb/site"]
   },
@@ -30,7 +30,7 @@
           "level": "error",
           "options": {
             "paths": {
-              "echarts-gl": "echarts-gl registers WebGL renderers at module scope. Only VolumeSurface3D/TorrentAgeScatter3D may import it, and both are reached exclusively through dynamic(..., { ssr: false }). Importing it anywhere else pulls WebGL into that bundle — including the server render path. To reuse a 3D chart's helpers, move the shared code into chart-transforms.ts instead, which imports only formatters and types."
+              "echarts-gl": "echarts-gl registers WebGL renderers at module scope. Only VolumeSurface3D/TorrentAgeScatter3D may import it, and both are reached exclusively through dynamic(..., { ssr: false }). Importing it anywhere else pulls WebGL into that bundle, including the server render path. To reuse a 3D chart's helpers, move the shared code into chart-transforms.ts instead, which imports only formatters and types."
             }
           }
         }
@@ -38,6 +38,33 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["src/lib/tracker-platforms/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/lib/tracker-platforms/adapters/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@/lib/tunnel": "Adapters reach the network through adapterFetch, adapterRequest, fetchTrackerHtml or loginRequest in ../helpers, which apply the shared timeout, the default User-Agent and the proxy in one place. Importing @/lib/tunnel directly reimplements the proxy branch and skips all three."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     {
       "includes": [
         "src/components/charts/VolumeSurface3D.tsx",

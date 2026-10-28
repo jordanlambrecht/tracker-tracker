@@ -5,13 +5,8 @@ import { MarqueeText } from "@/components/ui/MarqueeText"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import type { TorrentRaw } from "@/lib/fleet"
-import {
-  formatBytesNum,
-  formatPercent,
-  formatRatio,
-  formatSpeed,
-  splitValueUnit,
-} from "@/lib/formatters"
+import { formatBytesNum, formatPercent, formatSpeed, splitValueUnit } from "@/lib/formatters"
+import { formatTorrentRatio } from "@/lib/torrent-utils"
 
 interface ActiveTransfersTableProps {
   torrents: TorrentRaw[]
@@ -88,7 +83,7 @@ export function ActiveTransfersTable({
       width: 36,
       render: (t) => (
         <span className="torrent-cell">
-          {isDownload ? formatPercent(t.progress * 100, 0) : formatRatio(t.ratio)}
+          {isDownload ? formatPercent(t.progress * 100) : formatTorrentRatio(t.ratio)}
         </span>
       ),
     },

@@ -4,8 +4,8 @@
 // NO `import "server-only"`: the client sheet imports these types and the pure
 // guard for inline validation, exactly like src/lib/notifications/types.ts.
 //
-// The ciphertext lives in ONE nullable TEXT column, `trackers.encrypted_credentials`
-// — base64(iv[12] + authTag[16] + AES-256-GCM(json)). NULL means "no vault".
+// The ciphertext lives in ONE nullable TEXT column, `trackers.encrypted_credentials`:
+// base64(iv[12] + authTag[16] + AES-256-GCM(json)). NULL means "no vault".
 // Never write "" and never write a marker string: a truthy non-ciphertext value
 // handed to decrypt() is exactly the LOCKDOWN_REVOKED trap.
 
@@ -14,7 +14,7 @@ export const TRACKER_CREDENTIAL_VAULT_VERSION = 1
 
 export interface TrackerCredentialField {
   /**
-   * UNIQUE ACROSS THE WHOLE VAULT, not per-section — the reveal endpoint looks a
+   * UNIQUE ACROSS THE WHOLE VAULT, not per-section, the reveal endpoint looks a
    * field up by id alone, with no section context.
    */
   id: string
@@ -25,7 +25,7 @@ export interface TrackerCredentialField {
   /**
    * ABSENT MEANS SECRET. Fail closed.
    *
-   * Do NOT read this property directly — an absent value is `undefined`, which is
+   * Do NOT read this property directly, an absent value is `undefined`, which is
    * falsy, so `if (field.secret)` fails OPEN and would render a NickServ password
    * in cleartext. Always go through `isFieldSecret()`.
    */
@@ -44,7 +44,7 @@ export interface TrackerCredentialSection {
 export interface TrackerCredentialVault {
   /**
    * Version hinge. Additive OPTIONAL keys (kind, hint, lastRotatedAt, section
-   * icon, top-level notes) need NO migration — absent means default, and the
+   * icon, top-level notes) need NO migration, absent means default, and the
    * guard below tolerates unknown keys so they survive a round trip. A breaking
    * reshape bumps `v` and migrates LAZILY on read-then-write, because migration
    * needs the master key and therefore cannot run as a background job.
@@ -74,7 +74,7 @@ function isCredentialField(value: unknown): value is TrackerCredentialField {
   if (typeof value.id !== "string" || value.id.length === 0) return false
   if (typeof value.label !== "string") return false
   if (typeof value.value !== "string") return false
-  // Absent is allowed (means secret). Present must be a real boolean — a string
+  // Absent is allowed (means secret). Present must be a real boolean, a string
   // "false" or a 0 would otherwise sneak through and be compared against `false`.
   if (value.secret !== undefined && typeof value.secret !== "boolean") return false
   return true

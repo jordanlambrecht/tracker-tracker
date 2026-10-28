@@ -12,7 +12,7 @@ export {
   testClientConnection,
 } from "./coordinator"
 export { CLIENT_CONNECTION_COLUMNS, decryptClientCredentials } from "./credentials"
-export { createAdapterForClient } from "./factory"
+export { createAdapterForClient, disposeClient } from "./factory"
 export type { MergedResult } from "./fetch"
 export { fetchAndMergeTorrents, stripSensitiveTorrentFields } from "./fetch"
 export {
