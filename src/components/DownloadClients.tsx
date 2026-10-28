@@ -2,7 +2,7 @@
 "use client"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { H2, H3, Paragraph, Subheader, Subtext } from "@typography"
+import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useCallback, useState } from "react"
 import {
   Badge,
@@ -37,8 +37,6 @@ import type { SafeDownloadClient } from "@/types/api"
 
 type ClientType = "qbittorrent" | "deluge" | "transmission" | "rtorrent"
 type DownloadClient = SafeDownloadClient
-
-const EMPTY_TRACKERS: string[] = []
 
 const BLANK_CREDENTIALS_HINT =
   'Leave both blank if qBittorrent has "Bypass authentication for clients on localhost" enabled. ' +
@@ -175,7 +173,6 @@ const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolea
 
 interface ClientCardProps {
   client: DownloadClient
-  linkedTrackers: string[]
   onSaved: (id: number, updated: DownloadClient) => void
   onRemove: (id: number) => void
   onSetDefault: (id: number) => void
@@ -205,7 +202,7 @@ function buildPatch(draft: DownloadClient, saved: DownloadClient): Record<string
   return Object.keys(patch).length > 0 ? patch : null
 }
 
-function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }: ClientCardProps) {
+function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps) {
   const {
     draft,
     updateDraft,
@@ -637,25 +634,6 @@ function ClientCard({ client, linkedTrackers, onSaved, onRemove, onSetDefault }:
         </Subtext>
       </div>
 
-      {/* Linked trackers */}
-      {linkedTrackers.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Subheader className="uppercase tracking-wider shrink-0">Linked Trackers</Subheader>
-          <div className="flex gap-2 flex-wrap">
-            {linkedTrackers.map((name) => (
-              <Badge key={name} variant="default">
-                {name}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <Subtext>
-        Trackers are linked to this client via their qBittorrent Tag field in individual tracker
-        settings.
-      </Subtext>
-
       <SaveDiscardBar
         dirty={dirty}
         saving={saving}
@@ -890,7 +868,6 @@ function DownloadClients() {
             <ClientCard
               key={client.id}
               client={client}
-              linkedTrackers={EMPTY_TRACKERS}
               onSaved={handleSaved}
               onRemove={handleRemove}
               onSetDefault={handleSetDefault}
