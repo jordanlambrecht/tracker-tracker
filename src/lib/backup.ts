@@ -24,6 +24,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import { VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "@/lib/download-clients/types"
 import { log } from "@/lib/logger"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
@@ -568,13 +569,29 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       throw new Error(`Backup validation: ${prefix}.port must be an integer between 1 and 65535`)
     }
 
+    // The client routes refuse any other type, so a restore must not seed one.
+    assertString(c.type, `${prefix}.type`)
+    if (!VALID_CLIENT_TYPES.includes(c.type as (typeof VALID_CLIENT_TYPES)[number])) {
+      throw new Error(
+        `Backup validation: ${prefix}.type must be one of: ${VALID_CLIENT_TYPES.join(", ")}`
+      )
+    }
+
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
     // Empty credentials are valid, happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
 
-    // Both absent in backups written before API-key auth existed, so these are
-    // presence-guarded, but when present they are read as strings and must be.
-    if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
+    // Absent in backups written before API-key auth or the URL path existed, so
+    // these are presence-guarded. When present, authMethod must be a listed method
+    // and the encrypted fields must be strings.
+    if (
+      typeof c.authMethod !== "undefined" &&
+      !VALID_AUTH_METHODS.includes(c.authMethod as (typeof VALID_AUTH_METHODS)[number])
+    ) {
+      throw new Error(
+        `Backup validation: ${prefix}.authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}`
+      )
+    }
     if (typeof c.encryptedApiKey !== "undefined") {
       assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
     }
