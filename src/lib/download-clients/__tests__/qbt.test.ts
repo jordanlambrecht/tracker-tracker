@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { aggregateByTag } from "../aggregator"
 import {
-  buildBaseUrl,
   clearAllSessions,
-  clearAuthBlocks,
   getSession,
   getTorrents,
   getTransferInfo,
@@ -13,6 +11,7 @@ import {
   type QbtAuth,
 } from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
+import { buildBaseUrl, clearAuthBlocks } from "../transport"
 
 // ---------------------------------------------------------------------------
 // buildBaseUrl

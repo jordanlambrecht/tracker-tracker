@@ -6,13 +6,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   clearAllSessions,
-  clearAuthBlocks,
   getSession,
   getTorrents,
   invalidateSession,
   login,
   withSessionRetry,
 } from "@/lib/download-clients/qbt/transport"
+import { clearAuthBlocks } from "@/lib/download-clients/transport"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { QBT_RESPONSE_MAX_BYTES, SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
 

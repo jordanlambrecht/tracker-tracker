@@ -29,9 +29,10 @@ import { createAdapterForClient } from "./factory"
 import type { MergedResult } from "./fetch"
 import { fetchAndMergeTorrents } from "./fetch"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
-import { buildBaseUrl, parseCachedTorrents } from "./qbt/transport"
+import { parseCachedTorrents } from "./qbt/transport"
 import { getFilteredTorrents, isStoreFresh, STORE_MAX_AGE_MS } from "./sync-store"
 import { type SlimTorrent, slimTorrentForCache } from "./transforms"
+import { buildBaseUrl } from "./transport"
 import type { TorrentRecord } from "./types"
 
 // ---------------------------------------------------------------------------

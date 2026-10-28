@@ -30,7 +30,7 @@ vi.mock("@/lib/download-clients/factory", () => ({
   createAdapterForClient: vi.fn(() => mockAdapter),
 }))
 
-vi.mock("../qbt/transport", () => ({
+vi.mock("../transport", () => ({
   buildBaseUrl: vi.fn(() => "http://localhost:8080"),
 }))
 
@@ -50,8 +50,8 @@ vi.mock("../sync-store", () => ({
 // ---------------------------------------------------------------------------
 
 import { createAdapterForClient } from "@/lib/download-clients/factory"
-import { buildBaseUrl } from "../qbt/transport"
 import { getFilteredTorrents, getStoredTorrents, isStoreFresh } from "../sync-store"
+import { buildBaseUrl } from "../transport"
 
 // ---------------------------------------------------------------------------
 // Fixtures

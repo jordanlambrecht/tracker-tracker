@@ -134,11 +134,14 @@ vi.mock("../transforms", () => ({
 }))
 
 vi.mock("../qbt/transport", () => ({
+  parseCachedTorrents: vi.fn(() => []),
+}))
+
+vi.mock("../transport", () => ({
   buildBaseUrl: vi.fn(
     (host: string, port: number, ssl: boolean, urlPath: string) =>
       `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
   ),
-  parseCachedTorrents: vi.fn(() => []),
 }))
 
 // ---------------------------------------------------------------------------
@@ -159,9 +162,10 @@ import {
 import { decryptClientUrlPath } from "../credentials"
 import { fetchAndMergeTorrents } from "../fetch"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "../merge"
-import { buildBaseUrl, parseCachedTorrents } from "../qbt/transport"
+import { parseCachedTorrents } from "../qbt/transport"
 import { getFilteredTorrents, isStoreFresh } from "../sync-store"
 import { slimTorrentForCache } from "../transforms"
+import { buildBaseUrl } from "../transport"
 
 // ---------------------------------------------------------------------------
 // Fixtures

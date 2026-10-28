@@ -147,10 +147,13 @@ vi.mock("../transforms", () => ({
 }))
 
 vi.mock("../qbt/transport", () => ({
+  parseCachedTorrents: vi.fn(() => []),
+}))
+
+vi.mock("../transport", () => ({
   buildBaseUrl: vi.fn(
     (host: string, port: number, ssl: boolean) => `${ssl ? "https" : "http"}://${host}:${port}`
   ),
-  parseCachedTorrents: vi.fn(() => []),
 }))
 
 // ---------------------------------------------------------------------------

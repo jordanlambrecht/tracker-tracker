@@ -6,13 +6,13 @@ import { parseTorrentTags } from "@/lib/fleet"
 import { decryptClientUrlPath } from "./credentials"
 import { createAdapterForClient } from "./factory"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
-import { buildBaseUrl } from "./qbt/transport"
 import {
   getFilteredTorrents,
   getStoredTorrents,
   isStoreFresh,
   STORE_MAX_AGE_MS,
 } from "./sync-store"
+import { buildBaseUrl } from "./transport"
 import type { DownloadClientRow, TorrentRecord } from "./types"
 
 // ---------------------------------------------------------------------------

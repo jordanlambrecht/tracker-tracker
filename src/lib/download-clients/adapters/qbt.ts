@@ -2,8 +2,6 @@
 
 import { mapQbtDelta, mapQbtTorrent } from "../field-map"
 import {
-  buildBaseUrl,
-  clearAuthBlocks,
   invalidateSession,
   login,
   type QbtAuth,
@@ -12,6 +10,7 @@ import {
   syncMaindata,
   withSessionRetry,
 } from "../qbt/transport"
+import { buildBaseUrl, clearAuthBlocks } from "../transport"
 import type {
   ClientAdapter,
   ClientCredentials,

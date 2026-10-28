@@ -3,14 +3,17 @@
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/download-clients/qbt/transport", () => ({
-  buildBaseUrl: vi.fn(() => "http://localhost:8080"),
   login: vi.fn(),
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
   syncMaindata: vi.fn(),
   invalidateSession: vi.fn(),
-  clearAuthBlocks: vi.fn(),
   withSessionRetry: vi.fn(),
+}))
+
+vi.mock("@/lib/download-clients/transport", () => ({
+  buildBaseUrl: vi.fn(() => "http://localhost:8080"),
+  clearAuthBlocks: vi.fn(),
 }))
 
 vi.mock("@/lib/download-clients/credentials", () => ({

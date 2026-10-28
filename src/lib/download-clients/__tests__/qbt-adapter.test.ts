@@ -2,11 +2,15 @@
 
 import { describe, expect, it, vi } from "vitest"
 
-vi.mock("@/lib/download-clients/qbt/transport", () => ({
+vi.mock("@/lib/download-clients/transport", () => ({
   buildBaseUrl: vi.fn(
     (host: string, port: number, ssl: boolean, urlPath: string) =>
       `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
   ),
+  clearAuthBlocks: vi.fn(),
+}))
+
+vi.mock("@/lib/download-clients/qbt/transport", () => ({
   login: vi.fn().mockResolvedValue({ name: "SID", value: "test-sid" }),
   getTorrents: vi.fn().mockResolvedValue([
     {
@@ -58,7 +62,6 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
     },
   }),
   invalidateSession: vi.fn(),
-  clearAuthBlocks: vi.fn(),
   withSessionRetry: vi.fn(
     async (
       _h: string,
@@ -73,7 +76,6 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
 }))
 
 import {
-  clearAuthBlocks,
   getTorrents,
   getTransferInfo,
   invalidateSession,
@@ -81,6 +83,7 @@ import {
   syncMaindata,
   withSessionRetry,
 } from "@/lib/download-clients/qbt/transport"
+import { clearAuthBlocks } from "@/lib/download-clients/transport"
 import { QbtClientAdapter } from "../adapters/qbt"
 
 describe("QbtClientAdapter", () => {
