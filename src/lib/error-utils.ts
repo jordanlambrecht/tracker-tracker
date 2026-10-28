@@ -25,7 +25,41 @@ export function isDecryptionError(error: unknown): boolean {
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
-  // qBittorrent auth outcomes first, these need different user action from
+  // Transmission outcomes come first. Its credential and oversized messages
+  // would match the qBittorrent rules below and name the wrong client, and the
+  // rest would reach the fallback, which reads as unreachable. Each rule matches
+  // a whole phrase, since a hostname can contain the word Transmission.
+  if (/Transmission (rejected the|requires a) username and password/i.test(raw)) {
+    return "Credentials rejected by Transmission. Check the username and password"
+  }
+  if (/Transmission has no API-key authentication/i.test(raw)) {
+    return "Transmission has no API key login. Set this client to username and password"
+  }
+  if (/Transmission refused the request\. Either its IP whitelist/i.test(raw)) {
+    return "Transmission refused the connection. Check its IP whitelist, or restart it if its anti-brute-force lockout tripped"
+  }
+  if (/Transmission refused the hostname/i.test(raw)) {
+    return "Transmission refused this hostname. Add it to rpc-host-whitelist, or turn on password authentication"
+  }
+  if (/Transmission returned an oversized response/i.test(raw)) {
+    return "Transmission returned an oversized response"
+  }
+  if (/Transmission RPC error: 3\d\d/i.test(raw)) {
+    return "Transmission redirected the request. Check the URL path"
+  }
+  if (/Transmission RPC error: 40[45]/i.test(raw)) {
+    return "Transmission's RPC was not found at this address. Check the port and URL path"
+  }
+  // The replay carried the id the first 409 handed back, so a second 409 means
+  // the id did not reach the daemon, or rotated between the two requests.
+  if (/Transmission RPC error: 409/i.test(raw)) {
+    return "Transmission did not accept the session id. Check that any proxy in front of it passes the X-Transmission-Session-Id header"
+  }
+  if (/Transmission sent an unexpected response|Transmission returned 409 without/i.test(raw)) {
+    return "Transmission sent an unexpected response"
+  }
+  if (/Transmission refused the RPC call/i.test(raw)) return "Transmission refused the request"
+  // qBittorrent auth outcomes next. These need different user action from
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
   // "IP temporarily banned by tracker" and "Authentication failed").

@@ -1,6 +1,7 @@
 // src/lib/download-clients/__tests__/transmission-transport.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
 import { SYNC_STORE_MAX_TORRENTS, TRANSMISSION_RESPONSE_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import {
@@ -30,6 +31,21 @@ function ok(args: unknown): Response {
 
 function conflict(sessionId: string): Response {
   return new Response("", { status: 409, headers: { "X-Transmission-Session-Id": sessionId } })
+}
+
+/**
+ * One 8 MiB chunk enqueued until the body passes the cap, with only 8 MiB
+ * allocated. The refusal fires before the concat.
+ */
+function oversized(): Response {
+  const chunk = new Uint8Array(8 * 1024 * 1024)
+  const stream = new ReadableStream({
+    start(controller) {
+      for (let i = 0; i < CHUNKS_PAST_CAP; i++) controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+  return new Response(stream)
 }
 
 function stubFetch(...responses: Response[]) {
@@ -243,21 +259,12 @@ describe("the caller's deadline", () => {
 
 describe("the response body cap", () => {
   it("refuses a body that runs past the cap", async () => {
-    // One 8 MiB chunk enqueued until the body passes the cap, with only 8 MiB
-    // allocated. The refusal fires before the concat.
-    const chunk = new Uint8Array(8 * 1024 * 1024)
-    const stream = new ReadableStream({
-      start(controller) {
-        for (let i = 0; i < CHUNKS_PAST_CAP; i++) controller.enqueue(chunk)
-        controller.close()
-      },
-    })
-    stubFetch(new Response(stream))
+    stubFetch(oversized())
 
     const err = await rejection(getTorrents(BASE, CREDS))
 
     expect(err?.message).toBe(
-      `Response from transmission.local exceeded ${TRANSMISSION_RESPONSE_MAX_BYTES} bytes and was refused`
+      `Transmission returned an oversized response (Response from transmission.local exceeded ${TRANSMISSION_RESPONSE_MAX_BYTES} bytes and was refused)`
     )
   })
 
@@ -405,5 +412,93 @@ describe("session-stats", () => {
   it("refuses missing speeds instead of reporting an idle client", async () => {
     stubFetch(ok({}))
     await expect(getSessionStats(BASE, CREDS)).rejects.toThrow(/no transfer speeds/)
+  })
+})
+
+describe("what the user sees when the transport refuses a response", () => {
+  // Each refusal reaches a card through sanitizeNetworkError. Without a
+  // Transmission rule it names qBittorrent, or reads "Connection failed", which
+  // this codebase reserves for a host that never answered.
+  const CREDENTIALS_CARD = "Credentials rejected by Transmission. Check the username and password"
+  const UNEXPECTED_CARD = "Transmission sent an unexpected response"
+
+  it.each<{ name: string; creds?: ClientCredentials; responses: () => Response[]; card: string }>([
+    {
+      name: "a rejected password",
+      responses: () => [new Response("", { status: 401 })],
+      card: CREDENTIALS_CARD,
+    },
+    {
+      name: "blank credentials on a daemon that requires them",
+      creds: { ...CREDS, username: "", password: "" },
+      responses: () => [new Response("", { status: 401 })],
+      card: CREDENTIALS_CARD,
+    },
+    {
+      name: "an API-key credential",
+      creds: { authMethod: "apikey", apiKey: "k", urlPath: "" },
+      responses: () => [],
+      card: "Transmission has no API key login. Set this client to username and password",
+    },
+    {
+      name: "a 403 from the IP whitelist or the lockout",
+      responses: () => [new Response("<h1>403: Forbidden</h1>", { status: 403 })],
+      card: "Transmission refused the connection. Check its IP whitelist, or restart it if its anti-brute-force lockout tripped",
+    },
+    {
+      name: "a 421 from the host whitelist",
+      responses: () => [new Response("<h1>421: Misdirected Request</h1>", { status: 421 })],
+      card: "Transmission refused this hostname. Add it to rpc-host-whitelist, or turn on password authentication",
+    },
+    {
+      name: "an oversized body",
+      responses: () => [oversized()],
+      card: "Transmission returned an oversized response",
+    },
+    {
+      name: "a redirect",
+      responses: () => [
+        new Response(null, { status: 307, headers: { Location: "http://elsewhere.example/" } }),
+      ],
+      card: "Transmission redirected the request. Check the URL path",
+    },
+    {
+      name: "a 404 from a wrong port or URL path",
+      responses: () => [new Response("404 page not found", { status: 404 })],
+      card: "Transmission's RPC was not found at this address. Check the port and URL path",
+    },
+    {
+      name: "a second 409 after the replay",
+      responses: () => [conflict("sid-1"), conflict("sid-2")],
+      card: "Transmission did not accept the session id. Check that any proxy in front of it passes the X-Transmission-Session-Id header",
+    },
+    {
+      name: "a 409 with no session id",
+      responses: () => [new Response("", { status: 409 })],
+      card: UNEXPECTED_CARD,
+    },
+    {
+      name: "a body that is not JSON",
+      responses: () => [new Response("<html>login</html>")],
+      card: UNEXPECTED_CARD,
+    },
+    {
+      name: "a refused RPC method",
+      responses: () => [new Response(JSON.stringify({ result: "method name not recognized" }))],
+      card: "Transmission refused the request",
+    },
+  ])("words $name for the card", async ({ creds, responses, card }) => {
+    stubFetch(...responses())
+    const err = await rejection(testSession(BASE, creds ?? CREDS))
+    const shown = sanitizeNetworkError(err?.message ?? "")
+    expect(shown).toBe(card)
+    expect(isUnreachableMessage(shown)).toBe(false)
+  })
+
+  it("still reads a refused connection as one when the hostname says transmission", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
+    const err = await rejection(testSession(BASE, CREDS))
+    expect(sanitizeNetworkError(err?.message ?? "")).toBe("Connection refused")
   })
 })

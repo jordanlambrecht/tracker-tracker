@@ -18,6 +18,7 @@ import {
   describeFetchError,
   fetchSignal,
   getAuthBlock,
+  isResponseTooLarge,
   readCappedJson,
   setAuthBlock,
 } from "../transport"
@@ -81,6 +82,7 @@ const HOSTNAME_REFUSED =
 const SESSION_ID_MISSING = "Transmission returned 409 without an X-Transmission-Session-Id header"
 const RPC_REFUSED = "Transmission refused the RPC call"
 const UNEXPECTED = "Transmission sent an unexpected response"
+const OVERSIZED = "Transmission returned an oversized response"
 
 /**
  * A URL path replaces Transmission's default `/transmission` base, the way
@@ -182,6 +184,8 @@ async function rpcCall<T>(
   } catch (err) {
     // A proxy route answering with an HTML page is the usual cause.
     if (err instanceof SyntaxError) throw new Error(`${UNEXPECTED}: the body was not JSON`)
+    // Reworded so the card names Transmission, with the host and cap kept for the log.
+    if (isResponseTooLarge(err)) throw new Error(`${OVERSIZED} (${err.message})`)
     throw err
   }
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
