@@ -489,8 +489,15 @@ export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
     return []
   }
   if (arr.length === 0) return arr as SlimTorrent[]
-  if (!isQbtTorrent(arr[0])) {
-    log.warn({ sample: arr[0] }, "parseCachedTorrents: first element failed isQbtTorrent check")
+  const first = arr[0]
+  if (!isQbtTorrent(first)) {
+    // Field names and the type, never the values. A cached torrent's name, tags
+    // and announce host would put the library in the log.
+    const keys = first && typeof first === "object" ? Object.keys(first) : []
+    log.warn(
+      { type: typeof first, keys },
+      "parseCachedTorrents: first element failed isQbtTorrent check"
+    )
     return []
   }
   return arr as SlimTorrent[]

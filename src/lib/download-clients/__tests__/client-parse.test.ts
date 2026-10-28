@@ -1,6 +1,7 @@
 // src/lib/download-clients/__tests__/client-parse.test.ts
 
 import { describe, expect, it, vi } from "vitest"
+import { log } from "@/lib/logger"
 import { parseCachedTorrents } from "../qbt/transport"
 
 // Silence the warn calls that parseCachedTorrents makes on failure paths
@@ -213,6 +214,19 @@ describe("parseCachedTorrents", () => {
 
     it("returns [] when first element is a plain string", () => {
       expect(parseCachedTorrents(["not-an-object"])).toEqual([])
+    })
+
+    it("logs the element's type and field names, never its values", () => {
+      const warn = vi.mocked(log.warn)
+      warn.mockClear()
+      const bad = { ...VALID_TORRENT, hash: 123, name: "must-not-be-logged" }
+
+      parseCachedTorrents([bad])
+
+      expect(warn).toHaveBeenCalledOnce()
+      const [payload] = warn.mock.calls[0]
+      expect(payload).toEqual({ type: "object", keys: Object.keys(bad) })
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("must-not-be-logged")
     })
   })
 

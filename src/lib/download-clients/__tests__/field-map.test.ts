@@ -84,6 +84,18 @@ describe("mapQbtTorrent", () => {
     expect(mapQbtTorrent({ ...RAW, seeding_time: "86400" }).seedingTime).toBe(0)
   })
 
+  it("logs the field and the type it received, never the value", () => {
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+
+    mapQbtTorrent({ ...RAW, seeding_time: "must-not-be-logged" })
+
+    expect(warnSpy).toHaveBeenCalledOnce()
+    const [payload] = warnSpy.mock.calls[0]
+    expect(payload).not.toHaveProperty("value")
+    expect(payload).toMatchObject({ hash: "abc", field: "seedingTime", received: "string" })
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("must-not-be-logged")
+  })
+
   it("does not include old field names in output", () => {
     const result = mapQbtTorrent(RAW) as unknown as Record<string, unknown>
     expect(result).not.toHaveProperty("upspeed")
@@ -118,6 +130,18 @@ describe("mapQbtDelta", () => {
 
   it("keeps a numeric zero for a numeric field", () => {
     expect(mapQbtDelta({ seeding_time: 0 }).seedingTime).toBe(0)
+  })
+
+  it("logs the field and the type it received, never the value", () => {
+    const debugSpy = vi.spyOn(log, "debug").mockImplementation(() => undefined)
+
+    mapQbtDelta({ seeding_time: "must-not-be-logged" })
+
+    expect(debugSpy).toHaveBeenCalledOnce()
+    const [payload] = debugSpy.mock.calls[0]
+    expect(payload).not.toHaveProperty("value")
+    expect(payload).toMatchObject({ field: "seedingTime", received: "string" })
+    expect(JSON.stringify(debugSpy.mock.calls)).not.toContain("must-not-be-logged")
   })
 
   it("handles empty delta", () => {
