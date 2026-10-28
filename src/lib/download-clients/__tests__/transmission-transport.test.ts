@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { SYNC_STORE_MAX_TORRENTS, TRANSMISSION_RESPONSE_MAX_BYTES } from "@/lib/limits"
+import { log } from "@/lib/logger"
 import {
   getSessionStats,
   getTorrents,
@@ -52,6 +53,7 @@ async function rejection(promise: Promise<unknown>): Promise<Error | null> {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   invalidateSessionId(BASE)
   invalidateSessionId(`${BASE}/torrents`)
   clearAuthBlocks(BASE)
@@ -349,8 +351,9 @@ describe("the RPC envelope", () => {
 
 describe("torrent-get", () => {
   it("asks for the declared fields across every torrent by default", async () => {
-    const fetchMock = stubFetch(ok({ torrents: [{ hashString: "abc" }] }))
-    expect(await getTorrents(BASE, CREDS)).toEqual([{ hashString: "abc" }])
+    const entry = { hashString: "abc", name: "Release", downloadDir: "/data" }
+    const fetchMock = stubFetch(ok({ torrents: [entry] }))
+    expect(await getTorrents(BASE, CREDS)).toEqual([entry])
     const body = JSON.parse(initOf(fetchMock, 0).body as string)
     expect(body.method).toBe("torrent-get")
     expect(body.arguments.fields).toContain("trackerStats")
@@ -362,6 +365,29 @@ describe("torrent-get", () => {
     await getTorrents(BASE, CREDS, { recentlyActive: true })
     const body = JSON.parse(initOf(fetchMock, 0).body as string)
     expect(body.arguments.ids).toBe("recently-active")
+  })
+
+  it("drops entries that fail the shape check and keeps the rest", async () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+    const good = { hashString: "good", name: "Release", downloadDir: "/data" }
+    stubFetch(
+      ok({
+        torrents: [
+          good,
+          { name: "no hash", downloadDir: "/data" },
+          { hashString: "", name: "empty hash", downloadDir: "/data" },
+          { hashString: "labels", name: "Release", downloadDir: "/data", labels: "tv" },
+          null,
+        ],
+      })
+    )
+
+    expect(await getTorrents(BASE, CREDS)).toEqual([good])
+    // Counts only, never an entry, since a name or path can identify the library.
+    expect(warn).toHaveBeenCalledWith(
+      { host: "transmission.local", received: 5, kept: 1 },
+      expect.any(String)
+    )
   })
 
   it("refuses a payload that is not a torrent list", async () => {

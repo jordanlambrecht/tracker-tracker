@@ -25,6 +25,8 @@ export interface TorrentRecord {
   downloadSpeed: number // bytes/sec
   uploaded: number // total bytes uploaded
   downloaded: number // total bytes downloaded
+  // -1 means infinite: uploaded with nothing downloaded and no pieces held.
+  // Adapters map their own infinity to -1 and any not-applicable value to 0.
   ratio: number
   size: number // bytes
   seedCount: number // connected seeds

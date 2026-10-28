@@ -1,10 +1,8 @@
 // src/lib/download-clients/transmission/types.ts
 
 /**
- * Fields requested from `torrent-get`. Transmission returns exactly what is
- * asked for and nothing else, so this list is the whole contract between the
- * transport and field-map — adding a field to TorrentRecord means adding it
- * here too, or the mapper silently reads undefined.
+ * Fields requested from torrent-get. Transmission returns only these, so a
+ * field the mapper reads has to be listed here or it arrives undefined.
  */
 export const TORRENT_FIELDS = [
   "hashString",
@@ -28,33 +26,25 @@ export const TORRENT_FIELDS = [
   "percentDone",
   "downloadDir",
   "isPrivate",
-  // trackerStats rather than `trackers`: only trackerStats carries `host`, and
-  // `host` is the passkey-free half of the announce URL. See the comment on
-  // TransmissionTrackerStat.
+  // For `host` and the swarm counts, which `trackers` lacks.
   "trackerStats",
 ] as const
 
 /**
- * One entry of a torrent's `trackerStats` array.
- *
- * Only the fields this adapter reads are declared. `announce` and `scrape` are
- * deliberately absent: on a private tracker both embed the account passkey, and
- * `host` (scheme-less `hostname:port`) carries everything matching needs
- * without it. Adding them here would put a passkey into every torrent record
- * the app holds in memory and caches to Postgres.
+ * One trackerStats entry, declared as far as the mapper reads it. Transmission
+ * sends every sub-field, so `announce` and `scrape`, which carry the passkey on
+ * a private tracker, are in the parsed response all the same. The mapper copies
+ * only `host`, so neither reaches a TorrentRecord or the cache.
  */
 export interface TransmissionTrackerStat {
-  host: string // "tracker.example.org:443" — no path, no passkey
-  sitename: string // "example" — Transmission's own second-level-domain key
+  host: string // "tracker.example.org:443", no path
   tier: number
   id: number
-  isBackup: boolean
-  seederCount: number // -1 when never scraped
-  leecherCount: number // -1 when never scraped
-  lastAnnounceSucceeded: boolean
+  seederCount: number // -1 until an announce or scrape reports it
+  leecherCount: number // -1 until an announce or scrape reports it
 }
 
-/** From `torrent-get` with the field list above. */
+/** From torrent-get with the field list above. */
 export interface TransmissionTorrent {
   hashString: string
   name: string
@@ -64,8 +54,8 @@ export interface TransmissionTorrent {
   rateDownload: number // bytes/sec
   uploadedEver: number
   downloadedEver: number
-  uploadRatio: number // -1 when nothing has been downloaded yet
-  sizeWhenDone: number // bytes of the selected files — the qBT `size` analogue
+  uploadRatio: number // uploadedEver over sizeWhenDone; -1 for 0 over 0, -2 for an upload over 0
+  sizeWhenDone: number // bytes of the selected files
   peersSendingToUs: number
   peersGettingFromUs: number
   addedDate: number // unix seconds
@@ -80,10 +70,7 @@ export interface TransmissionTorrent {
   trackerStats: TransmissionTrackerStat[]
 }
 
-/**
- * Transmission's numeric torrent status. Values are stable across 2.x-4.x and
- * are what `status` returns.
- */
+/** Transmission's numeric torrent status, stable across 2.x to 4.x. */
 export const TransmissionStatus = {
   STOPPED: 0,
   CHECK_WAIT: 1,
@@ -94,7 +81,7 @@ export const TransmissionStatus = {
   SEED: 6,
 } as const
 
-/** From `session-stats`. */
+/** From session-stats. */
 export interface TransmissionSessionStats {
   uploadSpeed: number // bytes/sec
   downloadSpeed: number // bytes/sec
@@ -102,13 +89,32 @@ export interface TransmissionSessionStats {
 
 /** The envelope every RPC method answers with. */
 export interface TransmissionRpcResponse<T> {
-  result: string // "success", or a human-readable failure
+  result: string // "success", or a failure the host words
   arguments?: T
   tag?: number
 }
 
-/** Spot-checks a torrent-get payload before the mapper trusts it. */
 export function isTransmissionTorrentList(value: unknown): value is { torrents: unknown[] } {
   if (!value || typeof value !== "object") return false
   return Array.isArray((value as { torrents?: unknown }).torrents)
+}
+
+/**
+ * The fields the mapper dereferences. A wrong one would throw and fail the
+ * whole poll, or file the torrent under no hash. Numbers are left to the coerce
+ * helpers, which default them.
+ */
+export function isTransmissionTorrent(value: unknown): value is TransmissionTorrent {
+  if (!value || typeof value !== "object") return false
+  const t = value as Record<string, unknown>
+  return (
+    typeof t.hashString === "string" &&
+    t.hashString !== "" &&
+    typeof t.name === "string" &&
+    typeof t.downloadDir === "string" &&
+    (t.labels === undefined || Array.isArray(t.labels)) &&
+    (t.trackerStats === undefined ||
+      (Array.isArray(t.trackerStats) &&
+        t.trackerStats.every((s) => s !== null && typeof s === "object")))
+  )
 }

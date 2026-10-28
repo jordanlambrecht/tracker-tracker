@@ -11,6 +11,7 @@
 //   testSession         - session-get, used to prove reachability and credentials
 
 import { ADAPTER_FETCH_TIMEOUT_MS, TRANSMISSION_RESPONSE_MAX_BYTES } from "@/lib/limits"
+import { log } from "@/lib/logger"
 import { resetStore } from "../sync-store"
 import {
   blockKeyFor,
@@ -22,6 +23,7 @@ import {
 } from "../transport"
 import type { ClientCredentials } from "../types"
 import {
+  isTransmissionTorrent,
   isTransmissionTorrentList,
   TORRENT_FIELDS,
   type TransmissionRpcResponse,
@@ -217,7 +219,16 @@ export async function getTorrents(
   if (!isTransmissionTorrentList(args)) {
     throw new Error(`${UNEXPECTED}: torrent-get returned no torrent list`)
   }
-  return args.torrents as TransmissionTorrent[]
+  // Checked per entry, like the sync store's delta path, so one bad entry is
+  // dropped instead of failing the poll.
+  const valid = args.torrents.filter(isTransmissionTorrent)
+  if (valid.length !== args.torrents.length) {
+    log.warn(
+      { host: new URL(baseUrl).hostname, received: args.torrents.length, kept: valid.length },
+      "transmission: dropped torrents that failed the shape check"
+    )
+  }
+  return valid
 }
 
 export async function getSessionStats(

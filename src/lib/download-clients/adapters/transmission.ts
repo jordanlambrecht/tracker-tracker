@@ -1,7 +1,7 @@
 // src/lib/download-clients/adapters/transmission.ts
 
 import { parseTorrentTags } from "@/lib/fleet"
-import { mapTransmissionTorrent } from "../field-map"
+import { mapTransmissionTorrent } from "../transmission/field-map"
 import {
   getSessionStats,
   invalidateSessionId,

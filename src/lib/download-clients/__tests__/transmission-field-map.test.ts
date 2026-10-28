@@ -1,20 +1,22 @@
 // src/lib/download-clients/__tests__/transmission-field-map.test.ts
 
 import { describe, expect, it } from "vitest"
-import { canonicalTrackerHost, mapTransmissionState, mapTransmissionTorrent } from "../field-map"
+import { slimTorrentForCache } from "../transforms"
+import {
+  canonicalTrackerHost,
+  mapTransmissionState,
+  mapTransmissionTorrent,
+} from "../transmission/field-map"
 import type { TransmissionTorrent, TransmissionTrackerStat } from "../transmission/types"
 import { TransmissionStatus } from "../transmission/types"
 
 function stat(over: Partial<TransmissionTrackerStat>): TransmissionTrackerStat {
   return {
     host: "tracker.example.org:443",
-    sitename: "example",
     tier: 0,
     id: 0,
-    isBackup: false,
     seederCount: 0,
     leecherCount: 0,
-    lastAnnounceSucceeded: true,
     ...over,
   }
 }
@@ -50,6 +52,7 @@ describe("mapTransmissionTorrent", () => {
     expect(r.hash).toBe("abc")
     expect(r.uploadSpeed).toBe(1024)
     expect(r.uploaded).toBe(5000)
+    expect(r.ratio).toBe(2)
     expect(r.size).toBe(1_000_000)
     expect(r.seedingTime).toBe(86400)
     expect(r.swarmSeeders).toBe(50)
@@ -66,10 +69,30 @@ describe("mapTransmissionTorrent", () => {
     expect(mapTransmissionTorrent(RAW).activeTime).toBe(90000)
   })
 
-  it("clamps the -1 ratio Transmission reports when nothing was downloaded", () => {
-    // A torrent added at 100% (a cross-seed) never downloads, and Transmission
-    // answers -1 rather than 0. Every consumer here treats ratio as >= 0.
+  it("maps Transmission's infinite ratio to the record's -1", () => {
+    // -2 is an upload over nothing to seed. The record's -1 is what renders as
+    // infinity and stays out of the ratio averages.
+    expect(mapTransmissionTorrent({ ...RAW, uploadRatio: -2 }).ratio).toBe(-1)
+  })
+
+  it("maps Transmission's not-applicable ratio to 0", () => {
+    // -1 is nothing uploaded over nothing to seed, which qBittorrent reports as 0.
     expect(mapTransmissionTorrent({ ...RAW, uploadRatio: -1 }).ratio).toBe(0)
+  })
+
+  it("defaults a mistyped number instead of carrying it into the store", () => {
+    const r = mapTransmissionTorrent({ ...RAW, uploadedEver: "5000" as unknown as number })
+    expect(r.uploaded).toBe(0)
+  })
+
+  it("leaves isPrivate out when it is not a boolean", () => {
+    const r = mapTransmissionTorrent({ ...RAW, isPrivate: "yes" as unknown as boolean })
+    expect(r.isPrivate).toBeUndefined()
+  })
+
+  it("defaults activeTime when a seconds field is missing, rather than storing NaN", () => {
+    const r = mapTransmissionTorrent({ ...RAW, secondsDownloading: undefined as unknown as number })
+    expect(r.activeTime).toBe(0)
   })
 
   it("translates 'never completed' from Transmission's 0 to qBittorrent's -1", () => {
@@ -83,53 +106,76 @@ describe("mapTransmissionTorrent", () => {
     )
   })
 
-  it("never surfaces an announce URL", () => {
-    // The passkey lives in `announce`, so the mapper must reach for `host`.
-    // Asserted on the serialized record so a future field addition that
-    // reintroduces the announce URL fails here.
-    const serialized = JSON.stringify(mapTransmissionTorrent(RAW))
-    expect(serialized).not.toContain("announce")
-    expect(serialized).not.toContain("passkey")
-    expect(mapTransmissionTorrent(RAW).tracker).toBe("tracker.example.org:443")
+  it("keeps the passkey out of the record and the cached torrent", () => {
+    // Transmission sends announce and scrape in every trackerStats entry, so
+    // the fixture carries them the way the parsed response does.
+    const passkey = "0123456789abcdef0123456789abcdef"
+    const withUrls = {
+      ...stat({}),
+      announce: `https://tracker.example.org/announce/${passkey}`,
+      scrape: `https://tracker.example.org/scrape/${passkey}`,
+    } as unknown as TransmissionTrackerStat
+    const record = mapTransmissionTorrent({ ...RAW, trackerStats: [withUrls] })
+
+    expect(JSON.stringify(record)).not.toContain(passkey)
+    expect(JSON.stringify(slimTorrentForCache(record))).not.toContain(passkey)
+    expect(record.tracker).toBe("tracker.example.org:443")
   })
 
-  it("ignores the -1 Transmission uses for a swarm it has never scraped", () => {
+  it("falls back to peers transferring with us when no tracker reported a swarm count", () => {
+    // -1 is a tracker Transmission has never scraped.
     const r = mapTransmissionTorrent({
       ...RAW,
       trackerStats: [stat({ seederCount: -1, leecherCount: -1 })],
+    })
+    expect(r.swarmSeeders).toBe(RAW.peersSendingToUs)
+    expect(r.swarmLeechers).toBe(RAW.peersGettingFromUs)
+  })
+
+  it("keeps a reported count of 0 instead of falling back", () => {
+    const r = mapTransmissionTorrent({
+      ...RAW,
+      trackerStats: [stat({ seederCount: 0, leecherCount: 0 })],
     })
     expect(r.swarmSeeders).toBe(0)
     expect(r.swarmLeechers).toBe(0)
   })
 
+  it("ignores a swarm count that is not a number", () => {
+    const r = mapTransmissionTorrent({
+      ...RAW,
+      trackerStats: [stat({ seederCount: "50" as unknown as number })],
+    })
+    expect(r.swarmSeeders).toBe(RAW.peersSendingToUs)
+  })
+
+  it("files a torrent whose tracker host is not a string under no tracker", () => {
+    const r = mapTransmissionTorrent({
+      ...RAW,
+      trackerStats: [stat({ host: 42 as unknown as string })],
+    })
+    expect(r.tracker).toBe("")
+  })
+
   it("survives a torrent with no trackers at all", () => {
     const r = mapTransmissionTorrent({ ...RAW, trackerStats: [] })
     expect(r.tracker).toBe("")
-    expect(r.swarmSeeders).toBe(0)
+    expect(r.swarmSeeders).toBe(RAW.peersSendingToUs)
   })
 })
 
 describe("canonicalTrackerHost", () => {
   it("prefers announce-list order over the tracker that is currently working", () => {
-    // The real TorrentLeech shape, measured on a live client: the site's
-    // failover mirror is on a different registrable domain and is the one
-    // Transmission has promoted to active (isBackup false). Matching must
-    // still resolve the torrent to torrentleech.org, which is the domain the
-    // tracker registry and the user both know the site by.
+    // A failover mirror on another domain is often the tracker working now.
+    // The announce-list head stays the site's own domain.
     const host = canonicalTrackerHost([
       stat({
         host: "tracker.torrentleech.org:443",
-        sitename: "torrentleech",
         id: 20,
-        isBackup: true,
-        lastAnnounceSucceeded: false,
       }),
       stat({
         host: "tracker.tleechreload.org:443",
-        sitename: "tleechreload",
         id: 21,
-        isBackup: false,
-        lastAnnounceSucceeded: true,
       }),
     ])
     expect(host).toBe("tracker.torrentleech.org:443")
