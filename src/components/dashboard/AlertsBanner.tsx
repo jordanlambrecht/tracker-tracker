@@ -45,6 +45,7 @@ const typeConfig: Record<string, { severity: AlertSeverity; icon: string; label:
   "update-available": { severity: "accent", icon: "⬆", label: "Update" },
   "backup-failed": { severity: "warn", icon: "⚠", label: "Backup" },
   "client-error": { severity: "danger", icon: "⏹", label: "Client" },
+  "client-warning": { severity: "warn", icon: "⏸", label: "Client" },
   "poll-paused": { severity: "danger", icon: "⏸", label: "Paused" },
 }
 

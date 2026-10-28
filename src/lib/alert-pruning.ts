@@ -5,7 +5,9 @@ import type { AlertType } from "@/lib/dashboard"
 import { db } from "@/lib/db"
 import { dismissedAlerts } from "@/lib/db/schema"
 
-export const EXPIRING_ALERT_TYPES: AlertType[] = ["stale-data", "zero-seeding"]
+// A client-warning key names only the client, so a dismissal that never expired
+// would also hide every later failure on that client.
+export const EXPIRING_ALERT_TYPES: AlertType[] = ["stale-data", "zero-seeding", "client-warning"]
 export const NON_DISMISSIBLE_ALERT_TYPES = new Set<AlertType>(["client-error", "poll-paused"])
 export const ALERT_EXPIRY_MS = 24 * 60 * 60 * 1000
 

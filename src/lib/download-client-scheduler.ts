@@ -29,6 +29,11 @@
 // state changes only (outage onset, a changed cause, a periodic reminder,
 // recovery). Uptime recording sits outside the gate, so every attempt is still
 // recorded.
+//
+// Error fields: errorSince is the heartbeat's outage clock, set by its failure
+// and cleared by its recovery or a successful deep poll. A deep-poll failure
+// writes lastError alone, so a client that still answers is never shown as
+// down, and only a successful deep poll clears it.
 
 import { eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
@@ -54,6 +59,7 @@ import {
   replaceStoreTorrents,
   slimTorrentForCache,
 } from "@/lib/download-clients"
+import type { SyncStoreRefusal } from "@/lib/download-clients/sync-store"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   clearFailureLogGate,
@@ -62,7 +68,7 @@ import {
   retainFailureLogClients,
 } from "@/lib/failure-log-gate"
 import { parseTorrentTags } from "@/lib/fleet"
-import { localDateStr } from "@/lib/formatters"
+import { formatCount, localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
 import { announceHostKeySet, createTrackedTorrentPredicate } from "@/lib/tracker-matching"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
@@ -82,7 +88,7 @@ export const HEARTBEAT_COLUMNS = {
   encryptedApiKey: downloadClients.encryptedApiKey,
   encryptedUrlPath: downloadClients.encryptedUrlPath,
   crossSeedTags: downloadClients.crossSeedTags,
-  lastError: downloadClients.lastError,
+  errorSince: downloadClients.errorSince,
 } as const
 
 /** Needed by deepPollClient. Heartbeat fields + poll config */
@@ -100,8 +106,20 @@ const g = globalThis as typeof globalThis & {
   __heartbeatInFlight?: boolean
   __deepPollInFlight?: boolean
   __lastPruneAt?: number
+  __deepPollRefusedUntil?: Map<number, number>
 }
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000
+
+/**
+ * When a client the sync store refused may be deep-polled again, by clientId.
+ * A refused poll leaves lastPolledAt alone, so without this the client is
+ * overdue on every 30s tick and refetches its whole library to be refused
+ * again. Lazy for the same HMR reason as failure-log-gate.ts.
+ */
+function getRefusedUntil(): Map<number, number> {
+  if (!g.__deepPollRefusedUntil) g.__deepPollRefusedUntil = new Map()
+  return g.__deepPollRefusedUntil
+}
 
 function getHeartbeatTask(): ScheduledTask | null {
   return g.__clientHeartbeatTask ?? null
@@ -134,7 +152,7 @@ async function heartbeatClient(
     encryptedApiKey: string
     encryptedUrlPath: string
     crossSeedTags: string[] | null
-    lastError: string | null
+    errorSince: Date | null
   },
   encryptionKey: Buffer
 ): Promise<void> {
@@ -145,7 +163,7 @@ async function heartbeatClient(
     recordHeartbeat(client.id, true)
 
     // Unconditional, and deliberately outside the DB guard below: the gate is
-    // memory-backed, so it must clear even when lastError already reads null.
+    // memory-backed, so it must clear even when errorSince already reads null.
     // For a healthy client this is one Map lookup that returns null.
     const recovered = noteSuccess(client.id, "heartbeat")
     if (recovered) {
@@ -160,8 +178,9 @@ async function heartbeatClient(
       )
     }
 
-    // Only write to DB if recovering from error. Skip if already healthy.
-    if (client.lastError !== null) {
+    // Only write to DB when ending an outage this loop recorded. A deep-poll
+    // error has no errorSince and stays until a deep poll succeeds.
+    if (client.errorSince !== null) {
       await db
         .update(downloadClients)
         .set({ lastError: null, errorSince: null, updatedAt: new Date() })
@@ -240,7 +259,12 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
   // re-enable is wrongly treated as a repeat instead of a fresh first failure.
   // This one line covers deletion, disable, and restore-from-backup. It also
   // sweeps deep-poll keys. A disabled client should hold neither.
-  retainFailureLogClients(new Set(allClients.map((c) => c.id)))
+  const liveIds = new Set(allClients.map((c) => c.id))
+  retainFailureLogClients(liveIds)
+  const refusedUntil = getRefusedUntil()
+  for (const id of refusedUntil.keys()) {
+    if (!liveIds.has(id)) refusedUntil.delete(id)
+  }
 
   if (allClients.length === 0) return
 
@@ -254,12 +278,18 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 /**
  * The sync store refused a whole update, so it still holds the previous poll.
  * A class rather than a recognisable message because the catch below has to
- * tell this verdict of ours apart from a fault the host reported.
+ * tell this verdict of ours apart from a fault the host reported. The message
+ * is the card's text, so it is worded for the user.
  */
 class SyncStoreRefusedError extends Error {
-  constructor(cap: number) {
-    super(`Sync store limit reached: this client would hold more than ${cap} torrents`)
+  readonly refusal: SyncStoreRefusal
+
+  constructor(refusal: SyncStoreRefusal) {
+    super(
+      `This client has ${formatCount(refusal.projected)} torrents, more than the ${formatCount(refusal.cap)} Tracker Tracker tracks per client. Stats are paused and the last figures are kept.`
+    )
     this.name = "SyncStoreRefusedError"
+    this.refusal = refusal
   }
 }
 
@@ -318,7 +348,7 @@ export async function deepPollClient(
       // poll, so the poll fails here rather than reading stale figures out of
       // it and filing them as this poll's observation.
       const refused = applyMaindataUpdate(adapter.baseUrl, data)
-      if (refused) throw new SyncStoreRefusedError(refused.cap)
+      if (refused) throw new SyncStoreRefusedError(refused)
 
       // A heartbeat that takes a 403 resets the store during this await, and a
       // delta merged into an empty store never re-arms `initialized`. Re-sync
@@ -331,7 +361,7 @@ export async function deepPollClient(
         )
         data = await adapter.getDeltaSync(0)
         const refusedResync = applyMaindataUpdate(adapter.baseUrl, data)
-        if (refusedResync) throw new SyncStoreRefusedError(refusedResync.cap)
+        if (refusedResync) throw new SyncStoreRefusedError(refusedResync)
         if (!isStoreInitialized(adapter.baseUrl)) {
           throw new Error("Sync store failed to initialise after a full re-sync")
         }
@@ -355,7 +385,7 @@ export async function deepPollClient(
       // poll, as on the delta path.
       const allTorrents = await adapter.getTorrents()
       const refused = replaceStoreTorrents(adapter.baseUrl, allTorrents)
-      if (refused) throw new SyncStoreRefusedError(refused.cap)
+      if (refused) throw new SyncStoreRefusedError(refused)
       hasChanges = true
       isFullSync = true
       syncSummary = `full fetch, ${allTorrents.length} torrents`
@@ -457,6 +487,7 @@ export async function deepPollClient(
             }
       )
       .where(eq(downloadClients.id, clientId))
+    getRefusedUntil().delete(clientId)
 
     const recovered = noteSuccess(clientId, "deep-poll")
     if (recovered) {
@@ -476,16 +507,24 @@ export async function deepPollClient(
     }
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
+    const refusal = error instanceof SyncStoreRefusedError ? error.refusal : null
     // A refusal is our own verdict on the payload rather than a fault the host
-    // reported, and it names the cap the operator has to act on. The sanitizer
+    // reported, and its message is already worded for the user. The sanitizer
     // has no rule for it, and its fallback means the host never answered.
-    const message = error instanceof SyncStoreRefusedError ? raw : sanitizeNetworkError(raw)
+    const message = refusal ? raw : sanitizeNetworkError(raw)
+    // A refused client waits its interval: the library will not shrink in 30s.
+    // Network failures keep the fast retry.
+    if (refusal && client) {
+      getRefusedUntil().set(clientId, Date.now() + client.pollIntervalSeconds * 1000)
+    }
     // Keyed on the clientId parameter, which is always defined. The row lookup
     // itself may be what failed.
     const verdict = noteFailure(clientId, "deep-poll", raw)
     // See heartbeatClient: the sanitised message is for the UI, the raw cause
-    // is what makes the failure diagnosable from the logs.
-    const base = { clientId, clientName: client?.name, cause: raw }
+    // is what makes the failure diagnosable from the logs. The store returns a
+    // refusal without logging it, so its counts are logged here, once per gate
+    // transition, beside the client's identity.
+    const base = { clientId, clientName: client?.name, cause: raw, ...refusal }
     switch (verdict.kind) {
       case "first":
         log.error(
@@ -526,11 +565,10 @@ export async function deepPollClient(
     try {
       await db
         .update(downloadClients)
-        .set({
-          lastError: message,
-          errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
-          updatedAt: new Date(),
-        })
+        // No errorSince, which is the heartbeat's outage clock: a client that
+        // fails here may still answer, and the UI reads lastError alone as a
+        // problem rather than an outage.
+        .set({ lastError: message, updatedAt: new Date() })
         .where(eq(downloadClients.id, clientId))
     } catch (dbErr) {
       log.error(
@@ -552,8 +590,10 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
     .where(eq(downloadClients.enabled, true))
 
   const now = Date.now()
+  const refusedUntil = getRefusedUntil()
 
   const overdue = allClients.filter((client) => {
+    if ((refusedUntil.get(client.id) ?? 0) > now) return false
     const intervalMs = client.pollIntervalSeconds * 1000
     const lastPoll = client.lastPolledAt?.getTime() ?? 0
     return now - lastPoll >= intervalMs
@@ -689,6 +729,7 @@ export function stopClientScheduler(): Promise<void> {
   })
   clearUptimeAccumulator()
   clearFailureLogGate()
+  getRefusedUntil().clear()
 
   // Must stay last. Anything placed after this await becomes a side effect the
   // fire-and-forget callers would silently lose.

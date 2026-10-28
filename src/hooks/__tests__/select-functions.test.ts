@@ -210,11 +210,17 @@ describe("selectActiveTrackers", () => {
 // ---------------------------------------------------------------------------
 
 describe("selectClientsForAlerts", () => {
-  it("narrows each client to only id, name, enabled, lastError", () => {
+  it("narrows each client to only id, name, enabled, lastError, errorSince", () => {
     const clients = [makeClient({ id: 1, name: "Local", enabled: true, lastError: null })]
     const result = selectClientsForAlerts(clients)
-    expect(result[0]).toStrictEqual({ id: 1, name: "Local", enabled: true, lastError: null })
-    expect(Object.keys(result[0])).toHaveLength(4)
+    expect(result[0]).toStrictEqual({
+      id: 1,
+      name: "Local",
+      enabled: true,
+      lastError: null,
+      errorSince: null,
+    })
+    expect(Object.keys(result[0])).toHaveLength(5)
   })
 
   it("strips all other fields (host, port, lastPolledAt, etc.)", () => {
@@ -224,6 +230,7 @@ describe("selectClientsForAlerts", () => {
         name: "Remote",
         enabled: false,
         lastError: "connection refused",
+        errorSince: "2024-01-02T00:00:00.000Z",
         host: "192.168.1.100",
         port: 9090,
         lastPolledAt: "2024-01-01T00:00:00.000Z",
@@ -233,11 +240,13 @@ describe("selectClientsForAlerts", () => {
     expect(result[0]).not.toHaveProperty("host")
     expect(result[0]).not.toHaveProperty("port")
     expect(result[0]).not.toHaveProperty("lastPolledAt")
+    // errorSince tells an outage from a deep-poll failure on a reachable client.
     expect(result[0]).toStrictEqual({
       id: 2,
       name: "Remote",
       enabled: false,
       lastError: "connection refused",
+      errorSince: "2024-01-02T00:00:00.000Z",
     })
   })
 

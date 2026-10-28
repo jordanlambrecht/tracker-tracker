@@ -48,6 +48,7 @@ export const VALID_ALERT_TYPES = new Set([
   "update-available",
   "backup-failed",
   "client-error",
+  "client-warning",
   "retention-unconfigured",
 ] as const)
 
@@ -338,7 +339,13 @@ export interface SystemAlertData {
   latestVersion?: string
   currentVersion: string
   failedBackups: { createdAt: string }[]
-  clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
+  clients: {
+    id: number
+    name: string
+    enabled: boolean
+    lastError: string | null
+    errorSince: string | null
+  }[]
   snapshotRetentionDays: number | null
   /** True once the first-run retention prompt was answered; null days is then a choice. */
   retentionAnswered?: boolean
@@ -376,17 +383,21 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
     })
   }
 
-  // DL Client errors (non-dismissible)
+  // DL client errors. errorSince is the heartbeat's outage clock. A lastError
+  // without it is a deep-poll failure on a client that still answers, so it
+  // warns rather than reading as down, and only the warning can be dismissed.
   for (const client of data.clients) {
     if (client.enabled && client.lastError) {
+      const isDown = !!client.errorSince
+      const type: AlertType = isDown ? "client-error" : "client-warning"
       alerts.push({
-        key: `client-error-${client.id}`,
-        type: "client-error",
+        key: `${type}-${client.id}`,
+        type,
         trackerId: null,
         trackerName: client.name,
-        trackerColor: "var(--color-danger)",
+        trackerColor: isDown ? "var(--color-danger)" : "var(--color-warn)",
         message: client.lastError,
-        dismissible: false,
+        dismissible: !isDown,
       })
     }
   }

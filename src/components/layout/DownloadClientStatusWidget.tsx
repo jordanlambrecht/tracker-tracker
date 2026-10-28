@@ -47,14 +47,20 @@ function ClientSlide({
   onToggle: () => void
 }) {
   const { client } = entry
-  const hasError = !!client.lastError
+  // errorSince is the heartbeat's outage clock. A lastError without it is a
+  // deep-poll failure on a client that still answers, so it is not down.
+  const isDown = !!client.errorSince
+  const isFailing = !isDown && !!client.lastError
   const latestSpeed = entry.speeds.at(-1)
 
   function renderSubline(): React.ReactNode {
-    if (hasError) {
+    if (client.errorSince) {
+      return <span className="text-danger">Down {formatTimeAgo(client.errorSince)}</span>
+    }
+    if (isFailing) {
       return (
-        <span className="text-danger">
-          Down{client.errorSince ? ` ${formatTimeAgo(client.errorSince)}` : ""}
+        <span className="text-warn" title={client.lastError ?? undefined}>
+          Stats paused
         </span>
       )
     }
@@ -77,8 +83,8 @@ function ClientSlide({
       className="flex items-center gap-2 cursor-pointer w-full text-left"
     >
       <span
-        className={clsx("color-dot", hasError ? "bg-danger" : "bg-success")}
-        style={hasError ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
+        className={clsx("color-dot", isDown ? "bg-danger" : isFailing ? "bg-warn" : "bg-success")}
+        style={isDown || isFailing ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
       />
       <div className="flex flex-col flex-1 min-w-0">
         <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
