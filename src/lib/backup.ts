@@ -24,7 +24,11 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
-import { VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "@/lib/download-clients/types"
+import {
+  clientSupportsApiKey,
+  VALID_AUTH_METHODS,
+  VALID_CLIENT_TYPES,
+} from "@/lib/download-clients/types"
 import { log } from "@/lib/logger"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
@@ -590,6 +594,12 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     ) {
       throw new Error(
         `Backup validation: ${prefix}.authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}`
+      )
+    }
+    // The client routes refuse an API key for a type without key login.
+    if (c.authMethod === "apikey" && !clientSupportsApiKey(c.type)) {
+      throw new Error(
+        `Backup validation: ${prefix}.authMethod apikey is not supported for ${c.type}`
       )
     }
     if (typeof c.encryptedApiKey !== "undefined") {

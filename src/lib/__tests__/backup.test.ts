@@ -274,6 +274,11 @@ describe("validateBackupJson", () => {
     ["no type", { type: undefined }, "type must be a string"],
     ["a numeric type", { type: 1 }, "type must be a string"],
     ["an unknown authMethod", { authMethod: "token" }, "authMethod must be one of"],
+    [
+      "an API key on Transmission",
+      { type: "transmission", authMethod: "apikey" },
+      "authMethod apikey is not supported for transmission",
+    ],
   ])("rejects a download client with %s", (_case, fields, message) => {
     const p = validPayload() as unknown as Record<string, unknown>
     p.downloadClients = [{ ...validClient(), ...fields }]
@@ -283,6 +288,12 @@ describe("validateBackupJson", () => {
   it("accepts a download client without authMethod", () => {
     const p = validPayload() as unknown as Record<string, unknown>
     p.downloadClients = [validClient()]
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
+  it("accepts an API key on a qBittorrent client", () => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.downloadClients = [{ ...validClient(), authMethod: "apikey" }]
     expect(() => validateBackupJson(p)).not.toThrow()
   })
 
