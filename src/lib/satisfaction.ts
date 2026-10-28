@@ -69,9 +69,9 @@ export function seedTimeProgress(seedingTime: number, req: SatisfactionRequireme
 /** Fraction of the ratio requirement met, 0..1. 1 when not required. */
 export function ratioProgress(ratio: number, req: SatisfactionRequirement): number {
   if (req.requiredRatio === null) return 1
-  // qBittorrent reports ratio -1 for a torrent that downloaded nothing (a pure
-  // cross-seed, see fleet-aggregation.ts). It counts as no progress, so the
-  // torrent clears on seed time instead.
+  // qBittorrent sends -1 for an infinite ratio, which needs nothing downloaded
+  // and no pieces held (see fleet-aggregation.ts). It counts as no progress, so
+  // the torrent clears on seed time instead.
   if (!Number.isFinite(ratio) || ratio < 0) return 0
   return Math.min(ratio / req.requiredRatio, 1)
 }

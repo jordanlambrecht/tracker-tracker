@@ -11,9 +11,9 @@ import { formatRatio } from "@/lib/formatters"
 export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
 
 /**
- * Formats a per-torrent ratio for display. qBT reports -1 for an infinite
- * ratio (zero downloads, i.e. a cross-seed), so negatives render as infinity.
- * Account-level ratios have no sentinel; format those with formatRatio.
+ * Formats a per-torrent ratio for display. qBT sends -1 for an infinite ratio
+ * (see fleet-aggregation.ts), so negatives render as infinity. Account-level
+ * ratios have no sentinel; format those with formatRatio.
  */
 export function formatTorrentRatio(ratio: number): string {
   return formatRatio(ratio < 0 ? Number.POSITIVE_INFINITY : ratio)

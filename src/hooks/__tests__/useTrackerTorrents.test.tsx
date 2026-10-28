@@ -235,9 +235,9 @@ describe("useTrackerTorrents — empty live result vs populated cache", () => {
 })
 
 describe("useTrackerTorrents — category stats", () => {
-  it("excludes the -1 cross-seed sentinel from the category ratio average", async () => {
-    // qBT reports -1 for a torrent that downloaded nothing. Averaging it in
-    // drags the category down; fleet-aggregation already excludes it.
+  it("excludes the -1 infinite-ratio sentinel from the category ratio average", async () => {
+    // qBT sends -1 for an infinite ratio, which has no value to average. Summed
+    // in it drags the category down; fleet-aggregation's average excludes it too.
     mockFetch({
       live: makeResponse({
         torrents: [makeTorrent("h1", { ratio: 2 }), makeTorrent("h2", { ratio: -1 })],

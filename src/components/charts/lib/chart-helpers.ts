@@ -121,9 +121,13 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
 
   const enriched = buckets.map((bucket, i) => {
     const prevThreshold = i === 0 ? -Infinity : getThreshold(buckets[i - 1])
-    const count = torrents.filter(
-      (t) => getValue(t) >= prevThreshold && getValue(t) < getThreshold(bucket)
-    ).length
+    // The top bucket has no ceiling, so an infinite value counts there, the same
+    // rule fleet-aggregation applies to its ratio buckets.
+    const isTop = i === buckets.length - 1
+    const count = torrents.filter((t) => {
+      const value = getValue(t)
+      return value >= prevThreshold && (isTop || value < getThreshold(bucket))
+    }).length
     return { bucket, count }
   })
 

@@ -624,14 +624,19 @@ describe("computeFleetAggregation", () => {
 
   // 13. Edge cases
   describe("edge cases", () => {
-    // ratio -1 sentinel (qBT uses -1 for infinite ratio: downloaded=0, i.e. pure cross-seed)
+    // ratio -1 sentinel (qBT's infinite ratio, see the ratio bucket note in fleet-aggregation)
     describe("ratio -1 sentinel", () => {
-      it("excludes ratio=-1 torrent from ratioDistribution", () => {
+      it("counts a ratio=-1 torrent in the top ratioDistribution bucket", () => {
         const infinite = makeTorrent({ hash: "inf1", tags: "aither", ratio: -1 })
         const result = computeFleetAggregation([infinite], TRACKER_TAGS, CROSS_SEED_TAGS)
-        for (const bucket of result.ratioDistribution) {
-          expect(bucket.count).toBe(0)
-        }
+        expect(result.ratioDistribution.map((b) => [b.label, b.count])).toEqual([
+          ["<0.5", 0],
+          ["0.5-1", 0],
+          ["1-2", 0],
+          ["2-5", 0],
+          ["5-10", 0],
+          ["10+", 1],
+        ])
       })
 
       it("excludes ratio=-1 torrent from trackerHealth.avgRatio", () => {

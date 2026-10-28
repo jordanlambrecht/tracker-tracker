@@ -214,9 +214,9 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
   })
 
   it("scores qBittorrent's -1 infinite-ratio sentinel as no progress", () => {
-    // -1 means the torrent downloaded nothing, i.e. a pure cross-seed. Whether
-    // that satisfies a 1:1 rule is a hit-and-run judgement nobody has made, so
-    // it clears on seed time instead. See the sentinel note in fleet-aggregation.
+    // qBT sends -1 only with nothing downloaded and no pieces held. Whether that
+    // satisfies a 1:1 rule is an open hit-and-run question, so it clears on seed
+    // time instead. See the ratio bucket note in fleet-aggregation.
     const { container } = renderTable(RATIO_ONLY, [makeTorrent({ ratio: -1 })])
     const bar = progressBar(container)
     expect(bar.style.width).toBe("0%")

@@ -10,8 +10,8 @@ describe("formatTorrentRatio", () => {
   })
 
   it("renders qBT's -1 infinite-ratio sentinel as infinity", () => {
-    // -1 means zero downloads, i.e. a pure cross-seed. Rendered raw it reads
-    // as a negative ratio, which is not a thing.
+    // -1 is qBT's infinite ratio. Rendered raw it reads as a negative ratio,
+    // which is not a thing.
     expect(formatTorrentRatio(-1)).toBe("∞")
   })
 

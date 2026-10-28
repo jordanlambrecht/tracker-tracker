@@ -285,8 +285,8 @@ function useTrackerTorrents({
 
     const categoryStats: CategoryStats[] = [...categoryMap.entries()]
       .map(([name, items]) => {
-        // qBT reports ratio -1 for a pure cross-seed. Excluded from the average
-        // like fleet-aggregation's ratio stats, not summed in as a negative.
+        // qBT sends -1 for an infinite ratio, which has no value to average.
+        // Excluded like fleet-aggregation's per-tracker average, not summed as a negative.
         const measurable = items.filter((t) => t.ratio >= 0)
         return {
           name,

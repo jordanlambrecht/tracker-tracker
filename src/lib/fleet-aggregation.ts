@@ -274,10 +274,12 @@ export function computeFleetAggregation(
     if (isCrossSeed) crossSeededCount++
 
     // -- Ratio bucket --
-    // qBT returns ratio: -1 for infinite ratio (zero downloads, i.e. cross-seeded).
-    // Exclude these from the distribution since they don't have a meaningful ratio.
-    // Cross-seed coverage is shown by the dedicated cross-seed donut chart.
-    if (torrent.ratio >= 0) {
+    // qBT 5.1.1+ sends -1 for an infinite ratio, meaning something uploaded with
+    // nothing downloaded and no pieces held. Older versions send their 9999 cap for
+    // the same torrent, so -1 counts in the top bucket. A complete cross-seed is finite.
+    if (torrent.ratio === -1) {
+      ratioCounts[RATIO_BUCKETS.length - 1]++
+    } else if (torrent.ratio >= 0) {
       const rBucketIdx = RATIO_BUCKETS.findIndex((b: Bucket) => torrent.ratio < b.max)
       ratioCounts[rBucketIdx === -1 ? RATIO_BUCKETS.length - 1 : rBucketIdx]++
     }
@@ -339,6 +341,7 @@ export function computeFleetAggregation(
       const acc = trackerAccMap.get(matchedTrackerTag)
       if (acc) {
         acc.torrentCount++
+        // -1 counts in the top ratio bucket above but has no value to average.
         if (torrent.ratio >= 0) {
           acc.ratioSum += torrent.ratio
           acc.validRatioCount++

@@ -104,7 +104,9 @@ function TorrentRatioDistribution(props: TorrentRatioDistributionProps) {
       buckets,
       torrents: rawTorrents,
       getThreshold: (b) => b.max,
-      getValue: (t) => t.ratio,
+      // qBT's -1 is an infinite ratio (see fleet-aggregation.ts), so it counts
+      // in the top bucket like the fleet chart.
+      getValue: (t) => (t.ratio === -1 ? Number.POSITIVE_INFINITY : t.ratio),
       getLabel: (b) => b.label,
       getColor: (b) => b.color,
       labelPrefix: "Ratio",
