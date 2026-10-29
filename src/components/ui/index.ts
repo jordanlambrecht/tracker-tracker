@@ -106,6 +106,8 @@ export type { SparklineProps } from "./Sparkline"
 export { Sparkline } from "./Sparkline"
 export type { AlertLevel, StatCardProps } from "./StatCard"
 export { StatCard } from "./StatCard"
+export type { StatusDotProps, StatusDotTone } from "./StatusDot"
+export { StatusDot } from "./StatusDot"
 export {
   CardListSkeleton,
   CardSkeleton,
