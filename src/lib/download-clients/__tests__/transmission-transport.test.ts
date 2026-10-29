@@ -20,6 +20,7 @@ const CREDS: ClientCredentials = {
   username: "admin",
   password: "pass",
   urlPath: "",
+  credentialKey: "password:enc-admin:enc-pass",
 }
 
 /** How many 8 MiB chunks it takes to run a body one chunk past the cap. */
@@ -142,7 +143,12 @@ describe("authentication", () => {
   it("refuses an API-key credential without a request", async () => {
     const fetchMock = stubFetch(ok({}))
     await expect(
-      testSession(BASE, { authMethod: "apikey", apiKey: "k", urlPath: "" })
+      testSession(BASE, {
+        authMethod: "apikey",
+        apiKey: "k",
+        urlPath: "",
+        credentialKey: "apikey:enc-k",
+      })
     ).rejects.toThrow(/no API-key authentication/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -158,10 +164,25 @@ describe("the auth-failure breaker", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  // A save writes fresh ciphertext, so the credential gets a new key.
   it("sends an edited credential", async () => {
     const fetchMock = stubFetch(new Response("", { status: 401 }), ok({}))
     await expect(testSession(BASE, CREDS)).rejects.toThrow()
-    await testSession(BASE, { ...CREDS, password: "fixed" })
+    await testSession(BASE, {
+      ...CREDS,
+      password: "fixed",
+      credentialKey: "password:enc-admin:enc-fixed",
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(headersOf(fetchMock, 1).Authorization).toBe(
+      `Basic ${Buffer.from("admin:fixed").toString("base64")}`
+    )
+  })
+
+  it("sends a credential saved again unchanged, since the save is new ciphertext", async () => {
+    const fetchMock = stubFetch(new Response("", { status: 401 }), ok({}))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow()
+    await testSession(BASE, { ...CREDS, credentialKey: "password:enc-admin-2:enc-pass-2" })
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
@@ -481,7 +502,7 @@ describe("what the user sees when the transport refuses a response", () => {
     },
     {
       name: "an API-key credential",
-      creds: { authMethod: "apikey", apiKey: "k", urlPath: "" },
+      creds: { authMethod: "apikey", apiKey: "k", urlPath: "", credentialKey: "apikey:enc-k" },
       responses: () => [],
       card: "Transmission has no API key login. Set this client to username and password",
     },

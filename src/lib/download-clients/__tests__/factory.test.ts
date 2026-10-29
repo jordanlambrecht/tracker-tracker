@@ -105,6 +105,7 @@ describe("createAdapterForClient", () => {
       authMethod: "apikey",
       apiKey: "qbt_x",
       urlPath: "",
+      credentialKey: "apikey:enc-key",
     })
 
     const adapter = createAdapterForClient(
@@ -134,6 +135,7 @@ describe("createAdapterForClient", () => {
     expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
       mode: "apikey",
       key: "qbt_x",
+      credentialKey: "apikey:enc-key",
     })
     expect(withSessionRetry).not.toHaveBeenCalled()
     expect(login).not.toHaveBeenCalled()

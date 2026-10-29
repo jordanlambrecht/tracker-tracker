@@ -70,6 +70,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
       _u: string,
       _pw: string,
       _urlPath: string,
+      _credentialKey: string,
       op: (baseUrl: string, sid: { name: string; value: string }) => unknown
     ) => op("http://localhost:8080", { name: "SID", value: "test-sid" })
   ),
@@ -92,6 +93,7 @@ describe("QbtClientAdapter", () => {
     username: "admin",
     password: "pass",
     urlPath: "",
+    credentialKey: "password:enc-admin:enc-pass",
   })
 
   it("has type 'qbittorrent'", () => {
@@ -163,7 +165,13 @@ describe("QbtClientAdapter", () => {
     vi.mocked(withSessionRetry).mockClear()
     const controller = new AbortController()
     await adapter.getTorrents({ tag: "aither", signal: controller.signal })
-    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[7]).toBe(controller.signal)
+    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[8]).toBe(controller.signal)
+  })
+
+  it("keys the session wrapper on the saved credential", async () => {
+    vi.mocked(withSessionRetry).mockClear()
+    await adapter.getTorrents({ tag: "aither" })
+    expect(vi.mocked(withSessionRetry).mock.calls[0]?.[6]).toBe("password:enc-admin:enc-pass")
   })
 
   it("returns normalized TransferStats from getTransferInfo", async () => {
@@ -213,7 +221,15 @@ describe("QbtClientAdapter", () => {
     await adapter.testConnection()
 
     expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
-    expect(login).toHaveBeenCalledWith("localhost", 8080, false, "admin", "pass", "")
+    expect(login).toHaveBeenCalledWith(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "pass",
+      "",
+      "password:enc-admin:enc-pass"
+    )
     expect(getTransferInfo).toHaveBeenCalled()
   })
 
@@ -239,6 +255,7 @@ describe("QbtClientAdapter", () => {
       username: "secret-user",
       password: "secret-pass",
       urlPath: "",
+      credentialKey: "password:enc-secret-user:enc-secret-pass",
     })
     vi.mocked(withSessionRetry).mockRejectedValueOnce(new Error("Auth failed"))
 
@@ -257,6 +274,7 @@ describe("QbtClientAdapter", () => {
       username: "secret-user",
       password: "secret-pass",
       urlPath: "",
+      credentialKey: "password:enc-secret-user:enc-secret-pass",
     })
     vi.mocked(login).mockRejectedValueOnce(new Error("HTTP 403 Forbidden"))
 
@@ -283,6 +301,7 @@ describe("QbtClientAdapter behind a URL path", () => {
     username: "admin",
     password: "pass",
     urlPath: "/proxy/qui-client-key",
+    credentialKey: "password:enc-admin:enc-pass",
   })
 
   it("builds its baseUrl with the path", () => {
@@ -308,7 +327,8 @@ describe("QbtClientAdapter behind a URL path", () => {
       false,
       "admin",
       "pass",
-      "/proxy/qui-client-key"
+      "/proxy/qui-client-key",
+      "password:enc-admin:enc-pass"
     )
   })
 })
@@ -326,6 +346,7 @@ describe("QbtClientAdapter with API-key auth", () => {
     authMethod: "apikey",
     apiKey: "qbt_examplekey",
     urlPath: "",
+    credentialKey: "apikey:enc-qbt_examplekey",
   })
 
   it("passes the key to the transport without logging in or retrying a session", async () => {
@@ -339,7 +360,7 @@ describe("QbtClientAdapter with API-key auth", () => {
     expect(login).not.toHaveBeenCalled()
     expect(getTorrents).toHaveBeenCalledWith(
       "http://localhost:8080",
-      { mode: "apikey", key: "qbt_examplekey" },
+      { mode: "apikey", key: "qbt_examplekey", credentialKey: "apikey:enc-qbt_examplekey" },
       "aither",
       undefined,
       undefined
@@ -358,10 +379,11 @@ describe("QbtClientAdapter with API-key auth", () => {
     expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
       mode: "apikey",
       key: "qbt_examplekey",
+      credentialKey: "apikey:enc-qbt_examplekey",
     })
     expect(syncMaindata).toHaveBeenCalledWith(
       "http://localhost:8080",
-      { mode: "apikey", key: "qbt_examplekey" },
+      { mode: "apikey", key: "qbt_examplekey", credentialKey: "apikey:enc-qbt_examplekey" },
       7
     )
   })
@@ -380,6 +402,7 @@ describe("QbtClientAdapter with API-key auth", () => {
     expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
       mode: "apikey",
       key: "qbt_examplekey",
+      credentialKey: "apikey:enc-qbt_examplekey",
     })
   })
 

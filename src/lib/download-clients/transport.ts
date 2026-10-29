@@ -6,8 +6,7 @@
 //   describeFetchError    - Detail string from a fetch rejection
 //   buildBaseUrl          - Construct base URL from host/port/ssl/URL path
 //   fetchSignal           - The caller's deadline combined with the transport ceiling
-//   credentialFingerprint - Non-reversible hash identifying some secret material
-//   blockKeyFor           - Compose the auth-block map key from baseUrl + fingerprint
+//   blockKeyFor           - Compose the auth-block map key from baseUrl + credentialKey
 //   getAuthBlock          - The rejection recorded under a block key, if any
 //   setAuthBlock          - Record a rejection so it is replayed instead of retried
 //   clearAuthBlocks       - Drop auth blocks for one baseUrl (explicit user retry)
@@ -18,7 +17,6 @@
 //   isResponseTooLarge    - True for readCappedBody's size refusal, or an error caused by one
 //   rethrowRefusal        - Catch handler that lets a size refusal through
 
-import { createHash } from "node:crypto"
 import { sanitizeHost } from "@/lib/data-transforms"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 
@@ -76,26 +74,16 @@ const gBlocks = globalThis as typeof globalThis & {
   __clientAuthBlocks?: Map<string, string>
 }
 if (!gBlocks.__clientAuthBlocks) gBlocks.__clientAuthBlocks = new Map()
-/** Maps `${baseUrl}\u0000${credentialFingerprint}` to the error message to replay. */
+/** Maps `${baseUrl}\u0000${credentialKey}` to the error message to replay. */
 const authBlocks = gBlocks.__clientAuthBlocks
 
 /**
- * Non-reversible identifier for a credential pair. Only ever compared, never
- * logged or persisted, it exists so a credential edit is detectable without
- * holding the plaintext.
- *
- * SHA-256 is deliberate. Do not swap in a slow KDF. The digest keys an
- * in-memory Map in a process that already holds the plaintext, and blockKeyFor
- * runs on the request path, so a slow KDF adds per-request cost and protects
- * nothing. The CodeQL insufficient-effort alert on this was reviewed and
- * dismissed as a false positive.
+ * The client's base URL and its credentialKey (see ClientCredentials), which
+ * changes whenever the credential is saved, so an edit is never held by an old
+ * block. Never logged or persisted.
  */
-function credentialFingerprint(username: string, password: string): string {
-  return createHash("sha256").update(`${username}\u0000${password}`).digest("hex")
-}
-
-export function blockKeyFor(baseUrl: string, username: string, password: string): string {
-  return `${baseUrl}\u0000${credentialFingerprint(username, password)}`
+export function blockKeyFor(baseUrl: string, credentialKey: string): string {
+  return `${baseUrl}\u0000${credentialKey}`
 }
 
 export function getAuthBlock(blockKey: string): string | undefined {

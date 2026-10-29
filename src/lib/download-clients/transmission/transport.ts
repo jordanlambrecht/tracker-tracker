@@ -63,8 +63,8 @@ export function invalidateSessionId(baseUrl: string): void {
 // client with 403 until the daemon restarts. A stale password on the 5s
 // heartbeat would trip it in about eight minutes, so a 401 is not retried.
 //
-// The block is keyed by baseUrl and a credential fingerprint, so an edited
-// credential is not blocked. It clears when this app restarts, on Test
+// The block is keyed by baseUrl and the saved credential's key, so a credential
+// saved again is not blocked. It clears when this app restarts, on Test
 // Connection and on dispose. A 403 is never latched: it is the IP whitelist or a lockout that has
 // already tripped, retrying makes neither worse, and a latch would outlive the
 // restart that clears the lockout.
@@ -147,7 +147,7 @@ async function rpcCall<T>(
   if (creds.authMethod === "apikey") throw new Error(API_KEY_UNSUPPORTED)
   const { username, password, urlPath } = creds
 
-  const blockKey = blockKeyFor(baseUrl, username, password)
+  const blockKey = blockKeyFor(baseUrl, creds.credentialKey)
   const blocked = getAuthBlock(blockKey)
   if (blocked) throw new Error(blocked)
 

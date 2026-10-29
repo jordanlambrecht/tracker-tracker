@@ -106,10 +106,20 @@ export function assertAuthMethod(authMethod: string): AuthMethod {
  * union rather than a bag of optional fields means the mode and the secret it
  * describes can never disagree: reading `apiKey` off a password client, or
  * `password` off a key client, is a compile error.
+ *
+ * `credentialKey` names the saved credential without holding the secret. It is
+ * built from the stored ciphertext, which changes on every save, and keys the
+ * auth blocks and qBittorrent's session cache.
  */
 export type ClientCredentials =
-  | { authMethod: "password"; username: string; password: string; urlPath: string }
-  | { authMethod: "apikey"; apiKey: string; urlPath: string }
+  | {
+      authMethod: "password"
+      username: string
+      password: string
+      urlPath: string
+      credentialKey: string
+    }
+  | { authMethod: "apikey"; apiKey: string; urlPath: string; credentialKey: string }
 
 /**
  * Download client adapter interface. Adapters produce TorrentRecord-shaped

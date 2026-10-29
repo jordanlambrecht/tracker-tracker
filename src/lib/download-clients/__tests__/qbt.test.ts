@@ -13,6 +13,11 @@ import {
 import type { QbtTorrent } from "../qbt/types"
 import { buildBaseUrl, clearAuthBlocks } from "../transport"
 
+/** Stands in for the stored ciphertext's credentialKey: one value per saved credential. */
+function saved(username: string, password: string): string {
+  return `password:${username}\u0000${password}`
+}
+
 // ---------------------------------------------------------------------------
 // buildBaseUrl
 // ---------------------------------------------------------------------------
@@ -53,7 +58,15 @@ describe("login", () => {
       headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
     } as Response)
 
-    const sid = await login("localhost", 8080, false, "admin", "password", "")
+    const sid = await login(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "password",
+      "",
+      saved("admin", "password")
+    )
     expect(sid).toEqual({ name: "SID", value: "abc123xyz" })
   })
 
@@ -65,7 +78,15 @@ describe("login", () => {
       headers: new Headers({ "set-cookie": "SID=abc123xyz; Path=/; HttpOnly" }),
     } as Response)
 
-    const sid = await login("localhost", 8080, false, "admin", "password", "")
+    const sid = await login(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "password",
+      "",
+      saved("admin", "password")
+    )
     expect(sid).toEqual({ name: "SID", value: "abc123xyz" })
   })
 
@@ -80,7 +101,15 @@ describe("login", () => {
       }),
     } as Response)
 
-    const sid = await login("localhost", 8080, false, "admin", "password", "")
+    const sid = await login(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "password",
+      "",
+      saved("admin", "password")
+    )
     expect(sid).toEqual({ name: "QBT_SID_8080", value: "YYhsGDAcg8mu89vWPnxXgkH1xkjVQK5h" })
   })
 
@@ -96,7 +125,15 @@ describe("login", () => {
       headers,
     } as Response)
 
-    const sid = await login("localhost", 8080, false, "admin", "password", "")
+    const sid = await login(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "password",
+      "",
+      saved("admin", "password")
+    )
     expect(sid).toEqual({ name: "QBT_SID_8080", value: "realvalue456" })
   })
 
@@ -112,7 +149,15 @@ describe("login", () => {
       headers,
     } as Response)
 
-    const sid = await login("localhost", 8080, false, "admin", "password", "")
+    const sid = await login(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "password",
+      "",
+      saved("admin", "password")
+    )
     expect(sid).toEqual({ name: "QBT_SID_8080", value: "realvalue456" })
   })
 
@@ -123,7 +168,7 @@ describe("login", () => {
       headers: new Headers({ "set-cookie": "SID=testsid; Path=/" }),
     } as Response)
 
-    await login("localhost", 8080, false, "admin", "secret", "")
+    await login("localhost", 8080, false, "admin", "secret", "", saved("admin", "secret"))
 
     expect(fetchSpy.mock.calls[0][0]).toBe("http://localhost:8080/api/v2/auth/login")
     const init = fetchSpy.mock.calls[0][1] as RequestInit
@@ -142,9 +187,9 @@ describe("login", () => {
       headers: new Headers({}),
     } as Response)
 
-    await expect(login("localhost", 8080, false, "admin", "wrongpass", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      login("localhost", 8080, false, "admin", "wrongpass", "", saved("admin", "wrongpass"))
+    ).rejects.toThrow("Authentication failed")
   })
 
   it("throws Authentication failed when SID cookie is absent", async () => {
@@ -154,9 +199,9 @@ describe("login", () => {
       headers: new Headers({}),
     } as Response)
 
-    await expect(login("localhost", 8080, false, "admin", "password", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      login("localhost", 8080, false, "admin", "password", "", saved("admin", "password"))
+    ).rejects.toThrow("Authentication failed")
   })
 
   it("throws a qBittorrent API error on non-ok HTTP response", async () => {
@@ -168,26 +213,26 @@ describe("login", () => {
       headers: new Headers({}),
     } as Response)
 
-    await expect(login("localhost", 8080, false, "admin", "password", "")).rejects.toThrow(
-      "qBittorrent API error: 403 Forbidden"
-    )
+    await expect(
+      login("localhost", 8080, false, "admin", "password", "", saved("admin", "password"))
+    ).rejects.toThrow("qBittorrent API error: 403 Forbidden")
   })
 
   it("throws a timeout message when AbortSignal fires", async () => {
     const timeoutError = new DOMException("signal timed out", "TimeoutError")
     vi.spyOn(global, "fetch").mockRejectedValueOnce(timeoutError)
 
-    await expect(login("localhost", 8080, false, "admin", "password", "")).rejects.toThrow(
-      "Request to localhost timed out after 15s"
-    )
+    await expect(
+      login("localhost", 8080, false, "admin", "password", "", saved("admin", "password"))
+    ).rejects.toThrow("Request to localhost timed out after 15s")
   })
 
   it("throws a connection error on network failure", async () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("ECONNREFUSED"))
 
-    await expect(login("192.168.1.50", 8080, false, "admin", "pass", "")).rejects.toThrow(
-      "Failed to connect to http://192.168.1.50:8080: ECONNREFUSED"
-    )
+    await expect(
+      login("192.168.1.50", 8080, false, "admin", "pass", "", saved("admin", "pass"))
+    ).rejects.toThrow("Failed to connect to http://192.168.1.50:8080: ECONNREFUSED")
   })
 
   it("uses AbortSignal for timeout protection", async () => {
@@ -197,7 +242,7 @@ describe("login", () => {
       headers: new Headers({ "set-cookie": "SID=x; Path=/" }),
     } as Response)
 
-    await login("localhost", 8080, false, "admin", "pass", "")
+    await login("localhost", 8080, false, "admin", "pass", "", saved("admin", "pass"))
 
     const init = fetchSpy.mock.calls[0][1] as RequestInit
     expect(init.signal).toBeDefined()
@@ -241,9 +286,9 @@ describe("login auth-failure circuit breaker", () => {
 
     // Ten heartbeat cycles against a client saved with a bad password.
     for (let i = 0; i < 10; i++) {
-      await expect(getSession("localhost", 8080, false, "admin", "wrong", "")).rejects.toThrow(
-        "Authentication failed"
-      )
+      await expect(
+        getSession("localhost", 8080, false, "admin", "wrong", "", saved("admin", "wrong"))
+      ).rejects.toThrow("Authentication failed")
     }
 
     // Without the breaker this would be 10, two above qBittorrent's default
@@ -258,9 +303,9 @@ describe("login auth-failure circuit breaker", () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockRejectedValue(refused)
 
     for (let i = 0; i < 3; i++) {
-      await expect(getSession("localhost", 8080, false, "admin", "password", "")).rejects.toThrow(
-        "ECONNREFUSED"
-      )
+      await expect(
+        getSession("localhost", 8080, false, "admin", "password", "", saved("admin", "password"))
+      ).rejects.toThrow("ECONNREFUSED")
     }
 
     // A client that is merely rebooting must recover on its own.
@@ -270,16 +315,38 @@ describe("login auth-failure circuit breaker", () => {
   it("retries once the password is edited, so a user who fixes it is not stuck", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
 
-    await expect(getSession("localhost", 8080, false, "admin", "wrong", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      getSession("localhost", 8080, false, "admin", "wrong", "", saved("admin", "wrong"))
+    ).rejects.toThrow("Authentication failed")
     expect(fetchSpy).toHaveBeenCalledTimes(1)
 
     // Same host, corrected password, a different key, so not blocked.
     fetchSpy.mockResolvedValueOnce(loggedIn())
-    const { sid } = await getSession("localhost", 8080, false, "admin", "correct", "")
+    const { sid } = await getSession(
+      "localhost",
+      8080,
+      false,
+      "admin",
+      "correct",
+      "",
+      saved("admin", "correct")
+    )
 
     expect(sid).toEqual({ name: "SID", value: "abc123xyz" })
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  // The key is the stored ciphertext, so saving the same password again is a
+  // new key. That retry is what the user asked for by saving.
+  it("retries a password saved again unchanged", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
+
+    await expect(
+      getSession("localhost", 8080, false, "admin", "pw", "", "password:enc-a:enc-b")
+    ).rejects.toThrow("Authentication failed")
+
+    fetchSpy.mockResolvedValueOnce(loggedIn())
+    await getSession("localhost", 8080, false, "admin", "pw", "", "password:enc-c:enc-d")
     expect(fetchSpy).toHaveBeenCalledTimes(2)
   })
 
@@ -291,15 +358,15 @@ describe("login auth-failure circuit breaker", () => {
   it("retries when the user replaces bad credentials with blank ones", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(unauthorized())
 
-    await expect(getSession("localhost", 8080, false, "admin", "wrongpass", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      getSession("localhost", 8080, false, "admin", "wrongpass", "", saved("admin", "wrongpass"))
+    ).rejects.toThrow("Authentication failed")
     expect(fetchSpy).toHaveBeenCalledTimes(1)
 
     // Still blocked while that pair is unchanged.
-    await expect(getSession("localhost", 8080, false, "admin", "wrongpass", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      getSession("localhost", 8080, false, "admin", "wrongpass", "", saved("admin", "wrongpass"))
+    ).rejects.toThrow("Authentication failed")
     expect(fetchSpy).toHaveBeenCalledTimes(1)
 
     // Both fields blanked, qBittorrent bypasses auth and answers 204 + cookie.
@@ -310,7 +377,7 @@ describe("login auth-failure circuit breaker", () => {
       headers: new Headers({ "set-cookie": "SID=bypass-sid; Path=/; HttpOnly" }),
     } as Response)
 
-    const { sid } = await getSession("localhost", 8080, false, "", "", "")
+    const { sid } = await getSession("localhost", 8080, false, "", "", "", saved("", ""))
 
     expect(sid).toEqual({ name: "SID", value: "bypass-sid" })
     expect(fetchSpy).toHaveBeenCalledTimes(2)
@@ -319,12 +386,12 @@ describe("login auth-failure circuit breaker", () => {
   it("does not block a second client sharing the host with different credentials", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
 
-    await expect(login("localhost", 8080, false, "alice", "a-pass", "")).rejects.toThrow(
-      "Authentication failed"
-    )
-    await expect(login("localhost", 8080, false, "bob", "b-pass", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      login("localhost", 8080, false, "alice", "a-pass", "", saved("alice", "a-pass"))
+    ).rejects.toThrow("Authentication failed")
+    await expect(
+      login("localhost", 8080, false, "bob", "b-pass", "", saved("bob", "b-pass"))
+    ).rejects.toThrow("Authentication failed")
 
     // One attempt each, blocks are per credential pair, not per host.
     expect(fetchSpy).toHaveBeenCalledTimes(2)
@@ -333,19 +400,19 @@ describe("login auth-failure circuit breaker", () => {
   it("clearAuthBlocks lets an explicit retry reach the network again", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
 
-    await expect(login("localhost", 8080, false, "admin", "wrong", "")).rejects.toThrow(
-      "Authentication failed"
-    )
-    await expect(login("localhost", 8080, false, "admin", "wrong", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      login("localhost", 8080, false, "admin", "wrong", "", saved("admin", "wrong"))
+    ).rejects.toThrow("Authentication failed")
+    await expect(
+      login("localhost", 8080, false, "admin", "wrong", "", saved("admin", "wrong"))
+    ).rejects.toThrow("Authentication failed")
     expect(fetchSpy).toHaveBeenCalledTimes(1)
 
     clearAuthBlocks("http://localhost:8080")
 
-    await expect(login("localhost", 8080, false, "admin", "wrong", "")).rejects.toThrow(
-      "Authentication failed"
-    )
+    await expect(
+      login("localhost", 8080, false, "admin", "wrong", "", saved("admin", "wrong"))
+    ).rejects.toThrow("Authentication failed")
     expect(fetchSpy).toHaveBeenCalledTimes(2)
   })
 
@@ -362,9 +429,9 @@ describe("login auth-failure circuit breaker", () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(banned())
 
     for (let i = 0; i < 3; i++) {
-      await expect(login("localhost", 8080, false, "admin", "password", "")).rejects.toThrow(
-        "qBittorrent has temporarily banned this IP"
-      )
+      await expect(
+        login("localhost", 8080, false, "admin", "password", "", saved("admin", "password"))
+      ).rejects.toThrow("qBittorrent has temporarily banned this IP")
     }
 
     expect(fetchSpy).toHaveBeenCalledTimes(3)
@@ -373,7 +440,7 @@ describe("login auth-failure circuit breaker", () => {
   it("tells a blank-credential user that bypass is required", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
 
-    await expect(login("localhost", 8080, false, "", "", "")).rejects.toThrow(
+    await expect(login("localhost", 8080, false, "", "", "", saved("", ""))).rejects.toThrow(
       /Bypass authentication for clients on localhost/
     )
   })
@@ -383,9 +450,9 @@ describe("login auth-failure circuit breaker", () => {
   it("tells a blank-credential user behind a URL path to check the path", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(unauthorized())
 
-    await expect(login("qui.lan", 7476, false, "", "", "/proxy/unknown-key")).rejects.toThrow(
-      /login through the URL path was refused/
-    )
+    await expect(
+      login("qui.lan", 7476, false, "", "", "/proxy/unknown-key", saved("", ""))
+    ).rejects.toThrow(/login through the URL path was refused/)
   })
 
   it("logs a blank-credential client in when qBittorrent bypasses auth (204)", async () => {
@@ -396,7 +463,7 @@ describe("login auth-failure circuit breaker", () => {
       headers: new Headers({ "set-cookie": "SID=bypass-sid; Path=/; HttpOnly" }),
     } as Response)
 
-    const sid = await login("localhost", 8080, false, "", "", "")
+    const sid = await login("localhost", 8080, false, "", "", "", saved("", ""))
     expect(sid).toEqual({ name: "SID", value: "bypass-sid" })
   })
 })
@@ -654,7 +721,7 @@ describe("getTransferInfo", () => {
 // ---------------------------------------------------------------------------
 
 describe("API-key auth", () => {
-  const auth: QbtAuth = { mode: "apikey", key: "qbt_testkey" }
+  const auth: QbtAuth = { mode: "apikey", key: "qbt_testkey", credentialKey: "apikey:qbt_testkey" }
 
   // A 403 is inspected for a ban notice before it is treated as a rejected
   // key, so the fixture has to carry a body like a real Response does.
@@ -707,12 +774,16 @@ describe("API-key auth", () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(rejected(403))
     await expect(getTorrents("http://localhost:8080", auth)).rejects.toThrow()
 
-    // The user pastes a corrected key, a new fingerprint, so not blocked.
+    // The user saves a corrected key, a new credential key, so not blocked.
     fetchSpy.mockClear()
     fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
 
     await expect(
-      getTorrents("http://localhost:8080", { mode: "apikey", key: "qbt_corrected" })
+      getTorrents("http://localhost:8080", {
+        mode: "apikey",
+        key: "qbt_corrected",
+        credentialKey: "apikey:qbt_corrected",
+      })
     ).resolves.toEqual([])
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })

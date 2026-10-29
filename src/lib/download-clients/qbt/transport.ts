@@ -61,7 +61,8 @@ export type SidCookie = { name: string; value: string }
  * the endpoints never branch on a mode, and session-only operations such as
  * invalidateSession are unreachable from the key path by construction.
  */
-export type QbtAuth = { mode: "session"; sid: SidCookie } | { mode: "apikey"; key: string }
+export type QbtAuth =
+  { mode: "session"; sid: SidCookie } | { mode: "apikey"; key: string; credentialKey: string }
 
 const gSid = globalThis as typeof globalThis & {
   __qbtSidCache?: Map<string, SidCookie>
@@ -77,17 +78,18 @@ export async function getSession(
   username: string,
   password: string,
   urlPath: string,
+  credentialKey: string,
   signal?: AbortSignal
 ): Promise<{ baseUrl: string; sid: SidCookie }> {
   const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
-  // Keyed by credentials as well as origin, the same way the auth blocks are. Keyed
-  // by baseUrl alone, a second client row on the same host would ride the first
-  // row's session, and a row with a revoked password would still poll green.
-  const cacheKey = blockKeyFor(baseUrl, username, password)
+  // Keyed by the credential as well as origin, the same way the auth blocks are.
+  // Keyed by baseUrl alone, a second client row on the same host would ride the
+  // first row's session, and a row with a revoked password would still poll green.
+  const cacheKey = blockKeyFor(baseUrl, credentialKey)
   const cached = sidCache.get(cacheKey)
   if (cached) return { baseUrl, sid: cached }
 
-  const sid = await login(host, port, ssl, username, password, urlPath, signal)
+  const sid = await login(host, port, ssl, username, password, urlPath, credentialKey, signal)
   sidCache.set(cacheKey, sid)
   return { baseUrl, sid }
 }
@@ -120,8 +122,8 @@ export function clearAllSessions(): void {
 // the password is fixed. The 5s heartbeat would get there in about 25 seconds,
 // so a rejected login is not retried.
 //
-// The block is keyed by baseUrl and a credential fingerprint, so an edited
-// credential is not blocked. It also clears on restart, and on Test Connection,
+// The block is keyed by baseUrl and the saved credential's key, so a credential
+// saved again is not blocked. It also clears on restart, and on Test Connection,
 // since the fix may have been on the qBittorrent side, such as enabling
 // localhost bypass or waiting out a ban.
 //
@@ -148,16 +150,19 @@ export async function withSessionRetry<T>(
   username: string,
   password: string,
   urlPath: string,
+  credentialKey: string,
   op: (baseUrl: string, sid: SidCookie) => Promise<T>,
   signal?: AbortSignal
 ): Promise<T> {
-  const { baseUrl, sid } = await getSession(host, port, ssl, username, password, urlPath, signal)
+  const session = () =>
+    getSession(host, port, ssl, username, password, urlPath, credentialKey, signal)
+  const { baseUrl, sid } = await session()
   try {
     return await op(baseUrl, sid)
   } catch (err) {
     if (err instanceof Error && err.message === "Session expired") {
       invalidateSession(baseUrl)
-      const fresh = await getSession(host, port, ssl, username, password, urlPath, signal)
+      const fresh = await session()
       return await op(baseUrl, fresh.sid)
     }
     throw err
@@ -196,6 +201,7 @@ export async function login(
   username: string,
   password: string,
   urlPath: string,
+  credentialKey: string,
   signal?: AbortSignal
 ): Promise<SidCookie> {
   const baseUrl = buildBaseUrl(host, port, ssl, urlPath)
@@ -204,9 +210,9 @@ export async function login(
   const body = new URLSearchParams({ username, password }).toString()
 
   // Replay a previous rejection instead of asking again. See the auth-failure
-  // circuit breaker above. Editing either credential changes the key, so a user
-  // who fixes their password is never held here.
-  const blockKey = blockKeyFor(baseUrl, username, password)
+  // circuit breaker above. Saving the credential again changes the key, so a
+  // user who fixes their password is never held here.
+  const blockKey = blockKeyFor(baseUrl, credentialKey)
   const blocked = getAuthBlock(blockKey)
   if (blocked) throw new Error(blocked)
 
@@ -316,10 +322,8 @@ async function qbtFetch(
   // password auth has to be applied here instead. Without it a rotated key
   // would be retried by every heartbeat forever, the same runaway the
   // password breaker exists to stop. Keyed through blockKeyFor so it shares
-  // the per-baseUrl namespace clearAuthBlocks sweeps, with "apikey" in the
-  // username slot keeping keys out of the fingerprint space ordinary
-  // credentials occupy.
-  const blockKey = auth.mode === "apikey" ? blockKeyFor(baseUrl, "apikey", auth.key) : null
+  // the per-baseUrl namespace clearAuthBlocks sweeps.
+  const blockKey = auth.mode === "apikey" ? blockKeyFor(baseUrl, auth.credentialKey) : null
   if (blockKey) {
     const blocked = getAuthBlock(blockKey)
     if (blocked) throw new Error(blocked)
@@ -347,7 +351,7 @@ async function qbtFetch(
   }
 
   // A rejected key is definitive, unlike a session cookie there is nothing to
-  // refresh, so record it and stop asking. Editing the key changes the block
+  // refresh, so record it and stop asking. Saving a new key changes the block
   // key, and Test Connection clears the whole baseUrl, so the user is never
   // stuck. Both 401 and 403 count, because qBittorrent has used each for an
   // unauthenticated WebAPI request across 5.x.

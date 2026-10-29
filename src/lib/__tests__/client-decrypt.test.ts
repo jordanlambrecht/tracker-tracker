@@ -29,6 +29,7 @@ describe("decryptClientCredentials", () => {
       username: "decrypted:enc-user",
       password: "decrypted:enc-pass",
       urlPath: "decrypted:enc-path",
+      credentialKey: "password:enc-user\u0000enc-pass",
     })
   })
 
@@ -42,7 +43,32 @@ describe("decryptClientCredentials", () => {
       encryptedUrlPath: "",
     }
     const result = decryptClientCredentials(client, Buffer.alloc(32))
-    expect(result).toEqual({ authMethod: "apikey", apiKey: "decrypted:enc-key", urlPath: "" })
+    expect(result).toEqual({
+      authMethod: "apikey",
+      apiKey: "decrypted:enc-key",
+      urlPath: "",
+      credentialKey: "apikey:enc-key",
+    })
+  })
+
+  // The key exists so an edit is seen without hashing or holding the secret.
+  it("builds the credential key from the ciphertext and never the decrypted secret", () => {
+    const row = {
+      name: "Test",
+      authMethod: "password",
+      encryptedUsername: "enc-user-1",
+      encryptedPassword: "enc-pass-1",
+      encryptedApiKey: "",
+      encryptedUrlPath: "",
+    }
+    const first = decryptClientCredentials(row, Buffer.alloc(32))
+    // A new password ciphertext alone must change the key.
+    const resaved = decryptClientCredentials(
+      { ...row, encryptedPassword: "enc-pass-2" },
+      Buffer.alloc(32)
+    )
+    expect(first.credentialKey).not.toContain("decrypted:")
+    expect(resaved.credentialKey).not.toBe(first.credentialKey)
   })
 
   it("rejects an unrecognised auth method without disguising it as a decryption failure", () => {
