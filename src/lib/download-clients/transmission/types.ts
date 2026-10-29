@@ -1,5 +1,8 @@
 // src/lib/download-clients/transmission/types.ts
 
+/** The first torrent-get of a poll, which picks out the private torrents. */
+export const INDEX_FIELDS = ["id", "isPrivate"] as const
+
 /**
  * Fields requested from torrent-get. Transmission returns only these, so a
  * field the mapper reads has to be listed here or it arrives undefined.
@@ -27,7 +30,7 @@ export const TORRENT_FIELDS = [
   "downloadDir",
   "isPrivate",
   // For the tracker host. trackerStats would add swarm counts, but each entry
-  // costs about 650 B against about 135 B here, and public torrents list dozens.
+  // costs about 650 B against about 135 B here.
   "trackers",
 ] as const
 
@@ -91,6 +94,13 @@ export interface TransmissionRpcResponse<T> {
   result: string // "success", or a failure the host words
   arguments?: T
   tag?: number
+}
+
+/** An INDEX_FIELDS entry for a private torrent. Anything else is not fetched. */
+export function isPrivateIndexEntry(value: unknown): value is { id: number; isPrivate: true } {
+  if (!value || typeof value !== "object") return false
+  const t = value as Record<string, unknown>
+  return Number.isInteger(t.id) && t.isPrivate === true
 }
 
 export function isTransmissionTorrentList(value: unknown): value is { torrents: unknown[] } {

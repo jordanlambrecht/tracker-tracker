@@ -43,6 +43,7 @@ Go to **Settings → Download Clients** and fill in your connection details:
     Transmission has no API key login. Use the RPC username and password, or leave both blank if `rpc-authentication-required` is off.
     If Transmission's `rpc-whitelist` is on, add this app's IP to it. If you reach it by hostname with authentication off, add the hostname to `rpc-host-whitelist`.
     Transmission's poll carries no swarm counts, so the S/L column shows the peers connected to you for its torrents, not the whole swarm.
+    Tracker Tracker reads only Transmission's private torrents. Public ones never appear and don't count toward the per-client torrent limit, even with a tracker's label.
 
 After saving, use the **Test Connection** button to confirm Tracker Tracker can reach and authenticate with the client.
 

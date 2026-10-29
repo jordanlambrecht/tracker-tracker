@@ -244,16 +244,19 @@ describe("connection errors", () => {
 })
 
 describe("the caller's deadline", () => {
-  it("aborts the torrent-get when the caller's signal aborts", async () => {
-    const fetchMock = stubFetch(ok({ torrents: [] }))
+  it("aborts both torrent-gets when the caller's signal aborts", async () => {
+    const fetchMock = stubFetch(
+      ok({ torrents: [{ id: 1, isPrivate: true }] }),
+      ok({ torrents: [] })
+    )
     const caller = new AbortController()
 
     await getTorrents(BASE, CREDS, { signal: caller.signal })
 
-    const sent = initOf(fetchMock, 0).signal as AbortSignal
-    expect(sent.aborted).toBe(false)
+    const sent = [0, 1].map((call) => initOf(fetchMock, call).signal as AbortSignal)
+    expect(sent.map((s) => s.aborted)).toEqual([false, false])
     caller.abort()
-    expect(sent.aborted).toBe(true)
+    expect(sent.map((s) => s.aborted)).toEqual([true, true])
   })
 })
 
@@ -341,30 +344,83 @@ describe("the RPC envelope", () => {
 })
 
 describe("torrent-get", () => {
-  it("asks for the declared fields across every torrent by default", async () => {
-    const entry = { hashString: "abc", name: "Release", downloadDir: "/data" }
-    const fetchMock = stubFetch(ok({ torrents: [entry] }))
-    expect(await getTorrents(BASE, CREDS)).toEqual([entry])
-    const body = JSON.parse(initOf(fetchMock, 0).body as string)
-    expect(body.method).toBe("torrent-get")
-    expect(body.arguments.fields).toContain("trackers")
-    expect(body.arguments.ids).toBeUndefined()
+  const PRIVATE = { hashString: "abc", name: "Release", downloadDir: "/data", isPrivate: true }
+
+  function bodyOf(fetchMock: ReturnType<typeof vi.fn>, call: number) {
+    return JSON.parse(initOf(fetchMock, call).body as string)
+  }
+
+  it("reads isPrivate first and fetches the declared fields for private torrents only", async () => {
+    const fetchMock = stubFetch(
+      ok({
+        torrents: [
+          { id: 1, isPrivate: true },
+          { id: 2, isPrivate: false },
+          { id: 3, isPrivate: true },
+        ],
+      }),
+      ok({ torrents: [PRIVATE] })
+    )
+
+    expect(await getTorrents(BASE, CREDS)).toEqual([PRIVATE])
+
+    const index = bodyOf(fetchMock, 0)
+    expect(index.method).toBe("torrent-get")
+    expect(index.arguments).toEqual({ fields: ["id", "isPrivate"] })
+    const full = bodyOf(fetchMock, 1)
+    expect(full.arguments.fields).toContain("trackers")
+    expect(full.arguments.ids).toEqual([1, 3])
   })
 
-  it("narrows the request to recently active torrents when asked", async () => {
-    const fetchMock = stubFetch(ok({ torrents: [] }))
+  it("makes no second call when nothing is private", async () => {
+    const fetchMock = stubFetch(ok({ torrents: [{ id: 1, isPrivate: false }] }))
+    expect(await getTorrents(BASE, CREDS)).toEqual([])
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("narrows the first call to recently active torrents when asked", async () => {
+    const fetchMock = stubFetch(
+      ok({ torrents: [{ id: 7, isPrivate: true }] }),
+      ok({ torrents: [PRIVATE] })
+    )
     await getTorrents(BASE, CREDS, { recentlyActive: true })
-    const body = JSON.parse(initOf(fetchMock, 0).body as string)
-    expect(body.arguments.ids).toBe("recently-active")
+    expect(bodyOf(fetchMock, 0).arguments.ids).toBe("recently-active")
+    expect(bodyOf(fetchMock, 1).arguments.ids).toEqual([7])
+  })
+
+  it("fetches only index entries that name a private torrent by integer id", async () => {
+    const fetchMock = stubFetch(
+      ok({
+        torrents: [
+          { id: 1, isPrivate: true },
+          { id: "2", isPrivate: true },
+          { id: 3, isPrivate: "yes" },
+          { isPrivate: true },
+          null,
+        ],
+      }),
+      ok({ torrents: [] })
+    )
+    await getTorrents(BASE, CREDS)
+    expect(bodyOf(fetchMock, 1).arguments.ids).toEqual([1])
+  })
+
+  // A daemon restart between the two calls renumbers the torrents.
+  it("drops a public torrent the second call returns", async () => {
+    stubFetch(
+      ok({ torrents: [{ id: 1, isPrivate: true }] }),
+      ok({ torrents: [{ ...PRIVATE, isPrivate: false }] })
+    )
+    expect(await getTorrents(BASE, CREDS)).toEqual([])
   })
 
   it("drops entries that fail the shape check and keeps the rest", async () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined)
-    const good = { hashString: "good", name: "Release", downloadDir: "/data" }
     stubFetch(
+      ok({ torrents: [{ id: 1, isPrivate: true }] }),
       ok({
         torrents: [
-          good,
+          PRIVATE,
           { name: "no hash", downloadDir: "/data" },
           { hashString: "", name: "empty hash", downloadDir: "/data" },
           { hashString: "labels", name: "Release", downloadDir: "/data", labels: "tv" },
@@ -375,7 +431,7 @@ describe("torrent-get", () => {
       })
     )
 
-    expect(await getTorrents(BASE, CREDS)).toEqual([good])
+    expect(await getTorrents(BASE, CREDS)).toEqual([PRIVATE])
     // Counts only, never an entry, since a name or path can identify the library.
     expect(warn).toHaveBeenCalledWith(
       { host: "transmission.local", received: 7, kept: 1 },
@@ -383,8 +439,11 @@ describe("torrent-get", () => {
     )
   })
 
-  it("refuses a payload that is not a torrent list", async () => {
-    stubFetch(ok({ nothing: true }))
+  it.each([
+    ["the first", [ok({ nothing: true })]],
+    ["the second", [ok({ torrents: [{ id: 1, isPrivate: true }] }), ok({ nothing: true })]],
+  ])("refuses %s call's payload when it is not a torrent list", async (_call, responses) => {
+    stubFetch(...responses)
     await expect(getTorrents(BASE, CREDS)).rejects.toThrow(/no torrent list/)
   })
 })

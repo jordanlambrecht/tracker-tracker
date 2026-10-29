@@ -6,7 +6,8 @@
 //   authHeaders         - Basic auth header, or none for blank credentials
 //   postRpc             - One POST to the RPC endpoint, with the transport's error wording
 //   rpcCall             - Issue one read-only RPC method, handling the 409 handshake
-//   getTorrents         - torrent-get for the declared field list
+//   getTorrents         - torrent-get of the private torrents, for the declared field list
+//   torrentGet          - One torrent-get, refused unless it returns a torrent list
 //   getSessionStats     - session-stats (global transfer speeds)
 //   testSession         - session-get, used to prove reachability and credentials
 
@@ -24,6 +25,8 @@ import {
 } from "../transport"
 import type { ClientCredentials } from "../types"
 import {
+  INDEX_FIELDS,
+  isPrivateIndexEntry,
   isTransmissionTorrent,
   isTransmissionTorrentList,
   TORRENT_FIELDS,
@@ -201,38 +204,63 @@ async function rpcCall<T>(
 }
 
 /**
- * Every torrent with the declared field list, or with `recentlyActive` only
- * those that moved data in the last minute. torrent-get selects by id, hash or
- * recently-active, never by label, so tag filtering stays with the adapter.
+ * Every private torrent with the declared field list, or with `recentlyActive`
+ * only those that moved data in the last minute. torrent-get selects by id, hash
+ * or recently-active, never by label or flag, so a first call reads each
+ * torrent's isPrivate and a second fetches the private ones. Tag filtering stays
+ * with the adapter.
+ *
+ * Public torrents never reach the store. Nothing reads an untracked torrent, and
+ * a public one lists many trackers, so it costs several times a private one.
  */
 export async function getTorrents(
   baseUrl: string,
   creds: ClientCredentials,
   options?: { recentlyActive?: boolean; signal?: AbortSignal }
 ): Promise<TransmissionTorrent[]> {
-  const args = await rpcCall<unknown>(
+  const index = await torrentGet(
     baseUrl,
     creds,
-    "torrent-get",
     {
-      fields: [...TORRENT_FIELDS],
+      fields: [...INDEX_FIELDS],
       ...(options?.recentlyActive ? { ids: "recently-active" } : {}),
     },
     options?.signal
   )
-  if (!isTransmissionTorrentList(args)) {
-    throw new Error(`${UNEXPECTED}: torrent-get returned no torrent list`)
-  }
+  const ids = index.flatMap((t) => (isPrivateIndexEntry(t) ? [t.id] : []))
+  if (ids.length === 0) return []
+
+  const torrents = await torrentGet(
+    baseUrl,
+    creds,
+    { fields: [...TORRENT_FIELDS], ids },
+    options?.signal
+  )
   // Checked per entry, like the sync store's delta path, so one bad entry is
   // dropped instead of failing the poll.
-  const valid = args.torrents.filter(isTransmissionTorrent)
-  if (valid.length !== args.torrents.length) {
+  const valid = torrents.filter(isTransmissionTorrent)
+  if (valid.length !== torrents.length) {
     log.warn(
-      { host: new URL(baseUrl).hostname, received: args.torrents.length, kept: valid.length },
+      { host: new URL(baseUrl).hostname, received: torrents.length, kept: valid.length },
       "transmission: dropped torrents that failed the shape check"
     )
   }
-  return valid
+  // Ids are per session, so a daemon restart between the two calls can point
+  // one at a public torrent.
+  return valid.filter((t) => t.isPrivate === true)
+}
+
+async function torrentGet(
+  baseUrl: string,
+  creds: ClientCredentials,
+  args: Record<string, unknown>,
+  signal: AbortSignal | undefined
+): Promise<unknown[]> {
+  const result = await rpcCall<unknown>(baseUrl, creds, "torrent-get", args, signal)
+  if (!isTransmissionTorrentList(result)) {
+    throw new Error(`${UNEXPECTED}: torrent-get returned no torrent list`)
+  }
+  return result.torrents
 }
 
 export async function getSessionStats(
