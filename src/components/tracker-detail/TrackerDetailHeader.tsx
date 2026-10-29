@@ -20,13 +20,13 @@ import {
   PlayIcon,
   ShieldIcon,
 } from "@/components/ui/Icons"
-import { PulseDot } from "@/components/ui/PulseDot"
+import { StatusDot } from "@/components/ui/StatusDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
-  getHealthPulseDot,
+  getHealthDot,
   getTrackerHealth,
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
@@ -93,7 +93,7 @@ export function TrackerDetailHeader({
               />
             )}
             <H1 className="text-3xl font-bold tracking-tight">{tracker.name}</H1>
-            <PulseDot status={getHealthPulseDot(health)} size="md" />
+            <StatusDot {...getHealthDot(health)} size="md" />
             <Tooltip content={`Open ${tracker.name}`}>
               <a
                 href={tracker.baseUrl}

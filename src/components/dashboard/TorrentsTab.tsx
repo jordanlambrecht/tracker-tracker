@@ -28,7 +28,7 @@ import {
   UnsatisfiedTorrentsTable,
 } from "@/components/dashboard/torrents"
 import { useDashboardSettings } from "@/components/dashboard/useDashboardSettings"
-import { Card, LazySection, Notice, TorrentTabSkeleton } from "@/components/ui"
+import { Card, LazySection, Notice, StatusDot, TorrentTabSkeleton } from "@/components/ui"
 import type { TrackerTorrentsData } from "@/hooks/useTrackerTorrents"
 import { formatSpeed, formatTimeAgo } from "@/lib/formatters"
 
@@ -120,9 +120,7 @@ function TorrentsTab({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-3 min-w-0 [&>*:last-child]:flex-1">
           <H2 className="uppercase tracking-wider flex items-center gap-2">
-            {data.activelyDownloading.length > 0 && (
-              <span className="inline-block w-2 h-2 rounded-full bg-warn animate-pulse" />
-            )}
+            {data.activelyDownloading.length > 0 && <StatusDot tone="warn" glow />}
             Active Downloads ({data.activelyDownloading.length})
             {data.activelyDownloading.length > 0 && (
               <span className="font-mono text-warn ml-auto mr-2 text-2xs normal-case tracking-normal">
@@ -140,10 +138,7 @@ function TorrentsTab({
         <div className="flex flex-col gap-3 min-w-0 [&>*:last-child]:flex-1">
           <H2 className="uppercase tracking-wider flex items-center gap-2">
             {data.activelySeedingTorrents.length > 0 && (
-              <span
-                className="inline-block w-2 h-2 rounded-full animate-pulse"
-                style={{ backgroundColor: accentColor }}
-              />
+              <StatusDot tone="accent" glow color={accentColor} />
             )}
             Active Uploads ({data.activelySeedingTorrents.length})
             {data.activelySeedingTorrents.length > 0 && (

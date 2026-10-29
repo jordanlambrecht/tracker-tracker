@@ -247,7 +247,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
             className="flex items-center gap-2 cursor-pointer min-w-0"
           >
             <ChevronToggle expanded={expanded} className="text-muted" />
-            <StatusDot tone={dotTone} />
+            <StatusDot tone={dotTone} glow={!pollFailed} />
             <span
               className={clsx(
                 "text-xs font-mono font-semibold tracking-wider uppercase",

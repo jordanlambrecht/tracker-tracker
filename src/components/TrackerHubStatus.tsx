@@ -139,7 +139,7 @@ function TrackerHubStatus({
           className="flex items-center gap-2 cursor-pointer"
         >
           <ChevronToggle expanded={expanded} className="text-muted" />
-          <StatusDot tone={isUp ? "success" : "danger"} />
+          <StatusDot tone={isUp ? "success" : "danger"} glow />
           <span
             className={clsx(
               "text-xs font-mono font-semibold tracking-wider uppercase",

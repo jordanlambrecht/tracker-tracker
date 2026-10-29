@@ -12,14 +12,14 @@ import {
   ChevronToggle,
   FilterPill,
   Notice,
-  PulseDot,
   RedactedText,
+  StatusDot,
 } from "@/components/ui"
 import { registryEntryFor, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { formatAccountAge, formatJoinedDate, formatRatioDisplay } from "@/lib/formatters"
-import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
+import { getHealthDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 const FILTER_THRESHOLD = 6
@@ -218,8 +218,8 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 {/* Row 1: Status + name + ratio + external link */}
                 <div className="flex items-center gap-2.5 w-full">
                   {showHealthIndicators && (
-                    <PulseDot
-                      status={getHealthPulseDot(health)}
+                    <StatusDot
+                      {...getHealthDot(health)}
                       size="sm"
                       color={health === "healthy" ? t.color : undefined}
                     />

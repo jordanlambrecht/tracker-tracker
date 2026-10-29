@@ -11,8 +11,8 @@ import { registryEntryFor } from "@/data/tracker-registry"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
+  getHealthDot,
   getHealthLabel,
-  getHealthPulseDot,
   getTrackerHealth,
   resolveRequiredRatio,
 } from "@/lib/tracker-status"
@@ -94,7 +94,7 @@ const healthOf = (stats: Partial<TrackerLatestStats>) =>
 // The thin-ratio / zero-seed split
 //
 // The thin-ratio and zero-seed conditions each get their own pill. The tests
-// below pin each one alone, plus the precedence when they overlap.
+// below check each one alone, plus the precedence when they overlap.
 // ---------------------------------------------------------------------------
 
 describe("getTrackerHealth — thin ratio vs. zero seeds", () => {
@@ -176,9 +176,9 @@ describe("health metadata", () => {
 
   it("renders 'no-seeds' more severely than 'warning'", () => {
     expect(getHealthBadgeVariant("no-seeds")).toBe("danger")
-    expect(getHealthPulseDot("no-seeds")).toBe("no-seeds")
+    expect(getHealthDot("no-seeds").tone).toBe("danger")
     expect(getHealthBadgeVariant("warning")).toBe("warn")
-    expect(getHealthPulseDot("warning")).toBe("warning")
+    expect(getHealthDot("warning").tone).toBe("warn")
   })
 })
 

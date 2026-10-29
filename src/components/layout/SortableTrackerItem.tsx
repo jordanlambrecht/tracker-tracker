@@ -9,10 +9,10 @@ import Link from "next/link"
 import type { CSSProperties } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { FavoriteStarIcon, InfinitySign } from "@/components/ui/Icons"
-import { PulseDot } from "@/components/ui/PulseDot"
+import { StatusDot } from "@/components/ui/StatusDot"
 import { hexToRgba } from "@/lib/color-utils"
 import { formatStatValue, type StatMode } from "@/lib/formatters"
-import { getHealthPulseDot, getTrackerHealth } from "@/lib/tracker-status"
+import { getHealthDot, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 interface SortableTrackerItemProps {
@@ -67,7 +67,7 @@ function SortableTrackerItem({
       {archived ? (
         <span className="w-2 h-2 rounded-full bg-muted shrink-0" aria-hidden="true" />
       ) : (
-        <PulseDot status={getHealthPulseDot(health)} size="sm" />
+        <StatusDot {...getHealthDot(health)} size="sm" />
       )}
       <span className="flex-1 truncate text-sm font-semibold">{tracker.name}</span>
       <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">

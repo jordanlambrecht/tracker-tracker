@@ -16,7 +16,7 @@ import {
 import type { ProwlarrIndexerStats, TrackerProwlarrIndexer } from "@/types/api"
 
 const STATUS_STYLE: Record<IndexerStatus, { label: string; dot: string; text: string }> = {
-  // Live states glow like the sidebar's PulseDot; the glow takes the text colour.
+  // Live states glow like StatusDot; the glow takes the text colour.
   ok: { label: "OK", dot: "bg-success text-success animate-pulse-glow", text: "text-success" },
   failing: { label: "Failing", dot: "bg-warn text-warn animate-pulse-glow", text: "text-warn" },
   "prowlarr-error": {

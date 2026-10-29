@@ -29,7 +29,6 @@ import {
   UploadArrowIcon,
   UserIcon,
 } from "@/components/ui/Icons"
-import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
   StatCardDeadlineProps,
@@ -37,6 +36,7 @@ import type {
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
+import { StatusDot } from "@/components/ui/StatusDot"
 import { registryBonusName } from "@/data/tracker-registry"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/types/slots"
@@ -546,7 +546,7 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
     const children = createElement(
       "span",
       { className: "inline-flex items-center gap-2" },
-      createElement(PulseDot, { status: "healthy", size: "sm" }),
+      createElement(StatusDot, { tone: "accent", glow: true, size: "sm" }),
       "IRC"
     )
     return { variant: "default", children }
