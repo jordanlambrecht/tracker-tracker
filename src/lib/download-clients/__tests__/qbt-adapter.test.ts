@@ -61,6 +61,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
       dl_info_speed: 200,
     },
   }),
+  dropSessions: vi.fn(),
   invalidateSession: vi.fn(),
   withSessionRetry: vi.fn(
     async (
@@ -77,6 +78,7 @@ vi.mock("@/lib/download-clients/qbt/transport", () => ({
 }))
 
 import {
+  dropSessions,
   getTorrents,
   getTransferInfo,
   invalidateSession,
@@ -213,14 +215,18 @@ describe("QbtClientAdapter", () => {
     expect(data?.serverState?.downloadSpeed).toBe(200)
   })
 
-  it("testConnection invalidates session, logs in fresh, and calls getTransferInfo", async () => {
+  // invalidateSession would also reset the torrent store, which sends the fleet
+  // to the cache until the next poll, so a test drops the session only.
+  it("testConnection drops the session, keeps the store, logs in fresh, and calls getTransferInfo", async () => {
+    vi.mocked(dropSessions).mockClear()
     vi.mocked(invalidateSession).mockClear()
     vi.mocked(login).mockClear()
     vi.mocked(getTransferInfo).mockClear()
 
     await adapter.testConnection()
 
-    expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080")
+    expect(dropSessions).toHaveBeenCalledWith("http://localhost:8080")
+    expect(invalidateSession).not.toHaveBeenCalled()
     expect(login).toHaveBeenCalledWith(
       "localhost",
       8080,
@@ -314,13 +320,13 @@ describe("QbtClientAdapter behind a URL path", () => {
     expect(vi.mocked(withSessionRetry).mock.calls[0]?.[5]).toBe("/proxy/qui-client-key")
   })
 
-  it("testConnection logs in under the path and invalidates the session it keys", async () => {
-    vi.mocked(invalidateSession).mockClear()
+  it("testConnection logs in under the path and drops the session it keys", async () => {
+    vi.mocked(dropSessions).mockClear()
     vi.mocked(login).mockClear()
 
     await adapter.testConnection()
 
-    expect(invalidateSession).toHaveBeenCalledWith("http://localhost:8080/proxy/qui-client-key")
+    expect(dropSessions).toHaveBeenCalledWith("http://localhost:8080/proxy/qui-client-key")
     expect(login).toHaveBeenCalledWith(
       "localhost",
       8080,

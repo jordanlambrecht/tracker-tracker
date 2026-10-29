@@ -3,7 +3,8 @@
 // Available functions:
 //   login                 - Authenticate with qBittorrent Web API, returns SID cookie
 //   getSession            - Return cached SID or perform a fresh login
-//   invalidateSession     - Remove a cached SID (i.e after 403)
+//   dropSessions          - Remove a host's cached SIDs, keeping its torrent store
+//   invalidateSession     - Remove a cached SID and reset the store (i.e after 403)
 //   clearAllSessions      - Remove all cached SIDs and auth blocks (called when the scheduler stops)
 //   withSessionRetry      - Run an operation with automatic session retry on expiry
 //   authHeaders           - Build the request headers for a QbtAuth value
@@ -99,11 +100,16 @@ export async function getSession(
  * only know the baseUrl, and a 403 from one row says nothing about which
  * credential pair is stale, so the sweep matches clearAuthBlocks.
  */
-export function invalidateSession(baseUrl: string): void {
+export function dropSessions(baseUrl: string): void {
   const prefix = `${baseUrl}\u0000`
   for (const key of sidCache.keys()) {
     if (key === baseUrl || key.startsWith(prefix)) sidCache.delete(key)
   }
+}
+
+/** dropSessions plus a torrent store reset, so the next sync starts from rid 0. */
+export function invalidateSession(baseUrl: string): void {
+  dropSessions(baseUrl)
   resetStore(baseUrl)
 }
 

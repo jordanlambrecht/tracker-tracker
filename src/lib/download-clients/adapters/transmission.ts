@@ -32,7 +32,8 @@ export class TransmissionClientAdapter implements ClientAdapter {
   async testConnection(): Promise<void> {
     // An explicit test always reaches the network: the fix may have been a
     // daemon restart or a settings change no credential comparison can see.
-    invalidateSessionId(this.baseUrl)
+    // The session id stays, since a stale one is renewed by the 409 handshake,
+    // and dropping it would also reset the torrent store.
     clearAuthBlocks(this.baseUrl)
     await testSession(this.baseUrl, this.creds)
   }

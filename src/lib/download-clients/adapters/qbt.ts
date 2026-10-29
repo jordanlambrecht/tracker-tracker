@@ -2,6 +2,7 @@
 
 import { mapQbtDelta, mapQbtTorrent } from "../field-map"
 import {
+  dropSessions,
   invalidateSession,
   login,
   type QbtAuth,
@@ -71,7 +72,9 @@ export class QbtClientAdapter implements ClientAdapter {
   }
 
   async testConnection(): Promise<void> {
-    invalidateSession(this.baseUrl)
+    // The torrent store stays valid across a new login, and resetting it would
+    // send the fleet to the cache until the next poll.
+    dropSessions(this.baseUrl)
     // An explicit user-initiated test must always reach the network: the fix
     // may have been on the qBittorrent side (enabling localhost bypass, a ban
     // expiring, or a key being re-issued), which no amount of credential

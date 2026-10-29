@@ -151,11 +151,14 @@ describe("TransmissionClientAdapter", () => {
     expect(result.map((t) => t.hash)).toEqual(["a"])
   })
 
-  it("clears the CSRF id and the auth blocks before an explicit connection test", async () => {
+  it("clears the auth blocks before an explicit connection test, keeping the store", async () => {
     // The fix may have been a daemon restart or a whitelist change, which no
-    // credential comparison can see, so the test must reach the network.
+    // credential comparison can see, so the test must reach the network. The
+    // session id stays: dropping it also resets the torrent store, which sends
+    // the fleet to the cache until the next poll.
+    vi.mocked(invalidateSessionId).mockClear()
     await adapter().testConnection()
-    expect(invalidateSessionId).toHaveBeenCalledWith("http://localhost:9091")
+    expect(invalidateSessionId).not.toHaveBeenCalled()
     expect(clearAuthBlocks).toHaveBeenCalledWith("http://localhost:9091")
     expect(vi.mocked(clearAuthBlocks).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(testSession).mock.invocationCallOrder[0]
