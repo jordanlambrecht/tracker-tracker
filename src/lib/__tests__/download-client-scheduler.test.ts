@@ -10,6 +10,7 @@
 
 import cron from "node-cron"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { markAppStopped, touchAppLiveness } from "@/lib/app-liveness"
 import { db } from "@/lib/db"
 import {
   deepPollClient,
@@ -108,6 +109,11 @@ vi.mock("@/lib/logger", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   },
+}))
+
+vi.mock("@/lib/app-liveness", () => ({
+  touchAppLiveness: vi.fn(async () => {}),
+  markAppStopped: vi.fn(async () => {}),
 }))
 
 // ---------------------------------------------------------------------------
@@ -1062,6 +1068,19 @@ describe("heartbeat failure logging", () => {
     mockDbUpdateClient()
   })
 
+  // A down client is still an app that is collecting. A stamp that skipped
+  // failed ticks would record every client outage as app downtime too.
+  it("stamps the app liveness ledger on every tick while the client is down", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    await heartbeatTick()
+    await heartbeatTick()
+
+    expect(vi.mocked(touchAppLiveness)).toHaveBeenCalledTimes(2)
+  })
+
   // The log gate wraps the log call only, never the poll, so no heartbeat is
   // skipped and no 5-minute uptime bucket gets a hole while a client is down.
   it("records every failed attempt for uptime while logging the outage once", async () => {
@@ -1617,6 +1636,7 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
     expect(vi.mocked(clearAllSessions)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(clearSpeedCache)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(clearUptimeAccumulator)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(markAppStopped)).toHaveBeenCalledTimes(1)
   })
 
   it("resolves instead of rejecting when the flush write fails", async () => {

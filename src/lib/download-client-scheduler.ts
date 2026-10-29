@@ -4,6 +4,7 @@
 //   heartbeat: lightweight (login + getTransferInfo, 2 requests). Runs every 5s.
 //             Stores upload/download speed in memory cache. Updates connection status.
 //             Records success/failure in uptime accumulator (5-min buckets).
+//             Stamps the app liveness ledger that app and tracker outage bands need.
 //   deep poll: heavy (login + syncMaindata delta, post-filter, aggregation).
 //             Runs on each client's configured pollIntervalSeconds.
 //             Stores full tagStats alongside speed data.
@@ -37,6 +38,7 @@
 
 import { eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
+import { markAppStopped, touchAppLiveness } from "@/lib/app-liveness"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -656,6 +658,9 @@ export function startClientScheduler(encryptionKey: Buffer): void {
     try {
       await heartbeatAllClients(encryptionKey)
       await flushCompletedBuckets()
+      // Without this stamp app_liveness stays empty, and the outage route draws
+      // neither app nor tracker bands.
+      await touchAppLiveness()
     } catch (error) {
       log.error(error, "Client heartbeat error")
     } finally {
@@ -699,14 +704,15 @@ export function startClientScheduler(encryptionKey: Buffer): void {
 }
 
 /**
- * Tears the scheduler down and resolves once the final uptime flush has landed.
+ * Tears the scheduler down and resolves once the final uptime flush and the
+ * stop mark are written.
  *
  * Every side effect runs synchronously before the single trailing await, so
  * both callers, which drop the promise, still get the full teardown. It never
  * rejects: an unhandled rejection takes the process down, so a flush failure is
  * logged and swallowed. No caller awaits it yet, so the SIGTERM handler in
- * scheduler.ts can exit before the flush lands. The in-progress 5-minute bucket
- * is never flushed and is lost on stop.
+ * scheduler.ts can exit before the flush or the stop mark is written. The
+ * in-progress 5-minute bucket is never flushed and is lost on stop.
  */
 export function stopClientScheduler(): Promise<void> {
   const hb = getHeartbeatTask()
@@ -729,13 +735,16 @@ export function stopClientScheduler(): Promise<void> {
   const flushed = flushCompletedBuckets().catch((err) => {
     log.warn(err, "Failed to flush uptime buckets during scheduler stop")
   })
+  // Dates the coming gap from this stop and labels it a shutdown. It logs its
+  // own failure and never rejects.
+  const marked = markAppStopped()
   clearUptimeAccumulator()
   clearFailureLogGate()
   getRefusedUntil().clear()
 
   // Must stay last. Anything placed after this await becomes a side effect the
   // fire-and-forget callers would silently lose.
-  return flushed.then(() => undefined)
+  return Promise.all([flushed, marked]).then(() => undefined)
 }
 
 /**

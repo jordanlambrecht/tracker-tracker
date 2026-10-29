@@ -325,12 +325,24 @@ describe("markAppStopped", () => {
   it("stamps both lastSeenAt and stoppedAt", async () => {
     seed({ liveness: [existingRow(new Date(T0 - 10_000))] })
 
+    await touchAppLiveness(T0 - 5_000)
+    calls = []
     await markAppStopped(T0)
 
     const values = updatedValues(appLiveness)
     expect(values).toHaveLength(1)
     expect((values[0].lastSeenAt as Date).getTime()).toBe(T0)
     expect((values[0].stoppedAt as Date).getTime()).toBe(T0)
+  })
+
+  it("writes nothing before the first touch has read the row", async () => {
+    // A stop before the first heartbeat tick. An unkeyed write would overwrite
+    // the previous run's lastSeenAt and hide the outage before this boot.
+    seed({ liveness: [existingRow(new Date(T0 - 45 * MINUTE))] })
+
+    await markAppStopped(T0)
+
+    expect(vi.mocked(db.update)).not.toHaveBeenCalled()
   })
 
   it("lets a later touch in the same process record the stall it caused", async () => {
@@ -349,6 +361,7 @@ describe("markAppStopped", () => {
 
   it("swallows a database failure rather than breaking shutdown", async () => {
     seed({ liveness: [existingRow(new Date(T0 - 10_000))] })
+    await touchAppLiveness(T0 - 5_000)
     vi.mocked(db.update).mockImplementation((() => {
       throw new Error("connection closed")
     }) as never)
