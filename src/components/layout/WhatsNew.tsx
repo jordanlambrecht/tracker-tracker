@@ -5,6 +5,7 @@
 import { H3, Paragraph, Subheader } from "@typography"
 import { useEffect, useState } from "react"
 import { Button, Dialog, Shimmer } from "@/components/ui"
+import { useRetentionPromptState } from "@/hooks/useRetentionPrompt"
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"
 const STORAGE_KEY = "lastSeenVersion"
@@ -13,13 +14,19 @@ export function WhatsNew() {
   const [open, setOpen] = useState(false)
   const [changes, setChanges] = useState<string[] | null>(null)
   const [lastSeen, setLastSeen] = useState<string | null>(null)
+  // Waits for the first-login retention prompt, or both modals stack and this
+  // one shows through it. A failed check never shows the prompt, so it doesn't
+  // hold this one back either.
+  const { data: retention, isError } = useRetentionPromptState()
+  const retentionPending = !isError && retention?.prompted !== true
 
   useEffect(() => {
+    if (retentionPending) return
     const seen = localStorage.getItem(STORAGE_KEY)
     if (seen === APP_VERSION) return
     setLastSeen(seen)
     setOpen(true)
-  }, [])
+  }, [retentionPending])
 
   useEffect(() => {
     if (!open) return

@@ -11,14 +11,20 @@
 // one parsed to zero items and the dialog silently fell back to the literal
 // string "Bug fixes and improvements." while 97 real entries sat unread.
 //
-// The last block parses the real CHANGELOG.md rather than a fixture, so a
-// future release written with a marker this parser cannot see fails here
+// The last parser block parses the real CHANGELOG.md rather than a fixture, so
+// a future release written with a marker this parser cannot see fails here
 // instead of shipping as generic filler.
+//
+// The final block covers the dialog's ordering on a first login: it waits for
+// the retention prompt, which would otherwise open at the same time beneath it.
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
-import { parseMissedReleases } from "./WhatsNew"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { act, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { RETENTION_PROMPT_KEY } from "@/hooks/useRetentionPrompt"
+import { parseMissedReleases, WhatsNew } from "./WhatsNew"
 
 // Mirrors the transform in src/app/api/changelog/route.ts, which strips the
 // version header links before the client ever sees the markdown.
@@ -100,5 +106,33 @@ describe("parseMissedReleases", () => {
     })
 
     expect(unreadable).toEqual([])
+  })
+})
+
+describe("WhatsNew", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    localStorage.clear()
+  })
+
+  it("opens only once the retention prompt is answered", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: "" }),
+    } as Response)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(RETENTION_PROMPT_KEY, { prompted: false })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WhatsNew />
+      </QueryClientProvider>
+    )
+    expect(screen.queryByText("What's New")).toBeNull()
+
+    act(() => {
+      queryClient.setQueryData(RETENTION_PROMPT_KEY, { prompted: true })
+    })
+    expect(await screen.findByText("What's New")).toBeInTheDocument()
   })
 })
