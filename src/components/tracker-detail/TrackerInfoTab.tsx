@@ -192,12 +192,12 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 <div
                   key={uc.name}
                   className={clsx(
-                    "flex items-start justify-between px-6 py-3.5",
+                    "flex items-center justify-between px-6 py-3.5",
                     i > 0 ? "border-t border-border" : ""
                   )}
                   style={isCurrent ? { backgroundColor: hexToRgba(tc, 0.08) } : undefined}
                 >
-                  <div className="flex items-center gap-3 pt-0.5">
+                  <div className="flex items-center gap-3">
                     <span
                       className={clsx(
                         "text-sm font-mono min-w-35",
