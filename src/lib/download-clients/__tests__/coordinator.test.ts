@@ -1035,11 +1035,29 @@ describe("fetchFleetAggregation", () => {
     expect(mergeTorrentLists).toHaveBeenCalledWith([])
   })
 
-  it("should report clientErrors when a client with cachedTorrentsAt returns 0 torrents", async () => {
+  // A client with no tracked torrents yet is not broken, so neither a fresh
+  // empty store nor an empty cached list may raise the corrupt-cache error.
+  it("reports no clientErrors for a fresh store with no tracked torrents", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
     setupDbReturns([[makeCachedClient()], [makeTracker()]])
+
+    const result = await fetchFleetAggregation(makeKey())
+
+    expect(result.clientErrors).toEqual([])
+  })
+
+  it("reports no clientErrors for a cold store whose cache is an empty list", async () => {
+    setupDbReturns([[makeCachedClient()], [makeTracker()], [{ cachedTorrents: [] }]])
+
+    const result = await fetchFleetAggregation(makeKey())
+
+    expect(result.clientErrors).toEqual([])
+  })
+
+  it("reports clientErrors for a cold store whose cache won't parse", async () => {
+    setupDbReturns([[makeCachedClient()], [makeTracker()], [{ cachedTorrents: "{not json" }]])
 
     const result = await fetchFleetAggregation(makeKey())
 

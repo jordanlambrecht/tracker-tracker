@@ -301,6 +301,9 @@ export async function fetchFleetAggregation(
       )
     }
     let torrents: TorrentRecord[] | SlimTorrent[]
+    // A fresh store or an empty cached list is a client with no tracked
+    // torrents yet. Only a cache that is missing or won't parse is an error.
+    let cacheUnreadable = false
 
     if (baseUrl !== null && isStoreFresh(baseUrl, STORE_MAX_AGE_MS)) {
       torrents = getFilteredTorrents(baseUrl, tagPredicate).map(slimTorrentForCache)
@@ -310,12 +313,15 @@ export async function fetchFleetAggregation(
         .from(downloadClients)
         .where(eq(downloadClients.id, client.id))
         .limit(1)
-      torrents = row ? parseCachedTorrents(row.cachedTorrents) : []
+      const raw = row?.cachedTorrents
+      torrents = row ? parseCachedTorrents(raw) : []
+      const emptyList = (Array.isArray(raw) && raw.length === 0) || raw === "[]"
+      cacheUnreadable = torrents.length === 0 && !emptyList
     }
 
     if (torrents.length === 0) {
       // A client whose path did not decrypt was reported above, once.
-      if (client.cachedTorrentsAt && baseUrl !== null) {
+      if (cacheUnreadable && client.cachedTorrentsAt && baseUrl !== null) {
         clientErrors.push(`${client.name}: cached data unavailable or corrupt`)
       }
       continue
