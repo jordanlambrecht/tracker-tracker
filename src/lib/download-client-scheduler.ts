@@ -1,11 +1,11 @@
 // src/lib/download-client-scheduler.ts
 //
 // Two polling loops with different cadences:
-//   heartbeat: lightweight (login + getTransferInfo, 2 requests). Runs every 5s.
+//   heartbeat: lightweight (getTransferInfo, usually one request). Runs every 5s.
 //             Stores upload/download speed in memory cache. Updates connection status.
 //             Records success/failure in uptime accumulator (5-min buckets).
 //             Stamps the app liveness ledger that app and tracker outage bands need.
-//   deep poll: heavy (login + syncMaindata delta, post-filter, aggregation).
+//   deep poll: heavy (torrent list or sync delta, post-filter, aggregation).
 //             Runs on each client's configured pollIntervalSeconds.
 //             Stores full tagStats alongside speed data.
 //
