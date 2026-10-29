@@ -1081,6 +1081,50 @@ describe("heartbeat failure logging", () => {
     expect(vi.mocked(touchAppLiveness)).toHaveBeenCalledTimes(2)
   })
 
+  // A host waiting out its timeout used to hold the tick, so every other client
+  // skipped ticks and its speed samples thinned from 5s to 15 or 20s apart.
+  it("keeps heartbeating the other clients while one host hangs", async () => {
+    const IDLE = { uploadSpeed: 0, downloadSpeed: 0 }
+    const hangA = Promise.withResolvers<typeof IDLE>()
+    // A answers the start run, then hangs from the first tick on.
+    const adapterA = {
+      ...mockAdapter,
+      getTransferInfo: vi.fn().mockResolvedValueOnce(IDLE).mockReturnValue(hangA.promise),
+    }
+    const adapterB = { ...mockAdapter, getTransferInfo: vi.fn().mockResolvedValue(IDLE) }
+    const rowB = { ...HEARTBEAT_ROW, id: 2, name: "Qbittorrent - NAS" }
+    vi.mocked(createAdapterForClient).mockImplementation((client) =>
+      client.name === rowB.name ? adapterB : adapterA
+    )
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        const isHeartbeat = "encryptedUsername" in cols && !("pollIntervalSeconds" in cols)
+        const where = vi.fn().mockResolvedValue(isHeartbeat ? [heartbeatRow, rowB] : [])
+        return { from: vi.fn().mockReturnValue({ where }) }
+      }
+    )
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    adapterA.getTransferInfo.mockClear()
+    adapterB.getTransferInfo.mockClear()
+
+    await heartbeatTick()
+    await flushAsync()
+    await heartbeatTick()
+    await flushAsync()
+
+    expect(adapterB.getTransferInfo).toHaveBeenCalledTimes(2)
+    expect(adapterA.getTransferInfo).toHaveBeenCalledTimes(1)
+
+    hangA.resolve(IDLE)
+    await flushAsync()
+    await heartbeatTick()
+
+    expect(adapterA.getTransferInfo).toHaveBeenCalledTimes(2)
+  })
+
   // The log gate wraps the log call only, never the poll, so no heartbeat is
   // skipped and no 5-minute uptime bucket gets a hole while a client is down.
   it("records every failed attempt for uptime while logging the outage once", async () => {

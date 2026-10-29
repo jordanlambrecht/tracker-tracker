@@ -5,6 +5,7 @@
 //             Stores upload/download speed in memory cache. Updates connection status.
 //             Records success/failure in uptime accumulator (5-min buckets).
 //             Stamps the app liveness ledger that app and tracker outage bands need.
+//             A slow host skips only its own ticks, never another client's.
 //   deep poll: heavy (torrent list or sync delta, post-filter, aggregation).
 //             Runs on each client's configured pollIntervalSeconds.
 //             Stores full tagStats alongside speed data.
@@ -110,6 +111,7 @@ const g = globalThis as typeof globalThis & {
   __deepPollInFlight?: boolean
   __lastPruneAt?: number
   __deepPollRefusedUntil?: Map<number, number>
+  __heartbeatsInFlight?: Set<number>
 }
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000
 
@@ -122,6 +124,12 @@ const PRUNE_INTERVAL_MS = 60 * 60 * 1000
 function getRefusedUntil(): Map<number, number> {
   if (!g.__deepPollRefusedUntil) g.__deepPollRefusedUntil = new Map()
   return g.__deepPollRefusedUntil
+}
+
+/** Clients whose heartbeat is still running, by clientId. Lazy for the same HMR reason. */
+function getHeartbeatsInFlight(): Set<number> {
+  if (!g.__heartbeatsInFlight) g.__heartbeatsInFlight = new Set()
+  return g.__heartbeatsInFlight
 }
 
 function getHeartbeatTask(): ScheduledTask | null {
@@ -271,7 +279,17 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 
   if (allClients.length === 0) return
 
-  await Promise.allSettled(allClients.map((c) => heartbeatClient(c, encryptionKey)))
+  // Not awaited, or one host waiting out its timeout holds every client's tick.
+  const inFlight = getHeartbeatsInFlight()
+  for (const c of allClients) {
+    if (inFlight.has(c.id)) continue
+    inFlight.add(c.id)
+    heartbeatClient(c, encryptionKey)
+      .finally(() => inFlight.delete(c.id))
+      .catch((error) => {
+        log.error(error, `Heartbeat error for client ${c.id}`)
+      })
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -653,6 +671,7 @@ export function startClientScheduler(encryptionKey: Buffer): void {
 
   // Heartbeat: every 5 seconds
   const hbTask = cron.schedule("*/5 * * * * *", async () => {
+    // Latches the tick's own work. The heartbeats it starts run past it.
     if (g.__heartbeatInFlight) return
     g.__heartbeatInFlight = true
     try {
@@ -741,6 +760,7 @@ export function stopClientScheduler(): Promise<void> {
   clearUptimeAccumulator()
   clearFailureLogGate()
   getRefusedUntil().clear()
+  getHeartbeatsInFlight().clear()
 
   // Must stay last. Anything placed after this await becomes a side effect the
   // fire-and-forget callers would silently lose.
