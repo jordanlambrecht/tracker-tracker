@@ -166,6 +166,7 @@ export function getSeedTimeBuckets(accentColor?: string): Bucket[] {
 export interface FleetStats {
   totalSeeding: number
   totalLeeching: number
+  totalInactive: number
   fleetUploadSpeed: number
   fleetDownloadSpeed: number
   totalLibrarySize: number
@@ -173,18 +174,14 @@ export interface FleetStats {
   staleCount: number
 }
 
-export const SEEDING_STATES = new Set([
-  "uploading",
-  "stalledUP",
-  "forcedUP",
-  "queuedUP",
-  "pausedUP",
-])
+// Running states only. Queued, paused (qBT 4.x), stopped (5.x), checking, error
+// and any state qBT adds later fall in neither set and count as inactive.
+export const SEEDING_STATES = new Set(["uploading", "stalledUP", "forcedUP"])
 export const LEECHING_STATES = new Set([
   "downloading",
   "stalledDL",
   "forcedDL",
-  "queuedDL",
   "metaDL",
+  "forcedMetaDL",
 ])
 export const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000

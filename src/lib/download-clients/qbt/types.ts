@@ -4,7 +4,7 @@
 export interface QbtTorrent {
   hash: string
   name: string
-  state: string // "uploading", "stalledUP", "downloading", "stalledDL", "pausedUP", "pausedDL", etc.
+  state: string // "uploading", "stalledUP", "downloading", "stalledDL", "stoppedUP", "stoppedDL", etc.
   tags: string // comma-separated, i.e "aither, cross-seed"
   category: string
   upspeed: number // bytes/sec

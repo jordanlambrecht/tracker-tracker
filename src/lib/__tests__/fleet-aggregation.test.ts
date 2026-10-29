@@ -156,6 +156,7 @@ describe("computeFleetAggregation", () => {
       expect(result.stats.torrentCount).toBe(0)
       expect(result.stats.totalSeeding).toBe(0)
       expect(result.stats.totalLeeching).toBe(0)
+      expect(result.stats.totalInactive).toBe(0)
       expect(result.stats.fleetUploadSpeed).toBe(0)
       expect(result.stats.fleetDownloadSpeed).toBe(0)
       expect(result.stats.totalLibrarySize).toBe(0)
@@ -297,6 +298,28 @@ describe("computeFleetAggregation", () => {
       const result = computeFleetAggregation(ALL_TORRENTS, TRACKER_TAGS, CROSS_SEED_TAGS)
       expect(result.stats.totalSeeding).toBe(5)
       expect(result.stats.totalLeeching).toBe(1)
+      expect(result.stats.totalInactive).toBe(0)
+    })
+
+    it("counts a stopped torrent as inactive, not seeding or leeching", () => {
+      // qBT 5.x reports a stopped seed as stoppedUP. It used to fall through to leeching.
+      const stopped = makeTorrent({ hash: "stopped1", state: "stoppedUP", uploadSpeed: 0 })
+      const result = computeFleetAggregation([T1, T3, stopped], TRACKER_TAGS, CROSS_SEED_TAGS)
+      expect(result.stats.totalSeeding).toBe(1)
+      expect(result.stats.totalLeeching).toBe(1)
+      expect(result.stats.totalInactive).toBe(1)
+    })
+
+    it("splits every torrent into exactly one of seeding, leeching or inactive", () => {
+      const inactive = ["stoppedUP", "pausedDL", "queuedUP", "checkingUP", "error"].map(
+        (state, i) => makeTorrent({ hash: `inactive${i}`, state, uploadSpeed: 0 })
+      )
+      const torrents = [...ALL_TORRENTS, ...inactive]
+      const { stats } = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS)
+      expect(stats.totalInactive).toBe(inactive.length)
+      expect(stats.totalSeeding + stats.totalLeeching + stats.totalInactive).toBe(
+        stats.torrentCount
+      )
     })
 
     it("sums upload and download speeds", () => {

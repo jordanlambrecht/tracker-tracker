@@ -174,7 +174,7 @@ export function TorrentStatCards({
           icon={ICONS.warning}
           tooltip={
             unsatisfiedCount != null
-              ? `${unsatisfiedCount} unsatisfied total, ${hnrRiskCount} stopped/paused (actual risk)`
+              ? `${unsatisfiedCount} unsatisfied total, ${hnrRiskCount} not running (actual risk)`
               : undefined
           }
         />
