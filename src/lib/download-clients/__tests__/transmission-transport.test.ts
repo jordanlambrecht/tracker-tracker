@@ -10,7 +10,7 @@ import {
   invalidateSessionId,
   testSession,
 } from "../transmission/transport"
-import { clearAuthBlocks } from "../transport"
+import { clearAuthBlocks, isResponseTooLarge } from "../transport"
 import type { ClientCredentials } from "../types"
 
 const BASE = "http://transmission.local:9091"
@@ -266,6 +266,8 @@ describe("the response body cap", () => {
     expect(err?.message).toBe(
       `Transmission returned an oversized response (Response from transmission.local exceeded ${TRANSMISSION_RESPONSE_MAX_BYTES} bytes and was refused)`
     )
+    // The scheduler backs off on a size refusal. Rewording it must not hide it.
+    expect(isResponseTooLarge(err)).toBe(true)
   })
 
   it("fits a full torrent-get of the largest library the sync store holds", () => {

@@ -60,6 +60,7 @@ import {
   slimTorrentForCache,
 } from "@/lib/download-clients"
 import type { SyncStoreRefusal } from "@/lib/download-clients/sync-store"
+import { isResponseTooLarge } from "@/lib/download-clients/transport"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   clearFailureLogGate,
@@ -512,9 +513,10 @@ export async function deepPollClient(
     // reported, and its message is already worded for the user. The sanitizer
     // has no rule for it, and its fallback means the host never answered.
     const message = refusal ? raw : sanitizeNetworkError(raw)
-    // A refused client waits its interval: the library will not shrink in 30s.
-    // Network failures keep the fast retry.
-    if (refusal && client) {
+    // A client refused by the store or by the response cap waits its interval:
+    // neither a library nor an oversized body changes in 30s. Network failures
+    // keep the fast retry.
+    if ((refusal || isResponseTooLarge(error)) && client) {
       getRefusedUntil().set(clientId, Date.now() + client.pollIntervalSeconds * 1000)
     }
     // Keyed on the clientId parameter, which is always defined. The row lookup

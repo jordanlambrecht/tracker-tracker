@@ -12,7 +12,7 @@ import {
   login,
   withSessionRetry,
 } from "@/lib/download-clients/qbt/transport"
-import { clearAuthBlocks } from "@/lib/download-clients/transport"
+import { clearAuthBlocks, isResponseTooLarge } from "@/lib/download-clients/transport"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { QBT_RESPONSE_MAX_BYTES, SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
 
@@ -296,6 +296,8 @@ describe("the response body cap", () => {
     expect(err?.message).toBe(
       `Response from qbt.local exceeded ${QBT_RESPONSE_MAX_BYTES} bytes and was refused`
     )
+    // The scheduler backs off on a size refusal, so a later wrapper must keep it.
+    expect(isResponseTooLarge(err)).toBe(true)
   })
 
   it("fits a full sync of the largest library the sync store holds", () => {

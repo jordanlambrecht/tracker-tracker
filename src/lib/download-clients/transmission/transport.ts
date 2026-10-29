@@ -185,7 +185,7 @@ async function rpcCall<T>(
     // A proxy route answering with an HTML page is the usual cause.
     if (err instanceof SyntaxError) throw new Error(`${UNEXPECTED}: the body was not JSON`)
     // Reworded so the card names Transmission, with the host and cap kept for the log.
-    if (isResponseTooLarge(err)) throw new Error(`${OVERSIZED} (${err.message})`)
+    if (isResponseTooLarge(err)) throw new Error(`${OVERSIZED} (${err.message})`, { cause: err })
     throw err
   }
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
