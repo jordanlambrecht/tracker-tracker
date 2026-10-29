@@ -79,7 +79,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.qbtTag === "string") {
-    const qbtTagErr = validateMaxLength(body.qbtTag, TRACKER_TAG_MAX, "qBittorrent tag")
+    const qbtTagErr = validateMaxLength(body.qbtTag, TRACKER_TAG_MAX, "Client tag")
     if (qbtTagErr) return qbtTagErr
     updates.qbtTag = body.qbtTag.trim() || null
   }

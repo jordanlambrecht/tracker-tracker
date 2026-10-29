@@ -25,7 +25,12 @@ import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
 // Imported from the module rather than the barrel: the barrel pulls in
 // credentials.ts, which is "server-only".
-import type { AuthMethod } from "@/lib/download-clients/types"
+import {
+  type AuthMethod,
+  type ClientType,
+  clientSupportsApiKey,
+  DEFAULT_CLIENT_PORTS,
+} from "@/lib/download-clients/types"
 import { formatTimeAgo } from "@/lib/formatters"
 import { PORT_MAX, PORT_MIN } from "@/lib/limits"
 import { clientQueryOptions } from "@/lib/query-options"
@@ -35,7 +40,6 @@ import type { SafeDownloadClient } from "@/types/api"
 // Types
 // ---------------------------------------------------------------------------
 
-type ClientType = "qbittorrent" | "deluge" | "transmission" | "rtorrent"
 type DownloadClient = SafeDownloadClient
 
 const BLANK_CREDENTIALS_HINT =
@@ -48,9 +52,24 @@ const API_KEY_HINT =
   "Generate one in qBittorrent under Options → Web UI → API keys. Requires qBittorrent 5.2.0 " +
   "or newer."
 
-const URL_PATH_HINT =
-  "For a reverse proxy that serves qBittorrent under a path, or Qui's client proxy. Always " +
-  "stored encrypted."
+const TRANSMISSION_CREDENTIALS_HINT =
+  'Leave both blank if Transmission has "rpc-authentication-required" set to false. Transmission ' +
+  "has no API-key authentication, so username and password is the only method offered here."
+
+const URL_PATH_HINTS: Record<ClientType, string> = {
+  qbittorrent:
+    "For a reverse proxy that serves qBittorrent under a path, or Qui's client proxy. Always " +
+    "stored encrypted.",
+  // transport.ts rpcEndpoint: the path takes the place of /transmission.
+  transmission:
+    "Replaces Transmission's default /transmission path, for a custom rpc-url or a reverse " +
+    "proxy. /rpc is added after it. Always stored encrypted.",
+}
+
+const URL_PATH_PLACEHOLDERS: Record<ClientType, string> = {
+  qbittorrent: "/proxy/<client API key>",
+  transmission: "/transmission",
+}
 
 const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
   { value: "password", label: "Username & Password" },
@@ -63,6 +82,7 @@ const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [
  * drift; they already disagree on state names, which is enough difference.
  */
 function CredentialFields({
+  clientType,
   authMethod,
   onAuthMethodChange,
   username,
@@ -72,6 +92,7 @@ function CredentialFields({
   apiKey,
   onApiKeyChange,
 }: {
+  clientType: ClientType
   authMethod: AuthMethod
   onAuthMethodChange: (value: AuthMethod) => void
   username: string
@@ -81,18 +102,24 @@ function CredentialFields({
   apiKey: string
   onApiKeyChange: (value: string) => void
 }) {
+  // Hidden rather than shown with one option. Both callers start these types on
+  // "password", so the API-key fields never show for them.
+  const supportsApiKey = clientSupportsApiKey(clientType)
+
   return (
     <>
-      <div className="w-full sm:w-64">
-        <Select
-          label="Auth Method"
-          value={authMethod}
-          onChange={(v) => onAuthMethodChange(v as AuthMethod)}
-          ariaLabel="Authentication method"
-          size="md"
-          options={AUTH_METHOD_OPTIONS}
-        />
-      </div>
+      {supportsApiKey && (
+        <div className="w-full sm:w-64">
+          <Select
+            label="Auth Method"
+            value={authMethod}
+            onChange={(v) => onAuthMethodChange(v as AuthMethod)}
+            ariaLabel="Authentication method"
+            size="md"
+            options={AUTH_METHOD_OPTIONS}
+          />
+        </div>
+      )}
       {authMethod === "password" ? (
         <>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -120,7 +147,9 @@ function CredentialFields({
               />
             </div>
           </div>
-          <Subtext>{BLANK_CREDENTIALS_HINT}</Subtext>
+          <Subtext>
+            {supportsApiKey ? BLANK_CREDENTIALS_HINT : TRANSMISSION_CREDENTIALS_HINT}
+          </Subtext>
         </>
       ) : (
         <>
@@ -142,7 +171,15 @@ function CredentialFields({
 }
 
 /** The URL path input, shared by both forms for the same reason as CredentialFields. */
-function UrlPathField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function UrlPathField({
+  clientType,
+  value,
+  onChange,
+}: {
+  clientType: ClientType
+  value: string
+  onChange: (value: string) => void
+}) {
   return (
     <>
       <Input
@@ -150,22 +187,30 @@ function UrlPathField({ value, onChange }: { value: string; onChange: (value: st
         label="URL Path (optional)"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="/proxy/<client API key>"
+        placeholder={URL_PATH_PLACEHOLDERS[clientType]}
         name="client-url-path"
         autoComplete="off"
         data-1p-ignore
       />
-      <Subtext>{URL_PATH_HINT}</Subtext>
+      <Subtext>{URL_PATH_HINTS[clientType]}</Subtext>
     </>
   )
 }
 
-const CLIENT_TYPE_OPTIONS: { value: ClientType; label: string; disabled?: boolean }[] = [
+const CLIENT_TYPE_OPTIONS: {
+  value: ClientType | "deluge" | "rtorrent"
+  label: string
+  disabled?: boolean
+}[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
-  { value: "transmission", label: "Transmission (coming soon)", disabled: true },
+  { value: "transmission", label: "Transmission" },
   { value: "rtorrent", label: "rTorrent (coming soon)", disabled: true },
 ]
+
+function clientTypeLabel(type: string): string | undefined {
+  return CLIENT_TYPE_OPTIONS.find((o) => o.value === type)?.label
+}
 
 // ---------------------------------------------------------------------------
 // ClientCard
@@ -181,7 +226,6 @@ interface ClientCardProps {
 /** Fields tracked for dirty detection (excludes transient fields like lastPolledAt). */
 const DRAFT_KEYS: (keyof DownloadClient)[] = [
   "name",
-  "type",
   "enabled",
   "host",
   "port",
@@ -228,8 +272,10 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
 
   // Credential change state. Show inputs for new clients (no creds yet) or after "Change"
   const [changingCredentials, setChangingCredentials] = useState(!client.hasCredentials)
+  // A restored backup can carry "apikey" on a type without key login, which the
+  // card could then neither show a picker for nor save.
   const [authMethod, setAuthMethod] = useState<AuthMethod>(
-    client.authMethod === "apikey" ? "apikey" : "password"
+    client.authMethod === "apikey" && clientSupportsApiKey(client.type) ? "apikey" : "password"
   )
   const [newUsername, setNewUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -356,7 +402,7 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
           </div>
         </div>
       }
-      trailing={CLIENT_TYPE_OPTIONS.find((o) => o.value === client.type)?.label}
+      trailing={clientTypeLabel(client.type)}
       subheader={
         uptimeData ? (
           <div className="px-5 pb-3">
@@ -365,24 +411,14 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
         ) : undefined
       }
     >
-      {/* Row 1: Name + Type + Enabled */}
+      {/* Row 1: Name. The type is fixed at creation and shows in the header. */}
       <div className="form-responsive-row pt-5">
         <div className="flex-1">
           <Input
             label="Name"
             value={draft.name}
             onChange={(e) => updateDraft({ name: e.target.value })}
-            placeholder="My qBittorrent"
-          />
-        </div>
-        <div className="w-full sm:w-40">
-          <Select
-            label="Type"
-            value={draft.type}
-            onChange={(v) => updateDraft({ type: v as ClientType })}
-            ariaLabel="Client type"
-            size="md"
-            options={CLIENT_TYPE_OPTIONS}
+            placeholder={`My ${clientTypeLabel(client.type) ?? "client"}`}
           />
         </div>
       </div>
@@ -443,6 +479,7 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
         {changingCredentials ? (
           <div className="flex flex-col gap-3">
             <CredentialFields
+              clientType={client.type as ClientType}
               authMethod={authMethod}
               onAuthMethodChange={setAuthMethod}
               username={newUsername}
@@ -492,7 +529,11 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
       <div className="flex flex-col gap-2">
         {changingUrlPath ? (
           <div className="flex flex-col gap-3">
-            <UrlPathField value={newUrlPath} onChange={setNewUrlPath} />
+            <UrlPathField
+              clientType={client.type as ClientType}
+              value={newUrlPath}
+              onChange={setNewUrlPath}
+            />
             <div className="flex items-center gap-2">
               {/* Saving a blank would clear the saved path, which only Remove does. */}
               <Button
@@ -696,8 +737,9 @@ function AddClientForm({
   isFirst: boolean
 }) {
   const [name, setName] = useState("New Client")
+  const [type, setType] = useState<ClientType>("qbittorrent")
   const [host, setHost] = useState("localhost")
-  const [port, setPort] = useState(8080)
+  const [port, setPort] = useState(DEFAULT_CLIENT_PORTS.qbittorrent)
   const [authMethod, setAuthMethod] = useState<AuthMethod>("password")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -713,6 +755,13 @@ function AddClientForm({
   const canSubmit =
     name.trim() && host.trim() && (authMethod === "password" || apiKey.trim().length > 0)
 
+  function handleTypeChange(next: ClientType) {
+    // The port follows the type until the user edits it, as in ProxySection.
+    if (port === DEFAULT_CLIENT_PORTS[type]) setPort(DEFAULT_CLIENT_PORTS[next])
+    if (!clientSupportsApiKey(next)) setAuthMethod("password")
+    setType(next)
+  }
+
   async function handleSubmit() {
     if (!canSubmit) return
     setSaving(true)
@@ -727,6 +776,7 @@ function AddClientForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          type,
           host: host.trim(),
           port,
           ...credentials,
@@ -756,22 +806,33 @@ function AddClientForm({
             label="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="My qBittorrent"
+            placeholder={`My ${clientTypeLabel(type)}`}
           />
         </div>
-        <div className="flex flex-row gap-4 items-end">
-          <div className="flex-1 sm:flex-none sm:w-40">
-            <Input
-              label="Host"
-              value={host}
-              onChange={(e) => setHost(e.target.value)}
-              placeholder="localhost"
-            />
-          </div>
-          <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
+        <div className="w-full sm:w-40">
+          <Select
+            label="Type"
+            value={type}
+            onChange={(v) => handleTypeChange(v as ClientType)}
+            ariaLabel="Client type"
+            size="md"
+            options={CLIENT_TYPE_OPTIONS}
+          />
         </div>
       </div>
+      <div className="form-responsive-row">
+        <div className="flex-1">
+          <Input
+            label="Host"
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            placeholder="localhost"
+          />
+        </div>
+        <NumberInput label="Port" value={port} onChange={setPort} min={PORT_MIN} max={PORT_MAX} />
+      </div>
       <CredentialFields
+        clientType={type}
         authMethod={authMethod}
         onAuthMethodChange={setAuthMethod}
         username={username}
@@ -781,7 +842,7 @@ function AddClientForm({
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
       />
-      <UrlPathField value={urlPath} onChange={setUrlPath} />
+      <UrlPathField clientType={type} value={urlPath} onChange={setUrlPath} />
       <Notice message={error} />
       <div className="flex items-center gap-3">
         <Button

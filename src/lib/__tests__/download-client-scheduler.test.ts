@@ -29,6 +29,7 @@ import {
   replaceStoreTorrents,
 } from "@/lib/download-clients"
 import type { SyncStoreRefusal } from "@/lib/download-clients/sync-store"
+import { readCappedText } from "@/lib/download-clients/transport"
 import { clearFailureLogGate } from "@/lib/failure-log-gate"
 import { log } from "@/lib/logger"
 import { createTrackedTorrentPredicate } from "@/lib/tracker-matching"
@@ -1772,5 +1773,85 @@ describe("deep poll backs off after a sync store refusal", () => {
     await vi.advanceTimersByTimeAsync(0)
 
     expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  /** A real refusal from the shared reader, which keeps its error class private. */
+  async function sizeRefusal(): Promise<Error> {
+    return (await readCappedText(new Response("x".repeat(11)), "client.local", 10).catch(
+      (e: unknown) => e
+    )) as Error
+  }
+
+  // The response cap refuses a library before the store sees it, so the same
+  // wait applies. A first qBittorrent sync is where it bites.
+  it("waits the interval after an oversized delta sync", async () => {
+    mockAdapter.getDeltaSync.mockRejectedValue(await sizeRefusal())
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTickAt(30_000)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    await deepPollTickAt(INTERVAL_S * 1000)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  describe("for a client without delta sync", () => {
+    beforeEach(() => {
+      vi.mocked(createAdapterForClient).mockReturnValue({
+        ...mockAdapter,
+        type: "transmission",
+        getDeltaSync: undefined,
+      })
+    })
+
+    it.each([
+      [
+        "a store refusal",
+        () => {
+          mockAdapter.getTorrents.mockResolvedValue([])
+          vi.mocked(replaceStoreTorrents).mockReturnValue({
+            held: 0,
+            projected: 120_000,
+            cap: 100_000,
+          })
+        },
+      ],
+      [
+        "an oversized response reworded by the transport",
+        async () => {
+          const reworded = new Error("Transmission returned an oversized response", {
+            cause: await sizeRefusal(),
+          })
+          mockAdapter.getTorrents.mockRejectedValue(reworded)
+        },
+      ],
+    ])("waits the interval after %s", async (_case, arrange) => {
+      await arrange()
+
+      startClientScheduler(makeEncryptionKey())
+      await vi.advanceTimersByTimeAsync(0)
+      await deepPollTickAt(30_000)
+      expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
+
+      await deepPollTickAt(INTERVAL_S * 1000)
+      expect(mockAdapter.getTorrents).toHaveBeenCalledTimes(2)
+    })
+
+    // Wrapped network errors carry a cause too. Only a size refusal may slow
+    // the retry down.
+    it("keeps the fast retry for a failure caused by something else", async () => {
+      mockAdapter.getTorrents.mockRejectedValue(
+        new Error("Failed to connect to transmission.local", {
+          cause: new Error("connect ECONNREFUSED"),
+        })
+      )
+
+      startClientScheduler(makeEncryptionKey())
+      await vi.advanceTimersByTimeAsync(0)
+      await deepPollTickAt(30_000)
+
+      expect(mockAdapter.getTorrents).toHaveBeenCalledTimes(2)
+    })
   })
 })

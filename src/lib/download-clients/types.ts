@@ -1,8 +1,19 @@
 // src/lib/download-clients/types.ts
 
-export const VALID_CLIENT_TYPES = ["qbittorrent"] as const
+export const VALID_CLIENT_TYPES = ["qbittorrent", "transmission"] as const
 
 export type ClientType = (typeof VALID_CLIENT_TYPES)[number]
+
+/** The port each client's web API listens on out of the box. */
+export const DEFAULT_CLIENT_PORTS: Record<ClientType, number> = {
+  qbittorrent: 8080,
+  transmission: 9091,
+}
+
+/** Transmission's RPC takes HTTP Basic and nothing else. */
+export function clientSupportsApiKey(type: string): boolean {
+  return type === "qbittorrent"
+}
 
 export const VALID_AUTH_METHODS = ["password", "apikey"] as const
 
@@ -25,13 +36,15 @@ export interface TorrentRecord {
   downloadSpeed: number // bytes/sec
   uploaded: number // total bytes uploaded
   downloaded: number // total bytes downloaded
+  // -1 means infinite: uploaded with nothing downloaded and no pieces held.
+  // Adapters map their own infinity to -1 and any not-applicable value to 0.
   ratio: number
   size: number // bytes
   seedCount: number // connected seeds
   leechCount: number // connected leechers
-  swarmSeeders: number // total seeders in swarm
-  swarmLeechers: number // total leechers in swarm
-  tracker: string // primary tracker URL
+  swarmSeeders: number // total seeders in swarm; connected ones only for Transmission
+  swarmLeechers: number // total leechers in swarm; connected ones only for Transmission
+  tracker: string // announce URL (qBittorrent) or announce host (Transmission)
   addedAt: number // unix timestamp. When torrent was added
   completedAt: number // unix timestamp. When download completed (-1 if incomplete)
   lastActivityAt: number // unix timestamp. Last transfer activity

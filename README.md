@@ -14,7 +14,7 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 
 - Per-tracker and fleet-wide stats with 30+ charts
 - UNIT3D, Gazelle, GGn, Nebulance, MAM, and AvistaZ network support out of the box
-- qBittorrent integration - cross-seed tracking, activity heatmaps, speed history, etc
+- qBittorrent and Transmission integration - cross-seed tracking, activity heatmaps, speed history, etc
 - Prowlarr integration - shows each tracker's indexer status and stats from one or more Prowlarr instances
 - Everything stays on your machine. No telemetry, no phoning home.
 
@@ -99,8 +99,8 @@ You can check out a few other, longer, screenshots in the docs folder.
 | Client       | Status       | Notes                                                                |
 | ------------ | ------------ | -------------------------------------------------------------------- |
 | qBittorrent  | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history |
+| Transmission | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history |
 | Deluge       | 📋 Planned   |                                                                      |
-| Transmission | 📋 Planned   |                                                                      |
 | rTorrent     | 📋 Planned   |                                                                      |
 
 ## Quick Start
@@ -234,7 +234,7 @@ Covers installation, tracker setup (UNIT3D, Gazelle, GGn, MAM, AvistaZ), feature
 PRs welcome. Areas where help matters most:
 
 - **New trackers & missing data**: copy [`src/data/trackers/_template.ts`](src/data/trackers/_template.ts), fill in what you know, and submit a PR. Partial entries are fine. Set `draft: true` and CI will accept it. Filling in user classes, rules, release groups, and banned groups on existing trackers is just as valuable. [Adding a Tracker](https://jordanlambrecht.github.io/tracker-tracker/contributing/adding-a-tracker/) has the full guide, including when to include a redacted API response.
-- **Download client adapters**: only qBittorrent is supported. Deluge, Transmission, and rTorrent all need adapters. See `src/lib/download-clients/adapters/qbt.ts` for the pattern.
+- **Download client adapters**: qBittorrent and Transmission are supported. Deluge and rTorrent still need adapters. See `src/lib/download-clients/` for the pattern: an adapter under `adapters/`, its transport in a sibling folder, and one `case` in `factory.ts`.
 - **Tracker verification**: if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
 - **Security auditing**: check out SECURITY.md for threat surfice info.
 - **Responsiveness** - I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated

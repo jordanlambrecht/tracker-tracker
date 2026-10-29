@@ -92,7 +92,7 @@ export async function POST(request: Request) {
   }
 
   if (typeof qbtTag === "string") {
-    const qbtTagErr = validateMaxLength(qbtTag, TRACKER_TAG_MAX, "qBittorrent tag")
+    const qbtTagErr = validateMaxLength(qbtTag, TRACKER_TAG_MAX, "Client tag")
     if (qbtTagErr) return qbtTagErr
   }
 

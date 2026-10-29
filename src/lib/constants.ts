@@ -53,7 +53,7 @@ export const DOCS = {
   },
   TAG_GROUPS: {
     href: `${DOCS_URL}/features/tag-groups/`,
-    description: "Bundle qBittorrent tags into groups for breakdown charts",
+    description: "Bundle client tags into groups for breakdown charts",
   },
   QBITMANAGE: {
     href: `${DOCS_URL}/features/qbitmanage/`,

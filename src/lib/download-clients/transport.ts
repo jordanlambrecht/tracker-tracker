@@ -15,6 +15,7 @@
 //   readCappedBody        - Read a body stream, refusing one past a byte limit
 //   readCappedText        - readCappedBody for the reads that want text
 //   readCappedJson        - readCappedBody parsed as JSON
+//   isResponseTooLarge    - True for readCappedBody's size refusal, or an error caused by one
 //   rethrowRefusal        - Catch handler that lets a size refusal through
 
 import { createHash } from "node:crypto"
@@ -195,8 +196,19 @@ export async function readCappedJson<T>(
   return JSON.parse(text) as T
 }
 
+/**
+ * Lets a client reword the refusal without the class leaving this module. A
+ * reworded refusal carries the original as its cause and still counts.
+ */
+export function isResponseTooLarge(err: unknown): err is Error {
+  return (
+    err instanceof ResponseTooLargeError ||
+    (err instanceof Error && err.cause instanceof ResponseTooLargeError)
+  )
+}
+
 /** A read that failed decided nothing; a refused read is the answer itself. */
 export function rethrowRefusal(err: unknown): null {
-  if (err instanceof ResponseTooLargeError) throw err
+  if (isResponseTooLarge(err)) throw err
   return null
 }

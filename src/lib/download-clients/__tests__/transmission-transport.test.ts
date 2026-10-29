@@ -1,0 +1,549 @@
+// src/lib/download-clients/__tests__/transmission-transport.test.ts
+
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
+import { SYNC_STORE_MAX_TORRENTS, TRANSMISSION_RESPONSE_MAX_BYTES } from "@/lib/limits"
+import { log } from "@/lib/logger"
+import {
+  getSessionStats,
+  getTorrents,
+  invalidateSessionId,
+  testSession,
+} from "../transmission/transport"
+import { clearAuthBlocks, isResponseTooLarge } from "../transport"
+import type { ClientCredentials } from "../types"
+
+const BASE = "http://transmission.local:9091"
+
+const CREDS: ClientCredentials = {
+  authMethod: "password",
+  username: "admin",
+  password: "pass",
+  urlPath: "",
+}
+
+/** How many 8 MiB chunks it takes to run a body one chunk past the cap. */
+const CHUNKS_PAST_CAP = Math.floor(TRANSMISSION_RESPONSE_MAX_BYTES / (8 * 1024 * 1024)) + 1
+
+function ok(args: unknown): Response {
+  return new Response(JSON.stringify({ result: "success", arguments: args }), { status: 200 })
+}
+
+function conflict(sessionId: string): Response {
+  return new Response("", { status: 409, headers: { "X-Transmission-Session-Id": sessionId } })
+}
+
+/**
+ * One 8 MiB chunk enqueued until the body passes the cap, with only 8 MiB
+ * allocated. The refusal fires before the concat.
+ */
+function oversized(): Response {
+  const chunk = new Uint8Array(8 * 1024 * 1024)
+  const stream = new ReadableStream({
+    start(controller) {
+      for (let i = 0; i < CHUNKS_PAST_CAP; i++) controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+  return new Response(stream)
+}
+
+function stubFetch(...responses: Response[]) {
+  const fetchMock = vi.fn()
+  for (const r of responses) fetchMock.mockResolvedValueOnce(r)
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+function initOf(fetchMock: ReturnType<typeof vi.fn>, call: number): RequestInit {
+  return fetchMock.mock.calls[call][1] as RequestInit
+}
+
+function headersOf(fetchMock: ReturnType<typeof vi.fn>, call: number): Record<string, string> {
+  return initOf(fetchMock, call).headers as Record<string, string>
+}
+
+async function rejection(promise: Promise<unknown>): Promise<Error | null> {
+  return promise.then(() => null).catch((e: unknown) => (e instanceof Error ? e : null))
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+  invalidateSessionId(BASE)
+  invalidateSessionId(`${BASE}/torrents`)
+  clearAuthBlocks(BASE)
+})
+
+describe("the RPC endpoint", () => {
+  it("posts to /transmission/rpc when no URL path is set", async () => {
+    const fetchMock = stubFetch(ok({}))
+    await testSession(BASE, CREDS)
+    expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/transmission/rpc`)
+  })
+
+  it("lets a URL path replace the default base, as a custom rpc-url needs", async () => {
+    const fetchMock = stubFetch(ok({}))
+    await testSession(`${BASE}/torrents`, { ...CREDS, urlPath: "/torrents" })
+    expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/torrents/rpc`)
+  })
+})
+
+describe("the 409 session handshake", () => {
+  it("replays the request once with the id the 409 handed back", async () => {
+    const fetchMock = stubFetch(conflict("sid-1"), ok({}))
+    await testSession(BASE, CREDS)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(headersOf(fetchMock, 1)["X-Transmission-Session-Id"]).toBe("sid-1")
+  })
+
+  it("reuses the id on the next call instead of handshaking again", async () => {
+    const fetchMock = stubFetch(conflict("sid-1"), ok({}), ok({}))
+    await testSession(BASE, CREDS)
+    await testSession(BASE, CREDS)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(headersOf(fetchMock, 2)["X-Transmission-Session-Id"]).toBe("sid-1")
+  })
+
+  it("handshakes again when the daemon has rotated the id", async () => {
+    const fetchMock = stubFetch(conflict("sid-1"), ok({}), conflict("sid-2"), ok({}))
+    await testSession(BASE, CREDS)
+    await testSession(BASE, CREDS)
+    expect(headersOf(fetchMock, 3)["X-Transmission-Session-Id"]).toBe("sid-2")
+  })
+
+  it("does not loop when a second 409 comes back", async () => {
+    const fetchMock = stubFetch(conflict("sid-1"), conflict("sid-2"))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/409/)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("fails when the 409 carries no session id to replay with", async () => {
+    stubFetch(new Response("", { status: 409 }))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/without an X-Transmission-Session-Id/)
+  })
+})
+
+describe("authentication", () => {
+  it("sends HTTP Basic when credentials are set", async () => {
+    const fetchMock = stubFetch(ok({}))
+    await testSession(BASE, CREDS)
+    expect(headersOf(fetchMock, 0).Authorization).toBe(
+      `Basic ${Buffer.from("admin:pass").toString("base64")}`
+    )
+  })
+
+  it("sends no Authorization header when both fields are blank", async () => {
+    const fetchMock = stubFetch(ok({}))
+    await testSession(BASE, { ...CREDS, username: "", password: "" })
+    expect(headersOf(fetchMock, 0).Authorization).toBeUndefined()
+  })
+
+  it("refuses an API-key credential without a request", async () => {
+    const fetchMock = stubFetch(ok({}))
+    await expect(
+      testSession(BASE, { authMethod: "apikey", apiKey: "k", urlPath: "" })
+    ).rejects.toThrow(/no API-key authentication/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe("the auth-failure breaker", () => {
+  // Anti-brute-force counts every failed login on one global counter and locks
+  // every client out at its threshold, so a rejected credential is not resent.
+  it("does not send a credential the daemon rejected again", async () => {
+    const fetchMock = stubFetch(new Response("", { status: 401 }))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/rejected the username and password/)
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/rejected the username and password/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("sends an edited credential", async () => {
+    const fetchMock = stubFetch(new Response("", { status: 401 }), ok({}))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow()
+    await testSession(BASE, { ...CREDS, password: "fixed" })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("reaches the network again once the blocks are cleared", async () => {
+    const fetchMock = stubFetch(new Response("", { status: 401 }), ok({}))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow()
+    clearAuthBlocks(BASE)
+    await testSession(BASE, CREDS)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("latches a 401 that answers the replay after a 409", async () => {
+    const fetchMock = stubFetch(conflict("sid-1"), new Response("", { status: 401 }))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/rejected the username and password/)
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/rejected the username and password/)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("names the host whitelist on a 421 and does not latch it", async () => {
+    const fetchMock = stubFetch(
+      new Response("<h1>421: Misdirected Request</h1>", { status: 421 }),
+      new Response("<h1>421: Misdirected Request</h1>", { status: 421 })
+    )
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/rpc-host-whitelist/)
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/rpc-host-whitelist/)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("never latches a 403, which a restart or a whitelist change clears", async () => {
+    const fetchMock = stubFetch(
+      new Response("<h1>403: Forbidden</h1>", { status: 403 }),
+      new Response("<h1>403: Forbidden</h1>", { status: 403 })
+    )
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/IP whitelist/)
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/IP whitelist/)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe("redirect handling", () => {
+  it("refuses a redirect rather than parsing a body from another origin", async () => {
+    const fetchMock = stubFetch(
+      new Response(null, { status: 307, headers: { Location: "http://attacker.example/rpc" } })
+    )
+    await expect(testSession(BASE, CREDS)).rejects.toThrow("Transmission RPC error: 307")
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(initOf(fetchMock, 0)).toMatchObject({ redirect: "manual" })
+  })
+})
+
+describe("connection errors", () => {
+  it("names the client by hostname, without the URL path that can carry a proxy key", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
+
+    const err = await rejection(
+      testSession(`${BASE}/proxy/secret-key`, { ...CREDS, urlPath: "/proxy/secret-key" })
+    )
+
+    expect(err?.message).toBe("Failed to connect to transmission.local: ECONNREFUSED")
+  })
+
+  it("never copies a header-validation TypeError, which quotes the credential", async () => {
+    const basic = Buffer.from("admin:pass").toString("base64")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError(`Headers.append: "Basic ${basic}" is invalid`))
+    )
+    const err = await rejection(testSession(BASE, CREDS))
+    expect(err?.message).not.toContain(basic)
+  })
+
+  it("names a timeout as one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(Object.assign(new Error("aborted"), { name: "TimeoutError" }))
+    )
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/timed out/)
+  })
+})
+
+describe("the caller's deadline", () => {
+  it("aborts both torrent-gets when the caller's signal aborts", async () => {
+    const fetchMock = stubFetch(
+      ok({ torrents: [{ id: 1, isPrivate: true }] }),
+      ok({ torrents: [] })
+    )
+    const caller = new AbortController()
+
+    await getTorrents(BASE, CREDS, { signal: caller.signal })
+
+    const sent = [0, 1].map((call) => initOf(fetchMock, call).signal as AbortSignal)
+    expect(sent.map((s) => s.aborted)).toEqual([false, false])
+    caller.abort()
+    expect(sent.map((s) => s.aborted)).toEqual([true, true])
+  })
+})
+
+describe("the response body cap", () => {
+  it("refuses a body that runs past the cap", async () => {
+    stubFetch(oversized())
+
+    const err = await rejection(getTorrents(BASE, CREDS))
+
+    expect(err?.message).toBe(
+      `Transmission returned an oversized response (Response from transmission.local exceeded ${TRANSMISSION_RESPONSE_MAX_BYTES} bytes and was refused)`
+    )
+    // The scheduler backs off on a size refusal. Rewording it must not hide it.
+    expect(isResponseTooLarge(err)).toBe(true)
+  })
+
+  it("fits a full torrent-get of the largest library the sync store holds", () => {
+    // torrent-get sends every trackers sub-field, announce and scrape included,
+    // so a torrent with a few trackers runs past a qBittorrent-sized cap.
+    const passkey = "ab".repeat(16)
+    const trackerEntry = (host: string, id: number) => ({
+      announce: `https://${host}/announce/${passkey}`,
+      id,
+      scrape: `https://${host}/scrape/${passkey}`,
+      sitename: "example",
+      tier: id,
+    })
+    const torrent = {
+      hashString: "cd".repeat(20),
+      name: "Some.Show.S01.1080p.WEB-DL.DDP5.1.H.264-GROUP",
+      status: 6,
+      labels: ["tracker", "cross-seed"],
+      rateUpload: 0,
+      rateDownload: 0,
+      uploadedEver: 51964203008,
+      downloadedEver: 15032385536,
+      uploadRatio: 3.4567,
+      sizeWhenDone: 15032385536,
+      peersSendingToUs: 0,
+      peersGettingFromUs: 0,
+      addedDate: 1726000000,
+      doneDate: 1726003600,
+      activityDate: 1729000000,
+      secondsSeeding: 2592000,
+      secondsDownloading: 3600,
+      leftUntilDone: 0,
+      percentDone: 1,
+      downloadDir: "/data/torrents/tv",
+      isPrivate: true,
+      trackers: [
+        trackerEntry("tracker.example", 0),
+        trackerEntry("tracker.example-mirror", 1),
+        trackerEntry("tracker.example-backup", 2),
+      ],
+    }
+    const perTorrent = Buffer.byteLength(`${JSON.stringify(torrent)},`)
+
+    expect(SYNC_STORE_MAX_TORRENTS * perTorrent).toBeLessThanOrEqual(
+      TRANSMISSION_RESPONSE_MAX_BYTES
+    )
+  })
+})
+
+describe("the RPC envelope", () => {
+  it("treats a 200 carrying a failure result as an error, without the host's text", async () => {
+    stubFetch(new Response(JSON.stringify({ result: "method name not recognized" })))
+    const err = await rejection(testSession(BASE, CREDS))
+    expect(err?.message).toBe("Transmission refused the RPC call")
+  })
+
+  it("refuses a body that is JSON but not an envelope", async () => {
+    stubFetch(new Response(JSON.stringify([{ result: "success" }])))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/no RPC envelope/)
+  })
+
+  it("refuses a success envelope with no arguments", async () => {
+    stubFetch(new Response(JSON.stringify({ result: "success" })))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/returned no arguments/)
+  })
+
+  it("names a body that is not JSON, the usual sign of a wrong URL path", async () => {
+    stubFetch(new Response("<html>login</html>"))
+    await expect(testSession(BASE, CREDS)).rejects.toThrow(/the body was not JSON/)
+  })
+})
+
+describe("torrent-get", () => {
+  const PRIVATE = { hashString: "abc", name: "Release", downloadDir: "/data", isPrivate: true }
+
+  function bodyOf(fetchMock: ReturnType<typeof vi.fn>, call: number) {
+    return JSON.parse(initOf(fetchMock, call).body as string)
+  }
+
+  it("reads isPrivate first and fetches the declared fields for private torrents only", async () => {
+    const fetchMock = stubFetch(
+      ok({
+        torrents: [
+          { id: 1, isPrivate: true },
+          { id: 2, isPrivate: false },
+          { id: 3, isPrivate: true },
+        ],
+      }),
+      ok({ torrents: [PRIVATE] })
+    )
+
+    expect(await getTorrents(BASE, CREDS)).toEqual([PRIVATE])
+
+    const index = bodyOf(fetchMock, 0)
+    expect(index.method).toBe("torrent-get")
+    expect(index.arguments).toEqual({ fields: ["id", "isPrivate"] })
+    const full = bodyOf(fetchMock, 1)
+    expect(full.arguments.fields).toContain("trackers")
+    expect(full.arguments.ids).toEqual([1, 3])
+  })
+
+  it("makes no second call when nothing is private", async () => {
+    const fetchMock = stubFetch(ok({ torrents: [{ id: 1, isPrivate: false }] }))
+    expect(await getTorrents(BASE, CREDS)).toEqual([])
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it("narrows the first call to recently active torrents when asked", async () => {
+    const fetchMock = stubFetch(
+      ok({ torrents: [{ id: 7, isPrivate: true }] }),
+      ok({ torrents: [PRIVATE] })
+    )
+    await getTorrents(BASE, CREDS, { recentlyActive: true })
+    expect(bodyOf(fetchMock, 0).arguments.ids).toBe("recently-active")
+    expect(bodyOf(fetchMock, 1).arguments.ids).toEqual([7])
+  })
+
+  it("fetches only index entries that name a private torrent by integer id", async () => {
+    const fetchMock = stubFetch(
+      ok({
+        torrents: [
+          { id: 1, isPrivate: true },
+          { id: "2", isPrivate: true },
+          { id: 3, isPrivate: "yes" },
+          { isPrivate: true },
+          null,
+        ],
+      }),
+      ok({ torrents: [] })
+    )
+    await getTorrents(BASE, CREDS)
+    expect(bodyOf(fetchMock, 1).arguments.ids).toEqual([1])
+  })
+
+  // A daemon restart between the two calls renumbers the torrents.
+  it("drops a public torrent the second call returns", async () => {
+    stubFetch(
+      ok({ torrents: [{ id: 1, isPrivate: true }] }),
+      ok({ torrents: [{ ...PRIVATE, isPrivate: false }] })
+    )
+    expect(await getTorrents(BASE, CREDS)).toEqual([])
+  })
+
+  it("drops entries that fail the shape check and keeps the rest", async () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+    stubFetch(
+      ok({ torrents: [{ id: 1, isPrivate: true }] }),
+      ok({
+        torrents: [
+          PRIVATE,
+          { name: "no hash", downloadDir: "/data" },
+          { hashString: "", name: "empty hash", downloadDir: "/data" },
+          { hashString: "labels", name: "Release", downloadDir: "/data", labels: "tv" },
+          { hashString: "trackers", name: "Release", downloadDir: "/data", trackers: 5 },
+          { hashString: "null tracker", name: "Release", downloadDir: "/data", trackers: [null] },
+          null,
+        ],
+      })
+    )
+
+    expect(await getTorrents(BASE, CREDS)).toEqual([PRIVATE])
+    // Counts only, never an entry, since a name or path can identify the library.
+    expect(warn).toHaveBeenCalledWith(
+      { host: "transmission.local", received: 7, kept: 1 },
+      expect.any(String)
+    )
+  })
+
+  it.each([
+    ["the first", [ok({ nothing: true })]],
+    ["the second", [ok({ torrents: [{ id: 1, isPrivate: true }] }), ok({ nothing: true })]],
+  ])("refuses %s call's payload when it is not a torrent list", async (_call, responses) => {
+    stubFetch(...responses)
+    await expect(getTorrents(BASE, CREDS)).rejects.toThrow(/no torrent list/)
+  })
+})
+
+describe("session-stats", () => {
+  it("reads the global speeds", async () => {
+    stubFetch(ok({ uploadSpeed: 500, downloadSpeed: 200 }))
+    expect(await getSessionStats(BASE, CREDS)).toEqual({ uploadSpeed: 500, downloadSpeed: 200 })
+  })
+
+  it("refuses missing speeds instead of reporting an idle client", async () => {
+    stubFetch(ok({}))
+    await expect(getSessionStats(BASE, CREDS)).rejects.toThrow(/no transfer speeds/)
+  })
+})
+
+describe("what the user sees when the transport refuses a response", () => {
+  // Each refusal reaches a card through sanitizeNetworkError. Without a
+  // Transmission rule it names qBittorrent, or reads "Connection failed", which
+  // this codebase reserves for a host that never answered.
+  const CREDENTIALS_CARD = "Credentials rejected by Transmission. Check the username and password"
+  const UNEXPECTED_CARD = "Transmission sent an unexpected response"
+
+  it.each<{ name: string; creds?: ClientCredentials; responses: () => Response[]; card: string }>([
+    {
+      name: "a rejected password",
+      responses: () => [new Response("", { status: 401 })],
+      card: CREDENTIALS_CARD,
+    },
+    {
+      name: "blank credentials on a daemon that requires them",
+      creds: { ...CREDS, username: "", password: "" },
+      responses: () => [new Response("", { status: 401 })],
+      card: CREDENTIALS_CARD,
+    },
+    {
+      name: "an API-key credential",
+      creds: { authMethod: "apikey", apiKey: "k", urlPath: "" },
+      responses: () => [],
+      card: "Transmission has no API key login. Set this client to username and password",
+    },
+    {
+      name: "a 403 from the IP whitelist or the lockout",
+      responses: () => [new Response("<h1>403: Forbidden</h1>", { status: 403 })],
+      card: "Transmission refused the connection. Check its IP whitelist, or restart it if its anti-brute-force lockout tripped",
+    },
+    {
+      name: "a 421 from the host whitelist",
+      responses: () => [new Response("<h1>421: Misdirected Request</h1>", { status: 421 })],
+      card: "Transmission refused this hostname. Add it to rpc-host-whitelist, or turn on password authentication",
+    },
+    {
+      name: "an oversized body",
+      responses: () => [oversized()],
+      card: "Transmission returned an oversized response",
+    },
+    {
+      name: "a redirect",
+      responses: () => [
+        new Response(null, { status: 307, headers: { Location: "http://elsewhere.example/" } }),
+      ],
+      card: "Transmission redirected the request. Check the URL path",
+    },
+    {
+      name: "a 404 from a wrong port or URL path",
+      responses: () => [new Response("404 page not found", { status: 404 })],
+      card: "Transmission's RPC was not found at this address. Check the port and URL path",
+    },
+    {
+      name: "a second 409 after the replay",
+      responses: () => [conflict("sid-1"), conflict("sid-2")],
+      card: "Transmission did not accept the session id. Check that any proxy in front of it passes the X-Transmission-Session-Id header",
+    },
+    {
+      name: "a 409 with no session id",
+      responses: () => [new Response("", { status: 409 })],
+      card: UNEXPECTED_CARD,
+    },
+    {
+      name: "a body that is not JSON",
+      responses: () => [new Response("<html>login</html>")],
+      card: UNEXPECTED_CARD,
+    },
+    {
+      name: "a refused RPC method",
+      responses: () => [new Response(JSON.stringify({ result: "method name not recognized" }))],
+      card: "Transmission refused the request",
+    },
+  ])("words $name for the card", async ({ creds, responses, card }) => {
+    stubFetch(...responses())
+    const err = await rejection(testSession(BASE, creds ?? CREDS))
+    const shown = sanitizeNetworkError(err?.message ?? "")
+    expect(shown).toBe(card)
+    expect(isUnreachableMessage(shown)).toBe(false)
+  })
+
+  it("still reads a refused connection as one when the hostname says transmission", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
+    const err = await rejection(testSession(BASE, CREDS))
+    expect(sanitizeNetworkError(err?.message ?? "")).toBe("Connection refused")
+  })
+})

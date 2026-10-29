@@ -8,6 +8,7 @@ import {
   decodeKey,
   parseJsonBody,
   validateAuthMethod,
+  validateAuthMethodForType,
   validateClientHost,
   validateIntRange,
   validateMaxLength,
@@ -18,7 +19,7 @@ import { encrypt } from "@/lib/crypto"
 import { sanitizeHost, stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import { VALID_CLIENT_TYPES } from "@/lib/download-clients"
+import { type ClientType, DEFAULT_CLIENT_PORTS, VALID_CLIENT_TYPES } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
 import {
   CLIENT_POLL_INTERVAL_DEFAULT,
@@ -88,14 +89,22 @@ export async function POST(request: Request) {
     (typeof username !== "undefined" && typeof username !== "string") ||
     (typeof password !== "undefined" && typeof password !== "string") ||
     (typeof apiKey !== "undefined" && typeof apiKey !== "string") ||
-    (typeof urlPath !== "undefined" && typeof urlPath !== "string")
+    (typeof urlPath !== "undefined" && typeof urlPath !== "string") ||
+    (typeof type !== "undefined" && typeof type !== "string")
   ) {
     return NextResponse.json({ error: "Invalid field types" }, { status: 400 })
+  }
+
+  const resolvedType = type ?? "qbittorrent"
+  if (!(VALID_CLIENT_TYPES as readonly string[]).includes(resolvedType)) {
+    return NextResponse.json({ error: "Invalid client type" }, { status: 400 })
   }
 
   const resolvedAuthMethod = typeof authMethod === "string" ? authMethod : "password"
   const authMethodErr = validateAuthMethod(resolvedAuthMethod)
   if (authMethodErr) return authMethodErr
+  const typeAuthErr = validateAuthMethodForType(resolvedType, resolvedAuthMethod)
+  if (typeAuthErr) return typeAuthErr
 
   // An API key is the whole credential, so it is required. Username/password
   // are not: qBittorrent skips authentication entirely for loopback clients
@@ -137,12 +146,8 @@ export async function POST(request: Request) {
   const clientHostErr = validateClientHost(sanitizedHost)
   if (clientHostErr) return clientHostErr
 
-  const resolvedType = typeof type === "string" ? type : "qbittorrent"
-  if (!(VALID_CLIENT_TYPES as readonly string[]).includes(resolvedType)) {
-    return NextResponse.json({ error: "Invalid client type" }, { status: 400 })
-  }
-
-  const resolvedPort = typeof port === "number" ? port : 8080
+  const resolvedPort =
+    typeof port === "number" ? port : DEFAULT_CLIENT_PORTS[resolvedType as ClientType]
   const portErr = validatePort(resolvedPort)
   if (portErr) return portErr
 

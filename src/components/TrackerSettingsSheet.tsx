@@ -2,7 +2,7 @@
 "use client"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { H2 } from "@typography"
+import { H2, Subtext } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
@@ -422,11 +422,14 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
           <div className="flex flex-col gap-1">
             <Input
-              label="qBittorrent Tag"
+              label="Client Tag"
               value={form.qbtTag}
               onChange={(e) => updateField("qbtTag", e.target.value)}
               placeholder="i.e, aither"
             />
+            <Subtext>
+              Optional. The qBittorrent tag or Transmission label on this tracker's torrents.
+            </Subtext>
             <QbtTagWarning tag={form.qbtTag} />
           </div>
 
