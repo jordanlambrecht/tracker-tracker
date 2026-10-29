@@ -1,6 +1,7 @@
 // src/lib/download-clients/__tests__/transmission-field-map.test.ts
 
 import { describe, expect, it } from "vitest"
+import { LEECHING_STATES, SEEDING_STATES } from "@/lib/fleet"
 import { slimTorrentForCache } from "../transforms"
 import {
   announceHost,
@@ -206,11 +207,9 @@ describe("mapTransmissionState", () => {
     expect(mapTransmissionState(TransmissionStatus.DOWNLOAD, incomplete)).toBe("stalledDL")
   })
 
-  it("distinguishes a stopped complete torrent from a stopped incomplete one", () => {
-    // pausedUP is in SEEDING_STATES and pausedDL is not, so getting this
-    // backwards moves torrents between the seeding and leeching counts.
-    expect(mapTransmissionState(TransmissionStatus.STOPPED, idle)).toBe("pausedUP")
-    expect(mapTransmissionState(TransmissionStatus.STOPPED, incomplete)).toBe("pausedDL")
+  it("names a stopped torrent the way qBittorrent 5 does", () => {
+    expect(mapTransmissionState(TransmissionStatus.STOPPED, idle)).toBe("stoppedUP")
+    expect(mapTransmissionState(TransmissionStatus.STOPPED, incomplete)).toBe("stoppedDL")
   })
 
   it("maps the queue and verify states", () => {
@@ -220,8 +219,32 @@ describe("mapTransmissionState", () => {
     expect(mapTransmissionState(TransmissionStatus.CHECK_WAIT, incomplete)).toBe("checkingDL")
   })
 
-  it("falls back to a stalled state for an unknown status code", () => {
-    expect(mapTransmissionState(99, idle)).toBe("stalledUP")
-    expect(mapTransmissionState(99, incomplete)).toBe("stalledDL")
+  it("names an unknown status code unknown", () => {
+    expect(mapTransmissionState(99, idle)).toBe("unknown")
+    expect(mapTransmissionState(99, incomplete)).toBe("unknown")
+  })
+
+  // Only downloading and seeding count as active, stalled ones included. A
+  // stopped, queued or verifying torrent still counts toward size and totals.
+  it("counts only DOWNLOAD and SEED as seeding or leeching", () => {
+    const isActive = (status: number) =>
+      [moving, idle, incomplete].map((t) => {
+        const state = mapTransmissionState(status, t)
+        return SEEDING_STATES.has(state) || LEECHING_STATES.has(state)
+      })
+
+    for (const status of [TransmissionStatus.DOWNLOAD, TransmissionStatus.SEED]) {
+      expect(isActive(status)).toEqual([true, true, true])
+    }
+    for (const status of [
+      TransmissionStatus.STOPPED,
+      TransmissionStatus.CHECK_WAIT,
+      TransmissionStatus.CHECK,
+      TransmissionStatus.DOWNLOAD_WAIT,
+      TransmissionStatus.SEED_WAIT,
+      99,
+    ]) {
+      expect(isActive(status)).toEqual([false, false, false])
+    }
   })
 })

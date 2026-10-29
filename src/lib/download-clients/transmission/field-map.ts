@@ -21,15 +21,16 @@ interface TransmissionStateInput {
 }
 
 /**
- * The qBittorrent state names TorrentRecord speaks. The stalled split comes
- * from the transfer rate, because Transmission's own `isStalled` follows the
- * idle-seeding preference and is always false when that is off.
+ * The qBittorrent 5 state names TorrentRecord speaks. Only DOWNLOAD and SEED
+ * map to running states, so everything else counts as inactive. The stalled
+ * split comes from the transfer rate, because Transmission's own `isStalled`
+ * follows the idle-seeding preference and is always false when that is off.
  */
 export function mapTransmissionState(status: number, torrent: TransmissionStateInput): string {
   const done = torrent.leftUntilDone === 0
   switch (status) {
     case TransmissionStatus.STOPPED:
-      return done ? "pausedUP" : "pausedDL"
+      return done ? "stoppedUP" : "stoppedDL"
     case TransmissionStatus.CHECK_WAIT:
     case TransmissionStatus.CHECK:
       return done ? "checkingUP" : "checkingDL"
@@ -42,7 +43,7 @@ export function mapTransmissionState(status: number, torrent: TransmissionStateI
     case TransmissionStatus.SEED:
       return torrent.rateUpload > 0 ? "uploading" : "stalledUP"
     default:
-      return done ? "stalledUP" : "stalledDL"
+      return "unknown"
   }
 }
 
