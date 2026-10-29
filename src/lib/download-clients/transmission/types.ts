@@ -26,22 +26,21 @@ export const TORRENT_FIELDS = [
   "percentDone",
   "downloadDir",
   "isPrivate",
-  // For `host` and the swarm counts, which `trackers` lacks.
-  "trackerStats",
+  // For the tracker host. trackerStats would add swarm counts, but each entry
+  // costs about 650 B against about 135 B here, and public torrents list dozens.
+  "trackers",
 ] as const
 
 /**
- * One trackerStats entry, declared as far as the mapper reads it. Transmission
- * sends every sub-field, so `announce` and `scrape`, which carry the passkey on
- * a private tracker, are in the parsed response all the same. The mapper copies
- * only `host`, so neither reaches a TorrentRecord or the cache.
+ * One trackers entry, declared as far as the mapper reads it. Transmission also
+ * sends `scrape` and `sitename`. `announce` and `scrape` carry the passkey on a
+ * private tracker, so the mapper keeps only the announce URL's host, and
+ * neither URL reaches a TorrentRecord or the cache.
  */
-export interface TransmissionTrackerStat {
-  host: string // "tracker.example.org:443", no path
+export interface TransmissionTracker {
+  announce: string
   tier: number
   id: number
-  seederCount: number // -1 until an announce or scrape reports it
-  leecherCount: number // -1 until an announce or scrape reports it
 }
 
 /** From torrent-get with the field list above. */
@@ -67,7 +66,7 @@ export interface TransmissionTorrent {
   percentDone: number // float 0-1
   downloadDir: string
   isPrivate: boolean
-  trackerStats: TransmissionTrackerStat[]
+  trackers: TransmissionTracker[]
 }
 
 /** Transmission's numeric torrent status, stable across 2.x to 4.x. */
@@ -113,8 +112,7 @@ export function isTransmissionTorrent(value: unknown): value is TransmissionTorr
     typeof t.name === "string" &&
     typeof t.downloadDir === "string" &&
     (t.labels === undefined || Array.isArray(t.labels)) &&
-    (t.trackerStats === undefined ||
-      (Array.isArray(t.trackerStats) &&
-        t.trackerStats.every((s) => s !== null && typeof s === "object")))
+    (t.trackers === undefined ||
+      (Array.isArray(t.trackers) && t.trackers.every((s) => s !== null && typeof s === "object")))
   )
 }

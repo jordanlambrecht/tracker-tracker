@@ -42,9 +42,9 @@ export interface TorrentRecord {
   size: number // bytes
   seedCount: number // connected seeds
   leechCount: number // connected leechers
-  swarmSeeders: number // total seeders in swarm
-  swarmLeechers: number // total leechers in swarm
-  tracker: string // primary tracker URL
+  swarmSeeders: number // total seeders in swarm; connected ones only for Transmission
+  swarmLeechers: number // total leechers in swarm; connected ones only for Transmission
+  tracker: string // announce URL (qBittorrent) or announce host (Transmission)
   addedAt: number // unix timestamp. When torrent was added
   completedAt: number // unix timestamp. When download completed (-1 if incomplete)
   lastActivityAt: number // unix timestamp. Last transfer activity

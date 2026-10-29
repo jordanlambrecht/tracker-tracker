@@ -2,13 +2,13 @@
 //
 // Functions:
 //   mapTransmissionState   - Transmission's numeric status in qBittorrent's state vocabulary
+//   announceHost           - An announce URL's host and port, its path, query and userinfo dropped
 //   canonicalTrackerHost   - The announce-list head's host, never its announce URL
-//   swarmMax               - Highest swarm count any tracker reported
 //   mapTransmissionTorrent - One torrent-get entry as a validated TorrentRecord
 
 import { coerceRequiredNumeric, coerceRequiredString } from "../field-map"
 import type { TorrentRecord } from "../types"
-import { TransmissionStatus, type TransmissionTorrent, type TransmissionTrackerStat } from "./types"
+import { TransmissionStatus, type TransmissionTorrent, type TransmissionTracker } from "./types"
 
 /** uploadRatio's sentinels: nothing over nothing, and an upload over nothing to seed. */
 const RATIO_NOT_APPLICABLE = -1
@@ -47,34 +47,35 @@ export function mapTransmissionState(status: number, torrent: TransmissionStateI
 }
 
 /**
- * The announce-list head, by (tier, id). It is the site's primary announce and
- * stays put when the site fails over, where the tracker currently working
- * would change. Returns `host`, so the passkey in `announce` is never copied.
+ * Host and port as `new URL` gives them, "tracker.example.org:6969", with no
+ * port when it is the scheme's default. It drops the path, query and userinfo,
+ * which is where a passkey sits, and keeps a udp:// tracker's host. "" for
+ * anything it cannot parse.
  */
-export function canonicalTrackerHost(stats: TransmissionTrackerStat[]): string {
-  if (stats.length === 0) return ""
-  let best = stats[0]
-  for (const s of stats) {
-    if (s.tier < best.tier || (s.tier === best.tier && s.id < best.id)) best = s
+export function announceHost(announce: unknown): string {
+  if (typeof announce !== "string") return ""
+  try {
+    return new URL(announce).host
+  } catch {
+    return ""
   }
-  return best.host
 }
 
-/** Undefined when no tracker reported a count. -1 means never scraped, so it is skipped. */
-function swarmMax(
-  stats: TransmissionTrackerStat[],
-  field: "seederCount" | "leecherCount"
-): number | undefined {
-  let max: number | undefined
-  for (const s of stats) {
-    const count = s[field]
-    if (typeof count === "number" && count >= 0 && (max === undefined || count > max)) max = count
+/**
+ * The announce-list head, by (tier, id). It is the site's primary announce and
+ * stays put when the site fails over, where the tracker currently working
+ * would change.
+ */
+export function canonicalTrackerHost(trackers: TransmissionTracker[]): string {
+  if (trackers.length === 0) return ""
+  let best = trackers[0]
+  for (const t of trackers) {
+    if (t.tier < best.tier || (t.tier === best.tier && t.id < best.id)) best = t
   }
-  return max
+  return announceHost(best.announce)
 }
 
 export function mapTransmissionTorrent(t: TransmissionTorrent): TorrentRecord {
-  const stats = t.trackerStats ?? []
   const result: Record<string, unknown> = {
     hash: t.hashString,
     name: t.name,
@@ -97,12 +98,11 @@ export function mapTransmissionTorrent(t: TransmissionTorrent): TorrentRecord {
     size: t.sizeWhenDone,
     seedCount: t.peersSendingToUs,
     leechCount: t.peersGettingFromUs,
-    // No tracker reported a count, so fall back to peers transferring with us.
-    // qBittorrent falls back to its peer list instead (torrentimpl.cpp:1428-1442),
-    // which counts unconnected peers too, so this can read lower.
-    swarmSeeders: swarmMax(stats, "seederCount") ?? t.peersSendingToUs,
-    swarmLeechers: swarmMax(stats, "leecherCount") ?? t.peersGettingFromUs,
-    tracker: canonicalTrackerHost(stats),
+    // `trackers` has no swarm counts (see TORRENT_FIELDS), so these are the
+    // peers transferring with us, and read lower than a tracker's swarm.
+    swarmSeeders: t.peersSendingToUs,
+    swarmLeechers: t.peersGettingFromUs,
+    tracker: canonicalTrackerHost(t.trackers ?? []),
     addedAt: t.addedDate,
     // Transmission uses 0 for never completed, qBittorrent -1.
     completedAt: t.doneDate > 0 ? t.doneDate : -1,

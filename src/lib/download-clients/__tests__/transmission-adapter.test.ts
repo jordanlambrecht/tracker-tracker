@@ -49,7 +49,7 @@ function torrent(over: Partial<TransmissionTorrent>): TransmissionTorrent {
     percentDone: 1,
     downloadDir: "/data",
     isPrivate: true,
-    trackerStats: [],
+    trackers: [],
     ...over,
   }
 }

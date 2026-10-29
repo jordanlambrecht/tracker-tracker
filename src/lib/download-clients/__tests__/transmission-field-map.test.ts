@@ -3,22 +3,16 @@
 import { describe, expect, it } from "vitest"
 import { slimTorrentForCache } from "../transforms"
 import {
+  announceHost,
   canonicalTrackerHost,
   mapTransmissionState,
   mapTransmissionTorrent,
 } from "../transmission/field-map"
-import type { TransmissionTorrent, TransmissionTrackerStat } from "../transmission/types"
+import type { TransmissionTorrent, TransmissionTracker } from "../transmission/types"
 import { TransmissionStatus } from "../transmission/types"
 
-function stat(over: Partial<TransmissionTrackerStat>): TransmissionTrackerStat {
-  return {
-    host: "tracker.example.org:443",
-    tier: 0,
-    id: 0,
-    seederCount: 0,
-    leecherCount: 0,
-    ...over,
-  }
+function tracker(over: Partial<TransmissionTracker>): TransmissionTracker {
+  return { announce: "https://tracker.example.org/announce", tier: 0, id: 0, ...over }
 }
 
 const RAW: TransmissionTorrent = {
@@ -43,7 +37,7 @@ const RAW: TransmissionTorrent = {
   percentDone: 1.0,
   downloadDir: "/data/completed",
   isPrivate: true,
-  trackerStats: [stat({ seederCount: 50, leecherCount: 5 })],
+  trackers: [tracker({})],
 }
 
 describe("mapTransmissionTorrent", () => {
@@ -55,8 +49,7 @@ describe("mapTransmissionTorrent", () => {
     expect(r.ratio).toBe(2)
     expect(r.size).toBe(1_000_000)
     expect(r.seedingTime).toBe(86400)
-    expect(r.swarmSeeders).toBe(50)
-    expect(r.swarmLeechers).toBe(5)
+    expect(r.tracker).toBe("tracker.example.org")
     expect(r.isPrivate).toBe(true)
   })
 
@@ -107,60 +100,62 @@ describe("mapTransmissionTorrent", () => {
   })
 
   it("keeps the passkey out of the record and the cached torrent", () => {
-    // Transmission sends announce and scrape in every trackerStats entry, so
-    // the fixture carries them the way the parsed response does.
+    // Transmission sends announce and scrape in every trackers entry, so the
+    // fixture carries both the way the parsed response does.
     const passkey = "0123456789abcdef0123456789abcdef"
     const withUrls = {
-      ...stat({}),
-      announce: `https://tracker.example.org/announce/${passkey}`,
+      ...tracker({ announce: `https://tracker.example.org/announce/${passkey}` }),
       scrape: `https://tracker.example.org/scrape/${passkey}`,
-    } as unknown as TransmissionTrackerStat
-    const record = mapTransmissionTorrent({ ...RAW, trackerStats: [withUrls] })
+    } as TransmissionTracker
+    const record = mapTransmissionTorrent({ ...RAW, trackers: [withUrls] })
 
     expect(JSON.stringify(record)).not.toContain(passkey)
     expect(JSON.stringify(slimTorrentForCache(record))).not.toContain(passkey)
-    expect(record.tracker).toBe("tracker.example.org:443")
+    expect(record.tracker).toBe("tracker.example.org")
   })
 
-  it("falls back to peers transferring with us when no tracker reported a swarm count", () => {
-    // -1 is a tracker Transmission has never scraped.
-    const r = mapTransmissionTorrent({
-      ...RAW,
-      trackerStats: [stat({ seederCount: -1, leecherCount: -1 })],
-    })
+  it("counts the peers transferring with us as the swarm, since trackers has no counts", () => {
+    const r = mapTransmissionTorrent(RAW)
     expect(r.swarmSeeders).toBe(RAW.peersSendingToUs)
     expect(r.swarmLeechers).toBe(RAW.peersGettingFromUs)
   })
 
-  it("keeps a reported count of 0 instead of falling back", () => {
+  it("files a torrent whose announce is not a string under no tracker", () => {
     const r = mapTransmissionTorrent({
       ...RAW,
-      trackerStats: [stat({ seederCount: 0, leecherCount: 0 })],
-    })
-    expect(r.swarmSeeders).toBe(0)
-    expect(r.swarmLeechers).toBe(0)
-  })
-
-  it("ignores a swarm count that is not a number", () => {
-    const r = mapTransmissionTorrent({
-      ...RAW,
-      trackerStats: [stat({ seederCount: "50" as unknown as number })],
-    })
-    expect(r.swarmSeeders).toBe(RAW.peersSendingToUs)
-  })
-
-  it("files a torrent whose tracker host is not a string under no tracker", () => {
-    const r = mapTransmissionTorrent({
-      ...RAW,
-      trackerStats: [stat({ host: 42 as unknown as string })],
+      trackers: [tracker({ announce: 42 as unknown as string })],
     })
     expect(r.tracker).toBe("")
   })
 
   it("survives a torrent with no trackers at all", () => {
-    const r = mapTransmissionTorrent({ ...RAW, trackerStats: [] })
-    expect(r.tracker).toBe("")
-    expect(r.swarmSeeders).toBe(RAW.peersSendingToUs)
+    expect(mapTransmissionTorrent({ ...RAW, trackers: [] }).tracker).toBe("")
+  })
+})
+
+describe("announceHost", () => {
+  // A passkey can sit in the path, the query or the userinfo. None of them is a host.
+  it.each([
+    ["a path passkey", "https://tracker.example.org/announce/abc123", "tracker.example.org"],
+    [
+      "a query passkey",
+      "http://tracker.example.org:6969/a?passkey=abc123",
+      "tracker.example.org:6969",
+    ],
+    ["userinfo", "http://user:secret@tracker.example.org/announce", "tracker.example.org"],
+    ["a udp tracker", "udp://open.example.org:1337/announce", "open.example.org:1337"],
+    ["an uppercase host", "https://Tracker.Example.ORG/announce", "tracker.example.org"],
+    // udp:// keeps its case, unlike http, https and wss. trackerHostKey lowers it when matching.
+    ["an uppercase udp host", "udp://Open.Example.ORG:1337/announce", "Open.Example.ORG:1337"],
+    ["an IPv6 host", "http://[2001:db8::1]:6969/announce", "[2001:db8::1]:6969"],
+    ["a malformed URL", "not a url", ""],
+    ["an empty string", "", ""],
+  ])("reduces %s to its host", (_case, announce, host) => {
+    expect(announceHost(announce)).toBe(host)
+  })
+
+  it("gives no host for a value that is not a string", () => {
+    expect(announceHost(undefined)).toBe("")
   })
 })
 
@@ -169,29 +164,23 @@ describe("canonicalTrackerHost", () => {
     // A failover mirror on another domain is often the tracker working now.
     // The announce-list head stays the site's own domain.
     const host = canonicalTrackerHost([
-      stat({
-        host: "tracker.torrentleech.org:443",
-        id: 20,
-      }),
-      stat({
-        host: "tracker.tleechreload.org:443",
-        id: 21,
-      }),
+      tracker({ announce: "https://tracker.torrentleech.org/a/key", id: 20 }),
+      tracker({ announce: "https://tracker.tleechreload.org/a/key", id: 21 }),
     ])
-    expect(host).toBe("tracker.torrentleech.org:443")
+    expect(host).toBe("tracker.torrentleech.org")
   })
 
   it("orders by tier before id", () => {
     const host = canonicalTrackerHost([
-      stat({ host: "second.example.org:443", tier: 1, id: 1 }),
-      stat({ host: "first.example.org:443", tier: 0, id: 9 }),
+      tracker({ announce: "https://second.example.org/announce", tier: 1, id: 1 }),
+      tracker({ announce: "https://first.example.org/announce", tier: 0, id: 9 }),
     ])
-    expect(host).toBe("first.example.org:443")
+    expect(host).toBe("first.example.org")
   })
 
   it("does not depend on array order", () => {
-    const a = stat({ host: "a.example.org:443", tier: 0, id: 0 })
-    const b = stat({ host: "b.example.org:443", tier: 0, id: 1 })
+    const a = tracker({ announce: "https://a.example.org/announce", tier: 0, id: 0 })
+    const b = tracker({ announce: "https://b.example.org/announce", tier: 0, id: 1 })
     expect(canonicalTrackerHost([a, b])).toBe(canonicalTrackerHost([b, a]))
   })
 })

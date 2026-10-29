@@ -269,37 +269,15 @@ describe("the response body cap", () => {
   })
 
   it("fits a full torrent-get of the largest library the sync store holds", () => {
-    // torrent-get sends every trackerStats sub-field, so a cap sized for a
-    // qBittorrent torrent would refuse a library the store accepts.
+    // torrent-get sends every trackers sub-field, announce and scrape included,
+    // so a torrent with a few trackers runs past a qBittorrent-sized cap.
     const passkey = "ab".repeat(16)
-    const trackerStat = (host: string, id: number) => ({
+    const trackerEntry = (host: string, id: number) => ({
       announce: `https://${host}/announce/${passkey}`,
-      announceState: 0,
-      downloadCount: 1234,
-      hasAnnounced: true,
-      hasScraped: true,
-      host: `${host}:443`,
       id,
-      isBackup: false,
-      lastAnnouncePeerCount: 50,
-      lastAnnounceResult: "Success",
-      lastAnnounceStartTime: 1729000000,
-      lastAnnounceSucceeded: true,
-      lastAnnounceTime: 1729000000,
-      lastAnnounceTimedOut: false,
-      lastScrapeResult: "",
-      lastScrapeStartTime: 1729000000,
-      lastScrapeSucceeded: true,
-      lastScrapeTime: 1729000000,
-      lastScrapeTimedOut: false,
-      leecherCount: 1,
-      nextAnnounceTime: 1729003600,
-      nextScrapeTime: 1729001800,
       scrape: `https://${host}/scrape/${passkey}`,
-      scrapeState: 1,
-      seederCount: 42,
       sitename: "example",
-      tier: 0,
+      tier: id,
     })
     const torrent = {
       hashString: "cd".repeat(20),
@@ -323,7 +301,11 @@ describe("the response body cap", () => {
       percentDone: 1,
       downloadDir: "/data/torrents/tv",
       isPrivate: true,
-      trackerStats: [trackerStat("tracker.example", 0), trackerStat("tracker.example-mirror", 1)],
+      trackers: [
+        trackerEntry("tracker.example", 0),
+        trackerEntry("tracker.example-mirror", 1),
+        trackerEntry("tracker.example-backup", 2),
+      ],
     }
     const perTorrent = Buffer.byteLength(`${JSON.stringify(torrent)},`)
 
@@ -363,7 +345,7 @@ describe("torrent-get", () => {
     expect(await getTorrents(BASE, CREDS)).toEqual([entry])
     const body = JSON.parse(initOf(fetchMock, 0).body as string)
     expect(body.method).toBe("torrent-get")
-    expect(body.arguments.fields).toContain("trackerStats")
+    expect(body.arguments.fields).toContain("trackers")
     expect(body.arguments.ids).toBeUndefined()
   })
 
@@ -384,6 +366,8 @@ describe("torrent-get", () => {
           { name: "no hash", downloadDir: "/data" },
           { hashString: "", name: "empty hash", downloadDir: "/data" },
           { hashString: "labels", name: "Release", downloadDir: "/data", labels: "tv" },
+          { hashString: "trackers", name: "Release", downloadDir: "/data", trackers: 5 },
+          { hashString: "null tracker", name: "Release", downloadDir: "/data", trackers: [null] },
           null,
         ],
       })
@@ -392,7 +376,7 @@ describe("torrent-get", () => {
     expect(await getTorrents(BASE, CREDS)).toEqual([good])
     // Counts only, never an entry, since a name or path can identify the library.
     expect(warn).toHaveBeenCalledWith(
-      { host: "transmission.local", received: 5, kept: 1 },
+      { host: "transmission.local", received: 7, kept: 1 },
       expect.any(String)
     )
   })
