@@ -239,7 +239,9 @@ function useTrackerTorrents({
   const derived = useMemo(() => {
     const seedingTorrents = torrents.filter((t) => SEEDING_STATES.has(t.state))
     const leechingTorrents = torrents.filter((t) => LEECHING_STATES.has(t.state))
-    const activelySeedingTorrents = torrents.filter((t) => t.state === "uploading")
+    const activelySeedingTorrents = torrents.filter(
+      (t) => SEEDING_STATES.has(t.state) && t.uploadSpeed > 0
+    )
     const activelyDownloading = torrents.filter(
       (t) => LEECHING_STATES.has(t.state) && t.downloadSpeed > 0
     )

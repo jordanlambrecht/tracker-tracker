@@ -31,6 +31,7 @@ import {
   ChevronUpIcon,
   DownloadArrowIcon,
   LeechingIcon,
+  PauseIcon,
   RefreshIcon,
   SeedingIcon,
   TagIcon,
@@ -209,6 +210,11 @@ export function FleetDashboard({ dayRange, isActive = true }: FleetDashboardProp
               label="Leeching"
               value={formatCount(aggregation.stats.totalLeeching)}
               icon={<LeechingIcon width="16" height="16" />}
+            />
+            <StatCard
+              label="Inactive"
+              value={formatCount(aggregation.stats.totalInactive)}
+              icon={<PauseIcon width="16" height="16" />}
             />
             <StatCard
               label="Upload"

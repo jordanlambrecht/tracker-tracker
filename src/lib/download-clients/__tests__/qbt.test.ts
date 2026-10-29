@@ -895,24 +895,23 @@ describe("aggregateByTag", () => {
     expect(untagged).toBeUndefined()
   })
 
-  it("recognises all seeding states: stalledUP, forcedUP, queuedUP", () => {
+  it("recognises the running seeding states: stalledUP, forcedUP", () => {
     const torrents = [
       makeTorrent({ state: "stalledUP", tags: "aither" }),
       makeTorrent({ state: "forcedUP", tags: "aither" }),
-      makeTorrent({ state: "queuedUP", tags: "aither" }),
     ]
     const result = aggregateByTag(torrents, ["aither"], [])
-    expect(result.totalSeedingCount).toBe(3)
+    expect(result.totalSeedingCount).toBe(2)
     const aitherStats = result.tagStats.find((t) => t.tag === "aither")
-    expect(aitherStats?.seedingCount).toBe(3)
+    expect(aitherStats?.seedingCount).toBe(2)
   })
 
-  it("recognises all leeching states: stalledDL, forcedDL, queuedDL, metaDL", () => {
+  it("recognises the running leeching states: stalledDL, forcedDL, metaDL, forcedMetaDL", () => {
     const torrents = [
       makeTorrent({ state: "stalledDL", tags: "aither" }),
       makeTorrent({ state: "forcedDL", tags: "aither" }),
-      makeTorrent({ state: "queuedDL", tags: "aither" }),
       makeTorrent({ state: "metaDL", tags: "aither" }),
+      makeTorrent({ state: "forcedMetaDL", tags: "aither" }),
     ]
     const result = aggregateByTag(torrents, ["aither"], [])
     expect(result.totalLeechingCount).toBe(4)
@@ -920,22 +919,26 @@ describe("aggregateByTag", () => {
     expect(aitherStats?.leechingCount).toBe(4)
   })
 
-  it("counts pausedUP as a seeding state", () => {
-    const torrents = [makeTorrent({ state: "pausedUP", tags: "aither" })]
-    const result = aggregateByTag(torrents, ["aither"], [])
-    expect(result.totalSeedingCount).toBe(1)
-    expect(result.totalLeechingCount).toBe(0)
-    const aitherStats = result.tagStats.find((t) => t.tag === "aither")
-    expect(aitherStats?.seedingCount).toBe(1)
-  })
+  // qBT 4.x reports a stopped torrent as pausedUP/pausedDL, 5.x as stoppedUP/stoppedDL.
+  // Queued and checking torrents are not running either.
+  const INACTIVE_STATES = [
+    "pausedUP",
+    "pausedDL",
+    "stoppedUP",
+    "stoppedDL",
+    "queuedUP",
+    "queuedDL",
+    "checkingUP",
+  ]
 
-  it("ignores torrents in neither seeding nor leeching states", () => {
-    const torrents = [makeTorrent({ state: "pausedDL", tags: "aither" })]
+  it.each(INACTIVE_STATES)("counts %s as neither seeding nor leeching", (state) => {
+    const torrents = [makeTorrent({ state, tags: "aither" })]
     const result = aggregateByTag(torrents, ["aither"], [])
     expect(result.totalSeedingCount).toBe(0)
     expect(result.totalLeechingCount).toBe(0)
     const aitherStats = result.tagStats.find((t) => t.tag === "aither")
     expect(aitherStats?.seedingCount).toBe(0)
+    expect(aitherStats?.leechingCount).toBe(0)
   })
 
   it("returns zero totals for an empty torrent list", () => {

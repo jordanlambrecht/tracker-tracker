@@ -14,7 +14,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
+import { type UseTrackerTorrentsParams, useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import type { TorrentRaw } from "@/lib/fleet"
 import type { AggregatedTorrentsResponse } from "@/lib/torrent-utils"
 
@@ -81,13 +81,15 @@ function createWrapper() {
 
 /**
  * Route the hook's three endpoints. `live` answers /torrents, `cached` answers
- * /torrents/cached, and the ?active=true poll always answers empty so it never
- * perturbs the base list.
+ * /torrents/cached, and `active` answers the ?active=true poll. The poll answers
+ * empty by default, and its merge turns any transferring base torrent it omits
+ * into a stalled one at 0 B/s.
  */
 function mockFetch(options: {
   live?: AggregatedTorrentsResponse
   liveStatus?: number
   cached?: AggregatedTorrentsResponse
+  active?: AggregatedTorrentsResponse
 }) {
   const fetchMock = vi.fn((url: string) => {
     if (url.includes("/cached")) {
@@ -97,7 +99,10 @@ function mockFetch(options: {
       })
     }
     if (url.includes("active=true")) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(makeResponse()) })
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(options.active ?? makeResponse()),
+      })
     }
     const status = options.liveStatus ?? 200
     return Promise.resolve({
@@ -110,10 +115,14 @@ function mockFetch(options: {
   return fetchMock
 }
 
-function renderTracker(qbtTag: string | null = null) {
-  return renderHook(() => useTrackerTorrents({ trackerId: 1, qbtTag, isActive: false }), {
-    wrapper: createWrapper(),
-  })
+function renderTracker(
+  qbtTag: string | null = null,
+  params: Partial<UseTrackerTorrentsParams> = {}
+) {
+  return renderHook(
+    () => useTrackerTorrents({ trackerId: 1, qbtTag, isActive: false, ...params }),
+    { wrapper: createWrapper() }
+  )
 }
 
 beforeEach(() => {
@@ -266,6 +275,46 @@ describe("useTrackerTorrents — category stats", () => {
     const { result } = renderTracker("movies")
     await waitFor(() => expect(result.current.torrents).toHaveLength(1))
     expect(result.current.categoryStats[0]?.avgRatio).toBe(0)
+  })
+})
+
+describe("useTrackerTorrents running and inactive states", () => {
+  // Paused (qBT 4.x), stopped (5.x) and queued torrents don't announce, so none is seeding.
+  const MIXED = [
+    makeTorrent("stalled", { state: "stalledUP" }),
+    makeTorrent("paused", { state: "pausedUP" }),
+    makeTorrent("stopped", { state: "stoppedUP" }),
+    makeTorrent("queued", { state: "queuedUP" }),
+  ]
+
+  it("counts only running torrents as seeding, so the dead count ignores inactive ones", async () => {
+    mockFetch({ live: makeResponse({ torrents: MIXED }) })
+    const { result } = renderTracker("aither", { trackerSeedingCount: 1 })
+    await waitFor(() => expect(result.current.torrents).toHaveLength(4))
+    expect(result.current.seedingTorrents.map((t) => t.hash)).toEqual(["stalled"])
+    expect(result.current.deadCount).toBe(0)
+  })
+
+  it("counts unsatisfied paused, stopped and queued torrents as H&R risk", async () => {
+    mockFetch({ live: makeResponse({ torrents: MIXED }) })
+    // 48 h required, every fixture has seeded 24 h.
+    const rules = { minimumRatio: 0, seedTimeHours: 48, loginIntervalDays: 0 }
+    const { result } = renderTracker("aither", { rules })
+    await waitFor(() => expect(result.current.torrents).toHaveLength(4))
+    expect(result.current.unsatisfiedCount).toBe(4)
+    expect(result.current.hnrRiskCount).toBe(3)
+  })
+
+  it("lists any running seed with upload speed under Active Uploads", async () => {
+    const forced = makeTorrent("forced", { state: "forcedUP", uploadSpeed: 2048 })
+    // idle is seeding at 0 B/s, so it stays out.
+    mockFetch({
+      live: makeResponse({ torrents: [forced, makeTorrent("idle", { state: "stalledUP" })] }),
+      active: makeResponse({ torrents: [forced] }),
+    })
+    const { result } = renderTracker("aither")
+    await waitFor(() => expect(result.current.torrents).toHaveLength(2))
+    expect(result.current.activelySeedingTorrents.map((t) => t.hash)).toEqual(["forced"])
   })
 })
 

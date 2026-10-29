@@ -8,6 +8,7 @@ import {
   type AgeBucket,
   type Bucket,
   type FleetStats,
+  LEECHING_STATES,
   normalizeCategory,
   parseTorrentTags,
   RATIO_BUCKETS,
@@ -222,6 +223,7 @@ export function computeFleetAggregation(
   // Stats accumulators
   let totalSeeding = 0
   let totalLeeching = 0
+  let totalInactive = 0
   let fleetUploadSpeed = 0
   let fleetDownloadSpeed = 0
   let totalLibrarySize = 0
@@ -265,7 +267,8 @@ export function computeFleetAggregation(
     // -- Stats --
     const isSeeding = SEEDING_STATES.has(torrent.state)
     if (isSeeding) totalSeeding++
-    else totalLeeching++
+    else if (LEECHING_STATES.has(torrent.state)) totalLeeching++
+    else totalInactive++
     fleetUploadSpeed += torrent.uploadSpeed
     fleetDownloadSpeed += torrent.downloadSpeed
     totalLibrarySize += torrent.size
@@ -392,6 +395,7 @@ export function computeFleetAggregation(
     torrentCount,
     totalSeeding,
     totalLeeching,
+    totalInactive,
     fleetUploadSpeed,
     fleetDownloadSpeed,
     totalLibrarySize,
