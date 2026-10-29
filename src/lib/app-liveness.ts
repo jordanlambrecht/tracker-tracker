@@ -13,8 +13,8 @@
 // Downtime is written down while it is observable and never reconstructed from
 // missing rows. Gaps in client_uptime_buckets are NOT evidence of downtime: they
 // cascade-delete with their client, do not exist before the uptime feature was
-// instrumented, are absent entirely when no client is configured, and are lost on
-// every clean stop by the un-awaited flush in stopClientScheduler. Inferring from
+// instrumented, are absent entirely when no client is configured, and are cut
+// short on every clean stop, which drops the in-progress bucket. Inferring from
 // them would hatch fake outages across all four cases.
 //
 // ── The catch-22, resolved ──────────────────────────────────────────────────

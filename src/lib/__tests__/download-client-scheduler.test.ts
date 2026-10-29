@@ -9,7 +9,7 @@
 //   setupCacheParityMocks       - Happy-path mocks that also capture insert and update payloads
 
 import cron from "node-cron"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { markAppStopped, touchAppLiveness } from "@/lib/app-liveness"
 import { db } from "@/lib/db"
 import {
@@ -1621,7 +1621,7 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
   })
 
   it("stays pending until the flush write completes", async () => {
-    // Stands in for the INSERT a `docker stop` would cut off. A fake timer
+    // Stands in for the INSERT a `docker stop` can cut off. A fake timer
     // drives it, so the test is deterministic.
     const WRITE_MS = 1000
     vi.mocked(flushCompletedBuckets).mockImplementation(
@@ -1693,6 +1693,122 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
       expect.any(Error),
       "Failed to flush uptime buckets during scheduler stop"
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The SIGTERM handler in scheduler.ts zeroes the keys in the signal's own tick,
+// blocks any later start, and leaves the exit to Next, whose handler drains
+// requests first. Only boundaries are mocked here, so the real stop and start
+// functions run.
+// ---------------------------------------------------------------------------
+
+describe("SIGTERM handler in scheduler.ts", () => {
+  /** The key buffers and cron-task handles the schedulers store on globalThis. */
+  const gt = globalThis as Record<string, unknown>
+  let onSigterm: (signal: "SIGTERM") => void
+  let scheduler: typeof import("@/lib/scheduler")
+  let tracker: typeof import("@/lib/tracker-scheduler")
+
+  beforeAll(async () => {
+    // Called directly, never emitted: the worker has SIGTERM listeners of its own.
+    const before = process.listeners("SIGTERM")
+    scheduler = await import("@/lib/scheduler")
+    tracker = await import("@/lib/tracker-scheduler")
+    const added = process.listeners("SIGTERM").filter((listener) => !before.includes(listener))
+    expect(added).toHaveLength(1)
+    onSigterm = added[0]
+  })
+
+  afterAll(() => {
+    if (onSigterm) process.off("SIGTERM", onSigterm)
+  })
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    // Set explicitly, so this describe does not depend on the factory defaults.
+    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
+    vi.mocked(markAppStopped).mockResolvedValue(undefined)
+    vi.mocked(cron.schedule).mockImplementation((() => ({
+      stop: vi.fn(),
+    })) as unknown as typeof cron.schedule)
+    // Every start path reads settings or a row list here and finds nothing.
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+        limit: vi.fn().mockResolvedValue([]),
+      }),
+    }))
+    // A handler that exits fails an assertion here instead of killing the worker.
+    vi.spyOn(process, "exit").mockImplementation((() => undefined) as never)
+    gt.__schedulerTask = null
+    gt.__backupSchedulerTask = null
+    gt.__clientHeartbeatTask = null
+    gt.__clientDeepPollTask = null
+  })
+
+  afterEach(() => {
+    // Tears down whatever a test started, then clears the flag for the next one.
+    scheduler.stopScheduler()
+    scheduler._resetShutdownForTest()
+    vi.restoreAllMocks()
+    gt.__schedulerKey = null
+    gt.__backupSchedulerKey = null
+    clearFailureLogGate()
+  })
+
+  it("zero-fills the tracker and backup keys before any await", () => {
+    const trackerKey = Buffer.alloc(32, 0xab)
+    const backupKey = Buffer.alloc(32, 0xcd)
+    gt.__schedulerKey = trackerKey
+    gt.__backupSchedulerKey = backupKey
+
+    onSigterm("SIGTERM")
+
+    expect(trackerKey.every((byte) => byte === 0)).toBe(true)
+    expect(backupKey.every((byte) => byte === 0)).toBe(true)
+  })
+
+  it("does not exit, so Next's handler can drain and exit", async () => {
+    onSigterm("SIGTERM")
+    // Also past the stop writes, which settle on microtasks with these mocks.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(process.exit).not.toHaveBeenCalled()
+  })
+
+  // A page render still in flight during Next's drain reaches the auth layout's
+  // ensureSchedulerRunning after the handler has already zeroed the keys.
+  it("ensureSchedulerRunning starts nothing after SIGTERM", () => {
+    onSigterm("SIGTERM")
+
+    scheduler.ensureSchedulerRunning("ab".repeat(32))
+
+    expect(cron.schedule).not.toHaveBeenCalled()
+    expect(tracker.isTrackerPollingRunning()).toBe(false)
+    expect(tracker._getSchedulerKeyForTest()).toBeNull()
+  })
+
+  it("startScheduler starts nothing after SIGTERM", () => {
+    onSigterm("SIGTERM")
+
+    scheduler.startScheduler(makeEncryptionKey())
+
+    expect(cron.schedule).not.toHaveBeenCalled()
+    expect(tracker.isTrackerPollingRunning()).toBe(false)
+    expect(tracker._getSchedulerKeyForTest()).toBeNull()
+  })
+
+  // Lockdown, restore and a password change stop the schedulers and then start
+  // them again, so a plain stop must not block the next start.
+  it("still starts after a stopScheduler that no SIGTERM preceded", () => {
+    const key = makeEncryptionKey()
+    scheduler.stopScheduler()
+
+    scheduler.startScheduler(key)
+
+    expect(tracker.isTrackerPollingRunning()).toBe(true)
+    expect(tracker._getSchedulerKeyForTest()).toBe(key)
   })
 })
 

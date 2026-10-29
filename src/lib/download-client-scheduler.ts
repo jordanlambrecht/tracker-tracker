@@ -729,9 +729,9 @@ export function startClientScheduler(encryptionKey: Buffer): void {
  * Every side effect runs synchronously before the single trailing await, so
  * both callers, which drop the promise, still get the full teardown. It never
  * rejects: an unhandled rejection takes the process down, so a flush failure is
- * logged and swallowed. No caller awaits it yet, so the SIGTERM handler in
- * scheduler.ts can exit before the flush or the stop mark is written. The
- * in-progress 5-minute bucket is never flushed and is lost on stop.
+ * logged and swallowed. No caller awaits it. On SIGTERM the flush and the stop
+ * mark race Next's exit, so neither is guaranteed. The in-progress 5-minute
+ * bucket is never flushed and is lost on stop.
  */
 export function stopClientScheduler(): Promise<void> {
   const hb = getHeartbeatTask()
