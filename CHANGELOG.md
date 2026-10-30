@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.15.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.15.0...v2.15.1) (2026-10-30)
+
+### Bug Fixes
+
+* **trackers:** drop the dead trackerstatus.info status page links
+
 ## [2.15.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.14.0...v2.15.0) (2026-10-30)
 
 ### Bug Fixes
