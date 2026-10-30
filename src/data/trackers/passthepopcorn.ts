@@ -27,7 +27,7 @@ export const passthepopcorn: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "pass-the-popcorn",
-  statusPageUrl: "https://ptp.trackerstatus.info/",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

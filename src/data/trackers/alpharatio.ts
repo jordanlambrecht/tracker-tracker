@@ -27,7 +27,7 @@ export const alpharatio: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "alpha-ratio",
-  statusPageUrl: "https://ar.trackerstatus.info/",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

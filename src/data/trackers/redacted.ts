@@ -30,7 +30,7 @@ export const redacted: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "redacted",
-  statusPageUrl: "https://red.trackerstatus.info/",
+  statusPageUrl: "",
   announceHosts: ["flacsfor.me"],
 
   // ── Community ───────────────────────────────────────────────────────

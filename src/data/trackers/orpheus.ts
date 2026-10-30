@@ -27,7 +27,7 @@ export const orpheus: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "orpheus",
-  statusPageUrl: "https://ops.trackerstatus.info/",
+  statusPageUrl: "",
   announceHosts: ["opsfet.ch"],
 
   // ── Community ───────────────────────────────────────────────────────

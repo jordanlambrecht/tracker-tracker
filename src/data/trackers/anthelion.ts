@@ -28,7 +28,7 @@ export const anthelion: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "anthelion",
-  statusPageUrl: "https://ant.trackerstatus.info/",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

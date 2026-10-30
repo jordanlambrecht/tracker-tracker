@@ -406,7 +406,7 @@ trackerHubSlug: ""
 
 Type: `string`
 
-URL to an external status page. Many trackers have one at `trackerstatus.info`. Use `""` if none.
+URL to an external status page. Use `""` if none.
 
 ```typescript
 statusPageUrl: "https://status.aither.cc/status/aither"

@@ -26,7 +26,7 @@ export const gazellegames: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "gazelle-games",
-  statusPageUrl: "https://ggn.trackerstatus.info/",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
