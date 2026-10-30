@@ -488,6 +488,28 @@ describe("computeTodayAtAGlance — torrent movers tag filtering", () => {
     const result = await computeTodayAtAGlance()
     expect(result.movers.topUploaders).toHaveLength(0)
     expect(result.movers.topDownloaders).toHaveLength(0)
+    expect(result.movers.unmatchedTorrents).toBe(1)
+  })
+
+  // A matched torrent that hasn't moved yet today also leaves the movers empty.
+  // Counting the unmatched ones then would claim nothing belongs to a tracker.
+  it("reports no unmatched torrents once any torrent matched, moving or not", async () => {
+    const tracker = makeTracker(1, { qbtTag: "aither" })
+    const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
+    const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")
+    const idle = makeTorrent("hash1", "Idle Movie", "aither", 1000000000, 3000000000)
+    const other = makeTorrent("hash2", "Some Movie", "other-tracker", 5000000000, 3000000000)
+    const cps = [
+      makeTorrentCheckpoint(1, "hash1", "1000000000", "3000000000"),
+      makeTorrentCheckpoint(1, "hash2", "0", "0"),
+    ]
+    const client = { id: 1, name: "qBit", cachedTorrents: JSON.stringify([idle, other]) }
+    seedStore([tracker], [snap1, snap2], [], [], cps, [client])
+
+    const result = await computeTodayAtAGlance()
+    expect(result.movers.topUploaders).toHaveLength(0)
+    expect(result.movers.topDownloaders).toHaveLength(0)
+    expect(result.movers.unmatchedTorrents).toBe(0)
   })
 
   it("includes torrents whose tags match a tracker's qbtTag", async () => {

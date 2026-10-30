@@ -360,7 +360,9 @@ export async function computeTodayAtAGlance(
   let completedToday = 0
   // Torrents we saw but couldn't attribute to any tracker by tag or announce
   // URL. Reported so the UI can tell "no download client" apart from "client
-  // connected but nothing matched". Identical otherwise (issue #157).
+  // connected but nothing matched". Identical otherwise (issue #157). Sent only
+  // when nothing matched: matched torrents that haven't moved yet today also
+  // leave the movers empty, and the UI must not blame tracking for that.
   let unmatchedTorrents = 0
 
   for (const client of clients) {
@@ -461,7 +463,7 @@ export async function computeTodayAtAGlance(
     },
     movers: {
       clientCount: clients.length,
-      unmatchedTorrents,
+      unmatchedTorrents: movers.length === 0 ? unmatchedTorrents : 0,
       topUploaders: topUploaders.map((t) => ({
         hash: t.hash,
         name: t.name,

@@ -222,7 +222,10 @@ export interface TodayAtAGlance {
   movers: {
     /** Number of configured download clients. */
     clientCount: number
-    /** Torrents seen but not attributable to any tracker by tag or announce URL. */
+    /**
+     * Torrents seen but not attributable to any tracker by tag or announce URL.
+     * 0 whenever at least one torrent matched, moving or not.
+     */
     unmatchedTorrents: number
     topUploaders: Array<{
       hash: string
