@@ -9,7 +9,7 @@ export const orpheus: TrackerRegistryEntry = {
   abbreviation: "OPS",
   url: "https://orpheus.network",
   description:
-    "One of the largest and most prestigious private music trackers, Orpheus is renowned for its extensive library of high-quality music releases, active community, and strict quality standards.",
+    "One of the largest private music trackers, with a big library of high-quality releases, an active community, and strict quality standards.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",

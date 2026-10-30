@@ -9,7 +9,7 @@ export const anthelion: TrackerRegistryEntry = {
   abbreviation: "ANT",
   url: "https://anthelion.me",
   description:
-    "General movie tracker featuring a Gazelle-based UI. Lacking in content compared to PTP but growing at a fast rate. Sister site of the TV tracker NBL.",
+    "General movie tracker with a Gazelle-based UI. Has less content than PTP but is growing fast. Sister site of the TV tracker NBL.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "nebulance",

@@ -9,7 +9,7 @@ export const retrotoon: TrackerRegistryEntry = {
   abbreviation: "RTW",
   url: "https://retrotoon.world",
   description:
-    "Private tracker dedicated exclusively to animation: classic Western cartoons, animated series and films, anime, and shorts. Aims to archive rare and hard-to-find animation from any country or era.",
+    "Private tracker for animation only, including classic Western cartoons, animated series and films, anime, and shorts. Aims to archive rare and hard-to-find animation from any country or era.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   // TBDev derivative. The `rt_` API key only authenticates uploads and the

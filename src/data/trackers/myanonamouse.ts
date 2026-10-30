@@ -9,7 +9,7 @@ export const myanonamouse: TrackerRegistryEntry = {
   abbreviation: "MAM",
   url: "https://www.myanonamouse.net",
   description:
-    "Book, audiobook, and comics tracker with an open interview for anyone who wants to join and an extremely friendly community.",
+    "Book, audiobook, and comics tracker with an open interview for anyone who wants to join and a friendly community.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "mam",

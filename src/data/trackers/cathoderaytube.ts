@@ -9,7 +9,7 @@ export const cathoderaytube: TrackerRegistryEntry = {
   abbreviation: "CRT",
   url: "https://www.cathode-ray.tube",
   description:
-    "Niche tracker dedicated to classic and retro television content. Specializes in older TV series, public broadcasts, and hard-to-find vintage programming.",
+    "Niche tracker for classic and retro television content. Specializes in older TV series, public broadcasts, and hard-to-find vintage programming.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "luminance",

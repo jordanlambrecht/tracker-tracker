@@ -9,7 +9,7 @@ export const bibliotik: TrackerRegistryEntry = {
   abbreviation: "BIB",
   url: "https://bibliotik.me",
   description:
-    "The premier private tracker for e-books, audiobooks, comics, and other written media. Massive library with strict curation.",
+    "A private tracker for e-books, audiobooks, comics, and other written media. Large library with strict curation.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "custom",

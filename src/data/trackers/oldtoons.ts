@@ -9,7 +9,7 @@ export const oldtoons: TrackerRegistryEntry = {
   abbreviation: "OT",
   url: "https://oldtoons.world",
   description:
-    "Dedicated to classic animation and vintage cartoons. A niche tracker for fans of retro animated content from the golden age of animation.",
+    "Niche tracker for classic animation and vintage cartoons from the golden age of animation.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

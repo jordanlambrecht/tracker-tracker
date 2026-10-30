@@ -9,7 +9,7 @@ export const filelist: TrackerRegistryEntry = {
   abbreviation: "FL",
   url: "https://filelist.io",
   description:
-    "General tracker with a huge amount of content including encodes from top groups such as HDB internals.",
+    "General tracker with a lot of content, including encodes from top groups such as HDB internals.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "filelist",

@@ -32,22 +32,22 @@ export const retromoviesclub: TrackerRegistryEntry = {
   userClasses: [
     {
       name: "Outtake",
-      requirements: "Pruned accounts - removed due to prolonged inactivity.",
+      requirements: "Accounts removed due to prolonged inactivity.",
       outsideLadder: "below",
     },
     {
       name: "Blacklisted",
-      requirements: "Banned for violating site rules - all privileges revoked.",
+      requirements: "Banned for violating site rules. All privileges revoked.",
       outsideLadder: "below",
     },
     {
       name: "Shelved",
-      requirements: "Disabled accounts - temporarily or permanently shelved by staff.",
+      requirements: "Accounts temporarily or permanently shelved by staff.",
       outsideLadder: "below",
     },
     {
       name: "Audience",
-      requirements: "View/download only role - can't upload or invite.",
+      requirements: "View/download only role. Can't upload or invite.",
       outsideLadder: "below",
     },
     {
@@ -89,7 +89,7 @@ export const retromoviesclub: TrackerRegistryEntry = {
     { name: "Producer", requirements: "Staff assigned", outsideLadder: "above" },
     {
       name: "ViP",
-      requirements: "Very Important Person - donors and honored members of the community",
+      requirements: "Very Important Person. Donors and honored members of the community",
       outsideLadder: "above",
     },
     { name: "Film Editor", requirements: "Staff assigned", outsideLadder: "above" },

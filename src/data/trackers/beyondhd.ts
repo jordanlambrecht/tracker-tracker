@@ -9,7 +9,7 @@ export const beyondhd: TrackerRegistryEntry = {
   abbreviation: "BHD",
   url: "https://beyond-hd.me",
   description:
-    "Well known for being the internal release site for the remux group FraMeSToR, as well as the new home of many former AHD internals. Untouched SD content allowed if no HD version exists.",
+    "Internal release site for the remux group FraMeSToR, and the new home of many former AHD internals. Untouched SD content allowed if no HD version exists.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "custom",

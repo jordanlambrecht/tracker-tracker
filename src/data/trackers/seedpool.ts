@@ -9,7 +9,7 @@ export const seedpool: TrackerRegistryEntry = {
   abbreviation: "SP",
   url: "https://seedpool.org",
   description:
-    "General private tracker with a focus on long term seeding and a welcoming community. Known for its active IRC.",
+    "General private tracker focused on long-term seeding, with a welcoming community and an active IRC.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
@@ -42,7 +42,7 @@ export const seedpool: TrackerRegistryEntry = {
   userClasses: [
     {
       name: "Cesspool",
-      requirements: "Ratio below 1.00 — download privileges revoked",
+      requirements: "Ratio below 1.00. Download privileges revoked",
       outsideLadder: "below",
     },
     { name: "KiddiePool", requirements: "Timeout zone", outsideLadder: "below" },

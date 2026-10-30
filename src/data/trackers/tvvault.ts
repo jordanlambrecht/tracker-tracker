@@ -9,7 +9,7 @@ export const tvvault: TrackerRegistryEntry = {
   abbreviation: "TVV",
   url: "https://tv-vault.me",
   description:
-    "Focusing on older TV. Does not allow any show that did not finish airing at least 5 years ago.",
+    "Focuses on older TV. Does not allow any show that did not finish airing at least 5 years ago.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "custom",

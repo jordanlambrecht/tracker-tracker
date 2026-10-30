@@ -9,7 +9,7 @@ export const torrentleech: TrackerRegistryEntry = {
   abbreviation: "TL",
   url: "https://www.torrentleech.org",
   description:
-    "Large general tracker known for having open signups very often. Broad content library across most categories.",
+    "Large general tracker that opens signups often. Broad content library across most categories.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "torrentleech",
