@@ -98,6 +98,23 @@ function getPauseState(tracker: {
   return { isPaused: false }
 }
 
+// The lastError a backup restore pauses a tracker with when the registry cannot
+// place its address. Resume clears it, and until then not even a manual poll runs.
+const UNLINKED_RESTORE_ERROR =
+  "Restored from a backup, and its address could not be matched to a known tracker. Check it before resuming"
+
+function isRestorePaused(tracker: {
+  pausedAt: Date | string | null
+  registrySlug: string | null
+  lastError: string | null
+}): boolean {
+  return (
+    !!tracker.pausedAt &&
+    tracker.registrySlug === null &&
+    tracker.lastError === UNLINKED_RESTORE_ERROR
+  )
+}
+
 // The ratio a tracker actually holds this account to. Live requiredRatio wins
 // over the registry's minimumRatio because sliding-ratio sites (Gazelle) report
 // the current figure per account, and 0 is a real value there, hence the
@@ -225,5 +242,7 @@ export {
   getHealthLabel,
   getPauseState,
   getTrackerHealth,
+  isRestorePaused,
   resolveRequiredRatio,
+  UNLINKED_RESTORE_ERROR,
 }

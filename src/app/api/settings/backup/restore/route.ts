@@ -1,11 +1,13 @@
 // src/app/api/settings/backup/restore/route.ts
 //
 // Functions: backupCiphertexts, batchInsert, POST, firstBackupCiphertext, hashFileName,
-// reencryptField, prowlarrPinFields
+// reencryptField, prowlarrPinFields, restoredApiPath
 
 import { createHash } from "node:crypto"
-import { eq } from "drizzle-orm"
+import { and, eq, isNotNull } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { DEFAULT_API_PATHS } from "@/data/platform-types"
+import { registryEntryFor } from "@/data/tracker-registry"
 import { authenticate } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
 import {
@@ -50,6 +52,7 @@ import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lo
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 
 const BATCH_SIZE = 500
 
@@ -143,6 +146,24 @@ function clientRestoreError(credentialsCleared: boolean, urlPathCleared: boolean
   if (credentialsCleared) return "Credentials cleared during restore. Re-enter and re-enable"
   if (urlPathCleared) return "URL path cleared during restore. Re-enter it and re-enable"
   return null
+}
+
+// Gazelle, MAM and GGn build the request with new URL(apiPath, baseUrl), so
+// anything but a path on the row's own site would send its token elsewhere.
+function restoredApiPath(
+  apiPath: string | undefined,
+  baseUrl: string,
+  platformType: string | undefined
+): string | undefined {
+  if (apiPath === undefined) return undefined
+  try {
+    if (apiPath.startsWith("/") && new URL(apiPath, baseUrl).origin === new URL(baseUrl).origin) {
+      return apiPath
+    }
+  } catch {
+    // security-audit-ignore: a path the URL parser refuses gets the platform default below.
+  }
+  return (platformType && DEFAULT_API_PATHS[platformType]) || "/"
 }
 
 // Instance ids are reassigned on restore. A pin whose instance is not in the
@@ -379,6 +400,7 @@ export async function POST(request: Request) {
   let clientCredentialsCleared = 0
   let totpDisabledOnRestore = false
   let orphanedRecordsSkipped = 0
+  let trackersPausedOnRestore = 0
 
   try {
     await db.transaction(async (tx) => {
@@ -436,6 +458,7 @@ export async function POST(request: Request) {
 
       // Insert trackers with token re-encryption
       const trackerIdMap = new Map<number, number>()
+      const restoredAt = new Date()
       for (const t of payload.trackers) {
         const { id: oldId, ...fields } = t as Record<string, unknown> & { id: number }
 
@@ -491,6 +514,27 @@ export async function POST(request: Request) {
           mouseholeToken = null
         }
 
+        // The token is sent wherever these three point, so a slug the registry
+        // knows takes them from its entry and never from the file.
+        const entry = registryEntryFor({
+          registrySlug: (fields.registrySlug as string | null) ?? null,
+        })
+        // Backups predate the write-time strip and carry whatever was
+        // stored then, so a restore is a write path like any other.
+        const fileBaseUrl = stripTrailingSlash((fields.baseUrl as string).trim())
+        const endpoint = entry
+          ? { baseUrl: entry.url, apiPath: entry.apiPath, platformType: entry.platform }
+          : {
+              baseUrl: fileBaseUrl,
+              apiPath: restoredApiPath(
+                fields.apiPath as string | undefined,
+                fileBaseUrl,
+                fields.platformType as string | undefined
+              ),
+              platformType: fields.platformType as string | undefined,
+            }
+        if (!entry) trackersPausedOnRestore++
+
         // The export selects the whole tracker row minus five runtime fields, so
         // a column missing from this list travels in the file and never comes
         // back. restore-route.test.ts derives the required set from the schema.
@@ -498,14 +542,19 @@ export async function POST(request: Request) {
           .insert(trackers)
           .values({
             name: fields.name as string,
-            // Backups predate the write-time strip and carry whatever was
-            // stored then, so a restore is a write path like any other.
-            baseUrl: stripTrailingSlash((fields.baseUrl as string).trim()),
-            apiPath: fields.apiPath as string,
-            platformType: fields.platformType as string,
-            // Absent from backups taken before the column existed. The restore
-            // does not derive it from baseUrl; the backfill after the commit does.
-            registrySlug: (fields.registrySlug as string | null) ?? null,
+            ...endpoint,
+            // Absent from backups taken before the column existed, and dropped
+            // when the registry does not know it. The backfill after the commit
+            // matches both by host.
+            registrySlug: entry?.slug ?? null,
+            // Until that backfill links it, the row would poll the file's address.
+            ...(entry
+              ? {}
+              : {
+                  pausedAt: restoredAt,
+                  lastError: UNLINKED_RESTORE_ERROR,
+                  lastErrorAt: restoredAt,
+                }),
             encryptedApiToken: apiToken,
             encryptedCredentials: credentials,
             isActive: fields.isActive as boolean,
@@ -1080,6 +1129,24 @@ export async function POST(request: Request) {
   // The boot-time backfill ran long before these rows existed, so a tracker from
   // a backup older than registry_slug would poll without its registry options.
   await backfillRegistrySlugs({ force: true })
+
+  // A row the backfill linked now polls the registry's address, so the restore's
+  // pause comes off it. On failure every unlinked row simply stays paused.
+  if (trackersPausedOnRestore > 0) {
+    try {
+      await db
+        .update(trackers)
+        .set({ pausedAt: null, lastError: null, lastErrorAt: null })
+        .where(
+          and(isNotNull(trackers.registrySlug), eq(trackers.lastError, UNLINKED_RESTORE_ERROR))
+        )
+    } catch (err) {
+      log.warn(
+        { error: errMsg(err) },
+        "Could not resume the restored trackers the backfill linked, so they stay paused"
+      )
+    }
+  }
 
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
   // Restarting here means a direct API caller does not depend on a page load to

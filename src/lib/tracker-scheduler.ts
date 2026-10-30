@@ -31,7 +31,7 @@ import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
-import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
+import { getPauseState, isRestorePaused, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type {
   AvistazPlatformMeta,
@@ -218,6 +218,12 @@ export async function pollTracker(
     .limit(1)
 
   if (!tracker?.isActive) return
+  // Its address came from a backup file and matches no registry entry, so only
+  // Resume, which clears this marker, may send the token there.
+  if (isRestorePaused(tracker)) {
+    log.info({ trackerId: tracker.id }, "Skipping a restored tracker that has not been resumed")
+    return
+  }
 
   const timestamp = batchTimestamp ?? new Date()
 

@@ -3,7 +3,8 @@
 // A tracker row names its registry entry by slug; the URL it stores is only
 // the poll address. When the registry's URL differs, because a site moved or
 // the row was restored with an older spelling, the poll uses the registry URL
-// and writes it back, so a domain change ships as a registry edit.
+// and writes it back, so a domain change ships as a registry edit. A restored
+// row the registry cannot place is not polled at all until it is resumed.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/db", () => ({
@@ -37,6 +38,7 @@ vi.mock("@/lib/tracker-platforms", () => ({
 
 import { db } from "@/lib/db"
 import { pollTracker } from "@/lib/tracker-scheduler"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 
 /** Drizzle-shaped chain: any method sequence resolves to `result`. */
 function chain(result: unknown): Record<string, unknown> {
@@ -167,5 +169,35 @@ describe("pollTracker keeps a slug row's URL in step with the registry", () => {
       expect.anything()
     )
     expect(setCalls.some((v) => "baseUrl" in v)).toBe(false)
+  })
+})
+
+// A restore pauses a row whose address no registry entry vouches for. The
+// backfill and Resume are the only ways out, and a manual poll is neither.
+describe("pollTracker skips a restored row the registry cannot place", () => {
+  const restored = {
+    registrySlug: null,
+    baseUrl: "https://evil.example",
+    pausedAt: new Date("2026-10-30T00:00:00Z"),
+  }
+
+  it("fetches and writes nothing on a manual poll", async () => {
+    mockRow(row({ ...restored, lastError: UNLINKED_RESTORE_ERROR }))
+
+    await pollTracker(42, KEY, false, undefined, undefined, undefined, true)
+
+    expect(fetchStats).not.toHaveBeenCalled()
+    expect(db.update).not.toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
+  })
+
+  // A manual poll is how a user retries a tracker paused after failures.
+  it("still polls a row paused for any other reason when asked manually", async () => {
+    mockRow(row({ ...restored, lastError: "HTTP 503" }))
+
+    await pollTracker(42, KEY, false, undefined, undefined, undefined, true)
+
+    expect(fetchStats).toHaveBeenCalledTimes(1)
+    expect(setCalls.some((v) => v.pausedAt === null)).toBe(true)
   })
 })

@@ -214,6 +214,32 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("must not target localhost")
   })
 
+  it("rejects a tracker whose platformType is not a supported platform", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).platformType = "torrentz"
+    expect(() => validateBackupJson(p)).toThrow(
+      "Backup validation: trackers[0].platformType must be one of: unit3d, gazelle"
+    )
+  })
+
+  it("rejects a tracker whose apiPath is not a string", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).apiPath = null
+    expect(() => validateBackupJson(p)).toThrow("trackers[0].apiPath must be a string")
+  })
+
+  // The column defaults apply to a row without them, and old BTN rows hold an
+  // absolute API URL that the restore replaces rather than refuses.
+  it("accepts a tracker with no platformType or apiPath, or an absolute apiPath", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0] as Record<string, unknown>
+    delete tracker.platformType
+    delete tracker.apiPath
+    expect(() => validateBackupJson(p)).not.toThrow()
+    tracker.apiPath = "https://api.broadcasthe.net/"
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
   it("accepts tracker with empty API token (post-restore backups)", () => {
     const p = validPayload()
     ;(p.trackers[0] as Record<string, unknown>).encryptedApiToken = ""

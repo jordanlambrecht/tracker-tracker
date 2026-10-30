@@ -13,6 +13,7 @@ import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { scrubObject } from "@/lib/scrub-object"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
+import { isRestorePaused } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type { DebugApiCall, TrackerStats } from "@/types/tracker-stats"
 
@@ -61,6 +62,8 @@ export async function POST(_request: Request, props: RouteContext) {
       isActive: trackers.isActive,
       remoteUserId: trackers.remoteUserId,
       useProxy: trackers.useProxy,
+      pausedAt: trackers.pausedAt,
+      lastError: trackers.lastError,
     })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
@@ -72,6 +75,12 @@ export async function POST(_request: Request, props: RouteContext) {
 
   if (!tracker.isActive) {
     return NextResponse.json({ error: "Tracker is archived" }, { status: 400 })
+  }
+
+  // A debug call sends the token to the stored address, which the registry has
+  // not vouched for on a row a restore paused.
+  if (isRestorePaused(tracker)) {
+    return NextResponse.json({ error: "Resume this tracker before debugging it" }, { status: 400 })
   }
 
   const [settings] = await db

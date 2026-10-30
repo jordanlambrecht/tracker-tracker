@@ -11,6 +11,8 @@
 import { getTableColumns } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { DEFAULT_API_PATHS } from "@/data/platform-types"
+import { getTrackerBySlug, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { authenticate } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
 import { type BackupPayload, encryptBackupPayload } from "@/lib/backup"
@@ -21,6 +23,7 @@ import { checkLockout } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import { POST } from "./route"
 
 vi.mock("@/lib/api-helpers", () => ({
@@ -35,7 +38,17 @@ vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(),
     transaction: vi.fn(),
+    update: vi.fn(),
   },
+}))
+
+// The post-backfill release is one UPDATE, so its WHERE is the only record a
+// mocked db keeps of which rows it touches.
+vi.mock("drizzle-orm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("drizzle-orm")>()),
+  and: (...conditions: unknown[]) => ({ and: conditions }),
+  eq: (column: unknown, value: unknown) => ({ eq: [column, value] }),
+  isNotNull: (column: unknown) => ({ isNotNull: column }),
 }))
 
 // Sentinel objects so an insert/delete can be traced back to its table.
@@ -58,7 +71,12 @@ vi.mock("@/lib/db/schema", () => ({
   tagGroups: { __table: "tag_groups", id: "tag_groups.id" },
   trackerRoles: { __table: "tracker_roles" },
   trackerSnapshots: { __table: "tracker_snapshots" },
-  trackers: { __table: "trackers", id: "trackers.id" },
+  trackers: {
+    __table: "trackers",
+    id: "trackers.id",
+    registrySlug: "trackers.registry_slug",
+    lastError: "trackers.last_error",
+  },
 }))
 
 vi.mock("@/lib/lockout", () => ({
@@ -411,10 +429,40 @@ function onlyInsert(recorder: TxRecorder, tableName: string): Record<string, unk
   return rows[0].values
 }
 
+interface DbUpdateCall {
+  table: unknown
+  values: Record<string, unknown>
+  where: unknown
+}
+
+/** Records every update the route makes through the global db, after the commit. */
+function mockDbUpdate(): DbUpdateCall[] {
+  const calls: DbUpdateCall[] = []
+  vi.mocked(db.update).mockImplementation(((table: unknown) => ({
+    set: (values: Record<string, unknown>) => ({
+      where: (where: unknown) => {
+        calls.push({ table, values, where })
+        return Promise.resolve([])
+      },
+    }),
+  })) as never)
+  return calls
+}
+
+function registryEntry(slug: string): TrackerRegistryEntry {
+  const entry = getTrackerBySlug(slug)
+  if (!entry) throw new Error(`no registry entry for ${slug}`)
+  return entry
+}
+
+// A Gazelle site: the platform that resolves apiPath against baseUrl.
+const RED = registryEntry("redacted")
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("POST /api/settings/backup/restore — credential re-encryption", () => {
   let recorder: TxRecorder
+  let dbUpdates: DbUpdateCall[]
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -429,6 +477,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) => fn(created.tx)
     )
+    dbUpdates = mockDbUpdate()
   })
 
   // ─── 0. Notify toggles survive the trip ──────────────────────────────────
@@ -484,10 +533,12 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const saved: Record<string, unknown> = {
       id: 1,
       name: "Drift Tracker",
-      baseUrl: "https://drift.example.com",
-      apiPath: "/api/v2/user",
-      platformType: "gazelle",
-      registrySlug: "drift-tracker",
+      // A slug the registry knows, or the restore would drop it. The three
+      // fields it overrides hold the entry's own values so they round-trip.
+      baseUrl: RED.url,
+      apiPath: RED.apiPath,
+      platformType: RED.platform,
+      registrySlug: RED.slug,
       encryptedApiToken: payload.trackers[0].encryptedApiToken,
       encryptedCredentials: encrypt('{"kind":"cookie","value":"invented"}', backupKey),
       isActive: false,
@@ -1082,20 +1133,171 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     await expect(res.json()).resolves.toMatchObject({ tokensPreserved: 0, tokensCleared: 0 })
   })
 
-  // ─── 6. Envelope trust: apiPath is written verbatim ──────────────────────────
+  // ─── 6. Endpoint fields: where a restored token is sent ──────────────────────
 
-  it("writes apiPath verbatim from the backup with no validation", async () => {
-    const backupKey = await deriveKey(PASSWORD, SALT_A)
-    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
-    // An absolute URL here would make the tracker client call a foreign host.
-    payload.trackers[0].apiPath = "https://attacker.example.net/collect"
-    mockCurrentSettings({ encryptionSalt: SALT_B })
+  // The encrypted token survives an edit to the plaintext fields beside it, so
+  // an edited backup could otherwise point a working token at any host.
+  describe("tracker endpoints", () => {
+    async function restoreTrackers(overrides: Record<string, unknown>[]): Promise<Response> {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+      payload.trackers = overrides.map((fields) => ({ ...payload.trackers[0], ...fields }))
+      mockCurrentSettings({ encryptionSalt: SALT_A })
+      return POST(makeRequest(payload, PASSWORD))
+    }
 
-    const res = await POST(makeRequest(payload, PASSWORD))
-    expect(res.status).toBe(200)
+    function trackerInserts(): Record<string, unknown>[] {
+      return recorder.inserts
+        .filter((i) => (i.table as { __table?: string }).__table === "trackers")
+        .map((i) => i.values)
+    }
 
-    // Pinned as-is: validateBackupJson checks baseUrl but never apiPath.
-    expect(onlyInsert(recorder, "trackers").apiPath).toBe("https://attacker.example.net/collect")
+    it("takes a linked tracker's address, API path and platform from the registry", async () => {
+      const res = await restoreTrackers([
+        {
+          registrySlug: RED.slug,
+          baseUrl: "https://evil.example",
+          apiPath: "https://evil.example/x",
+          platformType: "unit3d",
+        },
+      ])
+      expect(res.status).toBe(200)
+
+      expect(onlyInsert(recorder, "trackers")).toMatchObject({
+        baseUrl: RED.url,
+        apiPath: RED.apiPath,
+        platformType: RED.platform,
+        registrySlug: RED.slug,
+      })
+    })
+
+    it.each([
+      "https://evil.example/x",
+      "//evil.example/x",
+      "/\\evil.example/x",
+      "/\t/evil.example",
+    ])("replaces an unlinked tracker's apiPath %j with the platform default", async (apiPath) => {
+      const res = await restoreTrackers([{ platformType: "gazelle", apiPath }])
+      expect(res.status).toBe(200)
+
+      expect(onlyInsert(recorder, "trackers").apiPath).toBe(DEFAULT_API_PATHS.gazelle)
+    })
+
+    // Encoded slashes and dot segments stay in the path, so the host is still the row's own.
+    it.each(["/api/user", "/%2F%2Fevil.example", "/../x"])(
+      "keeps an unlinked tracker's apiPath %j, a path on its own site",
+      async (apiPath) => {
+        const res = await restoreTrackers([{ platformType: "gazelle", apiPath }])
+        expect(res.status).toBe(200)
+
+        expect(onlyInsert(recorder, "trackers").apiPath).toBe(apiPath)
+      }
+    )
+
+    // The release after the backfill finds rows by this marker, so a file must
+    // not be able to plant it on a row the restore leaves polling.
+    it("writes no lastError for a linked tracker whose file row carries the marker", async () => {
+      const res = await restoreTrackers([
+        { registrySlug: RED.slug, lastError: UNLINKED_RESTORE_ERROR },
+      ])
+      expect(res.status).toBe(200)
+
+      expect(onlyInsert(recorder, "trackers")).not.toHaveProperty("lastError")
+    })
+
+    // BTN's adapter ignores api_path, and some older rows hold its API URL there.
+    it("restores an old BTN row whose apiPath is an absolute URL", async () => {
+      const res = await restoreTrackers([
+        {
+          name: "BTN",
+          baseUrl: "https://broadcasthe.net",
+          apiPath: "https://api.broadcasthe.net/",
+          platformType: "btn",
+        },
+      ])
+      expect(res.status).toBe(200)
+
+      expect(onlyInsert(recorder, "trackers")).toMatchObject({
+        baseUrl: "https://broadcasthe.net",
+        apiPath: DEFAULT_API_PATHS.btn,
+        platformType: "btn",
+      })
+    })
+
+    it("rejects a tracker whose platformType is not a supported platform", async () => {
+      const res = await restoreTrackers([{ platformType: "torrentz" }])
+
+      expect(res.status).toBe(400)
+      expect(recorder.inserts).toHaveLength(0)
+      expect(log.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.stringContaining(
+            "trackers[0].platformType must be one of: unit3d, gazelle"
+          ),
+        }),
+        "backup file validation or decryption failed"
+      )
+    })
+
+    it("pauses every tracker the registry cannot place, with the reason, and no linked one", async () => {
+      const res = await restoreTrackers([
+        { id: 1, registrySlug: null },
+        { id: 2, registrySlug: "not-in-the-registry" },
+        { id: 3, registrySlug: RED.slug },
+      ])
+      expect(res.status).toBe(200)
+
+      const [custom, unknownSlug, linked] = trackerInserts()
+      for (const row of [custom, unknownSlug]) {
+        expect(row).toMatchObject({
+          registrySlug: null,
+          pausedAt: expect.any(Date),
+          lastError: UNLINKED_RESTORE_ERROR,
+          lastErrorAt: expect.any(Date),
+        })
+      }
+      expect(linked.registrySlug).toBe(RED.slug)
+      expect(linked).not.toHaveProperty("pausedAt")
+      expect(linked).not.toHaveProperty("lastError")
+    })
+
+    // The backfill links a slugless row by its host after the commit, and that
+    // row then polls the registry's address.
+    it("resumes only the paused rows the backfill linked, before polling restarts", async () => {
+      const res = await restoreTrackers([{ registrySlug: null }])
+      expect(res.status).toBe(200)
+
+      expect(dbUpdates).toEqual([
+        {
+          table: expect.objectContaining({ __table: "trackers" }),
+          values: { pausedAt: null, lastError: null, lastErrorAt: null },
+          where: {
+            and: [
+              { isNotNull: "trackers.registry_slug" },
+              { eq: ["trackers.last_error", UNLINKED_RESTORE_ERROR] },
+            ],
+          },
+        },
+      ])
+      const [linked] = vi.mocked(backfillRegistrySlugs).mock.invocationCallOrder
+      const [released] = vi.mocked(db.update).mock.invocationCallOrder
+      const [restarted] = vi.mocked(ensureSchedulerRunning).mock.invocationCallOrder
+      expect(linked).toBeLessThan(released)
+      expect(released).toBeLessThan(restarted)
+    })
+
+    // The restore has committed by then, so a throw would answer 500 for it and
+    // leave polling stopped.
+    it("keeps the rows paused and still restarts polling when the release fails", async () => {
+      vi.mocked(db.update).mockImplementation(() => {
+        throw new Error("connection reset")
+      })
+      const res = await restoreTrackers([{ registrySlug: null }])
+      expect(res.status).toBe(200)
+
+      expect(onlyInsert(recorder, "trackers").pausedAt).toBeInstanceOf(Date)
+      expect(ensureSchedulerRunning).toHaveBeenCalledTimes(1)
+    })
   })
 
   // ─── 7. Orphaned children are skipped, not written ───────────────────────────
