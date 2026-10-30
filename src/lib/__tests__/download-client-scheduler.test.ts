@@ -220,7 +220,6 @@ describe("deepPollClient per-tag optimization", () => {
     // resetAllMocks clears call history and pending mockReturnValueOnce queues,
     // preventing leakage of unconsumed queued returns across tests.
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -644,7 +643,6 @@ describe("deepPollClient per-tag optimization", () => {
 describe("deepPollClient dedup without isPrivate", () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -884,7 +882,6 @@ describe("deepPollClient cold-start cache parity", () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -944,7 +941,6 @@ describe("deepPollClient cold-start cache parity", () => {
 describe("deepPollClient lastPolledAt written; heartbeat update does not include it", () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -1046,8 +1042,6 @@ describe("heartbeat failure logging", () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
 
     scheduled = new Map()
     vi.mocked(cron.schedule).mockImplementation(((
@@ -1275,8 +1269,6 @@ describe("client snapshot pruning honours a NULL retention", () => {
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
 
     scheduled = new Map()
     vi.mocked(cron.schedule).mockImplementation(((
@@ -1357,7 +1349,6 @@ describe("deepPollClient durability", () => {
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -1546,8 +1537,6 @@ describe("client scheduler self-healing", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.useFakeTimers()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
     stopClientScheduler()
     clearFailureLogGate()
     const gt = globalThis as Record<string, unknown>
@@ -1606,9 +1595,6 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.useFakeTimers()
-    // resetAllMocks strips the factory implementation, so the default has to be
-    // re-armed or the flush would resolve to undefined instead of a count.
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
     gt.__clientHeartbeatTask = null
     gt.__clientDeepPollTask = null
   })
@@ -1668,7 +1654,7 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
     gt.__clientHeartbeatTask = { stop: hbStop }
     gt.__clientDeepPollTask = { stop: dpStop }
     // A write that never lands: nothing below may depend on the flush settling,
-    // or the six callers that drop the promise would silently lose it.
+    // or the callers that drop the promise would silently lose it.
     vi.mocked(flushCompletedBuckets).mockReturnValue(new Promise<number>(() => {}))
 
     void stopClientScheduler()
@@ -1726,9 +1712,6 @@ describe("SIGTERM handler in scheduler.ts", () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
-    // Set explicitly, so this describe does not depend on the factory defaults.
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
-    vi.mocked(markAppStopped).mockResolvedValue(undefined)
     vi.mocked(cron.schedule).mockImplementation((() => ({
       stop: vi.fn(),
     })) as unknown as typeof cron.schedule)
@@ -1871,8 +1854,6 @@ describe("deep poll backs off after a sync store refusal", () => {
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(START)
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
