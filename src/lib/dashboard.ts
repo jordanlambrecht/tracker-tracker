@@ -1,7 +1,7 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys,
-// postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// Functions: remapAlertKey, computeAggregateStats, computeAlerts, detectRankChanges,
+// fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
 import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
@@ -53,6 +53,45 @@ export const VALID_ALERT_TYPES = new Set([
 ] as const)
 
 export type AlertType = typeof VALID_ALERT_TYPES extends Set<infer T> ? T : never
+
+// The id an alert's key carries right after `${type}-`, so a restore can move it
+// to the restored row's id. A new alert type has to name one here.
+export const ALERT_KEY_ID: Record<AlertType, "tracker" | "client" | null> = {
+  error: "tracker",
+  "poll-paused": "tracker",
+  "ratio-danger": "tracker",
+  "stale-data": "tracker",
+  "rank-change": "tracker",
+  "zero-seeding": "tracker",
+  warned: "tracker",
+  anniversary: "tracker",
+  "update-available": null,
+  "backup-failed": null,
+  "client-error": "client",
+  "client-warning": "client",
+  "retention-unconfigured": null,
+}
+
+/**
+ * The key with its tracker or client id swapped for the restored row's id, or
+ * null when that row is not in the backup. Keys of a type with no id, or of a
+ * type this version does not know, come back unchanged.
+ */
+export function remapAlertKey(
+  key: string,
+  type: string,
+  ids: { tracker: ReadonlyMap<number, number>; client: ReadonlyMap<number, number> }
+): string | null {
+  // The type comes from the backup file, so an inherited name like "constructor"
+  // must not count as a known type
+  const kind = Object.hasOwn(ALERT_KEY_ID, type) ? ALERT_KEY_ID[type as AlertType] : null
+  if (!kind) return key
+  const rest = key.startsWith(`${type}-`) ? key.slice(type.length + 1) : ""
+  const id = /^\d+(?=-|$)/.exec(rest)?.[0]
+  if (id === undefined) return null
+  const newId = ids[kind].get(Number(id))
+  return newId === undefined ? null : `${type}-${newId}${rest.slice(id.length)}`
+}
 
 export interface DashboardAlert {
   key: string

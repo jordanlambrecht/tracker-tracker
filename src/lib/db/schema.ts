@@ -379,8 +379,9 @@ export const notificationTargets = pgTable("notification_targets", {
   includeTrackerName: boolean("include_tracker_name").default(true).notNull(),
 
   // Scope. null = all trackers; integer array = specific tracker IDs.
-  // Not a foreign key; referential integrity enforced at application layer.
-  // Stale IDs (deleted trackers) are harmlessly ignored at dispatch time.
+  // Not a foreign key, so a deleted tracker's id stays in the array. That is
+  // harmless, since ids are never reused and dispatch skips trackers outside the
+  // scope. Restore maps the ids to the restored trackers.
   scope: integer("scope").array(),
 
   // Last delivery state. Transient runtime data, excluded from backups.
@@ -412,8 +413,9 @@ export const notificationDeliveryState = pgTable(
     targetId: integer("target_id").notNull(),
 
     // null = global event not tied to a specific tracker (reserved for future use).
-    // Stored as integer rather than FK to avoid cascade complexity when trackers
-    // are deleted. Stale rows are inert and cheap to prune.
+    // Not a foreign key, so a deleted tracker's rows stay behind. Nothing prunes
+    // them and nothing needs to, since ids are never reused and the rows are never
+    // read again.
     trackerId: integer("tracker_id"),
 
     // Discriminator: "ratio_drop" | "hit_and_run" | "tracker_down" | "buffer_milestone"

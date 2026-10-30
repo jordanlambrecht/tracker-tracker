@@ -12,6 +12,7 @@ vi.mock("@/data/tracker-registry", () => ({
 
 import { registryEntryFor } from "@/data/tracker-registry"
 import {
+  ALERT_KEY_ID,
   computeAggregateStats,
   computeAlerts,
   computeSystemAlerts,
@@ -19,6 +20,7 @@ import {
   detectRankChanges,
   fetchDismissedKeys,
   postDismissAlert,
+  remapAlertKey,
 } from "@/lib/dashboard"
 import { getTrackerHealth } from "@/lib/tracker-status"
 
@@ -1390,5 +1392,91 @@ describe("getTrackerHealth", () => {
       })
     )
     expect(health).toBe("critical")
+  })
+})
+
+// A restore gives every tracker and client a new id, so a dismissed alert's key
+// has to follow it or the alert comes back.
+describe("remapAlertKey", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2027-06-10T12:00:00Z"))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** One alert of every type, with each tracker and client id raised by `shift`. */
+  function everyAlert(shift: number) {
+    const now = Date.now()
+    const stats = makeTracker().latestStats
+    const failing = makeTracker({
+      id: 7 + shift,
+      pausedAt: new Date(now).toISOString(),
+      joinedAt: "2026-06-10",
+      latestStats: stats && {
+        ...stats,
+        ratio: 0.5,
+        requiredRatio: 1,
+        seedingCount: 0,
+        warned: true,
+      },
+    })
+    const erroring = makeTracker({
+      id: 8 + shift,
+      lastError: "Timeout",
+      lastPolledAt: new Date(now - 3 * 3_600_000).toISOString(),
+    })
+    const promoted = makeTracker({ id: 9 + shift })
+    const ranks = new Map([
+      [
+        promoted.id,
+        [
+          makeSnapshot({ group: "User", polledAt: new Date(now - 3_600_000).toISOString() }),
+          makeSnapshot({ group: "Power User", polledAt: new Date(now).toISOString() }),
+        ],
+      ],
+    ])
+    const since = new Date(now).toISOString()
+    return [
+      ...computeAlerts([failing, erroring]),
+      ...detectRankChanges([promoted], ranks),
+      ...computeSystemAlerts({
+        latestVersion: "2.15.0",
+        currentVersion: "2.14.0",
+        failedBackups: [{ createdAt: "2027-06-09T03:00:00.000Z" }],
+        clients: [
+          { id: 3 + shift, name: "home", enabled: true, lastError: "Refused", errorSince: since },
+          { id: 4 + shift, name: "seedbox", enabled: true, lastError: "Paused", errorSince: null },
+        ],
+        snapshotRetentionDays: null,
+      }),
+    ]
+  }
+
+  it("moves each id to where computeAlerts would put the new one", () => {
+    const before = everyAlert(0)
+    const after = everyAlert(100)
+    const ids = {
+      tracker: new Map([7, 8, 9].map((id) => [id, id + 100])),
+      client: new Map([3, 4].map((id) => [id, id + 100])),
+    }
+
+    // Every type in the table shows up here, so a new type fails until it does
+    expect(new Set(before.map((a) => a.type))).toEqual(new Set(Object.keys(ALERT_KEY_ID)))
+    expect(before.map((a) => remapAlertKey(a.key, a.type, ids))).toEqual(after.map((a) => a.key))
+  })
+
+  it("drops a key whose tracker or client is not in the backup", () => {
+    const ids = { tracker: new Map([[7, 107]]), client: new Map<number, number>() }
+    expect(remapAlertKey("ratio-danger-8", "ratio-danger", ids)).toBeNull()
+    expect(remapAlertKey("client-warning-3", "client-warning", ids)).toBeNull()
+  })
+
+  it("keeps a key whose type carries no id it knows", () => {
+    const ids = { tracker: new Map([[1, 101]]), client: new Map([[1, 101]]) }
+    expect(remapAlertKey("tracker-down-1", "tracker_down", ids)).toBe("tracker-down-1")
+    expect(remapAlertKey("constructor-1", "constructor", ids)).toBe("constructor-1")
   })
 })

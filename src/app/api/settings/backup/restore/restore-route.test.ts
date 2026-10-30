@@ -1375,6 +1375,46 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(body.orphanedRecordsSkipped).toBe(2)
   })
 
+  // ─── 7b. Ids inside dismissed-alert keys and notification scopes ─────────────
+
+  // Every tracker and client comes back with a new id. A key still naming the old
+  // one brings a dismissed alert back, and a scope still naming it quiets the target.
+  it("moves dismissed-alert keys and notification scopes to the new ids", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    payload.dismissedAlerts = [
+      { id: 1, alertKey: "ratio-danger-1", alertType: "ratio-danger", dismissedAt: ISO },
+      { id: 2, alertKey: "client-warning-1", alertType: "client-warning", dismissedAt: ISO },
+      {
+        id: 3,
+        alertKey: "update-available-2.15.0",
+        alertType: "update-available",
+        dismissedAt: ISO,
+      },
+      { id: 4, alertKey: "warned-999", alertType: "warned", dismissedAt: ISO },
+    ]
+    ;(payload.notificationTargets?.[0] as Record<string, unknown>).scope = [1, 999]
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    const trackerId = onlyInsert(recorder, "tracker_snapshots").trackerId
+    const clientId = onlyInsert(recorder, "client_snapshots").clientId
+    expect(trackerId).not.toBe(1)
+    const keys = recorder.inserts
+      .filter((i) => (i.table as { __table?: string }).__table === "dismissed_alerts")
+      .map((i) => i.values.alertKey)
+    expect(keys).toEqual([
+      `ratio-danger-${trackerId}`,
+      `client-warning-${clientId}`,
+      "update-available-2.15.0",
+    ])
+    expect(onlyInsert(recorder, "notification_targets").scope).toEqual([trackerId])
+    // The dismissal for tracker 999, which the backup does not hold
+    expect((await res.json()).orphanedRecordsSkipped).toBe(1)
+  })
+
   // ─── 8. Scheduler lifecycle around the transaction ───────────────────────────
 
   it("restarts the scheduler it stopped once the restore succeeds", async () => {
