@@ -7,7 +7,7 @@
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
 //            ClockIcon, BoxIcon, ServerIcon, TagIcon, BookIcon, BugIcon, XIcon,
 //            TransitPapersIcon, SpinnerIcon, InfoIcon, QuestionIcon, LockIcon, UnlockIcon,
-//            FavoriteStarIcon, InfinitySign
+//            VaultIcon, FavoriteStarIcon, InfinitySign
 
 import type { SVGProps } from "react"
 
@@ -876,6 +876,34 @@ function UnlockIcon(props: IconProps) {
   )
 }
 
+// Safe door with a dial and four bolts (Lucide's vault). Used for the tracker
+// credentials button in TrackerDetailHeader
+function VaultIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
+      <path d="m7.9 7.9 2.7 2.7" />
+      <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
+      <path d="m13.4 10.6 2.7-2.7" />
+      <circle cx="7.5" cy="16.5" r=".5" fill="currentColor" />
+      <path d="m7.9 16.1 2.7-2.7" />
+      <circle cx="16.5" cy="16.5" r=".5" fill="currentColor" />
+      <path d="m13.4 13.4 2.7 2.7" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  )
+}
+
 // Five-pointed star outline; fill="currentColor" fills it. Used in the Sidebar favorites filter, SortableTrackerItem favorite toggle and TrackerOverviewGrid favorites pill
 function FavoriteStarIcon(props: IconProps) {
   return (
@@ -941,5 +969,6 @@ export {
   UnlockIcon,
   UploadArrowIcon,
   UserIcon,
+  VaultIcon,
   XIcon,
 }
