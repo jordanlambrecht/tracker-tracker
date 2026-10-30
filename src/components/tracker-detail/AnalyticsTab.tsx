@@ -15,6 +15,7 @@ import {
   getCardClasses,
   type LayoutConfig,
 } from "@/lib/grid-layout"
+import { resolveRequiredRatio } from "@/lib/tracker-status"
 import type {
   DayRange,
   DeltaDisplay,
@@ -36,7 +37,6 @@ interface AnalyticsTabProps {
   days: DayRange
   onDaysChange: (d: DayRange) => void
   delta: DeltaDisplay
-  minimumRatio?: number
   /** The ratio's movement over the last 24 hours */
   ratioTrend?: TrendDirection
   bonusName?: string
@@ -54,16 +54,18 @@ export function AnalyticsTab({
   days,
   onDaysChange,
   delta,
-  minimumRatio,
   ratioTrend,
   bonusName,
   statCardSlots,
   progressSlots,
 }: AnalyticsTabProps) {
+  // The requirement the health badge judges against
+  const requiredRatio = resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker)
+
   // Build core stat descriptors (data, not elements)
   const coreDescriptors = useMemo(
-    () => buildCoreStatDescriptors(stats, latestSnapshot, minimumRatio, ratioTrend),
-    [stats, latestSnapshot, minimumRatio, ratioTrend]
+    () => buildCoreStatDescriptors(stats, latestSnapshot, requiredRatio, ratioTrend),
+    [stats, latestSnapshot, requiredRatio, ratioTrend]
   )
   const coreCount = coreDescriptors.length
 
@@ -164,7 +166,7 @@ export function AnalyticsTab({
         onDaysChange={onDaysChange}
         delta={delta}
         gazelleMeta={gazelleMeta}
-        minimumRatio={minimumRatio}
+        requiredRatio={requiredRatio}
         bonusName={bonusName}
       />
     </div>

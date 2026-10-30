@@ -224,6 +224,8 @@ describe("resolveRequiredRatio", () => {
     mockRegistryMinimum(0.6)
     expect(resolveRequiredRatio(Number.NaN, { registrySlug: "example" })).toBe(0.6)
     expect(resolveRequiredRatio(-1, { registrySlug: "example" })).toBe(0.6)
+    // NaN already fails >= 0, so only Infinity exercises the finite check
+    expect(resolveRequiredRatio(Number.POSITIVE_INFINITY, { registrySlug: "example" })).toBe(0.6)
   })
 })
 

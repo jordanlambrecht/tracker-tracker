@@ -44,14 +44,13 @@ const baseSnapshot: Snapshot = {
 
 describe("buildCoreStatDescriptors alerts", () => {
   it("returns 8 descriptors", () => {
-    const cards = buildCoreStatDescriptors(baseStats, baseSnapshot)
+    const cards = buildCoreStatDescriptors(baseStats, baseSnapshot, null)
     expect(cards).toHaveLength(8)
   })
 
   it("no alerts when ratio is above required", () => {
     const stats = { ...baseStats, ratio: 2.0 }
-    const snap = { ...baseSnapshot, requiredRatio: 0.6 }
-    const cards = buildCoreStatDescriptors(stats, snap)
+    const cards = buildCoreStatDescriptors(stats, baseSnapshot, 0.6)
     const ratio = cards.find((c) => c.key === "ratio")
     expect(ratio?.alert).toBeUndefined()
     expect(ratio?.alertReason).toBeUndefined()
@@ -59,8 +58,7 @@ describe("buildCoreStatDescriptors alerts", () => {
 
   it("danger alert when ratio is below required", () => {
     const stats = { ...baseStats, ratio: 0.59 }
-    const snap = { ...baseSnapshot, requiredRatio: 0.6 }
-    const cards = buildCoreStatDescriptors(stats, snap)
+    const cards = buildCoreStatDescriptors(stats, baseSnapshot, 0.6)
     const ratio = cards.find((c) => c.key === "ratio")
     expect(ratio?.alert).toBe("danger")
     expect(ratio?.alertReason).toContain("Below required ratio")
@@ -69,22 +67,21 @@ describe("buildCoreStatDescriptors alerts", () => {
 
   it("no ratio alert when requiredRatio is null", () => {
     const stats = { ...baseStats, ratio: 0.1 }
-    const snap = { ...baseSnapshot, requiredRatio: null }
-    const cards = buildCoreStatDescriptors(stats, snap)
+    const cards = buildCoreStatDescriptors(stats, baseSnapshot, null)
     const ratio = cards.find((c) => c.key === "ratio")
     expect(ratio?.alert).toBeUndefined()
   })
 
   it("no buffer alert when buffer is positive", () => {
     const snap = { ...baseSnapshot, bufferBytes: "50000000000" }
-    const cards = buildCoreStatDescriptors(baseStats, snap)
+    const cards = buildCoreStatDescriptors(baseStats, snap, null)
     const buffer = cards.find((c) => c.key === "buffer")
     expect(buffer?.alert).toBeUndefined()
   })
 
   it("danger alert when buffer is negative", () => {
     const snap = { ...baseSnapshot, bufferBytes: "-15561971655" }
-    const cards = buildCoreStatDescriptors(baseStats, snap)
+    const cards = buildCoreStatDescriptors(baseStats, snap, null)
     const buffer = cards.find((c) => c.key === "buffer")
     expect(buffer?.alert).toBe("danger")
     expect(buffer?.alertReason).toBe("Negative buffer")
@@ -94,22 +91,21 @@ describe("buildCoreStatDescriptors alerts", () => {
   // scale a negative properly or the card shows "-14841" over "MiB".
   it("renders a negative buffer with its sign and the right unit", () => {
     const snap = { ...baseSnapshot, bufferBytes: "-2627286052460" }
-    const cards = buildCoreStatDescriptors(baseStats, snap)
+    const cards = buildCoreStatDescriptors(baseStats, snap, null)
     const buffer = cards.find((c) => c.key === "buffer")
     expect(buffer?.value).toBe("-2.39")
     expect(buffer?.unit).toBe("TiB")
   })
 
   it("no buffer alert when snapshot is null", () => {
-    const cards = buildCoreStatDescriptors(baseStats, null)
+    const cards = buildCoreStatDescriptors(baseStats, null, null)
     const buffer = cards.find((c) => c.key === "buffer")
     expect(buffer?.alert).toBeUndefined()
   })
 
   it("ratio alert at exact boundary (equal to required = no alert)", () => {
     const stats = { ...baseStats, ratio: 0.6 }
-    const snap = { ...baseSnapshot, requiredRatio: 0.6 }
-    const cards = buildCoreStatDescriptors(stats, snap)
+    const cards = buildCoreStatDescriptors(stats, baseSnapshot, 0.6)
     const ratio = cards.find((c) => c.key === "ratio")
     expect(ratio?.alert).toBeUndefined()
   })

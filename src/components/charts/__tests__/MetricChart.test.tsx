@@ -83,6 +83,27 @@ describe("MetricChart — ratio", () => {
     expect(screen.getByTestId("chart")).toBeInTheDocument()
     expect(screen.queryByText(/Ratio is infinite/i)).not.toBeInTheDocument()
   })
+
+  // 0 means the tracker requires no ratio, so a "Min: 0" line would invent a requirement
+  it("draws the minimum line only for a positive requirement", () => {
+    const minimumLine = (baselineValue?: number) => {
+      optionSpy.mockClear()
+      render(
+        <MetricChart
+          metric="ratio"
+          snapshots={[snap()]}
+          accentColor="#22c55e"
+          baselineValue={baselineValue}
+        />
+      )
+      const option = optionSpy.mock.calls.at(-1)?.[0] as { series: Array<{ markLine?: unknown }> }
+      return option.series[0].markLine
+    }
+
+    expect(minimumLine(0.6)).toMatchObject({ data: [{ yAxis: 0.6 }] })
+    expect(minimumLine(0)).toBeUndefined()
+    expect(minimumLine(undefined)).toBeUndefined()
+  })
 })
 
 describe("MetricChart seedbonus naming", () => {

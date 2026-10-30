@@ -3,6 +3,10 @@
 // The ratio card's arrow and the "24h:" line must come from the unbucketed two
 // days the page loads, not from the all-time series, which keeps one row per
 // day on an old tracker. Covers the page query, the client and the card.
+//
+// The Req. Ratio card, the ratio alert and the chart's minimum line must use
+// the same requirement as the health badge, which takes the live figure first
+// and the registry's second.
 
 import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -26,10 +30,17 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+vi.mock("@/data/tracker-registry", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/tracker-registry")>()
+  return { ...actual, registryEntryFor: vi.fn(() => undefined) }
+})
+
 const deltaSpy = vi.fn()
+const requiredRatioSpy = vi.fn()
 vi.mock("@/components/tracker-detail/AnalyticsCharts", () => ({
-  AnalyticsCharts: (props: { delta: unknown }) => {
+  AnalyticsCharts: (props: { delta: unknown; requiredRatio: unknown }) => {
     deltaSpy(props.delta)
+    requiredRatioSpy(props.requiredRatio)
     return null
   },
 }))
@@ -53,6 +64,7 @@ vi.mock("@/hooks/useTrackerTorrents", () => ({ useTrackerTorrents: () => ({}) })
 
 import TrackerDetailPage from "@/app/(auth)/trackers/[id]/page"
 import { TrackerDetailClient } from "@/app/(auth)/trackers/[id]/TrackerDetailClient"
+import { registryEntryFor, type TrackerRegistryEntry } from "@/data/tracker-registry"
 
 const NOW = Date.UTC(2026, 9, 24, 12)
 
@@ -129,7 +141,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] })
   vi.setSystemTime(NOW)
   deltaSpy.mockClear()
+  requiredRatioSpy.mockClear()
   getSnapshotsForTracker.mockReset()
+  vi.mocked(registryEntryFor).mockReset()
 })
 
 afterEach(() => {
@@ -195,5 +209,47 @@ describe("ratio trend from the page to the card", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/trackers/7/snapshots?days=2")
     expect(ratioCard()).toHaveTextContent("Trending up")
+  })
+})
+
+describe("required ratio from the tracker row to the cards and the chart", () => {
+  // [live requiredRatio, registry minimum (undefined means no entry), Req. Ratio card, chart prop]
+  it.each([
+    [0.8, 0.6, "0.80", 0.8],
+    [0, 0.6, "None", 0],
+    [null, 0.6, "0.60", 0.6],
+    [null, 0, "None", 0],
+    [null, undefined, "—", null],
+    [Number.NaN, 0.6, "0.60", 0.6],
+    [Number.POSITIVE_INFINITY, 0.6, "0.60", 0.6],
+  ])("live %s with registry %s shows %s", (live, registryMinimum, card, line) => {
+    vi.mocked(registryEntryFor).mockImplementation((row) =>
+      row.registrySlug === "example" && registryMinimum !== undefined
+        ? ({ rules: { minimumRatio: registryMinimum } } as TrackerRegistryEntry)
+        : undefined
+    )
+    // 0.7 is below the 0.8 requirement only, so the alert tells the rows apart too
+    const row = {
+      ...tracker,
+      registrySlug: "example",
+      latestStats: { ...tracker.latestStats, ratio: 0.7, requiredRatio: live },
+    } as TrackerSummary
+
+    render(
+      <TrackerDetailClient
+        trackerId={7}
+        initialTracker={row}
+        initialAllTimeSnapshots={ALL_TIME}
+        initialRecentSnapshots={RECENT}
+        initialTagGroups={[]}
+        initialQbitmanageConfig={null}
+      />
+    )
+
+    const reqCard = screen.getAllByTestId("stat-card-Req. Ratio")[0]
+    expect(reqCard).toHaveTextContent(card)
+    expect(requiredRatioSpy).toHaveBeenLastCalledWith(line)
+    const alerted = screen.queryAllByLabelText(/^Alert: Below required ratio/).length > 0
+    expect(alerted).toBe(line !== null && line > 0.7)
   })
 })

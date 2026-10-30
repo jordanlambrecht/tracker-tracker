@@ -347,7 +347,6 @@ export function TrackerDetailClient({
           days={days}
           onDaysChange={setDays}
           delta={delta}
-          minimumRatio={registryEntry?.rules?.minimumRatio}
           ratioTrend={ratioTrend}
           bonusName={registryBonusName(registryEntry)}
           statCardSlots={statCardSlots}
