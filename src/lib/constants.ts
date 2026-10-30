@@ -45,7 +45,7 @@ export const DOCS = {
   },
   DOWNLOAD_CLIENTS: {
     href: `${DOCS_URL}/features/download-clients/`,
-    description: "Connect qBittorrent to track torrents by tag",
+    description: "Connect qBittorrent or Transmission to track your torrents",
   },
   PROWLARR: {
     href: `${DOCS_URL}/features/prowlarr/`,

@@ -1,13 +1,14 @@
 // src/components/DownloadClients.test.tsx
 //
 // The Add Client form once sent no type at all, so every client it created was
-// qBittorrent whatever the user meant. These tests read the POST it sends, and
-// the credential fields the card offers each type.
+// qBittorrent whatever the user meant. These tests read the POST it sends, the
+// credential fields the card offers each type, and the section's docs link.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { DOCS } from "@/lib/constants"
 
 import { DownloadClients } from "./DownloadClients"
 
@@ -125,5 +126,20 @@ describe("client card", () => {
 
     expect(await screen.findByLabelText("Username")).toBeTruthy()
     expect(screen.queryByLabelText("API Key")).toBeNull()
+  })
+})
+
+describe("section header", () => {
+  it("titles the section and links the download clients docs", async () => {
+    const user = userEvent.setup()
+    renderClients()
+
+    const section = await screen.findByRole("region", { name: "Download Clients" })
+    await user.hover(within(section).getByRole("button", { name: "More info" }))
+
+    expect(await screen.findByRole("link", { name: "Documentation →" })).toHaveAttribute(
+      "href",
+      DOCS.DOWNLOAD_CLIENTS.href
+    )
   })
 })

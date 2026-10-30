@@ -11,6 +11,7 @@ import {
   CardListSkeleton,
   CollapsibleCard,
   ConfirmRemove,
+  InfoTip,
   Input,
   MaskedSecret,
   Notice,
@@ -23,6 +24,7 @@ import {
 
 import { useActionStatus } from "@/hooks/useActionStatus"
 import { useCrudCard } from "@/hooks/useCrudCard"
+import { DOCS } from "@/lib/constants"
 // Imported from the module rather than the barrel: the barrel pulls in
 // credentials.ts, which is "server-only".
 import {
@@ -908,7 +910,14 @@ function DownloadClients() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <section aria-labelledby="download-clients-heading" className="flex flex-col gap-6">
+      <H2 id="download-clients-heading" className="flex items-center gap-2">
+        Download Clients
+        <InfoTip
+          content="Connect qBittorrent or Transmission to see your torrents per tracker."
+          docs={DOCS.DOWNLOAD_CLIENTS}
+        />
+      </H2>
       {clients.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
           <span className="text-2xl" aria-hidden="true">
@@ -954,7 +963,7 @@ function DownloadClients() {
           )}
         </>
       )}
-    </div>
+    </section>
   )
 }
 
