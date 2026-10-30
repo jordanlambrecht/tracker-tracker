@@ -10,6 +10,7 @@
 import "server-only"
 
 import { eq } from "drizzle-orm"
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
 import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
@@ -260,7 +261,7 @@ export async function fetchFleetAggregation(
       return {
         tag,
         name: r.name,
-        color: r.color ?? "#01d4ff",
+        color: r.color ?? DEFAULT_TRACKER_COLOR,
         baseUrl: r.baseUrl,
         registrySlug: r.registrySlug,
       }

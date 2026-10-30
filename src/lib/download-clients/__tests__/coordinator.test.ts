@@ -148,6 +148,7 @@ vi.mock("../transport", () => ({
 // Re-import mocked modules for assertions
 // ---------------------------------------------------------------------------
 
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation } from "@/lib/fleet-aggregation"
@@ -944,7 +945,9 @@ describe("fetchFleetAggregation", () => {
     )
   })
 
-  it("should use default color #01d4ff when tracker color is null", async () => {
+  // The Fleet dashboard draws each tracker in this colour, so it has to match the
+  // default the tracker's own card uses.
+  it("should use the shared default color when tracker color is null", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
@@ -961,7 +964,7 @@ describe("fetchFleetAggregation", () => {
         {
           tag: "aither",
           name: "Aither",
-          color: "#01d4ff",
+          color: DEFAULT_TRACKER_COLOR,
           baseUrl: "https://aither.cc",
           registrySlug: null,
         },
