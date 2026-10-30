@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
   "files": {
     "includes": ["**", "!.next", "!node_modules", "!public", "!.history", "!docs/kb/site"]
   },
@@ -38,6 +38,16 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noComponentHookFactories": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["src/lib/tracker-platforms/**"],
       "linter": {

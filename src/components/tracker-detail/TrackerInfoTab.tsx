@@ -15,15 +15,7 @@ import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
 
 const Markdown = dynamic(
-  () =>
-    Promise.all([import("react-markdown"), import("remark-gfm")]).then(
-      ([{ default: ReactMarkdown }, { default: remarkGfm }]) => {
-        function GfmMarkdown(props: { children: string; className?: string }) {
-          return <ReactMarkdown remarkPlugins={[remarkGfm]} {...props} />
-        }
-        return GfmMarkdown
-      }
-    ),
+  () => import("@/components/tracker-detail/GfmMarkdown").then((m) => m.GfmMarkdown),
   { ssr: false }
 )
 
