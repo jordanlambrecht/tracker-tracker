@@ -53,7 +53,6 @@ vi.mock("@/lib/tracker-scheduler", () => ({
   startTrackerPolling: vi.fn(),
   stopTrackerPolling: vi.fn(),
   isTrackerPollingRunning: vi.fn(() => false),
-  fetchTrackerStats: vi.fn(),
 }))
 
 vi.mock("@/lib/scheduler", () => ({

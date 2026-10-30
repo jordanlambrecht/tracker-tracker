@@ -1,7 +1,7 @@
 // src/lib/tracker-scheduler.ts
 //
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
-// startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
+// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning, POLL_FAILURE_THRESHOLD
 // Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
@@ -13,7 +13,7 @@ import { pruneCoverageGaps } from "@/lib/app-liveness"
 import { decrypt } from "@/lib/crypto"
 import { withCycleDeadline } from "@/lib/cycle-deadline"
 import { db } from "@/lib/db"
-import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
+import type { NotificationTargetRow } from "@/lib/db/schema"
 import {
   appSettings,
   notificationTargets,
@@ -135,73 +135,6 @@ export const POLL_FAILURE_THRESHOLD = 4
  */
 const BATCH_TOLERANCE_MS = 60_000
 
-/**
- * Fetch fresh stats from a tracker's API without writing a snapshot. Also
- * writes the metadata side effects (remoteUserId, joinedAt, lastAccessAt,
- * platformMeta, avatarRemoteUrl).
- */
-export async function fetchTrackerStats(
-  trackerId: number,
-  encryptionKey: Buffer,
-  proxyAgent?: HttpAgent
-) {
-  const [tracker] = await db
-    .select(POLL_TRACKER_COLUMNS)
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
-  if (!tracker?.isActive) throw new Error("Tracker not found or inactive")
-
-  let apiToken: string
-  try {
-    apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
-  } catch (err) {
-    const cause = errMsg(err)
-    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
-  }
-  // An empty token decrypts cleanly but can never authenticate. Fail here so
-  // the user sees an actionable local error instead of the tracker's 401. This
-  // prevents a doomed request every poll cycle discovering it.
-  if (!apiToken) {
-    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
-  }
-
-  const adapter = getAdapter(tracker.platformType)
-  if (tracker.useProxy && !proxyAgent) {
-    throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
-  }
-
-  const baseUrl = await pollUrlFor(tracker)
-  const fetchOptions = buildFetchOptions({
-    registrySlug: tracker.registrySlug,
-    proxyAgent: tracker.useProxy ? proxyAgent : undefined,
-    remoteUserId: tracker.remoteUserId ?? undefined,
-  })
-  const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
-
-  // Write metadata side effects
-  const metaUpdates: Partial<TrackerRow> = {}
-  if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
-    metaUpdates.remoteUserId = stats.remoteUserId
-  }
-  if (stats.joinedDate && !tracker.joinedAt) {
-    const joined = trackerDateStr(stats.joinedDate)
-    if (joined) metaUpdates.joinedAt = joined
-  }
-  if (stats.lastAccessDate) {
-    const lastAccess = trackerDateStr(stats.lastAccessDate)
-    if (lastAccess) metaUpdates.lastAccessAt = lastAccess
-  }
-  if (stats.platformMeta) metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
-  if (stats.avatarUrl) metaUpdates.avatarRemoteUrl = stats.avatarUrl
-  if (Object.keys(metaUpdates).length > 0) {
-    await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
-  }
-
-  // Merge metadata in-memory instead of re-fetching
-  return { stats, tracker: { ...tracker, ...metaUpdates } }
-}
-
 export async function pollTracker(
   trackerId: number,
   encryptionKey: Buffer,
@@ -235,7 +168,8 @@ export async function pollTracker(
       const cause = errMsg(err)
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
     }
-    // See fetchTrackerStats: an empty token decrypts cleanly but never authenticates.
+    // An empty token decrypts cleanly but can never authenticate, so fail here
+    // with an actionable error rather than spend a request on the tracker's 401.
     if (!apiToken) {
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
