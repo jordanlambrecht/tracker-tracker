@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.15.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.14.0...v2.15.0) (2026-10-30)
+
+### Bug Fixes
+
+* **backups:** carry dismissed alerts and notification scopes over to restored ids
+* **backups:** keep a restored backup from sending tracker keys to unknown addresses
+* **backups:** restore Mousehole settings only from an encrypted backup
+* **dashboard:** only say no torrent matches a tracker when none does
+* **events:** read auth failures from the status code and name client HTTP errors
+* **trackers:** use the health badge's required ratio on the stat cards and ratio chart
+
+### Refactoring
+
+* **db-fleet:** use the shared default tracker color in the fleet data
+* **scheduler:** remove the unused fetchTrackerStats
+
 ## [2.14.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.5...v2.14.0) (2026-10-29)
 
 ### Features
