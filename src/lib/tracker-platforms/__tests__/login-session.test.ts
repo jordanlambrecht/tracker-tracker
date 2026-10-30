@@ -67,7 +67,11 @@ describe("loginRequest, through a proxy", () => {
     vi.mocked(proxyFetch).mockResolvedValueOnce(proxied(200))
     const fetchSpy = vi.spyOn(global, "fetch")
 
-    await loginRequest(LOGIN_URL, { method: "POST", headers: { Accept: "text/html" }, body: "a=1" }, agent)
+    await loginRequest(
+      LOGIN_URL,
+      { method: "POST", headers: { Accept: "text/html" }, body: "a=1" },
+      agent
+    )
 
     expect(fetchSpy).not.toHaveBeenCalled()
     const [url, passedAgent, opts] = vi.mocked(proxyFetch).mock.calls[0]

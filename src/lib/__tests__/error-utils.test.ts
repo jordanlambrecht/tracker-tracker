@@ -166,12 +166,10 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("Luminance login refused: the account is disabled")).toBe(
       "Account is disabled on the tracker. Log in on the site to see why"
     )
-    expect(
-      sanitizeNetworkError("Luminance login refused: the password is in a known breach")
-    ).toBe("Tracker refused the password as breached. Change it on the site, then update it here")
-    expect(
-      sanitizeNetworkError("Luminance login refused: the account uses two-factor login")
-    ).toBe(
+    expect(sanitizeNetworkError("Luminance login refused: the password is in a known breach")).toBe(
+      "Tracker refused the password as breached. Change it on the site, then update it here"
+    )
+    expect(sanitizeNetworkError("Luminance login refused: the account uses two-factor login")).toBe(
       "Two-factor login is on for this account. Add a session cookie from a browser login to the tracker's credentials"
     )
     expect(sanitizeNetworkError("Invalid Luminance credentials")).toBe("Invalid credentials")

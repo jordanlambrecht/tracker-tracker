@@ -327,7 +327,11 @@ export const CREDENTIAL_FORMS = {
   luminance: {
     kind: "login",
     hidesJoinDate: true,
-    sessionCookie: { example: "sid=abc123", extraCookieNames: ["sid"], requiredCookieNames: ["sid"] },
+    sessionCookie: {
+      example: "sid=abc123",
+      extraCookieNames: ["sid"],
+      requiredCookieNames: ["sid"],
+    },
     dialog: {
       username: {
         label: (trackerName: string) => `${trackerName} Username`,

@@ -115,7 +115,9 @@ const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
 
 function configFor(metric: Exclude<Metric, "dailyDelta">, bonusName?: string): MetricConfig {
   const config = METRIC_CONFIGS[metric]
-  return metric === "seedbonus" && bonusName ? { ...config, label: bonusName, unit: bonusName } : config
+  return metric === "seedbonus" && bonusName
+    ? { ...config, label: bonusName, unit: bonusName }
+    : config
 }
 
 const BORDER_SOFT = CHART_THEME.gridLine

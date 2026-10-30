@@ -28,11 +28,7 @@ import {
   validateCredentialValues,
 } from "@/lib/credential-forms"
 import { localDateStr } from "@/lib/formatters"
-import {
-  MOUSEHOLE_TOKEN_TIP,
-  MOUSEHOLE_URL_PLACEHOLDER,
-  MOUSEHOLE_URL_TIP,
-} from "@/lib/mousehole"
+import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
 
 // ---------------------------------------------------------------------------
 // Fuzzy match

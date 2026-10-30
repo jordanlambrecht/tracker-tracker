@@ -149,7 +149,9 @@ describe("LuminanceAdapter", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.mocked(proxyFetch).mockReset()
-    ;(globalThis as { __trackerLoginSessions?: Map<string, string> }).__trackerLoginSessions?.clear()
+    ;(
+      globalThis as { __trackerLoginSessions?: Map<string, string> }
+    ).__trackerLoginSessions?.clear()
   })
 
   it("logs in with the form token and reads the profile", async () => {
@@ -305,7 +307,9 @@ describe("LuminanceAdapter login outcomes", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.mocked(proxyFetch).mockReset()
-    ;(globalThis as { __trackerLoginSessions?: Map<string, string> }).__trackerLoginSessions?.clear()
+    ;(
+      globalThis as { __trackerLoginSessions?: Map<string, string> }
+    ).__trackerLoginSessions?.clear()
   })
 
   function loginAnswers(post: Response, form: Response = html(LOGIN_PAGE, ["cid=client"])) {
@@ -377,7 +381,9 @@ describe("LuminanceAdapter login outcomes", () => {
 
     const err = await failure(new LuminanceAdapter().fetchStats(BASE, CREDS, "/user.php"))
 
-    expect(err.message).toBe(`Unexpected response from ${HOST}: the login answered without a session`)
+    expect(err.message).toBe(
+      `Unexpected response from ${HOST}: the login answered without a session`
+    )
   })
 
   // A 5xx or a 429 says nothing about the password. Reported as a refused
@@ -420,7 +426,9 @@ describe("LuminanceAdapter sessions", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.mocked(proxyFetch).mockReset()
-    ;(globalThis as { __trackerLoginSessions?: Map<string, string> }).__trackerLoginSessions?.clear()
+    ;(
+      globalThis as { __trackerLoginSessions?: Map<string, string> }
+    ).__trackerLoginSessions?.clear()
   })
 
   // Each login is a new keep-logged-in session on the account, and Luminance
@@ -553,7 +561,9 @@ describe("LuminanceAdapter through a proxy", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.mocked(proxyFetch).mockReset()
-    ;(globalThis as { __trackerLoginSessions?: Map<string, string> }).__trackerLoginSessions?.clear()
+    ;(
+      globalThis as { __trackerLoginSessions?: Map<string, string> }
+    ).__trackerLoginSessions?.clear()
   })
 
   function proxied(status: number, body: string, headers: Record<string, string | string[]> = {}) {
@@ -621,7 +631,11 @@ describe("LuminanceAdapter through a proxy", () => {
 
 describe("LuminanceAdapter with a pasted session cookie", () => {
   const UA = "Mozilla/5.0 (X11; Linux x86_64) Firefox/131.0"
-  const COOKIE_CREDS = JSON.stringify({ username: "retrofan", cookies: "sid=abc; cid=def", userAgent: UA })
+  const COOKIE_CREDS = JSON.stringify({
+    username: "retrofan",
+    cookies: "sid=abc; cid=def",
+    userAgent: UA,
+  })
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -684,9 +698,7 @@ describe("LuminanceAdapter with a pasted session cookie", () => {
   })
 
   it("asks for a fresh cookie when the tracker sends the pasted session back to the site root", async () => {
-    const spy = vi
-      .spyOn(global, "fetch")
-      .mockResolvedValueOnce(redirect("/", ["sid=deleted"], 302))
+    const spy = vi.spyOn(global, "fetch").mockResolvedValueOnce(redirect("/", ["sid=deleted"], 302))
 
     const err = await failure(
       new LuminanceAdapter().fetchStats(BASE, COOKIE_CREDS, "/user.php", { remoteUserId: 42 })

@@ -17,7 +17,12 @@ const LIVE_RESPONSE = {
     effectiveSlug: "team_resident_mainstream",
     foundation: "seed",
     treeBonusBp: 250,
-    progress: { questsCompleted: 23, questsTotal: 40, stars: 2, grade: { tier: "argent", level: 2 } },
+    progress: {
+      questsCompleted: 23,
+      questsTotal: 40,
+      stars: 2,
+      grade: { tier: "argent", level: 2 },
+    },
   },
   team: { name: "Example Team", slug: "example-team", tag: "EXT", role: "member" },
   zen: { balance: 1840, totalEarned: 12650, totalSpent: 10810 },
@@ -89,7 +94,10 @@ describe("C411Adapter", () => {
 
   it("shows an unknown tier as sent, and no rank before a class is chosen", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
-      okResponse({ ...LIVE_RESPONSE, class: { progress: { grade: { tier: "platine", level: 2 } } } })
+      okResponse({
+        ...LIVE_RESPONSE,
+        class: { progress: { grade: { tier: "platine", level: 2 } } },
+      })
     )
     const unknown = await adapter.fetchStats("https://c411.org", "fake-key", "/api/user/profile")
     expect(unknown.group).toBe("platine II")
@@ -292,7 +300,9 @@ describe("C411Adapter - fetchRaw", () => {
 
       const calls = await adapter.fetchRaw("https://c411.org", "key", "/api/user/profile")
 
-      expect(calls[0].error).toBe(`Unexpected response from c411.org: missing transfer.${side}.total`)
+      expect(calls[0].error).toBe(
+        `Unexpected response from c411.org: missing transfer.${side}.total`
+      )
       // The offending body stays in data for the debug view.
       expect(calls[0].data).toEqual(body)
     }

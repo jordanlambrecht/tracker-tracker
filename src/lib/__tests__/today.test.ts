@@ -402,7 +402,15 @@ describe("computeTodayAtAGlance on the day a tracker starts reporting its bonus"
     const tracker = makeTracker(1)
     const now = Date.now()
     const snaps = [null, 500, 700].map((bonus, i) =>
-      makeSnapshot(1, new Date(now - (2 - i) * 3600000), "1000000000", "500000000", null, null, bonus)
+      makeSnapshot(
+        1,
+        new Date(now - (2 - i) * 3600000),
+        "1000000000",
+        "500000000",
+        null,
+        null,
+        bonus
+      )
     )
     seedStore([tracker], snaps)
   })

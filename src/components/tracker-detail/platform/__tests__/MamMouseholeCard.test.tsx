@@ -62,7 +62,9 @@ describe("MamMouseholeCard", () => {
   it("shows a Check Now failure after data has loaded, keeping the last status", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(STATUS_OK))
-      .mockResolvedValueOnce(jsonResponse({ error: "Mousehole unreachable" }, { ok: false, status: 502 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "Mousehole unreachable" }, { ok: false, status: 502 })
+      )
 
     render(<MamMouseholeCard trackerId={1} mouseholeUrl="http://mousehole-test:5010" />)
 
@@ -78,7 +80,9 @@ describe("MamMouseholeCard", () => {
     vi.useFakeTimers()
     fetchMock
       .mockResolvedValueOnce(jsonResponse(STATUS_OK))
-      .mockResolvedValueOnce(jsonResponse({ error: "Mousehole unreachable" }, { ok: false, status: 502 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "Mousehole unreachable" }, { ok: false, status: 502 })
+      )
       .mockResolvedValue(jsonResponse(STATUS_OK))
 
     render(<MamMouseholeCard trackerId={1} mouseholeUrl="http://mousehole-test:5010" />)

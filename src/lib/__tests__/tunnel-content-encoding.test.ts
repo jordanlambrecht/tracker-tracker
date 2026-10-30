@@ -146,9 +146,9 @@ describe("proxyFetch decoding", () => {
   it("names the host, never the URL, when a body cannot be decoded", async () => {
     respond(200, { "content-encoding": "gzip" }, Buffer.from("not gzip at all"))
 
-    await expect(
-      proxyFetch(`https://${HOST}/api?api_token=placeholder`, agent)
-    ).rejects.toThrow(`Unexpected response from ${HOST}: could not decode the gzip body`)
+    await expect(proxyFetch(`https://${HOST}/api?api_token=placeholder`, agent)).rejects.toThrow(
+      `Unexpected response from ${HOST}: could not decode the gzip body`
+    )
   })
 
   it("returns an empty redirect labelled gzip so the caller can follow it", async () => {

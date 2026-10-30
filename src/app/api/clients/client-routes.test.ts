@@ -590,9 +590,9 @@ describe("POST /api/clients", () => {
     expect(res.status).toBe(201)
     expect(inserted?.encryptedUrlPath).not.toBe("")
     expect(JSON.stringify(inserted)).not.toContain("/user-example/example/proxy")
-    expect(
-      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
-    ).toBe("/user-example/example/proxy")
+    expect(decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))).toBe(
+      "/user-example/example/proxy"
+    )
   })
 
   it("rejects a URL path with parent-directory segments", async () => {
@@ -612,9 +612,9 @@ describe("POST /api/clients", () => {
     const res = await POST(postBody({ name: "Local qBT", host: "localhost", urlPath: "/qbt/" }))
 
     expect(res.status).toBe(201)
-    expect(
-      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
-    ).toBe("/qbt")
+    expect(decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))).toBe(
+      "/qbt"
+    )
   })
 
   it("rejects a host carrying its own port", async () => {

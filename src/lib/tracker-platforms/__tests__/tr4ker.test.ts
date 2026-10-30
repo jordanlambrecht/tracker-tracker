@@ -21,8 +21,7 @@ const LIVE_RESPONSE = {
   last_seen_at: "2026-10-09T18:54:38.432277Z",
 }
 
-const okResponse = (body: unknown) =>
-  ({ ok: true, json: async () => body }) as Response
+const okResponse = (body: unknown) => ({ ok: true, json: async () => body }) as Response
 
 describe("Tr4kerAdapter", () => {
   const adapter = new Tr4kerAdapter()
@@ -40,10 +39,7 @@ describe("Tr4kerAdapter", () => {
     expect(stats.group).toBe("Membre")
     expect(stats.uploadedBytes).toBe(1234567890123n + 10737418240n)
     expect(stats.downloadedBytes).toBe(234567890123n + 1073741824n)
-    expect(stats.ratio).toBeCloseTo(
-      (1234567890123 + 10737418240) / (234567890123 + 1073741824),
-      4
-    )
+    expect(stats.ratio).toBeCloseTo((1234567890123 + 10737418240) / (234567890123 + 1073741824), 4)
     expect(stats.bufferBytes).toBe(1234567890123n + 10737418240n - (234567890123n + 1073741824n))
     expect(stats.seedbonus).toBe(4242)
     expect(stats.remoteUserId).toBe(123456)
@@ -107,9 +103,9 @@ describe("Tr4kerAdapter", () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       okResponse({ ...LIVE_RESPONSE, bonus_download: "1073741824" })
     )
-    await expect(
-      adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")
-    ).rejects.toThrow("Unexpected response from tr4ker.net: non-numeric bonus_download")
+    await expect(adapter.fetchStats("https://tr4ker.net", "fake-token", "/api/me")).rejects.toThrow(
+      "Unexpected response from tr4ker.net: non-numeric bonus_download"
+    )
   })
 
   it("gives an account with no raw download but a bonus download a finite ratio", async () => {
@@ -195,9 +191,9 @@ describe("Tr4kerAdapter", () => {
       statusText: "Unauthorized",
     } as Response)
 
-    await expect(
-      adapter.fetchStats("https://tr4ker.net", "bad-token", "/api/me")
-    ).rejects.toThrow("401")
+    await expect(adapter.fetchStats("https://tr4ker.net", "bad-token", "/api/me")).rejects.toThrow(
+      "401"
+    )
   })
 })
 

@@ -31,8 +31,7 @@ import { type LoginResponse, loginRequest, withLoginSession } from "../helpers/l
 // ---------------------------------------------------------------------------
 
 export type LuminanceCredentials =
-  | { username: string; password: string }
-  | { username: string; cookies: string; userAgent: string }
+  { username: string; password: string } | { username: string; cookies: string; userAgent: string }
 
 export function parseLuminanceCredentials(apiToken: string): LuminanceCredentials {
   const { username, password, cookies, userAgent } = parseCredentialJson(
@@ -55,7 +54,9 @@ export function parseLuminanceCredentials(apiToken: string): LuminanceCredential
     }
   }
   if (!password?.trim()) {
-    throw new Error("Luminance credentials must contain password (string), or cookies and userAgent")
+    throw new Error(
+      "Luminance credentials must contain password (string), or cookies and userAgent"
+    )
   }
   // Never trimmed: leading or trailing spaces are part of the secret.
   return { username: username.trim(), password }

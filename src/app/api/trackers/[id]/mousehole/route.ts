@@ -104,7 +104,10 @@ async function resolveMousehole(
     } catch (error) {
       if (isDecryptionError(error)) {
         log.warn({ route: ROUTE, trackerId }, "Mousehole token unreadable: stale session key")
-        return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
+        return NextResponse.json(
+          { error: "Session expired. Please log in again." },
+          { status: 401 }
+        )
       }
       log.error({ route: ROUTE, trackerId, error: errMsg(error) }, "Mousehole token unreadable")
       return NextResponse.json({ error: "Failed to read the Mousehole API token" }, { status: 500 })
@@ -198,7 +201,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
     if (!healthRes.ok) {
       // v0.4.0 answers /health with 503 {ok, isOnline} while it waits to sync.
-      const body = (await healthRes.clone().json().catch(() => null)) as { ok?: unknown } | null
+      const body = (await healthRes
+        .clone()
+        .json()
+        .catch(() => null)) as { ok?: unknown } | null
       if (typeof body?.ok === "boolean") {
         return NextResponse.json({ error: NO_MOUSEHOLE_API }, { status: 502 })
       }

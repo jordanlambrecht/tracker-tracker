@@ -352,7 +352,9 @@ describe("TorrentleechAdapter.fetchStats", () => {
     vi.mocked(proxyFetch).mockReset()
     // The adapter caches login sessions on globalThis so it doesn't
     // re-authenticate every poll. Clear it so each test starts cold.
-    ;(globalThis as { __trackerLoginSessions?: Map<string, string> }).__trackerLoginSessions?.clear()
+    ;(
+      globalThis as { __trackerLoginSessions?: Map<string, string> }
+    ).__trackerLoginSessions?.clear()
   })
 
   it("logs in, fetches the profile, and returns parsed stats", async () => {

@@ -437,8 +437,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       {clearedOnRestore && (
         <Notice variant="warn" className="mb-4" header="Some credentials could not be restored">
           The restore cleared {describeClearedCredentials(clearedOnRestore)}, usually because the
-          backup predates a master password change. Everything else was restored. Re-enter what
-          was cleared to resume polling.
+          backup predates a master password change. Everything else was restored. Re-enter what was
+          cleared to resume polling.
         </Notice>
       )}
 
