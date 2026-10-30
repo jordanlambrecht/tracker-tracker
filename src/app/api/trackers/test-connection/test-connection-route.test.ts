@@ -376,7 +376,7 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
     mockDbSettings()
     const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-      fetchStats: vi.fn().mockRejectedValueOnce(new Error("HTTP 401 Unauthorized")),
+      fetchStats: vi.fn().mockRejectedValueOnce(new Error("Tracker API error: 401 Unauthorized")),
     })
 
     const res = await POST(makeRequest(VALID_BODY))

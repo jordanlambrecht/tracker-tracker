@@ -249,12 +249,16 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("rate-limit exceeded")).toBe("IP temporarily banned by tracker")
   })
 
-  it("maps '401' to 'Authentication failed'", () => {
-    expect(sanitizeNetworkError("HTTP 401 Unauthorized")).toBe("Authentication failed")
+  it("maps a tracker 401 to 'Authentication failed'", () => {
+    expect(sanitizeNetworkError("Tracker API error: 401 Unauthorized")).toBe(
+      "Authentication failed"
+    )
   })
 
-  it("maps 'Unauthorized' to 'Authentication failed'", () => {
-    expect(sanitizeNetworkError("Unauthorized")).toBe("Authentication failed")
+  it("maps a qBittorrent 403 to 'Authentication failed'", () => {
+    expect(sanitizeNetworkError("qBittorrent API error: 403 Forbidden")).toBe(
+      "Authentication failed"
+    )
   })
 
   it("maps 'Session expired' to 'Session expired'", () => {

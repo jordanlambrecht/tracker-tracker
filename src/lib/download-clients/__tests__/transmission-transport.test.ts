@@ -553,6 +553,11 @@ describe("what the user sees when the transport refuses a response", () => {
       responses: () => [new Response(JSON.stringify({ result: "method name not recognized" }))],
       card: "Transmission refused the request",
     },
+    {
+      name: "a 502 from a proxy in front of it",
+      responses: () => [new Response("Bad Gateway", { status: 502, statusText: "Bad Gateway" })],
+      card: "Transmission returned HTTP 502",
+    },
   ])("words $name for the card", async ({ creds, responses, card }) => {
     stubFetch(...responses())
     const err = await rejection(testSession(BASE, creds ?? CREDS))

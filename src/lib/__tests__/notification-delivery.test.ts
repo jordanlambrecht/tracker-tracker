@@ -227,7 +227,7 @@ describe("notification delivery circuit breaker", () => {
       "Webhook API error: 403 Forbidden",
       "Delivery failed"
     )
-    // 403 Forbidden matches the 401|403|Unauthorized|Forbidden pattern → "Authentication failed"
+    // "API error: 403" matches the auth rule → "Authentication failed"
     expect(result.error).not.toBe("Webhook API error: 403 Forbidden")
     expect(result.error).toBe("Authentication failed")
   })

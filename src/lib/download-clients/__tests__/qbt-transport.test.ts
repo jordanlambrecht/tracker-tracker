@@ -13,7 +13,7 @@ import {
   withSessionRetry,
 } from "@/lib/download-clients/qbt/transport"
 import { clearAuthBlocks, isResponseTooLarge } from "@/lib/download-clients/transport"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
 import { QBT_RESPONSE_MAX_BYTES, SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
 
 const BASE = "http://qbt.local:8080"
@@ -593,5 +593,43 @@ describe("what the user sees when the transport refuses a response", () => {
     expect(sanitizeNetworkError(err?.message ?? "")).toBe(
       "qBittorrent's API was not found at this address. Check the port and URL path"
     )
+  })
+
+  it.each([
+    [502, "Bad Gateway"],
+    [504, "Gateway Timeout"],
+  ])(
+    "names a %i the client answered with rather than that the host went quiet",
+    async (status, statusText) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(new Response(statusText, { status, statusText }))
+      )
+
+      const err = await login("qbt.local", 8080, false, "admin", "pw", "", saved("admin", "pw"))
+        .then(() => null)
+        .catch((e: unknown) => (e instanceof Error ? e : null))
+
+      const shown = sanitizeNetworkError(err?.message ?? "")
+      expect(shown).toBe(`qBittorrent returned HTTP ${status}`)
+      expect(isUnreachableMessage(shown)).toBe(false)
+    }
+  )
+
+  it("still reads a rejected session as an authentication failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("Unauthorized", { status: 401, statusText: "Unauthorized" })
+        )
+    )
+
+    const err = await getTorrents(BASE, { mode: "session", sid: { name: "SID", value: "abc" } })
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(sanitizeNetworkError(err?.message ?? "")).toBe("Authentication failed")
   })
 })
