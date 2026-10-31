@@ -286,6 +286,18 @@ describe("parseLogLine — warn/error title sanitization", () => {
     expect(event?.title).toBe("Request timed out")
   })
 
+  it("keeps a count or id containing 401 or 403 from reading as an auth failure", () => {
+    const titleOf = (msg: string) =>
+      parseLogLine(JSON.stringify({ level: 50, time: 1711100000000, msg }))?.title
+    // The deep poll logs the store refusal's own wording, grouped counts included
+    const refusal =
+      "Deep poll failed for client 2 (seedbox): This client has 140,401 torrents, more than the 100,000 Tracker Tracker tracks per client. Stats are paused and the last figures are kept."
+
+    expect(titleOf(refusal)).toBe(refusal)
+    expect(titleOf("Failed to resume tracker 403")).toBe("Failed to resume tracker 403")
+    expect(titleOf("Poll failed for tracker 401: Session expired")).toBe("Session expired")
+  })
+
   it("does NOT sanitize info-level titles (IPs preserved, single-user)", () => {
     const line = JSON.stringify({
       level: 30,

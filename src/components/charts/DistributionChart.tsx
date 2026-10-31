@@ -1,16 +1,15 @@
 // src/components/charts/DistributionChart.tsx
 //
-// Functions: buildPieOption, buildSankeyOption, buildParallelOption, DistributionChart
+// Functions: buildPieOption, buildSankeyOption, logTickLabel, buildParallelOption, DistributionChart
 
 "use client"
 
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { formatBytesFromString, formatCount } from "@/lib/formatters"
+import { formatBytesFromString, formatCount, formatPercent } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartDot, chartTooltip, escHtml } from "./lib/theme"
 
 type ViewMode = "donuts" | "sankey" | "parallel"
@@ -41,7 +40,7 @@ function buildPieOption(
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(p.name)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatValue(p.value)}</span>` +
-          `<span style="color:${CHART_THEME.textTertiary};"> · ${p.percent}%</span>`
+          `<span style="color:${CHART_THEME.textTertiary};"> · ${formatPercent(p.percent)}</span>`
         )
       },
     }),
@@ -163,8 +162,8 @@ function buildSankeyOption(
           if (!tracker) return ""
           return (
             `<span style="color:${tracker.color};font-weight:600;">${escHtml(trackerName)}</span><br/>` +
-            `<span style="color:${CHART_THEME.textSecondary};">Upload: ${fmtNum(tracker.uploadPct, 1)}%</span><br/>` +
-            `<span style="color:${CHART_THEME.textSecondary};">Seeding: ${fmtNum(tracker.seedingPct, 1)}%</span>`
+            `<span style="color:${CHART_THEME.textSecondary};">Upload: ${formatPercent(tracker.uploadPct)}</span><br/>` +
+            `<span style="color:${CHART_THEME.textSecondary};">Seeding: ${formatPercent(tracker.seedingPct)}</span>`
           )
         }
 
@@ -174,7 +173,7 @@ function buildSankeyOption(
         const isUploadSide = p.name.endsWith(" ")
         return (
           `<span style="color:${tracker.color};font-weight:600;">${escHtml(nodeName)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">${isUploadSide ? "Upload" : "Seeding"}: ${fmtNum(isUploadSide ? tracker.uploadPct : tracker.seedingPct, 1)}%</span>`
+          `<span style="color:${CHART_THEME.textSecondary};">${isUploadSide ? "Upload" : "Seeding"}: ${formatPercent(isUploadSide ? tracker.uploadPct : tracker.seedingPct)}</span>`
         )
       },
     }),
@@ -231,6 +230,11 @@ function buildSankeyOption(
   }
 }
 
+/** The log axes tick at powers of ten from 0.01, so each tick gets the digits it needs. */
+function logTickLabel(v: number): string {
+  return formatPercent(v, { decimals: Math.max(0, -Math.floor(Math.log10(v))) })
+}
+
 function buildParallelOption(
   trackers: { name: string; color: string; uploadPct: number; seedingPct: number }[]
 ): EChartsOption {
@@ -243,8 +247,8 @@ function buildParallelOption(
         if (!tracker) return ""
         return (
           `<span style="color:${tracker.color};font-weight:600;">${escHtml(tracker.name)}</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">Upload: ${fmtNum(tracker.uploadPct, 1)}%</span><br/>` +
-          `<span style="color:${CHART_THEME.textSecondary};">Seeding: ${fmtNum(tracker.seedingPct, 1)}%</span>`
+          `<span style="color:${CHART_THEME.textSecondary};">Upload: ${formatPercent(tracker.uploadPct)}</span><br/>` +
+          `<span style="color:${CHART_THEME.textSecondary};">Seeding: ${formatPercent(tracker.seedingPct)}</span>`
         )
       },
     }),
@@ -264,7 +268,7 @@ function buildParallelOption(
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
           fontSize: CHART_THEME.fontSizeCompact,
-          formatter: (v: number) => `${fmtNum(v, 1)}%`,
+          formatter: logTickLabel,
         },
       },
       {
@@ -282,7 +286,7 @@ function buildParallelOption(
           color: CHART_THEME.textTertiary,
           fontFamily: CHART_THEME.fontMono,
           fontSize: CHART_THEME.fontSizeCompact,
-          formatter: (v: number) => `${fmtNum(v, 1)}%`,
+          formatter: logTickLabel,
         },
       },
     ],

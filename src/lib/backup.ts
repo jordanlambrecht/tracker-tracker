@@ -5,6 +5,7 @@
 import { unlink } from "node:fs/promises"
 import path from "node:path"
 import { desc, inArray, isNotNull } from "drizzle-orm"
+import { VALID_PLATFORM_TYPES } from "@/data/platform-types"
 import { decrypt, deriveKey, encrypt, generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import {
@@ -16,6 +17,7 @@ import {
   dismissedAlerts,
   downloadClients,
   notificationTargets,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups,
   trackerOutages,
@@ -23,9 +25,15 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
+import {
+  clientSupportsApiKey,
+  VALID_AUTH_METHODS,
+  VALID_CLIENT_TYPES,
+} from "@/lib/download-clients/types"
 import { log } from "@/lib/logger"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
+import { prowlarrUrlError } from "@/lib/prowlarr/client"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
 import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import packageJson from "../../package.json"
@@ -56,6 +64,7 @@ export interface BackupPayload {
   trackerOutages?: Record<string, unknown>[]
   dismissedAlerts?: Record<string, unknown>[]
   notificationTargets?: Record<string, unknown>[]
+  prowlarrInstances?: Record<string, unknown>[]
 }
 
 export interface EncryptedBackupEnvelope {
@@ -110,6 +119,20 @@ export const BACKUP_CLIENT_COLUMNS = {
   updatedAt: downloadClients.updatedAt,
 } as const
 
+/**
+ * Columns included in a backup for each Prowlarr instance. Poll state is left
+ * out, and prowlarr_indexers is a cache rebuilt by the first poll after a restore.
+ */
+export const BACKUP_PROWLARR_COLUMNS = {
+  id: prowlarrInstances.id,
+  name: prowlarrInstances.name,
+  url: prowlarrInstances.url,
+  encryptedApiKey: prowlarrInstances.encryptedApiKey,
+  enabled: prowlarrInstances.enabled,
+  createdAt: prowlarrInstances.createdAt,
+  updatedAt: prowlarrInstances.updatedAt,
+} as const
+
 export async function generateBackupPayload(): Promise<BackupPayload> {
   const now = new Date().toISOString()
 
@@ -127,6 +150,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     rawTrackerOutages,
     rawDismissedAlerts,
     allNotificationTargets,
+    rawProwlarrInstances,
   ] = await Promise.all([
     db.select().from(appSettings).limit(1),
     db.select().from(trackers).orderBy(trackers.id),
@@ -151,6 +175,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     db.select().from(trackerOutages).orderBy(trackerOutages.id),
     db.select().from(dismissedAlerts).orderBy(dismissedAlerts.id),
     db.select().from(notificationTargets).orderBy(notificationTargets.id),
+    db.select(BACKUP_PROWLARR_COLUMNS).from(prowlarrInstances).orderBy(prowlarrInstances.id),
   ])
 
   const settingsPayload: Record<string, unknown> = {}
@@ -211,6 +236,10 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
       serializeRow(rest as Record<string, unknown>)
   )
 
+  const prowlarrPayload = rawProwlarrInstances.map((p) =>
+    serializeRow(p as Record<string, unknown>)
+  )
+
   const counts: Record<string, number> = {
     trackers: trackersPayload.length,
     trackerSnapshots: snapshotsPayload.length,
@@ -224,6 +253,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     trackerOutages: trackerOutagesPayload.length,
     dismissedAlerts: dismissedAlertsPayload.length,
     notificationTargets: backupNotificationTargets.length,
+    prowlarrInstances: prowlarrPayload.length,
   }
 
   const manifest: BackupManifest = {
@@ -250,6 +280,7 @@ export async function generateBackupPayload(): Promise<BackupPayload> {
     trackerOutages: trackerOutagesPayload,
     dismissedAlerts: dismissedAlertsPayload,
     notificationTargets: backupNotificationTargets,
+    prowlarrInstances: prowlarrPayload,
   }
 }
 
@@ -430,6 +461,24 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
   }
 
+  // prowlarrInstances is optional for backward compatibility with older backups
+  if (p.prowlarrInstances !== undefined) {
+    assertArray(p.prowlarrInstances, "prowlarrInstances")
+    for (let i = 0; i < p.prowlarrInstances.length; i++) {
+      const pi = p.prowlarrInstances[i] as Record<string, unknown>
+      const prefix = `prowlarrInstances[${i}]`
+      assertNumber(pi.id, `${prefix}.id`)
+      assertString(pi.name, `${prefix}.name`)
+      assertString(pi.url, `${prefix}.url`)
+      // The same check as the API routes, so a restore cannot store a URL they reject.
+      const urlError = prowlarrUrlError(pi.url)
+      if (urlError) throw new Error(`Backup validation: ${prefix}.url: ${urlError}`)
+      if (pi.encryptedApiKey !== null && pi.encryptedApiKey !== undefined) {
+        assertString(pi.encryptedApiKey, `${prefix}.encryptedApiKey`)
+      }
+    }
+  }
+
   // tracker entries
   for (let i = 0; i < p.trackers.length; i++) {
     const t = p.trackers[i] as Record<string, unknown>
@@ -456,14 +505,36 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       )
     }
 
+    // Only the type is checked: old BTN rows hold an absolute URL here, and the
+    // restore keeps an apiPath only as a path on the row's own site.
+    if (t.apiPath !== undefined) assertString(t.apiPath, `${prefix}.apiPath`)
+
+    // Absent, the column default applies.
+    if (t.platformType !== undefined) {
+      assertString(t.platformType, `${prefix}.platformType`)
+      if (!VALID_PLATFORM_TYPES.includes(t.platformType as (typeof VALID_PLATFORM_TYPES)[number])) {
+        throw new Error(
+          `Backup validation: ${prefix}.platformType must be one of: ${VALID_PLATFORM_TYPES.join(", ")}`
+        )
+      }
+    }
+
     assertString(t.encryptedApiToken, `${prefix}.encryptedApiToken`)
     // Empty token is valid, happens after a restore clears encrypted fields
 
     // Optional: backups predating the column carry no slug, and a pre-registry
-    // custom site legitimately carries null. Only the type is checked here;
-    // registryEntryFor returns undefined for an unknown slug on read.
+    // custom site legitimately carries null. Only the type is checked here: the
+    // restore drops a slug the registry does not know and pauses any row the
+    // backfill then cannot link.
     if (t.registrySlug !== null && t.registrySlug !== undefined) {
       assertString(t.registrySlug, `${prefix}.registrySlug`)
+    }
+
+    for (const field of ["prowlarrInstanceId", "prowlarrIndexerId"] as const) {
+      if (t[field] !== null && t[field] !== undefined) assertNumber(t[field], `${prefix}.${field}`)
+    }
+    if (t.prowlarrOptOut !== undefined && typeof t.prowlarrOptOut !== "boolean") {
+      throw new Error(`Backup validation: ${prefix}.prowlarrOptOut must be a boolean`)
     }
 
     if (t.color !== null && t.color !== undefined) {
@@ -518,13 +589,35 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       throw new Error(`Backup validation: ${prefix}.port must be an integer between 1 and 65535`)
     }
 
+    // The client routes refuse any other type, so a restore must not seed one.
+    assertString(c.type, `${prefix}.type`)
+    if (!VALID_CLIENT_TYPES.includes(c.type as (typeof VALID_CLIENT_TYPES)[number])) {
+      throw new Error(
+        `Backup validation: ${prefix}.type must be one of: ${VALID_CLIENT_TYPES.join(", ")}`
+      )
+    }
+
     assertString(c.encryptedUsername, `${prefix}.encryptedUsername`)
     // Empty credentials are valid, happens after a restore clears encrypted fields
     assertString(c.encryptedPassword, `${prefix}.encryptedPassword`)
 
-    // Both absent in backups written before API-key auth existed, so these are
-    // presence-guarded, but when present they are read as strings and must be.
-    if (typeof c.authMethod !== "undefined") assertString(c.authMethod, `${prefix}.authMethod`)
+    // Absent in backups written before API-key auth or the URL path existed, so
+    // these are presence-guarded. When present, authMethod must be a listed method
+    // and the encrypted fields must be strings.
+    if (
+      typeof c.authMethod !== "undefined" &&
+      !VALID_AUTH_METHODS.includes(c.authMethod as (typeof VALID_AUTH_METHODS)[number])
+    ) {
+      throw new Error(
+        `Backup validation: ${prefix}.authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}`
+      )
+    }
+    // The client routes refuse an API key for a type without key login.
+    if (c.authMethod === "apikey" && !clientSupportsApiKey(c.type)) {
+      throw new Error(
+        `Backup validation: ${prefix}.authMethod apikey is not supported for ${c.type}`
+      )
+    }
     if (typeof c.encryptedApiKey !== "undefined") {
       assertString(c.encryptedApiKey, `${prefix}.encryptedApiKey`)
     }

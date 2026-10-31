@@ -1,8 +1,8 @@
 // src/app/api/trackers/[id]/route.ts
 //
-// Functions: GET, PATCH, DELETE
+// Functions: isRowId, GET, PATCH, DELETE
 
-import { eq } from "drizzle-orm"
+import { and, eq, isNull, ne, or } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import {
   authenticate,
@@ -17,13 +17,21 @@ import {
   validateMouseholeToken,
   validateMouseholeUrl,
 } from "@/lib/api-helpers"
+import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackers } from "@/lib/db/schema"
+import { prowlarrInstances, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
-import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
+import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
+import { isIntegerInRange } from "@/lib/validators"
+
+// A Postgres integer id.
+function isRowId(value: unknown): value is number {
+  return typeof value === "number" && isIntegerInRange(value, 1, 2_147_483_647)
+}
 
 export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -72,7 +80,7 @@ export async function PATCH(request: Request, props: RouteContext) {
   }
 
   if (typeof body.qbtTag === "string") {
-    const qbtTagErr = validateMaxLength(body.qbtTag, TRACKER_TAG_MAX, "qBittorrent tag")
+    const qbtTagErr = validateMaxLength(body.qbtTag, TRACKER_TAG_MAX, "Client tag")
     if (qbtTagErr) return qbtTagErr
     updates.qbtTag = body.qbtTag.trim() || null
   }
@@ -123,14 +131,33 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.countCrossSeedUnsatisfied = body.countCrossSeedUnsatisfied
   if (typeof body.hideUnreadBadges === "boolean") updates.hideUnreadBadges = body.hideUnreadBadges
   if (typeof body.isFavorite === "boolean") updates.isFavorite = body.isFavorite
+  // A null pin returns the tracker to hostname matching.
+  if (body.prowlarrPin !== undefined) {
+    const pin = body.prowlarrPin as { instanceId?: unknown; indexerId?: unknown } | null
+    if (pin === null) {
+      updates.prowlarrInstanceId = null
+      updates.prowlarrIndexerId = null
+    } else if (typeof pin === "object" && isRowId(pin.instanceId) && isRowId(pin.indexerId)) {
+      const [instance] = await db
+        .select({ id: prowlarrInstances.id })
+        .from(prowlarrInstances)
+        .where(eq(prowlarrInstances.id, pin.instanceId))
+        .limit(1)
+      if (!instance) {
+        return NextResponse.json({ error: "Prowlarr instance not found" }, { status: 400 })
+      }
+      updates.prowlarrInstanceId = pin.instanceId
+      updates.prowlarrIndexerId = pin.indexerId
+    } else {
+      return NextResponse.json(
+        { error: "prowlarrPin must be null or { instanceId, indexerId }" },
+        { status: 400 }
+      )
+    }
+  }
+  if (typeof body.prowlarrOptOut === "boolean") updates.prowlarrOptOut = body.prowlarrOptOut
   if (typeof body.pollingPaused === "boolean") {
     updates.userPausedAt = body.pollingPaused ? new Date() : null
-    if (!body.pollingPaused) {
-      updates.pausedAt = null
-      updates.consecutiveFailures = 0
-      updates.lastError = null
-      updates.lastErrorAt = null
-    }
     log.info(
       {
         route: "PATCH /api/trackers/[id]",
@@ -180,10 +207,30 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(trimmedToken, key)
+    // A new token can belong to another account, so the old account's cached id
+    // and avatar are cleared. The next poll fetches them again.
+    updates.remoteUserId = null
+    updates.avatarData = null
+    updates.avatarMimeType = null
+    updates.avatarCachedAt = null
+    updates.avatarRemoteUrl = null
   }
 
   try {
     await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
+    if (body.pollingPaused === false) {
+      // A restore's marker survives the toggle, so that row stays paused until
+      // Resume Polling. A null lastError fails ne(), so isNull() matches it.
+      await db
+        .update(trackers)
+        .set({ pausedAt: null, consecutiveFailures: 0, lastError: null, lastErrorAt: null })
+        .where(
+          and(
+            eq(trackers.id, trackerId),
+            or(isNull(trackers.lastError), ne(trackers.lastError, UNLINKED_RESTORE_ERROR))
+          )
+        )
+    }
     const updated = await getTrackerForClient(trackerId)
     return NextResponse.json(updated ?? { success: true })
   } catch (err) {

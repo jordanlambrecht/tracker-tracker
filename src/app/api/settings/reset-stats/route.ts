@@ -2,6 +2,7 @@
 //
 // Functions: POST
 
+import { ne } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
@@ -10,6 +11,7 @@ import { appSettings, clientSnapshots, trackerSnapshots, trackers } from "@/lib/
 import { errMsg } from "@/lib/error-utils"
 import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 
 export async function POST(request: Request) {
   const auth = await authenticate()
@@ -43,7 +45,13 @@ export async function POST(request: Request) {
     await db.transaction(async (tx) => {
       await tx.delete(trackerSnapshots)
       await tx.delete(clientSnapshots)
-      await tx.update(trackers).set({ lastPolledAt: null, lastError: null })
+      await tx.update(trackers).set({ lastPolledAt: null })
+      // The restore's marker is what keeps an unlinked tracker unpolled until it
+      // is resumed. A null lastError fails ne() but has nothing to clear.
+      await tx
+        .update(trackers)
+        .set({ lastError: null })
+        .where(ne(trackers.lastError, UNLINKED_RESTORE_ERROR))
     })
   } catch (err) {
     log.error({ route: "POST /api/settings/reset-stats", error: errMsg(err) }, "stats reset failed")

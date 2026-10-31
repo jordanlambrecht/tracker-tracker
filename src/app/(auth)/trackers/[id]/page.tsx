@@ -24,19 +24,21 @@ export default async function TrackerDetailPage(props: {
   const trackerId = parseInt(id, 10)
   if (Number.isNaN(trackerId) || trackerId < 1) notFound()
 
-  const [tracker, allTimeSnapshots, tagGroupsData, settingsRow] = await Promise.all([
-    getTrackerForClient(trackerId),
-    getSnapshotsForTracker(trackerId, 0),
-    getTagGroupsWithMembers().catch(() => []),
-    db
-      .select({
-        qbitmanageEnabled: appSettings.qbitmanageEnabled,
-        qbitmanageTags: appSettings.qbitmanageTags,
-      })
-      .from(appSettings)
-      .limit(1)
-      .catch(() => []),
-  ])
+  const [tracker, allTimeSnapshots, recentSnapshots, tagGroupsData, settingsRow] =
+    await Promise.all([
+      getTrackerForClient(trackerId),
+      getSnapshotsForTracker(trackerId, 0),
+      getSnapshotsForTracker(trackerId, 2),
+      getTagGroupsWithMembers().catch(() => []),
+      db
+        .select({
+          qbitmanageEnabled: appSettings.qbitmanageEnabled,
+          qbitmanageTags: appSettings.qbitmanageTags,
+        })
+        .from(appSettings)
+        .limit(1)
+        .catch(() => []),
+    ])
 
   if (!tracker) notFound()
 
@@ -56,6 +58,7 @@ export default async function TrackerDetailPage(props: {
         trackerId={trackerId}
         initialTracker={tracker}
         initialAllTimeSnapshots={allTimeSnapshots}
+        initialRecentSnapshots={recentSnapshots}
         initialTagGroups={tagGroupsData}
         initialQbitmanageConfig={qbitmanageConfig}
         initialTab={initialTab}

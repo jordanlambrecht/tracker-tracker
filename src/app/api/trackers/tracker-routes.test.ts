@@ -5,7 +5,9 @@ import { CHART_THEME } from "@/components/charts/lib/theme"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { trackers as trackersTable } from "@/lib/db/schema"
 import { pollTracker } from "@/lib/tracker-scheduler"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import { POST as PollPOST } from "./[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "./[id]/roles/route"
 import { DELETE, PATCH } from "./[id]/route"
@@ -33,6 +35,16 @@ vi.mock("@/lib/db", () => ({
   },
 }))
 
+// Operators become plain objects, so a test can replay a WHERE on a plain row.
+vi.mock("drizzle-orm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("drizzle-orm")>()),
+  and: (...conditions: unknown[]) => ({ and: conditions }),
+  or: (...conditions: unknown[]) => ({ or: conditions }),
+  eq: (column: unknown, value: unknown) => ({ eq: [column, value] }),
+  ne: (column: unknown, value: unknown) => ({ ne: [column, value] }),
+  isNull: (column: unknown) => ({ isNull: column }),
+}))
+
 vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn().mockReturnValue("encrypted-token"),
   decrypt: vi.fn().mockReturnValue("decrypted-value"),
@@ -46,6 +58,11 @@ vi.mock("@/lib/tunnel", () => ({
 
 vi.mock("@/lib/tracker-scheduler", () => ({
   pollTracker: vi.fn(),
+}))
+
+// No Prowlarr configured. Its own query chain is covered in prowlarr-sync.test.ts.
+vi.mock("@/lib/prowlarr/sync", () => ({
+  loadTrackerProwlarrStates: vi.fn().mockResolvedValue(new Map()),
 }))
 
 vi.mock("@/lib/privacy", () => ({
@@ -637,6 +654,63 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(mockSet.mock.calls[0][0]).not.toHaveProperty("baseUrl")
   })
 
+  function mockPinInstance(rows: { id: number }[]) {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(rows) }),
+      }),
+    })
+  }
+
+  async function patchWith(body: Record<string, unknown>) {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    const mockSet = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+    const request = makeRequest("http://localhost/api/trackers/1", {}, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+    return { response, mockSet }
+  }
+
+  it("pins a Prowlarr indexer of an existing instance", async () => {
+    mockPinInstance([{ id: 2 }])
+    const { response, mockSet } = await patchWith({ prowlarrPin: { instanceId: 2, indexerId: 15 } })
+
+    expect(response.status).toBe(200)
+    expect(mockSet.mock.calls[0][0]).toMatchObject({ prowlarrInstanceId: 2, prowlarrIndexerId: 15 })
+  })
+
+  it("clears the pin and stores the opt-out", async () => {
+    const { response, mockSet } = await patchWith({ prowlarrPin: null, prowlarrOptOut: true })
+
+    expect(response.status).toBe(200)
+    expect(mockSet.mock.calls[0][0]).toMatchObject({
+      prowlarrInstanceId: null,
+      prowlarrIndexerId: null,
+      prowlarrOptOut: true,
+    })
+  })
+
+  it("refuses a pin to an instance that does not exist", async () => {
+    mockPinInstance([])
+    const { response } = await patchWith({ prowlarrPin: { instanceId: 9, indexerId: 15 } })
+
+    expect(response.status).toBe(400)
+    expect(db.update).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    "2:15",
+    { instanceId: 2 },
+    { instanceId: 0, indexerId: 1 },
+    { instanceId: 1.5, indexerId: 1 },
+    { instanceId: 2 ** 31, indexerId: 1 },
+  ])("rejects the Prowlarr pin %j", async (value) => {
+    const { response } = await patchWith({ prowlarrPin: value })
+
+    expect(response.status).toBe(400)
+    expect(db.update).not.toHaveBeenCalled()
+  })
+
   it("returns 400 when color exceeds 20 characters", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       color: `#${"a".repeat(20)}`,
@@ -677,6 +751,62 @@ describe("PATCH /api/trackers/[id]", () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toMatch(/token/i)
+  })
+
+  // A new token can sign in as another account, whose id and avatar the next poll fetches.
+  it("clears the cached member id and avatar when the API token is replaced", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: "new-token" })
+
+    const mockLimit = vi.fn().mockResolvedValue([{ platformType: "unit3d" }])
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
+    const mockUpdateWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { apiToken: "new-token" },
+      "PATCH"
+    )
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    expect(mockSet.mock.calls[0]?.[0]).toMatchObject({
+      encryptedApiToken: "encrypted-token",
+      remoteUserId: null,
+      avatarData: null,
+      avatarMimeType: null,
+      avatarCachedAt: null,
+      avatarRemoteUrl: null,
+    })
+  })
+
+  it("keeps the cached member id and avatar when the body has no API token", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ name: "Renamed" })
+
+    const mockWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { name: "Renamed" }, "PATCH")
+    const params = Promise.resolve({ id: "1" })
+    const response = await PATCH(request, { params })
+
+    expect(response.status).toBe(200)
+    const updates = mockSet.mock.calls[0]?.[0]
+    for (const column of [
+      "remoteUserId",
+      "avatarData",
+      "avatarMimeType",
+      "avatarCachedAt",
+      "avatarRemoteUrl",
+    ]) {
+      expect(updates).not.toHaveProperty(column)
+    }
   })
 
   it("accepts boolean isActive update", async () => {
@@ -828,29 +958,101 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(updates.pausedAt).toBeUndefined()
   })
 
+  type Condition =
+    | { and: Condition[] }
+    | { or: Condition[] }
+    | { eq: [unknown, unknown] }
+    | { ne: [unknown, unknown] }
+    | { isNull: unknown }
+
+  /** The trackers key a column object belongs to. */
+  function columnKey(column: unknown): string {
+    const entry = Object.entries(trackersTable).find(([, c]) => c === column)
+    if (!entry) throw new Error("not a trackers column")
+    return entry[0]
+  }
+
+  /** SQL three-valued logic: null is unknown, and only true matches a row. */
+  function holds(cond: Condition, row: Record<string, unknown>): boolean | null {
+    if ("and" in cond) {
+      const results = cond.and.map((c) => holds(c, row))
+      return results.includes(false) ? false : results.includes(null) ? null : true
+    }
+    if ("or" in cond) {
+      const results = cond.or.map((c) => holds(c, row))
+      return results.includes(true) ? true : results.includes(null) ? null : false
+    }
+    if ("isNull" in cond) return row[columnKey(cond.isNull)] === null
+    const [column, value] = "eq" in cond ? cond.eq : cond.ne
+    const stored = row[columnKey(column)]
+    if (stored === null) return null
+    return "eq" in cond ? stored === value : stored !== value
+  }
+
+  /** Runs PATCH and applies its tracker updates to `row` the way Postgres would. */
+  async function patchRow(body: Record<string, unknown>, row: Record<string, unknown>) {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    const updates: { values: Record<string, unknown>; where: Condition }[] = []
+    ;(db.update as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      set: (values: Record<string, unknown>) => ({
+        where: (where: Condition) => {
+          updates.push({ values, where })
+          return Promise.resolve([])
+        },
+      }),
+    }))
+    const request = makeRequest("http://localhost/api/trackers/1", body, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+    for (const { values, where } of updates) {
+      if (holds(where, row) === true) Object.assign(row, values)
+    }
+    return response
+  }
+
   it("clears userPausedAt and auto-pause state when pollingPaused is false", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      pollingPaused: false,
-    })
+    const row = {
+      id: 1,
+      userPausedAt: new Date(),
+      pausedAt: new Date(),
+      consecutiveFailures: 4,
+      lastError: "HTTP 503",
+      lastErrorAt: new Date(),
+    }
 
-    const mockWhere = vi.fn().mockResolvedValue([])
-    const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
-    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
-
-    const request = makeRequest(
-      "http://localhost/api/trackers/1",
-      { pollingPaused: false },
-      "PATCH"
-    )
-    const params = Promise.resolve({ id: "1" })
-    const response = await PATCH(request, { params })
+    const response = await patchRow({ pollingPaused: false }, row)
 
     expect(response.status).toBe(200)
-    const updates = mockSet.mock.calls[0]?.[0]
-    expect(updates.userPausedAt).toBeNull()
-    expect(updates.pausedAt).toBeNull()
-    expect(updates.consecutiveFailures).toBe(0)
-    expect(updates.lastError).toBeNull()
+    expect(row).toMatchObject({
+      userPausedAt: null,
+      pausedAt: null,
+      consecutiveFailures: 0,
+      lastError: null,
+      lastErrorAt: null,
+    })
+  })
+
+  // On a row the user also paused, the banner shows only the user pause, so the
+  // toggle must leave the restore warning and its pause for Resume Polling.
+  it("keeps a restore pause and its marker when pollingPaused is false", async () => {
+    const pausedAt = new Date()
+    const row = {
+      id: 1,
+      userPausedAt: new Date(),
+      pausedAt,
+      consecutiveFailures: 0,
+      lastError: UNLINKED_RESTORE_ERROR,
+      lastErrorAt: pausedAt,
+    }
+
+    const response = await patchRow({ pollingPaused: false }, row)
+
+    expect(response.status).toBe(200)
+    expect(row).toMatchObject({
+      userPausedAt: null,
+      pausedAt,
+      lastError: UNLINKED_RESTORE_ERROR,
+      lastErrorAt: pausedAt,
+    })
   })
 
   it("ignores non-boolean pollingPaused values", async () => {

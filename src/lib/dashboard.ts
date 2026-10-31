@@ -1,7 +1,7 @@
 // src/lib/dashboard.ts
 //
-// Functions: computeAggregateStats, computeAlerts, detectRankChanges, fetchDismissedKeys,
-// postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// Functions: remapAlertKey, computeAggregateStats, computeAlerts, detectRankChanges,
+// fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
 
 import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
@@ -48,10 +48,50 @@ export const VALID_ALERT_TYPES = new Set([
   "update-available",
   "backup-failed",
   "client-error",
+  "client-warning",
   "retention-unconfigured",
 ] as const)
 
 export type AlertType = typeof VALID_ALERT_TYPES extends Set<infer T> ? T : never
+
+// The id an alert's key carries right after `${type}-`, so a restore can move it
+// to the restored row's id. A new alert type has to name one here.
+export const ALERT_KEY_ID: Record<AlertType, "tracker" | "client" | null> = {
+  error: "tracker",
+  "poll-paused": "tracker",
+  "ratio-danger": "tracker",
+  "stale-data": "tracker",
+  "rank-change": "tracker",
+  "zero-seeding": "tracker",
+  warned: "tracker",
+  anniversary: "tracker",
+  "update-available": null,
+  "backup-failed": null,
+  "client-error": "client",
+  "client-warning": "client",
+  "retention-unconfigured": null,
+}
+
+/**
+ * The key with its tracker or client id swapped for the restored row's id, or
+ * null when that row is not in the backup. Keys of a type with no id, or of a
+ * type this version does not know, come back unchanged.
+ */
+export function remapAlertKey(
+  key: string,
+  type: string,
+  ids: { tracker: ReadonlyMap<number, number>; client: ReadonlyMap<number, number> }
+): string | null {
+  // The type comes from the backup file, so an inherited name like "constructor"
+  // must not count as a known type
+  const kind = Object.hasOwn(ALERT_KEY_ID, type) ? ALERT_KEY_ID[type as AlertType] : null
+  if (!kind) return key
+  const rest = key.startsWith(`${type}-`) ? key.slice(type.length + 1) : ""
+  const id = /^\d+(?=-|$)/.exec(rest)?.[0]
+  if (id === undefined) return null
+  const newId = ids[kind].get(Number(id))
+  return newId === undefined ? null : `${type}-${newId}${rest.slice(id.length)}`
+}
 
 export interface DashboardAlert {
   key: string
@@ -338,7 +378,13 @@ export interface SystemAlertData {
   latestVersion?: string
   currentVersion: string
   failedBackups: { createdAt: string }[]
-  clients: { id: number; name: string; enabled: boolean; lastError: string | null }[]
+  clients: {
+    id: number
+    name: string
+    enabled: boolean
+    lastError: string | null
+    errorSince: string | null
+  }[]
   snapshotRetentionDays: number | null
   /** True once the first-run retention prompt was answered; null days is then a choice. */
   retentionAnswered?: boolean
@@ -376,17 +422,21 @@ export function computeSystemAlerts(data: SystemAlertData): DashboardAlert[] {
     })
   }
 
-  // DL Client errors (non-dismissible)
+  // DL client errors. errorSince is the heartbeat's outage clock. A lastError
+  // without it is a deep-poll failure on a client that still answers, so it
+  // warns rather than reading as down, and only the warning can be dismissed.
   for (const client of data.clients) {
     if (client.enabled && client.lastError) {
+      const isDown = !!client.errorSince
+      const type: AlertType = isDown ? "client-error" : "client-warning"
       alerts.push({
-        key: `client-error-${client.id}`,
-        type: "client-error",
+        key: `${type}-${client.id}`,
+        type,
         trackerId: null,
         trackerName: client.name,
-        trackerColor: "var(--color-danger)",
+        trackerColor: isDown ? "var(--color-danger)" : "var(--color-warn)",
         message: client.lastError,
-        dismissible: false,
+        dismissible: !isDown,
       })
     }
   }

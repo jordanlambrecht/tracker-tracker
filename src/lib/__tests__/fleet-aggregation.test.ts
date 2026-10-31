@@ -10,8 +10,8 @@ import type { TagGroup, TagGroupMember } from "@/types/api"
 // ---------------------------------------------------------------------------
 
 const TRACKER_TAGS: TrackerTag[] = [
-  { tag: "aither", name: "Aither", color: "#01d4ff" },
-  { tag: "blutopia", name: "Blutopia", color: "#3b82f6" },
+  { tag: "aither", name: "Aither", color: "#01d4ff", registrySlug: null },
+  { tag: "blutopia", name: "Blutopia", color: "#3b82f6", registrySlug: null },
 ]
 
 const CROSS_SEED_TAGS = ["cross-seed"]
@@ -156,6 +156,7 @@ describe("computeFleetAggregation", () => {
       expect(result.stats.torrentCount).toBe(0)
       expect(result.stats.totalSeeding).toBe(0)
       expect(result.stats.totalLeeching).toBe(0)
+      expect(result.stats.totalInactive).toBe(0)
       expect(result.stats.fleetUploadSpeed).toBe(0)
       expect(result.stats.fleetDownloadSpeed).toBe(0)
       expect(result.stats.totalLibrarySize).toBe(0)
@@ -297,6 +298,28 @@ describe("computeFleetAggregation", () => {
       const result = computeFleetAggregation(ALL_TORRENTS, TRACKER_TAGS, CROSS_SEED_TAGS)
       expect(result.stats.totalSeeding).toBe(5)
       expect(result.stats.totalLeeching).toBe(1)
+      expect(result.stats.totalInactive).toBe(0)
+    })
+
+    it("counts a stopped torrent as inactive, not seeding or leeching", () => {
+      // qBT 5.x reports a stopped seed as stoppedUP. It used to fall through to leeching.
+      const stopped = makeTorrent({ hash: "stopped1", state: "stoppedUP", uploadSpeed: 0 })
+      const result = computeFleetAggregation([T1, T3, stopped], TRACKER_TAGS, CROSS_SEED_TAGS)
+      expect(result.stats.totalSeeding).toBe(1)
+      expect(result.stats.totalLeeching).toBe(1)
+      expect(result.stats.totalInactive).toBe(1)
+    })
+
+    it("splits every torrent into exactly one of seeding, leeching or inactive", () => {
+      const inactive = ["stoppedUP", "pausedDL", "queuedUP", "checkingUP", "error"].map(
+        (state, i) => makeTorrent({ hash: `inactive${i}`, state, uploadSpeed: 0 })
+      )
+      const torrents = [...ALL_TORRENTS, ...inactive]
+      const { stats } = computeFleetAggregation(torrents, TRACKER_TAGS, CROSS_SEED_TAGS)
+      expect(stats.totalInactive).toBe(inactive.length)
+      expect(stats.totalSeeding + stats.totalLeeching + stats.totalInactive).toBe(
+        stats.torrentCount
+      )
     })
 
     it("sums upload and download speeds", () => {
@@ -624,14 +647,19 @@ describe("computeFleetAggregation", () => {
 
   // 13. Edge cases
   describe("edge cases", () => {
-    // ratio -1 sentinel (qBT uses -1 for infinite ratio: downloaded=0, i.e. pure cross-seed)
+    // ratio -1 sentinel (qBT's infinite ratio, see INFINITE_TORRENT_RATIO in torrent-utils)
     describe("ratio -1 sentinel", () => {
-      it("excludes ratio=-1 torrent from ratioDistribution", () => {
+      it("counts a ratio=-1 torrent in the top ratioDistribution bucket", () => {
         const infinite = makeTorrent({ hash: "inf1", tags: "aither", ratio: -1 })
         const result = computeFleetAggregation([infinite], TRACKER_TAGS, CROSS_SEED_TAGS)
-        for (const bucket of result.ratioDistribution) {
-          expect(bucket.count).toBe(0)
-        }
+        expect(result.ratioDistribution.map((b) => [b.label, b.count])).toEqual([
+          ["<0.5", 0],
+          ["0.5-1", 0],
+          ["1-2", 0],
+          ["2-5", 0],
+          ["5-10", 0],
+          ["10+", 1],
+        ])
       })
 
       it("excludes ratio=-1 torrent from trackerHealth.avgRatio", () => {
@@ -641,6 +669,14 @@ describe("computeFleetAggregation", () => {
         // validRatioCount is 0, so avgRatio falls back to 0
         expect(aither?.avgRatio).toBe(0)
       })
+    })
+
+    it("excludes a bad negative ratio from trackerHealth.avgRatio", () => {
+      const good = makeTorrent({ hash: "neg1", tags: "aither", ratio: 2 })
+      const bad = makeTorrent({ hash: "neg2", tags: "aither", ratio: -0.5 })
+      const result = computeFleetAggregation([good, bad], TRACKER_TAGS, CROSS_SEED_TAGS)
+      const aither = result.trackerHealth.find((t) => t.name === "Aither")
+      expect(aither?.avgRatio).toBe(2)
     })
 
     // Torrent whose tags contain no matching tracker tag
@@ -741,9 +777,21 @@ describe("computeFleetAggregation", () => {
 // Tracker Tracker to get the tracker from the tracker URL."
 describe("computeFleetAggregation — announce URL matching (issue #152)", () => {
   const TAGGED_AND_URL: TrackerTag[] = [
-    { tag: "aither", name: "Aither", color: "#01d4ff", baseUrl: "https://aither.cc" },
+    {
+      tag: "aither",
+      name: "Aither",
+      color: "#01d4ff",
+      baseUrl: "https://aither.cc",
+      registrySlug: null,
+    },
     // An untagged tracker is keyed by its announce host instead.
-    { tag: "example.org", name: "Example", color: "#3b82f6", baseUrl: "https://example.org" },
+    {
+      tag: "example.org",
+      name: "Example",
+      color: "#3b82f6",
+      baseUrl: "https://example.org",
+      registrySlug: null,
+    },
   ]
 
   it("attributes a torrent with no tracker tag via its announce URL", () => {

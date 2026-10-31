@@ -68,15 +68,23 @@ export function decryptClientCredentials(
   // would repeat the prefix.
   const urlPath = decryptClientUrlPath(client, key)
 
+  // The ciphertext, not a hash of the secret, names the credential. AES-GCM's
+  // random IV makes it new on every save, so an edit is always seen.
   try {
     if (authMethod === "apikey") {
-      return { authMethod, apiKey: decrypt(client.encryptedApiKey, key), urlPath }
+      return {
+        authMethod,
+        apiKey: decrypt(client.encryptedApiKey, key),
+        urlPath,
+        credentialKey: `apikey:${client.encryptedApiKey}`,
+      }
     }
     return {
       authMethod,
       username: decrypt(client.encryptedUsername, key),
       password: decrypt(client.encryptedPassword, key),
       urlPath,
+      credentialKey: `password:${client.encryptedUsername}\u0000${client.encryptedPassword}`,
     }
   } catch (err) {
     throw credentialError(client.name, err)

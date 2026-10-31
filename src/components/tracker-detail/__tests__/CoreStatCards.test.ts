@@ -8,9 +8,13 @@
 // Also covers the Hit & Runs descriptor: a measured zero renders "0", while a
 // null count (the adapter cannot read the field) renders "—" like a missing
 // snapshot, so unknown never reads as clean.
+//
+// The required ratio arrives already resolved. 0 means the tracker requires
+// none and reads "None"; null means nothing is on record and reads "—".
 
 import { describe, expect, it } from "vitest"
 import { buildCoreStatDescriptors } from "@/components/tracker-detail/CoreStatCards"
+import type { TrendDirection } from "@/components/ui/StatCard"
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 const baseStats: TrackerLatestStats = {
@@ -51,15 +55,21 @@ const baseSnapshot: Snapshot = {
   isManual: false,
 }
 
-function ratioDescriptor(stats: TrackerLatestStats | null) {
-  const descriptors = buildCoreStatDescriptors(stats, null)
-  const descriptor = descriptors.find((d) => d.key === "ratio")
-  if (!descriptor) throw new Error("ratio descriptor not found")
-  return descriptor
+function findDescriptor(
+  key: string,
+  stats: TrackerLatestStats | null,
+  requiredRatio: number | null
+) {
+  const found = buildCoreStatDescriptors(stats, null, requiredRatio).find((d) => d.key === key)
+  if (!found) throw new Error(`${key} descriptor not found`)
+  return found
 }
 
+const ratioDescriptor = (stats: TrackerLatestStats | null, requiredRatio: number | null = null) =>
+  findDescriptor("ratio", stats, requiredRatio)
+
 describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
-  it("renders '∞' with unit 'x' and an 'up' trend for a zero-download account", () => {
+  it("renders '∞' with unit 'x' for a zero-download account", () => {
     const stats: TrackerLatestStats = {
       ...baseStats,
       ratioIsInfinite: true,
@@ -70,7 +80,6 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
     const descriptor = ratioDescriptor(stats)
     expect(descriptor.value).toBe("∞")
     expect(descriptor.unit).toBe("x")
-    expect(descriptor.trend).toBe("up")
   })
 
   it("does not flag an infinite ratio as below a required ratio", () => {
@@ -79,10 +88,9 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
       ratioIsInfinite: true,
       ratio: null,
       uploadedBytes: "1000",
-      requiredRatio: 1.5,
     }
 
-    const descriptor = ratioDescriptor(stats)
+    const descriptor = ratioDescriptor(stats, 1.5)
     expect(descriptor.alert).toBeUndefined()
     expect(descriptor.alertReason).toBeUndefined()
   })
@@ -105,12 +113,43 @@ describe("buildCoreStatDescriptors ratio (infinite ratio)", () => {
     const descriptor = ratioDescriptor(stats)
     expect(descriptor.value).toBe("2.50")
     expect(descriptor.unit).toBe("x")
-    expect(descriptor.trend).toBe("up")
+  })
+})
+
+describe("ratio trend", () => {
+  const trendOf = (stats: TrackerLatestStats | null, trend?: TrendDirection) =>
+    buildCoreStatDescriptors(stats, null, null, trend).find((d) => d.key === "ratio")?.trend
+
+  it("shows the trend it is given, not a level from the ratio itself", () => {
+    const stats: TrackerLatestStats = { ...baseStats, ratio: 4.48 }
+    expect(trendOf(stats)).toBeUndefined()
+    expect(trendOf(stats, "flat")).toBe("flat")
+    expect(trendOf(stats, "down")).toBe("down")
+  })
+
+  it("shows an infinite ratio's trend", () => {
+    expect(trendOf({ ...baseStats, ratioIsInfinite: true }, "up")).toBe("up")
+  })
+
+  it("shows no trend beside an unknown ratio", () => {
+    expect(trendOf(baseStats, "up")).toBeUndefined()
+    expect(trendOf(null, "up")).toBeUndefined()
+  })
+})
+
+describe("buildCoreStatDescriptors Req. Ratio (none is not unknown)", () => {
+  const reqDescriptor = (requiredRatio: number | null) =>
+    findDescriptor("req-ratio", baseStats, requiredRatio)
+
+  it("tells a requirement, no requirement and an unknown one apart", () => {
+    expect(reqDescriptor(0.6)).toMatchObject({ value: "0.60", unit: "x" })
+    expect(reqDescriptor(0)).toMatchObject({ value: "None", unit: undefined })
+    expect(reqDescriptor(null)).toMatchObject({ value: "—", unit: undefined })
   })
 })
 
 function hnrDescriptor(latestSnapshot: Snapshot | null) {
-  const descriptors = buildCoreStatDescriptors(baseStats, latestSnapshot)
+  const descriptors = buildCoreStatDescriptors(baseStats, latestSnapshot, null)
   const descriptor = descriptors.find((d) => d.key === "hnr")
   if (!descriptor) throw new Error("hnr descriptor not found")
   return descriptor

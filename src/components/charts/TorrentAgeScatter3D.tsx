@@ -6,7 +6,7 @@ import "echarts-gl"
 import { useState } from "react"
 import { FilterPill } from "@/components/ui/FilterPill"
 import type { TorrentRaw } from "@/lib/fleet"
-import { formatRatio } from "@/lib/formatters"
+import { formatTorrentRatio, torrentRatioValue } from "@/lib/torrent-utils"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME } from "./lib/theme"
 
@@ -58,7 +58,7 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
       Math.floor((now - t.addedAt) / 86400), // 0: age
       Math.floor(t.seedingTime / 86400), // 1: seed time
       +(t.size / 1024 ** 3).toFixed(2), // 2: size
-      Math.min(t.ratio, 10), // 3: ratio
+      Math.min(torrentRatioValue(t.ratio), 10), // 3: ratio
     ])
 
   if (data.length === 0) {
@@ -84,7 +84,7 @@ function TorrentAgeScatter3D({ torrents, accentColor }: TorrentAgeScatter3DProps
     tooltip: {
       formatter: (p: { data: number[] }) => {
         const d = p.data
-        return `Age: ${d[0]}d<br/>Seed: ${d[1]}d<br/>Size: ${d[2]} GiB<br/>Ratio: ${formatRatio(d[3])}`
+        return `Age: ${d[0]}d<br/>Seed: ${d[1]}d<br/>Size: ${d[2]} GiB<br/>Ratio: ${formatTorrentRatio(d[3])}`
       },
     },
     visualMap: {

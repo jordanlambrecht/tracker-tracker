@@ -24,12 +24,12 @@ The proxy type controls how traffic reaches the proxy server. SOCKS5 uses tunnel
     Many private trackers prohibit access from VPNs, proxies, or shared IPs. Using a proxy for API polling may trigger security flags or get you disabled. Check your tracker's rules first. If a tracker allows API access from a different IP than your browsing IP, you're probably fine, but not all make that distinction.
 
 !!! info "DNS resolution"
-    HTTP and HTTPS proxies resolve on the proxy side, so your DNS provider never sees it. SOCKS5 varies: most resolve remotely, some resolve locally first. If DNS privacy matters, verify your SOCKS5 proxy does remote resolution.
+    Tracker Tracker sends the tracker's hostname to the proxy with every proxy type, so the proxy looks it up and your DNS provider never sees it. A SOCKS5 proxy that only accepts IP addresses won't work.
 
 !!! info "What the tracker sees"
-    Requests to a tracker's JSON API identify Tracker Tracker with a `User-Agent` of `tracker-tracker/<major>.<minor>`, such as `tracker-tracker/2.10`. Some trackers reject requests that carry no User-Agent at all, which is why one is always sent. The patch version is left off on purpose, so the string is not distinctive enough to link your accounts across several trackers sharing one proxy exit IP.
+    Requests to a tracker's JSON API, and to trackers where Tracker Tracker logs in with your password (TorrentLeech, Luminance), identify Tracker Tracker with a `User-Agent` of `tracker-tracker/<major>.<minor>`, such as `tracker-tracker/2.10`. Some trackers reject requests that carry no User-Agent at all, which is why one is always sent. The patch version is left off on purpose, so the string is not distinctive enough to link your accounts across several trackers sharing one proxy exit IP.
 
-    Trackers read with copied browser cookies (AvistaZ, IPTorrents) send that browser's own User-Agent instead, matching the session the cookies belong to.
+    Trackers read with copied browser cookies (AvistaZ, IPTorrents, and a Luminance account added with a session cookie) send that browser's own User-Agent instead, matching the session the cookies belong to.
 
 ## Setup
 

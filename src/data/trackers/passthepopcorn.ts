@@ -9,7 +9,7 @@ export const passthepopcorn: TrackerRegistryEntry = {
   abbreviation: "PTP",
   url: "https://passthepopcorn.me",
   description:
-    "The premier movie tracker. Huge selection of both popular and niche content with an active community that should satisfy any movie fan.",
+    "A movie tracker with a large selection of popular and niche content and an active community.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",
@@ -23,11 +23,11 @@ export const passthepopcorn: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#f1c40f",
-  logo: "",
+  logo: "/tracker-logos/passthepopcorn_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "pass-the-popcorn",
-  statusPageUrl: "https://ptp.trackerstatus.info/",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

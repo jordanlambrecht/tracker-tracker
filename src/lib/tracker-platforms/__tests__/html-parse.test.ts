@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest"
 import { parseBytes } from "@/lib/parser"
 import {
   datePrefix,
+  isCloudflareChallenge,
+  isCloudflareInterstitial,
   normalizeWhitespace,
   tryParseCount,
   tryParseSiteBytes,
@@ -117,5 +119,30 @@ describe("tryParseCount", () => {
     // write the key back on every poll.
     expect(JSON.stringify({ invites: tryParseCount("N/A") })).toBe("{}")
     expect(JSON.stringify({ invites: tryParseCount("3") })).toBe('{"invites":3}')
+  })
+})
+
+describe("Cloudflare challenge checks", () => {
+  const TITLE = "<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>"
+  const OPTIONS = "<html><script>window._cf_chl_opt = { cType: 'managed' }</script></html>"
+  const TURNSTILE =
+    '<html><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script></html>'
+  const PAGE = '<html><body><a href="logout.php">Logout</a></body></html>'
+
+  it("matches the interstitial by its title or by its challenge options alone", () => {
+    for (const html of [TITLE, OPTIONS]) {
+      expect(isCloudflareInterstitial(html)).toBe(true)
+      expect(isCloudflareChallenge(html)).toBe(true)
+    }
+  })
+
+  it("counts a Turnstile widget as a challenge but not as the interstitial", () => {
+    expect(isCloudflareChallenge(TURNSTILE)).toBe(true)
+    expect(isCloudflareInterstitial(TURNSTILE)).toBe(false)
+  })
+
+  it("leaves an ordinary page alone", () => {
+    expect(isCloudflareChallenge(PAGE)).toBe(false)
+    expect(isCloudflareInterstitial(PAGE)).toBe(false)
   })
 })

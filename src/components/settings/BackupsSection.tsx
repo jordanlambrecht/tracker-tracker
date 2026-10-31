@@ -1,6 +1,7 @@
 // src/components/settings/BackupsSection.tsx
 "use client"
 
+import { LockIcon } from "@icons"
 import { H2, Paragraph, Subtext } from "@typography"
 import clsx from "clsx"
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -105,6 +106,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [deletingBackupId, setDeletingBackupId] = useState<number | null>(null)
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const [totpWasDisabled, setTotpWasDisabled] = useState(false)
+  const [mouseholeWasCleared, setMouseholeWasCleared] = useState(false)
   const [clearedOnRestore, setClearedOnRestore] = useState<{
     tokens: number
     clients: number
@@ -127,6 +129,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     }
     sessionStorage.removeItem("restore_tokens_cleared")
     sessionStorage.removeItem("restore_clients_cleared")
+
+    if (sessionStorage.getItem("restore_mousehole_cleared") === "1") setMouseholeWasCleared(true)
+    sessionStorage.removeItem("restore_mousehole_cleared")
   }, [])
 
   useEffect(() => {
@@ -297,6 +302,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       if (clientCredentialsCleared > 0) {
         sessionStorage.setItem("restore_clients_cleared", String(clientCredentialsCleared))
       }
+      if (((data as { mouseholeCleared?: number }).mouseholeCleared ?? 0) > 0) {
+        sessionStorage.setItem("restore_mousehole_cleared", "1")
+      }
       setShowRestoreConfirm(false)
       setRestoreFile(null)
       setRestorePassword("")
@@ -367,7 +375,13 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             {formatDateTime(b.createdAt)}
             {b.encrypted && (
               <Tooltip content="Password-protected">
-                <span className="ml-2 text-xs text-accent">🔒</span>
+                <span
+                  role="img"
+                  aria-label="Password-protected"
+                  className="ml-2 inline-flex align-middle text-xs text-accent"
+                >
+                  <LockIcon width="12" height="12" />
+                </span>
               </Tooltip>
             )}
           </span>
@@ -430,8 +444,15 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       {clearedOnRestore && (
         <Notice variant="warn" className="mb-4" header="Some credentials could not be restored">
           The restore cleared {describeClearedCredentials(clearedOnRestore)}, usually because the
-          backup predates a master password change. Everything else was restored. Re-enter what
-          was cleared to resume polling.
+          backup predates a master password change. Everything else was restored. Re-enter what was
+          cleared to resume polling.
+        </Notice>
+      )}
+
+      {mouseholeWasCleared && (
+        <Notice variant="warn" className="mb-4" header="Mousehole not restored">
+          Mousehole settings were not restored from an unencrypted backup. Re-enter them in the
+          tracker&apos;s settings.
         </Notice>
       )}
 

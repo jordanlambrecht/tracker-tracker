@@ -1,20 +1,32 @@
 // src/lib/auth.ts
 //
-// Functions: hashPassword, verifyPassword, createSession, getSession,
-//            clearSession, createPendingToken, verifyPendingToken,
+// Functions: hashPassword, verifyPassword, createSession, readSession, fingerprintMatches,
+//            getSession, clearSession, createPendingToken, verifyPendingToken,
 //            createSetupToken, verifySetupToken
 
-import { hkdfSync } from "node:crypto"
+import { hkdfSync, timingSafeEqual } from "node:crypto"
 import argon2 from "argon2"
-import { EncryptJWT, jwtDecrypt } from "jose"
+import { EncryptJWT, type JWTPayload, jwtDecrypt } from "jose"
 import { cookies } from "next/headers"
 import { shouldSecureCookies } from "@/lib/cookie-security"
+import { masterKeyFingerprint } from "@/lib/crypto"
+import { db } from "@/lib/db"
+import { appSettings } from "@/lib/db/schema"
+import { log } from "@/lib/logger"
 
 const SESSION_COOKIE = "tt_session"
 const MAX_AGE_COOKIE = "tt_max_age"
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
 const PENDING_TOKEN_MAX_AGE = 60 // 60 seconds
 const SETUP_TOKEN_MAX_AGE = 300 // 5 minutes
+
+export const STALE_SESSION_MESSAGE = "Your session is out of date. Sign in again."
+
+/**
+ * A stale session decrypts, but it was minted under a password hash or salt the
+ * database no longer holds, so its key opens nothing. null is no usable session.
+ */
+export type SessionRead = { status: "valid"; encryptionKey: string } | { status: "stale" } | null
 
 function getSessionKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET
@@ -34,6 +46,7 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
 
 export async function createSession(
   encryptionKey: string,
+  fingerprint: string,
   timeoutMinutes?: number | null
 ): Promise<string> {
   const cookieMaxAge = timeoutMinutes && timeoutMinutes > 0 ? timeoutMinutes * 60 : SESSION_MAX_AGE
@@ -42,7 +55,7 @@ export async function createSession(
   // cookie maxAge + middleware sliding window refresh.
   const jweMaxAge = Math.max(cookieMaxAge * 2, SESSION_MAX_AGE)
 
-  const token = await new EncryptJWT({ ek: encryptionKey })
+  const token = await new EncryptJWT({ ek: encryptionKey, fp: fingerprint })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()
     .setExpirationTime(`${jweMaxAge}s`)
@@ -71,19 +84,54 @@ export async function createSession(
   return token
 }
 
-export async function getSession(): Promise<{ encryptionKey: string } | null> {
+/**
+ * Checks the cookie's fingerprint against app_settings, so a password change,
+ * a lockdown or a recover.cjs reset signs out every session minted before it.
+ */
+export async function readSession(): Promise<SessionRead> {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
 
   const key = getSessionKey() // Config errors propagate as 500, not silent 401
+  let payload: JWTPayload
   try {
-    const { payload } = await jwtDecrypt(token, key)
-    if (payload.purpose) return null // reject pending/setup tokens
-    return { encryptionKey: payload.ek as string }
+    ;({ payload } = await jwtDecrypt(token, key))
   } catch {
     return null
   }
+  if (payload.purpose) return null // reject pending/setup tokens
+
+  // Outside the try, so a database error is a 500 and never a silent sign-out.
+  const [settings] = await db
+    .select({ passwordHash: appSettings.passwordHash, encryptionSalt: appSettings.encryptionSalt })
+    .from(appSettings)
+    .limit(1)
+  if (!settings) return null
+
+  const current = masterKeyFingerprint(settings.passwordHash, settings.encryptionSalt)
+  if (!fingerprintMatches(payload.fp, current)) {
+    log.warn(
+      { event: "session_stale" },
+      "Session refused: it predates the current master password or salt"
+    )
+    return { status: "stale" }
+  }
+  return { status: "valid", encryptionKey: payload.ek as string }
+}
+
+/** A session minted before sessions carried a fingerprint has none, and is refused. */
+export function fingerprintMatches(claim: unknown, current: string): boolean {
+  if (typeof claim !== "string") return false
+  const a = Buffer.from(claim)
+  const b = Buffer.from(current)
+  // timingSafeEqual throws on a length mismatch
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+export async function getSession(): Promise<{ encryptionKey: string } | null> {
+  const session = await readSession()
+  return session?.status === "valid" ? { encryptionKey: session.encryptionKey } : null
 }
 
 export async function clearSession(): Promise<void> {
@@ -96,22 +144,31 @@ export async function clearSession(): Promise<void> {
 // Pending token, short-lived JWE holding the encryption key during 2FA login.
 // Returned in the response body (NOT as a cookie) so the client holds it
 // temporarily and sends it with the TOTP verification request.
+//
+// totp/verify refuses a token whose fingerprint no longer matches the row. It
+// mints the session with the token's own fingerprint, so a key derived before a
+// password change is never marked current.
 // ---------------------------------------------------------------------------
 
-export async function createPendingToken(encryptionKey: string): Promise<string> {
-  return new EncryptJWT({ ek: encryptionKey, purpose: "pending" })
+export async function createPendingToken(
+  encryptionKey: string,
+  fingerprint: string
+): Promise<string> {
+  return new EncryptJWT({ ek: encryptionKey, fp: fingerprint, purpose: "pending" })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()
     .setExpirationTime(`${PENDING_TOKEN_MAX_AGE}s`)
     .encrypt(getSessionKey())
 }
 
-export async function verifyPendingToken(token: string): Promise<{ encryptionKey: string } | null> {
+export async function verifyPendingToken(
+  token: string
+): Promise<{ encryptionKey: string; fingerprint: string } | null> {
   const key = getSessionKey()
   try {
     const { payload } = await jwtDecrypt(token, key)
-    if (payload.purpose !== "pending") return null
-    return { encryptionKey: payload.ek as string }
+    if (payload.purpose !== "pending" || typeof payload.fp !== "string") return null
+    return { encryptionKey: payload.ek as string, fingerprint: payload.fp }
   } catch {
     return null
   }

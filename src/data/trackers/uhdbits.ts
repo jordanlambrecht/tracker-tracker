@@ -9,7 +9,7 @@ export const uhdbits: TrackerRegistryEntry = {
   abbreviation: "UHD",
   url: "https://uhdbits.org",
   description:
-    "Tracker focused on Ultra HD and 4K content. Known for high-quality UHD encodes, remuxes, and full disc releases.",
+    "Tracker focused on Ultra HD and 4K content. Has high-quality UHD encodes, remuxes, and full disc releases.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "custom",

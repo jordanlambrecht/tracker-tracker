@@ -1,14 +1,14 @@
 // src/lib/tracker-status.ts
 //
-// Functions: getPauseState, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthPulseDot
+// Functions: getPauseState, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthDot
 //
 // Single source of truth for tracker health status. Includes type, derivation
-// logic, and all visual mappings (PulseDot status, Badge variant, labels,
-// descriptions). Ratio bands are requirement-aware: each tracker is judged
-// against its own required ratio, not a global cutoff.
+// logic, and all visual mappings (StatusDot tone and glow, Badge variant,
+// labels, descriptions). Ratio bands are requirement-aware: each tracker is
+// judged against its own required ratio, not a global cutoff.
 
 import type { BadgeVariant } from "@/components/ui/Badge"
-import type { PulseDotStatus } from "@/components/ui/PulseDot"
+import type { StatusDotProps, StatusDotTone } from "@/components/ui/StatusDot"
 import { registryEntryFor } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
 
@@ -21,7 +21,7 @@ type TrackerHealth =
 interface HealthMeta {
   label: string
   description: string
-  pulseDot: PulseDotStatus
+  dot: { tone: StatusDotTone; glow: boolean }
   badge: BadgeVariant
 }
 
@@ -29,7 +29,7 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
   healthy: {
     label: "Healthy",
     description: "Ratio at least double the required ratio",
-    pulseDot: "healthy",
+    dot: { tone: "accent", glow: true },
     badge: "accent",
   },
   warning: {
@@ -38,48 +38,48 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     // description may claim one. The amber badge already signals watch.
     label: "Above Min",
     description: "Ratio above the required ratio, below double it",
-    pulseDot: "warning",
+    dot: { tone: "warn", glow: true },
     badge: "warn",
   },
   // Shares the danger/critical visuals with "critical", the way "paused"
   // already does: this table distinguishes states by label and description
   // rather than giving every id its own color.
   "no-seeds": {
+    // Dot-only surfaces announce this label to screen readers, so it must not
+    // read "Critical", which would describe the wrong problem.
     label: "No Seeds",
     description: "Zero active seeds, nothing is uploading",
-    // Its own dot status, not "critical": dot-only surfaces expose the status
-    // name to screen readers, and "Critical" would describe the wrong problem.
-    pulseDot: "no-seeds",
+    dot: { tone: "danger", glow: true },
     badge: "danger",
   },
   critical: {
     label: "Critical",
     description: "Ratio below the required ratio",
-    pulseDot: "critical",
+    dot: { tone: "danger", glow: true },
     badge: "danger",
   },
   paused: {
     label: "Paused",
     description: "Polling paused after consecutive failures",
-    pulseDot: "paused",
+    dot: { tone: "danger", glow: false },
     badge: "danger",
   },
   "paused-user": {
-    label: "Paused",
+    label: "Paused by user",
     description: "Automated polling paused by user",
-    pulseDot: "paused-user",
+    dot: { tone: "warn", glow: false },
     badge: "warn",
   },
   error: {
     label: "Error",
     description: "Last poll returned an error",
-    pulseDot: "error",
+    dot: { tone: "secondary", glow: false },
     badge: "danger",
   },
   offline: {
     label: "Offline",
     description: "No data available",
-    pulseDot: "offline",
+    dot: { tone: "muted", glow: false },
     badge: "default",
   },
 }
@@ -96,6 +96,23 @@ function getPauseState(tracker: {
   if (userPaused) return { isPaused: true, reason: "user", since: userPaused }
   if (autoPaused) return { isPaused: true, reason: "failure", since: autoPaused }
   return { isPaused: false }
+}
+
+// The lastError a backup restore pauses a tracker with when the registry cannot
+// place its address. Resume clears it, and until then not even a manual poll runs.
+const UNLINKED_RESTORE_ERROR =
+  "Restored from a backup, and its address could not be matched to a known tracker. Check it before resuming"
+
+function isRestorePaused(tracker: {
+  pausedAt: Date | string | null
+  registrySlug: string | null
+  lastError: string | null
+}): boolean {
+  return (
+    !!tracker.pausedAt &&
+    tracker.registrySlug === null &&
+    tracker.lastError === UNLINKED_RESTORE_ERROR
+  )
 }
 
 // The ratio a tracker actually holds this account to. Live requiredRatio wins
@@ -213,17 +230,19 @@ function getHealthDescription(status: TrackerHealth, tracker?: TrackerSummary): 
   return `Ratio below the ${minimum} requirement`
 }
 
-function getHealthPulseDot(status: TrackerHealth): PulseDotStatus {
-  return HEALTH_META[status].pulseDot
+function getHealthDot(status: TrackerHealth): Pick<StatusDotProps, "tone" | "glow" | "label"> {
+  return { ...HEALTH_META[status].dot, label: HEALTH_META[status].label }
 }
 
 export type { PauseState, TrackerHealth }
 export {
   getHealthBadgeVariant,
   getHealthDescription,
+  getHealthDot,
   getHealthLabel,
-  getHealthPulseDot,
   getPauseState,
   getTrackerHealth,
+  isRestorePaused,
   resolveRequiredRatio,
+  UNLINKED_RESTORE_ERROR,
 }

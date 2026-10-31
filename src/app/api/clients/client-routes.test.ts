@@ -42,11 +42,14 @@ const mockAdapter = {
   dispose: vi.fn(),
 }
 
-vi.mock("@/lib/download-clients", () => ({
+vi.mock("@/lib/download-clients", async () => ({
+  // The real type list and port defaults, so a test cannot pass on a type the app refuses.
+  ...(await vi.importActual<typeof import("@/lib/download-clients/types")>(
+    "@/lib/download-clients/types"
+  )),
   CLIENT_CONNECTION_COLUMNS: {},
   createAdapterForClient: vi.fn(() => mockAdapter),
   disposeClient: vi.fn(),
-  VALID_CLIENT_TYPES: ["qbittorrent", "deluge", "transmission", "rtorrent"],
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
@@ -543,6 +546,36 @@ describe("POST /api/clients", () => {
     expect((await res.json()).error).toMatch(/authMethod must be one of/)
   })
 
+  it("defaults a Transmission client to Transmission's port", async () => {
+    const res = await POST(postBody({ name: "Seedbox", host: "localhost", type: "transmission" }))
+
+    expect(res.status).toBe(201)
+    expect(inserted?.port).toBe(9091)
+  })
+
+  it("refuses an API key for a Transmission client, whose RPC has no key login", async () => {
+    const res = await POST(
+      postBody({
+        name: "Seedbox",
+        host: "localhost",
+        type: "transmission",
+        authMethod: "apikey",
+        apiKey: "k",
+      })
+    )
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/no API key login/)
+    expect(inserted).toBeNull()
+  })
+
+  it("refuses a type that is not a string rather than creating a qBittorrent client", async () => {
+    const res = await POST(postBody({ name: "Seedbox", host: "localhost", type: null }))
+
+    expect(res.status).toBe(400)
+    expect(inserted).toBeNull()
+  })
+
   it("stores a URL path encrypted and never returns it", async () => {
     const res = await POST(
       postBody({
@@ -557,9 +590,9 @@ describe("POST /api/clients", () => {
     expect(res.status).toBe(201)
     expect(inserted?.encryptedUrlPath).not.toBe("")
     expect(JSON.stringify(inserted)).not.toContain("/user-example/example/proxy")
-    expect(
-      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
-    ).toBe("/user-example/example/proxy")
+    expect(decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))).toBe(
+      "/user-example/example/proxy"
+    )
   })
 
   it("rejects a URL path with parent-directory segments", async () => {
@@ -579,9 +612,9 @@ describe("POST /api/clients", () => {
     const res = await POST(postBody({ name: "Local qBT", host: "localhost", urlPath: "/qbt/" }))
 
     expect(res.status).toBe(201)
-    expect(
-      decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))
-    ).toBe("/qbt")
+    expect(decrypt(inserted?.encryptedUrlPath as string, Buffer.from(VALID_KEY, "hex"))).toBe(
+      "/qbt"
+    )
   })
 
   it("rejects a host carrying its own port", async () => {
@@ -640,6 +673,31 @@ describe("PATCH /api/clients/[id] credential handling", () => {
     expect(res.status).toBe(400)
     expect((await res.json()).error).toMatch(/apiKey is required/)
     // Nothing was written, the stored password was not re-labelled.
+    expect(updates).toBeNull()
+  })
+
+  it("refuses a type change, which would hand the stored credentials to another client's API", async () => {
+    const res = await PATCH(patchBody({ type: "transmission" }), routeProps)
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/type can't be changed/)
+    expect(updates).toBeNull()
+  })
+
+  it("accepts the client's own type alongside other edits", async () => {
+    const res = await PATCH(patchBody({ type: "qbittorrent", name: "Renamed" }), routeProps)
+
+    expect(res.status).toBe(200)
+    expect(updates?.name).toBe("Renamed")
+    expect(updates).not.toHaveProperty("type")
+  })
+
+  it("refuses an API key for a Transmission client", async () => {
+    mockDbSelectClient({ ...MOCK_CLIENT, type: "transmission" })
+    const res = await PATCH(patchBody({ authMethod: "apikey", apiKey: "k" }), routeProps)
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/no API key login/)
     expect(updates).toBeNull()
   })
 

@@ -3,8 +3,14 @@
 // Functions: makeSelectChain, makeUpdateChain
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createPendingToken, createSession, verifyPassword, verifyPendingToken } from "@/lib/auth"
-import { decrypt, deriveKey } from "@/lib/crypto"
+import {
+  createPendingToken,
+  createSession,
+  STALE_SESSION_MESSAGE,
+  verifyPassword,
+  verifyPendingToken,
+} from "@/lib/auth"
+import { decrypt, deriveKey, masterKeyFingerprint } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lockout"
 import { startScheduler } from "@/lib/scheduler"
@@ -21,17 +27,23 @@ vi.mock("@/lib/db/schema", () => ({
   appSettings: {},
 }))
 
-vi.mock("@/lib/auth", () => ({
-  verifyPassword: vi.fn(),
-  createPendingToken: vi.fn(),
-  verifyPendingToken: vi.fn(),
-  createSession: vi.fn(),
-}))
+vi.mock("@/lib/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth")>()
+  return {
+    fingerprintMatches: actual.fingerprintMatches,
+    STALE_SESSION_MESSAGE: actual.STALE_SESSION_MESSAGE,
+    verifyPassword: vi.fn(),
+    createPendingToken: vi.fn(),
+    verifyPendingToken: vi.fn(),
+    createSession: vi.fn(),
+  }
+})
 
 vi.mock("@/lib/crypto", () => ({
   deriveKey: vi.fn(),
   decrypt: vi.fn(),
   encrypt: vi.fn((value: string) => `encrypted:${value}`),
+  masterKeyFingerprint: vi.fn(() => "fp-of-the-current-row"),
 }))
 
 vi.mock("@/lib/scheduler", () => ({
@@ -145,6 +157,7 @@ describe("auth abuse defenses", () => {
       requiresTotp: true,
       pendingToken: "pending-token",
     })
+    expect(createPendingToken).toHaveBeenCalledWith("61".repeat(32), "fp-of-the-current-row")
     expect(createSession).not.toHaveBeenCalled()
     expect(startScheduler).not.toHaveBeenCalled()
     expect(resetFailedAttempts).not.toHaveBeenCalled()
@@ -161,6 +174,7 @@ describe("auth abuse defenses", () => {
     ])
     ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: "a".repeat(64),
+      fingerprint: "fp-of-the-current-row",
     })
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("totp-secret")
     ;(verifyTotpCode as ReturnType<typeof vi.fn>).mockReturnValue(false)
@@ -193,6 +207,7 @@ describe("auth abuse defenses", () => {
     const { set } = makeUpdateChain()
     ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: "b".repeat(64),
+      fingerprint: "fp-of-the-current-row",
     })
     ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue(
       JSON.stringify([{ hash: "x", salt: "y", used: false }])
@@ -221,8 +236,45 @@ describe("auth abuse defenses", () => {
       totpBackupCodes: 'encrypted:[{"hash":"x","salt":"y","used":true}]',
     })
     expect(resetFailedAttempts).toHaveBeenCalledWith(1)
-    expect(createSession).toHaveBeenCalledWith("b".repeat(64), 45)
+    expect(createSession).toHaveBeenCalledWith("b".repeat(64), "fp-of-the-current-row", 45)
     expect(startScheduler).toHaveBeenCalledWith(Buffer.from("b".repeat(64), "hex"))
+  })
+
+  it("refuses a pending token from before a password change with the stale message, not a decrypt 500", async () => {
+    makeSelectChain([
+      {
+        id: 1,
+        passwordHash: "hash-after-the-change",
+        encryptionSalt: "salt",
+        totpSecret: "encrypted-secret",
+        lockedUntil: null,
+        sessionTimeoutMinutes: 30,
+      },
+    ])
+    ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "d".repeat(64),
+      fingerprint: "fp-from-before-the-change",
+    })
+    // The key from before the change no longer opens the re-encrypted secret
+    ;(decrypt as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("Unsupported state or unable to authenticate data")
+    })
+
+    const { POST } = await import("./totp/verify/route")
+    const response = await POST(
+      new Request("http://localhost/api/auth/totp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingToken: "pending-token", code: "123456" }),
+      })
+    )
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({ error: STALE_SESSION_MESSAGE })
+    expect(masterKeyFingerprint).toHaveBeenCalledWith("hash-after-the-change", "salt")
+    expect(decrypt).not.toHaveBeenCalled()
+    expect(recordFailedAttempt).not.toHaveBeenCalled()
+    expect(createSession).not.toHaveBeenCalled()
   })
 
   it("returns 429 when lockedUntil is in the future (login)", async () => {
@@ -283,6 +335,7 @@ describe("auth abuse defenses", () => {
     ]
     ;(verifyPendingToken as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: "c".repeat(64),
+      fingerprint: "fp-of-the-current-row",
     })
     makeSelectChain(settings)
     ;(checkLockout as ReturnType<typeof vi.fn>).mockReturnValueOnce(

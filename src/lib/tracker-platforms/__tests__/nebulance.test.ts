@@ -341,6 +341,7 @@ describe("NebulanceAdapter - Anthelion compatibility", () => {
       Uploaded: number
       Downloaded: number
       SeedCount: number
+      Orbs: number
       Invites: number
       Class: string
       SubClasses: string | null
@@ -427,6 +428,19 @@ describe("NebulanceAdapter - Anthelion compatibility", () => {
     expect(stats.seedingCount).toBe(88)
     expect(stats.hitAndRuns).toBeNull() // No HnR field → null
     expect(stats.remoteUserId).toBe(2853)
+  })
+
+  // Field name and number type from the Dasharr and Yata-Dash Anthelion clients,
+  // checked 2026-10-20; the value is invented.
+  it("reads Orbs as the seedbonus", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockAnthelionResponse({ Orbs: 51234 }),
+    } as Response)
+
+    const stats = await adapter.fetchStats("https://anthelion.me", "key", "/api.php")
+
+    expect(stats.seedbonus).toBe(51234)
   })
 
   it("uses SubClasses (plural) for group when present", async () => {

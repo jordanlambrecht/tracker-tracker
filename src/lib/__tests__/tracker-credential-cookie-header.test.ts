@@ -42,6 +42,21 @@ describe("validateCookieHeader", () => {
     const blob = "cf_clearance=AbC-123_x; uid=456; pass=deadbeef; XSRF-TOKEN=zzz"
     expect(validateCookieHeader(blob, opts)).toBe(blob)
   })
+
+  // Without the session cookie every poll would come back as the login page and
+  // read as an expired session, long after the paste was saved.
+  it("rejects a paste missing a required cookie, without echoing the value", () => {
+    const required = { ...opts, requiredCookieNames: ["sid"] }
+    let message = ""
+    try {
+      validateCookieHeader("cid=SECRET; session_id=x", required)
+    } catch (err) {
+      message = (err as Error).message
+    }
+    expect(message).toContain("Cookie string has no sid cookie")
+    expect(message).not.toContain("SECRET")
+    expect(validateCookieHeader("cid=1; sid=2", required)).toBe("cid=1; sid=2")
+  })
 })
 
 describe("validateCookieHeader control characters", () => {

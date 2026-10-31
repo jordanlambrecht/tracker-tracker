@@ -1,16 +1,19 @@
 // src/lib/credential-forms.test.ts
 //
 // Pins the stored blob shapes, which are a contract with the adapters'
-// parseCredentialJson key lists, and the cookie messages a user acts on.
+// parseCredentialJson key lists, the cookie messages a user acts on, and the
+// length cap each credential kind gets at the routes.
 
 import { describe, expect, it } from "vitest"
 import { VALID_PLATFORM_TYPES } from "@/data/platform-types"
+import { LARGE_TOKEN_MAX, TRACKER_TOKEN_MAX } from "@/lib/limits"
 import {
   buildCredentialBlob,
   CREDENTIAL_FORMS,
   credentialFormFor,
   credentialFormForPlatform,
   EMPTY_CREDENTIAL_VALUES,
+  maxTokenLengthFor,
   validateCredentialValues,
 } from "./credential-forms"
 
@@ -44,6 +47,11 @@ describe("CREDENTIAL_FORMS coverage", () => {
       extraCookieNames: ["love"],
       example: "cf_clearance=abc123; session=xyz",
     })
+    expect(CREDENTIAL_FORMS.luminance.sessionCookie).toEqual({
+      example: "sid=abc123",
+      extraCookieNames: ["sid"],
+      requiredCookieNames: ["sid"],
+    })
   })
 })
 
@@ -56,10 +64,19 @@ describe("credentialFormFor", () => {
     expect(credentialFormFor({ platform: "gazelle" }).hidesJoinDate).toBe(false)
   })
 
-  it("hides the Join Date field for exactly avistaz, digitalcore, filelist, ggn, and retrotoon", () => {
+  it("hides the Join Date field for exactly avistaz, c411, digitalcore, filelist, ggn, iptorrents, luminance, and retrotoon", () => {
     const hidden = VALID_PLATFORM_TYPES.filter((p) => CREDENTIAL_FORMS[p].hidesJoinDate)
     expect([...hidden].sort()).toEqual(
-      ["avistaz", "digitalcore", "filelist", "ggn", "retrotoon"].sort()
+      [
+        "avistaz",
+        "c411",
+        "digitalcore",
+        "filelist",
+        "ggn",
+        "iptorrents",
+        "luminance",
+        "retrotoon",
+      ].sort()
     )
   })
 })
@@ -76,6 +93,49 @@ describe("credentialFormForPlatform", () => {
   it("treats an inherited object property name as unknown", () => {
     expect(credentialFormForPlatform("constructor")).toBe(CREDENTIAL_FORMS.custom)
     expect(credentialFormForPlatform("__proto__")).toBe(CREDENTIAL_FORMS.custom)
+  })
+})
+
+describe("maxTokenLengthFor", () => {
+  it.each([
+    ["unit3d", TRACKER_TOKEN_MAX], // token
+    ["animebytes", TRACKER_TOKEN_MAX], // token-username
+    ["iptorrents", LARGE_TOKEN_MAX], // cookies
+    ["avistaz", LARGE_TOKEN_MAX], // cookies-username
+    ["digitalcore", LARGE_TOKEN_MAX], // uid-pass
+    ["torrentleech", LARGE_TOKEN_MAX], // login
+    ["luminance", LARGE_TOKEN_MAX], // login with a session cookie
+  ])("caps %s at %i", (platform, cap) => {
+    expect(maxTokenLengthFor(platform)).toBe(cap)
+  })
+
+  it("gives the token cap when the platform is missing or unknown", () => {
+    expect(maxTokenLengthFor(null)).toBe(TRACKER_TOKEN_MAX)
+    expect(maxTokenLengthFor(undefined)).toBe(TRACKER_TOKEN_MAX)
+    expect(maxTokenLengthFor("")).toBe(TRACKER_TOKEN_MAX)
+    expect(maxTokenLengthFor("some-future-platform")).toBe(TRACKER_TOKEN_MAX)
+  })
+
+  // A minimal IPTorrents blob (cf_clearance + uid + pass + UA) lands around
+  // 390-480 chars, so it squeaks under the old 500 cap. Once the session also
+  // carries remember_web/XSRF cookies it runs past 700. The old cap therefore
+  // failed unpredictably depending on the user's cookie set, the large cap
+  // removes that cliff.
+  const iptBlob = (cookies: string) =>
+    JSON.stringify({ cookies, userAgent: `Mozilla/5.0 ${"z".repeat(120)}` })
+
+  it("admits a full IPTorrents session blob that the plain cap would reject", () => {
+    const full = iptBlob(
+      `cf_clearance=${"x".repeat(250)}; uid=123456; pass=${"y".repeat(32)}; ` +
+        `remember_web_59ba36=${"w".repeat(180)}; XSRF-TOKEN=${"v".repeat(40)}`
+    )
+    expect(full.length).toBeGreaterThan(TRACKER_TOKEN_MAX)
+    expect(full.length).toBeLessThanOrEqual(maxTokenLengthFor("iptorrents"))
+  })
+
+  it("also admits a minimal blob that happened to fit under the old cap", () => {
+    const minimal = iptBlob(`cf_clearance=${"x".repeat(250)}; uid=123456; pass=${"y".repeat(32)}`)
+    expect(minimal.length).toBeLessThanOrEqual(maxTokenLengthFor("iptorrents"))
   })
 })
 
@@ -107,6 +167,13 @@ describe("buildCredentialBlob", () => {
     })
   })
 
+  it("pairs the token with the username for animebytes", () => {
+    expect(blob("animebytes", { token: "  abc123  ", username: "  bob  " })).toEqual({
+      token: "abc123",
+      username: "bob",
+    })
+  })
+
   it("splits uid and pass out of the digitalcore cookie string", () => {
     expect(blob("digitalcore", { cookies: "uid=56954; pass=abc123def456" })).toEqual({
       uid: "56954",
@@ -133,6 +200,21 @@ describe("buildCredentialBlob", () => {
       "  hunter2  "
     )
   })
+
+  // The adapter takes the cookie path when the blob has cookies, and that
+  // session is fingerprinted against the browser it was issued to.
+  it("stores a luminance session cookie with the browser's User-Agent and no password", () => {
+    expect(
+      blob("luminance", { username: " bob ", password: "hunter2", cookies: "Cookie: sid=abc" })
+    ).toEqual({ username: "bob", cookies: "sid=abc", userAgent: UA })
+  })
+
+  it("stores a luminance password login with no cookie keys", () => {
+    expect(blob("luminance", { username: "bob", password: "hunter2" })).toEqual({
+      username: "bob",
+      password: "hunter2",
+    })
+  })
 })
 
 describe("validateCredentialValues empty fields", () => {
@@ -154,6 +236,15 @@ describe("validateCredentialValues empty fields", () => {
     )
     expect(validateCredentialValues(CREDENTIAL_FORMS.avistaz, values({ username: "bob" }))).toBe(
       "Browser cookies are required"
+    )
+  })
+
+  it("asks for the animebytes username before the token", () => {
+    expect(validateCredentialValues(CREDENTIAL_FORMS.animebytes, values())).toBe(
+      "Username is required"
+    )
+    expect(validateCredentialValues(CREDENTIAL_FORMS.animebytes, values({ username: "bob" }))).toBe(
+      "API token is required"
     )
   })
 
@@ -179,6 +270,23 @@ describe("validateCredentialValues empty fields", () => {
     expect(
       validateCredentialValues(CREDENTIAL_FORMS.torrentleech, values({ username: "bob" }))
     ).toBe("Password is required")
+  })
+
+  it("takes a luminance password or a session cookie, checking the cookie as the adapter does", () => {
+    const luminance = CREDENTIAL_FORMS.luminance
+    expect(validateCredentialValues(luminance, values())).toBe("Username is required")
+    expect(validateCredentialValues(luminance, values({ username: "bob" }))).toBe(
+      "Password or session cookie is required"
+    )
+    expect(
+      validateCredentialValues(luminance, values({ username: "bob", password: "pw" }))
+    ).toBeNull()
+    expect(
+      validateCredentialValues(luminance, values({ username: "bob", cookies: "sid=abc; cid=1" }))
+    ).toBeNull()
+    expect(
+      validateCredentialValues(luminance, values({ username: "bob", cookies: "cid=1" }))
+    ).toContain("no sid cookie")
   })
 
   it("accepts a complete set", () => {
@@ -259,5 +367,23 @@ describe("validateCredentialValues token hygiene", () => {
     expect(
       validateCredentialValues(CREDENTIAL_FORMS.unit3d, values({ token: "  abc123\n" }))
     ).toBeNull()
+  })
+})
+
+describe("validateCredentialValues username hygiene", () => {
+  // The form shows the AnimeBytes adapter's own check, before the token's.
+  it("rejects an animebytes username over 100 characters", () => {
+    expect(
+      validateCredentialValues(CREDENTIAL_FORMS.animebytes, values({ username: "a".repeat(101) }))
+    ).toBe("Invalid username: it is longer than 100 characters.")
+  })
+
+  it("rejects an animebytes username carrying a control character", () => {
+    expect(
+      validateCredentialValues(
+        CREDENTIAL_FORMS.animebytes,
+        values({ username: "some\u0000one", token: "abc123" })
+      )
+    ).toBe("Invalid username: it contains a control character (U+0000) at position 4.")
   })
 })

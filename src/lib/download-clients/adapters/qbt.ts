@@ -2,8 +2,7 @@
 
 import { mapQbtDelta, mapQbtTorrent } from "../field-map"
 import {
-  buildBaseUrl,
-  clearAuthBlocks,
+  dropSessions,
   invalidateSession,
   login,
   type QbtAuth,
@@ -12,6 +11,7 @@ import {
   syncMaindata,
   withSessionRetry,
 } from "../qbt/transport"
+import { buildBaseUrl, clearAuthBlocks } from "../transport"
 import type {
   ClientAdapter,
   ClientCredentials,
@@ -52,9 +52,10 @@ export class QbtClientAdapter implements ClientAdapter {
     signal?: AbortSignal
   ): Promise<T> {
     if (this.creds.authMethod === "apikey") {
-      return op(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
+      const { apiKey, credentialKey } = this.creds
+      return op(this.baseUrl, { mode: "apikey", key: apiKey, credentialKey })
     }
-    const { username, password, urlPath } = this.creds
+    const { username, password, urlPath, credentialKey } = this.creds
     // The signal reaches the login the wrapper may have to perform, so a
     // password client with no cached SID shares the caller's deadline too.
     return withSessionRetry(
@@ -64,13 +65,16 @@ export class QbtClientAdapter implements ClientAdapter {
       username,
       password,
       urlPath,
+      credentialKey,
       (baseUrl, sid) => op(baseUrl, { mode: "session", sid }),
       signal
     )
   }
 
   async testConnection(): Promise<void> {
-    invalidateSession(this.baseUrl)
+    // The torrent store stays valid across a new login, and resetting it would
+    // send the fleet to the cache until the next poll.
+    dropSessions(this.baseUrl)
     // An explicit user-initiated test must always reach the network: the fix
     // may have been on the qBittorrent side (enabling localhost bypass, a ban
     // expiring, or a key being re-issued), which no amount of credential
@@ -78,11 +82,20 @@ export class QbtClientAdapter implements ClientAdapter {
     clearAuthBlocks(this.baseUrl)
 
     if (this.creds.authMethod === "apikey") {
-      await qbtGetTransferInfo(this.baseUrl, { mode: "apikey", key: this.creds.apiKey })
+      const { apiKey, credentialKey } = this.creds
+      await qbtGetTransferInfo(this.baseUrl, { mode: "apikey", key: apiKey, credentialKey })
       return
     }
-    const { username, password, urlPath } = this.creds
-    const sid = await login(this.host, this.port, this.ssl, username, password, urlPath)
+    const { username, password, urlPath, credentialKey } = this.creds
+    const sid = await login(
+      this.host,
+      this.port,
+      this.ssl,
+      username,
+      password,
+      urlPath,
+      credentialKey
+    )
     await qbtGetTransferInfo(this.baseUrl, { mode: "session", sid })
   }
 

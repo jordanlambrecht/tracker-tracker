@@ -151,6 +151,34 @@ describe("GGnAdapter", () => {
     expect(stats.ratio).toBe(Number.POSITIVE_INFINITY)
   })
 
+  it("reads a missing downloaded as zero when the ratio says nothing was downloaded", async () => {
+    for (const ratio of [0, "0", "∞", null, undefined]) {
+      mockBothCalls({ stats: { uploaded: 1000, downloaded: null, ratio } })
+
+      const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
+
+      expect(stats.downloadedBytes).toBe(0n)
+      expect(stats.ratio).toBe(Number.POSITIVE_INFINITY)
+    }
+  })
+
+  it("reads the shape GGn sends for an account whose downloads all were freeleech", async () => {
+    // A live response's shape: the infinity sign arrives mis-decoded as Latin-1
+    mockBothCalls({
+      stats: {
+        uploaded: 100_000_000_000,
+        downloaded: null,
+        fullDownloaded: 90_000_000_000,
+        ratio: "\u00e2\u0088\u009e",
+      },
+    })
+
+    const stats = await adapter.fetchStats("https://gazellegames.net", "key", "/api.php")
+
+    expect(stats.downloadedBytes).toBe(0n)
+    expect(stats.ratio).toBe(Number.POSITIVE_INFINITY)
+  })
+
   it("calculates positive buffer when uploaded > downloaded", async () => {
     mockBothCalls({ stats: { uploaded: 1000, downloaded: 400 } })
 

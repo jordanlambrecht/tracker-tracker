@@ -5,7 +5,7 @@
 | Platform     | Nebulance                           |
 | Base URL     | `https://anthelion.me`              |
 | API Endpoint | `https://anthelion.me/api.php`      |
-| Auth Method  | Query parameter: `?api_token=TOKEN` |
+| Auth Method  | Query parameter: `?apikey=KEY`      |
 | Enrichment   | N/A                                 |
 | Auth Style   | N/A                                 |
 
@@ -15,10 +15,10 @@ Anthelion runs on Nebulance, a Gazelle fork. It has two quirks: the endpoint is 
 
 ## Slots
 
-**Profile Card:** username · group (no avatar, Nebulance platform does not provide join date for ANT)
+**Profile Card:** username · group · join date (no avatar)
 
-**Badges:** `warned` (conditional, always `false`, no enrichment on Nebulance platform)
+**Badges:** none (the API sends no warned flag, so `warned` stays null)
 
-**Stat Cards:** `snatched-nebulance`, `login-deadline` (loginIntervalDays: 90)
+**Stat Cards:** `snatched-nebulance`, `seedbonus` (labelled Orbs, from the API's `Orbs` field), `login-deadline` (loginIntervalDays: 90)
 
 **Progress:** none

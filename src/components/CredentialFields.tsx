@@ -23,7 +23,7 @@ interface CredentialFieldsProps {
   onChange: (field: keyof CredentialValues, value: string) => void
   error?: string
   surface: CredentialSurface
-  /** Fills a label that names the tracker. Only the AvistaZ network uses it. */
+  /** Fills a label that names the tracker, for a platform that serves several sites. */
   trackerName?: string
 }
 
@@ -54,19 +54,33 @@ function CredentialFields({
     }
   }
 
-  if (form.kind === "token") {
+  if (form.kind === "token" || form.kind === "token-username") {
     return (
-      <Input
-        {...field(copy.secret, "api-token")}
-        type="password"
-        value={values.token}
-        onChange={(e) => onChange("token", e.target.value)}
-        error={error}
-      />
+      <>
+        {form.kind === "token-username" && (
+          <Input
+            {...field(copy.username, "username")}
+            value={values.username}
+            onChange={(e) => onChange("username", e.target.value)}
+          />
+        )}
+        <Input
+          {...field(copy.secret, "api-token")}
+          type="password"
+          value={values.token}
+          onChange={(e) => onChange("token", e.target.value)}
+          error={error}
+        />
+      </>
     )
   }
 
   if (form.kind === "login") {
+    // A pasted session replaces the password, so its error shows under it. A
+    // missing username is checked first and keeps the password's slot.
+    const cookieInUse = Boolean(
+      form.sessionCookie && values.cookies.trim() && values.username.trim()
+    )
     return (
       <>
         <Input
@@ -79,14 +93,25 @@ function CredentialFields({
           type="password"
           value={values.password}
           onChange={(e) => onChange("password", e.target.value)}
-          error={error}
+          error={cookieInUse ? undefined : error}
         />
-        <Input
-          {...field(copy.alt2FA, "alt2fa")}
-          type="password"
-          value={values.alt2FAToken}
-          onChange={(e) => onChange("alt2FAToken", e.target.value)}
-        />
+        {copy.alt2FA && (
+          <Input
+            {...field(copy.alt2FA, "alt2fa")}
+            type="password"
+            value={values.alt2FAToken}
+            onChange={(e) => onChange("alt2FAToken", e.target.value)}
+          />
+        )}
+        {copy.sessionCookie && (
+          <AreaInput
+            {...field(copy.sessionCookie, "session-cookie")}
+            value={values.cookies}
+            onChange={(e) => onChange("cookies", e.target.value)}
+            rows={copy.sessionCookie.rows}
+            error={cookieInUse ? error : undefined}
+          />
+        )}
       </>
     )
   }

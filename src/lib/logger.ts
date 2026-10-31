@@ -36,6 +36,7 @@ function createLogger(): pino.Logger {
         stream: pino.destination({ dest: logFile, mkdir: false, sync: false }),
       })
     } catch (err) {
+      // security-audit-ignore: the logger can't log its own failure, so it writes to stderr
       const msg = err instanceof Error ? err.message : String(err)
       process.stderr.write(`[logger] Log file "${logFile}" unavailable: ${msg}\n`)
     }

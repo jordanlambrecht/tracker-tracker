@@ -9,7 +9,8 @@
 //   setupCacheParityMocks       - Happy-path mocks that also capture insert and update payloads
 
 import cron from "node-cron"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { markAppStopped, touchAppLiveness } from "@/lib/app-liveness"
 import { db } from "@/lib/db"
 import {
   deepPollClient,
@@ -26,8 +27,10 @@ import {
   getFilteredTorrents,
   getStoreRevision,
   isStoreInitialized,
+  replaceStoreTorrents,
 } from "@/lib/download-clients"
-import type { MaindataUpdateRefusal } from "@/lib/download-clients/sync-store"
+import type { SyncStoreRefusal } from "@/lib/download-clients/sync-store"
+import { readCappedText } from "@/lib/download-clients/transport"
 import { clearFailureLogGate } from "@/lib/failure-log-gate"
 import { log } from "@/lib/logger"
 import { createTrackedTorrentPredicate } from "@/lib/tracker-matching"
@@ -108,6 +111,11 @@ vi.mock("@/lib/logger", () => ({
   },
 }))
 
+vi.mock("@/lib/app-liveness", () => ({
+  touchAppLiveness: vi.fn(async () => {}),
+  markAppStopped: vi.fn(async () => {}),
+}))
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -149,6 +157,10 @@ const MOCK_MAINDATA_RESPONSE = {
   torrents: {},
   torrentsRemoved: [],
 }
+
+/** The card text for a refusal of { held: 60_000, projected: 120_000, cap: 100_000 }. */
+const REFUSED_TEXT =
+  "This client has 120,000 torrents, more than the 100,000 Tracker Tracker tracks per client. Stats are paused and the last figures are kept."
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -208,7 +220,6 @@ describe("deepPollClient per-tag optimization", () => {
     // resetAllMocks clears call history and pending mockReturnValueOnce queues,
     // preventing leakage of unconsumed queued returns across tests.
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -632,7 +643,6 @@ describe("deepPollClient per-tag optimization", () => {
 describe("deepPollClient dedup without isPrivate", () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -872,7 +882,6 @@ describe("deepPollClient cold-start cache parity", () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -932,7 +941,6 @@ describe("deepPollClient cold-start cache parity", () => {
 describe("deepPollClient lastPolledAt written; heartbeat update does not include it", () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -997,10 +1005,12 @@ describe("heartbeat failure logging", () => {
     encryptedApiKey: "",
     encryptedUrlPath: "",
     crossSeedTags: null,
-    lastError: null,
+    errorSince: null as Date | null,
   }
 
   let scheduled: Map<string, () => Promise<void>>
+  /** What the heartbeat's select returns, so a test can stage the row's error state. */
+  let heartbeatRow: Record<string, unknown>
 
   /** Lets the floating promise started by startClientScheduler settle. */
   function flushAsync(): Promise<void> {
@@ -1017,7 +1027,7 @@ describe("heartbeat failure logging", () => {
       (columns: Record<string, unknown>) => {
         const cols = columns ?? {}
         const isHeartbeat = "encryptedUsername" in cols && !("pollIntervalSeconds" in cols)
-        const where = vi.fn().mockResolvedValue(isHeartbeat ? [HEARTBEAT_ROW] : [])
+        const where = vi.fn().mockResolvedValue(isHeartbeat ? [heartbeatRow] : [])
         return { from: vi.fn().mockReturnValue({ where }) }
       }
     )
@@ -1032,8 +1042,6 @@ describe("heartbeat failure logging", () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
 
     scheduled = new Map()
     vi.mocked(cron.schedule).mockImplementation(((
@@ -1049,8 +1057,66 @@ describe("heartbeat failure logging", () => {
     stopClientScheduler()
     clearFailureLogGate()
 
+    heartbeatRow = { ...HEARTBEAT_ROW }
     mockHeartbeatOnlySelect()
     mockDbUpdateClient()
+  })
+
+  // A down client is still an app that is collecting. A stamp that skipped
+  // failed ticks would record every client outage as app downtime too.
+  it("stamps the app liveness ledger on every tick while the client is down", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    await heartbeatTick()
+    await heartbeatTick()
+
+    expect(vi.mocked(touchAppLiveness)).toHaveBeenCalledTimes(2)
+  })
+
+  // A host waiting out its timeout used to hold the tick, so every other client
+  // skipped ticks and its speed samples thinned from 5s to 15 or 20s apart.
+  it("keeps heartbeating the other clients while one host hangs", async () => {
+    const IDLE = { uploadSpeed: 0, downloadSpeed: 0 }
+    const hangA = Promise.withResolvers<typeof IDLE>()
+    // A answers the start run, then hangs from the first tick on.
+    const adapterA = {
+      ...mockAdapter,
+      getTransferInfo: vi.fn().mockResolvedValueOnce(IDLE).mockReturnValue(hangA.promise),
+    }
+    const adapterB = { ...mockAdapter, getTransferInfo: vi.fn().mockResolvedValue(IDLE) }
+    const rowB = { ...HEARTBEAT_ROW, id: 2, name: "Qbittorrent - NAS" }
+    vi.mocked(createAdapterForClient).mockImplementation((client) =>
+      client.name === rowB.name ? adapterB : adapterA
+    )
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        const isHeartbeat = "encryptedUsername" in cols && !("pollIntervalSeconds" in cols)
+        const where = vi.fn().mockResolvedValue(isHeartbeat ? [heartbeatRow, rowB] : [])
+        return { from: vi.fn().mockReturnValue({ where }) }
+      }
+    )
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    adapterA.getTransferInfo.mockClear()
+    adapterB.getTransferInfo.mockClear()
+
+    await heartbeatTick()
+    await flushAsync()
+    await heartbeatTick()
+    await flushAsync()
+
+    expect(adapterB.getTransferInfo).toHaveBeenCalledTimes(2)
+    expect(adapterA.getTransferInfo).toHaveBeenCalledTimes(1)
+
+    hangA.resolve(IDLE)
+    await flushAsync()
+    await heartbeatTick()
+
+    expect(adapterA.getTransferInfo).toHaveBeenCalledTimes(2)
   })
 
   // The log gate wraps the log call only, never the poll, so no heartbeat is
@@ -1116,6 +1182,49 @@ describe("heartbeat failure logging", () => {
     await heartbeatTick()
     expect(vi.mocked(log.error)).toHaveBeenCalledTimes(2)
   })
+
+  // errorSince is the heartbeat's outage clock. A deep-poll error on a client
+  // that still answers has none, and a heartbeat that cleared it would hide it
+  // within 5s of every poll.
+  it("leaves a deep-poll error in place when the heartbeat succeeds", async () => {
+    // The row as the DB holds it. The heartbeat must not act on lastError.
+    heartbeatRow = {
+      ...HEARTBEAT_ROW,
+      lastError: "Request timed out",
+      errorSince: null,
+    }
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    await heartbeatTick()
+
+    expect(mockSet).not.toHaveBeenCalled()
+  })
+
+  it("opens an outage with errorSince and closes it on the next good heartbeat", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(new Error(CONNECT_FAILURE))
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    const failure = mockSet.mock.calls.at(-1)?.[0] as Record<string, unknown>
+    expect(failure.lastError).toBe("Connection failed")
+    // COALESCE(errorSince, NOW()), so the clock keeps the outage's first failure.
+    expect(failure.errorSince).toBeDefined()
+    expect(failure.errorSince).not.toBeNull()
+
+    heartbeatRow = { ...HEARTBEAT_ROW, errorSince: new Date() }
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    mockSet.mockClear()
+    await heartbeatTick()
+
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({ lastError: null, errorSince: null })
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1160,8 +1269,6 @@ describe("client snapshot pruning honours a NULL retention", () => {
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
 
     scheduled = new Map()
     vi.mocked(cron.schedule).mockImplementation(((
@@ -1242,7 +1349,6 @@ describe("deepPollClient durability", () => {
     vi.resetAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-08-17T12:00:00Z"))
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
     mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 2048, downloadSpeed: 512 })
     mockAdapter.getTorrents.mockResolvedValue([])
@@ -1301,7 +1407,7 @@ describe("deepPollClient durability", () => {
   // have quietly stopped moving.
   it("records a poll failure instead of a snapshot when the store refuses an update", async () => {
     setupFullHappyPathMocks()
-    const refusal: MaindataUpdateRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(refusal)
     const mockValues = mockDbInsertSnapshot()
     const { mockSet } = mockDbUpdateClient()
@@ -1311,14 +1417,34 @@ describe("deepPollClient durability", () => {
     expect(mockValues).not.toHaveBeenCalled()
     const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
     expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
-    // The cap is what the operator has to act on, so it survives into the card.
-    expect(setCalls.some((s) => typeof s.lastError === "string")).toBe(true)
-    expect(setCalls.map((s) => String(s.lastError)).join(" ")).toContain("100000")
+    // The card shows lastError as written, so it is the user's sentence with
+    // grouped counts. No errorSince: the client still answers, so it is not down.
+    expect(setCalls).toEqual([{ lastError: REFUSED_TEXT, updatedAt: expect.any(Date) }])
+  })
+
+  // The store returns the refusal without logging it, so this is the one line,
+  // and it names the client without the base URL, whose path can carry a key.
+  it("logs a refusal once with the client and the store's counts", async () => {
+    setupFullHappyPathMocks()
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(refusal)
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(vi.mocked(log.error)).toHaveBeenCalledOnce()
+    expect(vi.mocked(log.error).mock.calls[0][0]).toMatchObject({
+      clientId: 1,
+      clientName: "Home qBT",
+      held: 60_000,
+      projected: 120_000,
+      cap: 100_000,
+    })
+    expect(JSON.stringify(vi.mocked(log.error).mock.calls)).not.toContain(mockAdapter.baseUrl)
   })
 
   it("does not re-sync from rid 0 after the store refuses an update", async () => {
     setupFullHappyPathMocks()
-    const refusal: MaindataUpdateRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
     ;(applyMaindataUpdate as ReturnType<typeof vi.fn>).mockReturnValue(refusal)
     // A refusal is not the mid-poll reset: the store is intact and holds the
     // previous poll, so asking for everything again would only be refused too.
@@ -1327,6 +1453,40 @@ describe("deepPollClient durability", () => {
     await deepPollClient(1, makeEncryptionKey(), ["aither"])
 
     expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+  })
+
+  // Without delta sync there is no revision to compare, so every full fetch
+  // rewrites the cached list.
+  it("records a snapshot and the cached list from a full fetch", async () => {
+    setupFullHappyPathMocks()
+    vi.mocked(createAdapterForClient).mockReturnValue({ ...mockAdapter, getDeltaSync: undefined })
+    const listed = [{ hash: "h1" }]
+    mockAdapter.getTorrents.mockResolvedValue(listed)
+    const mockValues = mockDbInsertSnapshot()
+    const { mockSet } = mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey(), ["aither"])
+
+    expect(replaceStoreTorrents).toHaveBeenCalledWith(mockAdapter.baseUrl, listed)
+    expect(mockValues).toHaveBeenCalledOnce()
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => "cachedTorrents" in s && "lastPolledAt" in s)).toBe(true)
+  })
+
+  it("records a poll failure instead of a snapshot when the store refuses a full list", async () => {
+    setupFullHappyPathMocks()
+    vi.mocked(createAdapterForClient).mockReturnValue({ ...mockAdapter, getDeltaSync: undefined })
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    vi.mocked(replaceStoreTorrents).mockReturnValue(refusal)
+    const mockValues = mockDbInsertSnapshot()
+    const { mockSet } = mockDbUpdateClient()
+
+    await expect(deepPollClient(1, makeEncryptionKey(), ["aither"])).resolves.toBeUndefined()
+
+    expect(mockValues).not.toHaveBeenCalled()
+    const setCalls = mockSet.mock.calls.map((c: unknown[]) => c[0] as Record<string, unknown>)
+    expect(setCalls.some((s) => "lastPolledAt" in s)).toBe(false)
+    expect(setCalls).toEqual([{ lastError: REFUSED_TEXT, updatedAt: expect.any(Date) }])
   })
 
   it("writes no snapshot when the store cannot be re-initialised", async () => {
@@ -1377,8 +1537,6 @@ describe("client scheduler self-healing", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.useFakeTimers()
-    vi.mocked(createAdapterForClient).mockReturnValue(mockAdapter)
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
     stopClientScheduler()
     clearFailureLogGate()
     const gt = globalThis as Record<string, unknown>
@@ -1437,9 +1595,6 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.useFakeTimers()
-    // resetAllMocks strips the factory implementation, so the default has to be
-    // re-armed or the flush would resolve to undefined instead of a count.
-    vi.mocked(flushCompletedBuckets).mockResolvedValue(0)
     gt.__clientHeartbeatTask = null
     gt.__clientDeepPollTask = null
   })
@@ -1452,7 +1607,7 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
   })
 
   it("stays pending until the flush write completes", async () => {
-    // Stands in for the INSERT a `docker stop` would cut off. A fake timer
+    // Stands in for the INSERT a `docker stop` can cut off. A fake timer
     // drives it, so the test is deterministic.
     const WRITE_MS = 1000
     vi.mocked(flushCompletedBuckets).mockImplementation(
@@ -1499,7 +1654,7 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
     gt.__clientHeartbeatTask = { stop: hbStop }
     gt.__clientDeepPollTask = { stop: dpStop }
     // A write that never lands: nothing below may depend on the flush settling,
-    // or the six callers that drop the promise would silently lose it.
+    // or the callers that drop the promise would silently lose it.
     vi.mocked(flushCompletedBuckets).mockReturnValue(new Promise<number>(() => {}))
 
     void stopClientScheduler()
@@ -1511,6 +1666,7 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
     expect(vi.mocked(clearAllSessions)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(clearSpeedCache)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(clearUptimeAccumulator)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(markAppStopped)).toHaveBeenCalledTimes(1)
   })
 
   it("resolves instead of rejecting when the flush write fails", async () => {
@@ -1523,5 +1679,340 @@ describe("stopClientScheduler waits for the final uptime flush", () => {
       expect.any(Error),
       "Failed to flush uptime buckets during scheduler stop"
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The SIGTERM handler in scheduler.ts zeroes the keys in the signal's own tick,
+// blocks any later start, and leaves the exit to Next, whose handler drains
+// requests first. Only boundaries are mocked here, so the real stop and start
+// functions run.
+// ---------------------------------------------------------------------------
+
+describe("SIGTERM handler in scheduler.ts", () => {
+  /** The key buffers and cron-task handles the schedulers store on globalThis. */
+  const gt = globalThis as Record<string, unknown>
+  let onSigterm: (signal: "SIGTERM") => void
+  let scheduler: typeof import("@/lib/scheduler")
+  let tracker: typeof import("@/lib/tracker-scheduler")
+
+  beforeAll(async () => {
+    // Called directly, never emitted: the worker has SIGTERM listeners of its own.
+    const before = process.listeners("SIGTERM")
+    scheduler = await import("@/lib/scheduler")
+    tracker = await import("@/lib/tracker-scheduler")
+    const added = process.listeners("SIGTERM").filter((listener) => !before.includes(listener))
+    expect(added).toHaveLength(1)
+    onSigterm = added[0]
+  })
+
+  afterAll(() => {
+    if (onSigterm) process.off("SIGTERM", onSigterm)
+  })
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(cron.schedule).mockImplementation((() => ({
+      stop: vi.fn(),
+    })) as unknown as typeof cron.schedule)
+    // Every start path reads settings or a row list here and finds nothing.
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+        limit: vi.fn().mockResolvedValue([]),
+      }),
+    }))
+    // A handler that exits fails an assertion here instead of killing the worker.
+    vi.spyOn(process, "exit").mockImplementation((() => undefined) as never)
+    gt.__schedulerTask = null
+    gt.__backupSchedulerTask = null
+    gt.__clientHeartbeatTask = null
+    gt.__clientDeepPollTask = null
+  })
+
+  afterEach(() => {
+    // Tears down whatever a test started, then clears the flag for the next one.
+    scheduler.stopScheduler()
+    scheduler._resetShutdownForTest()
+    vi.restoreAllMocks()
+    gt.__schedulerKey = null
+    gt.__backupSchedulerKey = null
+    clearFailureLogGate()
+  })
+
+  it("zero-fills the tracker and backup keys before any await", () => {
+    const trackerKey = Buffer.alloc(32, 0xab)
+    const backupKey = Buffer.alloc(32, 0xcd)
+    gt.__schedulerKey = trackerKey
+    gt.__backupSchedulerKey = backupKey
+
+    onSigterm("SIGTERM")
+
+    expect(trackerKey.every((byte) => byte === 0)).toBe(true)
+    expect(backupKey.every((byte) => byte === 0)).toBe(true)
+  })
+
+  it("does not exit, so Next's handler can drain and exit", async () => {
+    onSigterm("SIGTERM")
+    // Also past the stop writes, which settle on microtasks with these mocks.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(process.exit).not.toHaveBeenCalled()
+  })
+
+  // A page render still in flight during Next's drain reaches the auth layout's
+  // ensureSchedulerRunning after the handler has already zeroed the keys.
+  it("ensureSchedulerRunning starts nothing after SIGTERM", () => {
+    onSigterm("SIGTERM")
+
+    scheduler.ensureSchedulerRunning("ab".repeat(32))
+
+    expect(cron.schedule).not.toHaveBeenCalled()
+    expect(tracker.isTrackerPollingRunning()).toBe(false)
+    expect(tracker._getSchedulerKeyForTest()).toBeNull()
+  })
+
+  it("startScheduler starts nothing after SIGTERM", () => {
+    onSigterm("SIGTERM")
+
+    scheduler.startScheduler(makeEncryptionKey())
+
+    expect(cron.schedule).not.toHaveBeenCalled()
+    expect(tracker.isTrackerPollingRunning()).toBe(false)
+    expect(tracker._getSchedulerKeyForTest()).toBeNull()
+  })
+
+  // Lockdown, restore and a password change stop the schedulers and then start
+  // them again, so a plain stop must not block the next start.
+  it("still starts after a stopScheduler that no SIGTERM preceded", () => {
+    const key = makeEncryptionKey()
+    scheduler.stopScheduler()
+
+    scheduler.startScheduler(key)
+
+    expect(tracker.isTrackerPollingRunning()).toBe(true)
+    expect(tracker._getSchedulerKeyForTest()).toBe(key)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// A refusal waits the client's interval. lastPolledAt stays put on purpose, so
+// without the wait the client is overdue on every 30s tick and refetches its
+// whole library only to be refused again.
+// ---------------------------------------------------------------------------
+
+describe("deep poll backs off after a sync store refusal", () => {
+  const DEEP_POLL_CRON = "*/30 * * * * *"
+  const INTERVAL_S = 300
+  const START = new Date("2026-08-17T12:00:00Z").getTime()
+  const REFUSED_ROW = { ...MOCK_CLIENT, pollIntervalSeconds: INTERVAL_S, errorSince: null }
+
+  let scheduled: Map<string, () => Promise<void>>
+  /** The heartbeat's enabled list, emptied to stand for a disabled client. */
+  let heartbeatRows: unknown[]
+
+  /**
+   * Routes each select by its projection: the heartbeat list, the overdue list
+   * (never polled, so always overdue), the client row, the tracker read, and
+   * the prune's settings read.
+   */
+  function mockRefusingClientSelect() {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(
+      (columns: Record<string, unknown>) => {
+        const cols = columns ?? {}
+        if ("retention" in cols) {
+          return { from: () => ({ limit: async () => [{ retention: null }] }) }
+        }
+        if ("qbtTag" in cols) return { from: async () => [] }
+        if ("pollIntervalSeconds" in cols && "encryptedUsername" in cols) {
+          return { from: () => ({ where: () => ({ limit: async () => [REFUSED_ROW] }) }) }
+        }
+        if ("pollIntervalSeconds" in cols) {
+          const due = { id: 1, enabled: true, pollIntervalSeconds: INTERVAL_S, lastPolledAt: null }
+          return { from: () => ({ where: async () => [due] }) }
+        }
+        return { from: () => ({ where: async () => heartbeatRows }) }
+      }
+    )
+  }
+
+  async function deepPollTickAt(offsetMs: number): Promise<void> {
+    vi.setSystemTime(START + offsetMs)
+    const tick = scheduled.get(DEEP_POLL_CRON)
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  async function heartbeatTickAt(offsetMs: number): Promise<void> {
+    vi.setSystemTime(START + offsetMs)
+    const tick = scheduled.get("*/5 * * * * *")
+    expect(tick).toBeDefined()
+    await tick?.()
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(START)
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    mockAdapter.getDeltaSync.mockResolvedValue(MOCK_MAINDATA_RESPONSE)
+    const refusal: SyncStoreRefusal = { held: 60_000, projected: 120_000, cap: 100_000 }
+    vi.mocked(applyMaindataUpdate).mockReturnValue(refusal)
+
+    scheduled = new Map()
+    vi.mocked(cron.schedule).mockImplementation(((
+      expression: string,
+      task: () => Promise<void>
+    ) => {
+      scheduled.set(expression, task)
+      return { stop: vi.fn() }
+    }) as unknown as typeof cron.schedule)
+
+    // Also clears the refusal wait, which lives on globalThis.
+    stopClientScheduler()
+    clearFailureLogGate()
+    const gt = globalThis as Record<string, unknown>
+    gt.__lastPruneAt = undefined
+    gt.__deepPollInFlight = undefined
+    gt.__heartbeatInFlight = undefined
+
+    heartbeatRows = [REFUSED_ROW]
+    mockRefusingClientSelect()
+    mockDbUpdateClient()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("does not poll a refused client again before its interval, and does after", async () => {
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    await deepPollTickAt(30_000)
+    await deepPollTickAt(INTERVAL_S * 1000 - 1)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    await deepPollTickAt(INTERVAL_S * 1000)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("keeps the fast retry for a client that failed for any other reason", async () => {
+    mockAdapter.getDeltaSync.mockRejectedValue(new Error("connect ECONNREFUSED 192.168.1.100:8080"))
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTickAt(30_000)
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  // A user over the cap may disable the client, trim the library and enable it
+  // again. The wait goes with the disable, so the next tick polls it.
+  it("forgets the wait once the client is disabled", async () => {
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    heartbeatRows = []
+    await heartbeatTickAt(10_000)
+    heartbeatRows = [REFUSED_ROW]
+    await deepPollTickAt(30_000)
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("retries a refused client at once after a scheduler restart", async () => {
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    stopClientScheduler()
+    vi.setSystemTime(START + 30_000)
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  /** A real refusal from the shared reader, which keeps its error class private. */
+  async function sizeRefusal(): Promise<Error> {
+    return (await readCappedText(new Response("x".repeat(11)), "client.local", 10).catch(
+      (e: unknown) => e
+    )) as Error
+  }
+
+  // The response cap refuses a library before the store sees it, so the same
+  // wait applies. A first qBittorrent sync is where it bites.
+  it("waits the interval after an oversized delta sync", async () => {
+    mockAdapter.getDeltaSync.mockRejectedValue(await sizeRefusal())
+
+    startClientScheduler(makeEncryptionKey())
+    await vi.advanceTimersByTimeAsync(0)
+    await deepPollTickAt(30_000)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledOnce()
+
+    await deepPollTickAt(INTERVAL_S * 1000)
+    expect(mockAdapter.getDeltaSync).toHaveBeenCalledTimes(2)
+  })
+
+  describe("for a client without delta sync", () => {
+    beforeEach(() => {
+      vi.mocked(createAdapterForClient).mockReturnValue({
+        ...mockAdapter,
+        type: "transmission",
+        getDeltaSync: undefined,
+      })
+    })
+
+    it.each([
+      [
+        "a store refusal",
+        () => {
+          mockAdapter.getTorrents.mockResolvedValue([])
+          vi.mocked(replaceStoreTorrents).mockReturnValue({
+            held: 0,
+            projected: 120_000,
+            cap: 100_000,
+          })
+        },
+      ],
+      [
+        "an oversized response reworded by the transport",
+        async () => {
+          const reworded = new Error("Transmission returned an oversized response", {
+            cause: await sizeRefusal(),
+          })
+          mockAdapter.getTorrents.mockRejectedValue(reworded)
+        },
+      ],
+    ])("waits the interval after %s", async (_case, arrange) => {
+      await arrange()
+
+      startClientScheduler(makeEncryptionKey())
+      await vi.advanceTimersByTimeAsync(0)
+      await deepPollTickAt(30_000)
+      expect(mockAdapter.getTorrents).toHaveBeenCalledOnce()
+
+      await deepPollTickAt(INTERVAL_S * 1000)
+      expect(mockAdapter.getTorrents).toHaveBeenCalledTimes(2)
+    })
+
+    // Wrapped network errors carry a cause too. Only a size refusal may slow
+    // the retry down.
+    it("keeps the fast retry for a failure caused by something else", async () => {
+      mockAdapter.getTorrents.mockRejectedValue(
+        new Error("Failed to connect to transmission.local", {
+          cause: new Error("connect ECONNREFUSED"),
+        })
+      )
+
+      startClientScheduler(makeEncryptionKey())
+      await vi.advanceTimersByTimeAsync(0)
+      await deepPollTickAt(30_000)
+
+      expect(mockAdapter.getTorrents).toHaveBeenCalledTimes(2)
+    })
   })
 })

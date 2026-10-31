@@ -15,8 +15,8 @@
 // sanitized message, so gate state cannot be reconstructed from the row.
 //
 // Fully synchronous by design: heartbeatAllClients and deepPollAllClients run
-// their clients under Promise.allSettled, so any await between reading and
-// writing an entry would open a read-modify-write race.
+// their clients concurrently, so any await between reading and writing an entry
+// would open a read-modify-write race.
 //
 // Functions: noteFailure, noteSuccess, retainFailureLogClients,
 //            clearFailureLogKeysForClient, clearFailureLogGate

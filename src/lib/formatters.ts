@@ -2,10 +2,12 @@
 //
 // Functions: formatBytesFromString, bytesToGiB, formatBytesNum,
 // formatRatio, formatAccountAge, formatJoinedDate, formatStatValue,
-// formatDuration, formatTimeAgo, splitValueUnit,
+// formatDuration, formatSpanInWords, formatTimeAgo, splitValueUnit,
 // localDateStr, formatSpeed,
-// formatRatioDisplay, formatCount, formatPercent, formatDateTime
+// formatRatioDisplay, formatCount, formatPercent, formatSignedChange,
+// formatDateTime
 
+import type { TrendDirection } from "@/components/ui/StatCard"
 import type { TrackerLatestStats } from "@/types/api"
 
 /**
@@ -83,10 +85,13 @@ export function formatRatio(ratio: number | null | undefined, suffix = ""): stri
  */
 export function formatAccountAge(joinedAt: string | null): string | null {
   if (!joinedAt) return null
-  const joined = new Date(joinedAt)
-  const now = new Date()
-  const diffMs = now.getTime() - joined.getTime()
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  // Whole calendar days between local midnights, read the way formatJoinedDate
+  // reads the date. A bare date parsed as UTC midnight is still in the future
+  // east of UTC, which made the join day read as -1 days.
+  const joined = new Date(`${joinedAt}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.max(0, Math.round((today.getTime() - joined.getTime()) / 86_400_000))
   if (days < 30) return `${days} day${days !== 1 ? "s" : ""}`
   const months = Math.floor(days / 30)
   if (months < 12) {
@@ -153,6 +158,22 @@ export function formatDuration(seconds: number): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`
   return `${(seconds / 86400).toFixed(1)}d`
+}
+
+/**
+ * Formats a span of time in words, to the hour: "45 minutes", "3 hours",
+ * "2 days, 5 hours". Days are left out under one day, minutes from one hour on.
+ */
+export function formatSpanInWords(ms: number): string {
+  if (!Number.isFinite(ms)) return "—"
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
+  const minutes = Math.floor(Math.abs(ms) / 60_000)
+  if (minutes < 1) return "less than a minute"
+  if (minutes < 60) return unit(minutes, "minute")
+  const days = Math.floor(minutes / 1440)
+  const hours = Math.floor((minutes % 1440) / 60)
+  if (days === 0) return unit(hours, "hour")
+  return hours === 0 ? unit(days, "day") : `${unit(days, "day")}, ${unit(hours, "hour")}`
 }
 
 /**
@@ -246,10 +267,37 @@ export function formatOrdinal(n: number | null | undefined): string {
   return `${n.toLocaleString("en-US")}${suffix}`
 }
 
-/** Formats a percentage value with configurable decimal places. */
-export function formatPercent(value: number, decimals = 1): string {
+/**
+ * Formats a percentage value, one decimal by default. The sign comes from the
+ * rounded value, so -0.04 reads "0.0%", and signed mode never prints "+0.0%".
+ */
+export function formatPercent(
+  value: number,
+  { decimals = 1, signed = false }: { decimals?: number; signed?: boolean } = {}
+): string {
   if (!Number.isFinite(value)) return "—"
-  return `${value.toFixed(decimals)}%`
+  const digits = Math.abs(value).toFixed(decimals)
+  if (Number(digits) === 0) return `${digits}%`
+  const sign = value < 0 ? "-" : signed ? "+" : ""
+  return `${sign}${digits}%`
+}
+
+const CHANGE_SIGN: Record<TrendDirection, string> = { up: "+", down: "-", flat: "" }
+
+/**
+ * Formats a change with its sign, taking the sign and direction from the value
+ * rounded to `decimals`, so a change that displays as zero reads "0.0" and not
+ * "+0.0" or "-0.0". `format` receives the unsigned magnitude and must round to
+ * the same `decimals`, or a zero can still print with a sign.
+ */
+export function formatSignedChange(
+  value: number,
+  decimals: number,
+  format: (magnitude: number) => string = (v) => v.toFixed(decimals)
+): { text: string; direction: TrendDirection } {
+  const magnitude = Number(Math.abs(value).toFixed(decimals))
+  const direction = magnitude === 0 ? "flat" : value > 0 ? "up" : "down"
+  return { text: CHANGE_SIGN[direction] + format(magnitude), direction }
 }
 
 /** Formats a Date, ISO string, or timestamp as a locale-pinned datetime string. */

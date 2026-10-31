@@ -80,8 +80,9 @@ export function coerceRequiredString(result: Record<string, unknown>): void {
 export function coerceRequiredNumeric(result: Record<string, unknown>): void {
   for (const field of REQUIRED_NUMERIC) {
     if (typeof result[field] !== "number") {
+      // The type, never the value, for the reason coerceRequiredString gives.
       log.warn(
-        { hash: result.hash, field, value: result[field] },
+        { hash: result.hash, field, received: typeof result[field] },
         "coerceRequiredNumeric: missing or non-numeric field, defaulting to 0"
       )
       result[field] = 0
@@ -108,7 +109,7 @@ export function mapQbtDelta(partial: Record<string, unknown>): Partial<TorrentRe
     if (REQUIRED_NUMERIC.has(mapped) && typeof value !== "number") {
       // Debug, not warn: this fires per field per torrent per poll, and a
       // client that mistypes one field across a large library would flood.
-      log.debug({ field: mapped, value }, "mapQbtDelta: dropped non-numeric field")
+      log.debug({ field: mapped, received: typeof value }, "mapQbtDelta: dropped non-numeric field")
       continue
     }
     result[mapped] = value

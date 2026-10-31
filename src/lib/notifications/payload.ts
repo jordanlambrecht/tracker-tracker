@@ -150,7 +150,7 @@ function buildDescription(
       const count = Number(data.count ?? 0)
       const limit = Number(data.limit ?? 0)
       const pct = limit > 0 ? Math.round((count / limit) * 100) : 0
-      return `${source} unsatisfied torrents at **${count}/${limit}** (${formatPercent(pct, 0)}). Download capacity running low.`
+      return `${source} unsatisfied torrents at **${count}/${limit}** (${formatPercent(pct, { decimals: 0 })}). Download capacity running low.`
     }
     case "active_hnrs": {
       const count = Number(data.count ?? 0)

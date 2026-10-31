@@ -5,7 +5,7 @@
 // setup form could not have created.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { getSession } from "@/lib/auth"
+import { readSession } from "@/lib/auth"
 import { db } from "@/lib/db"
 
 vi.mock("@/lib/db", () => ({
@@ -20,7 +20,7 @@ vi.mock("@/lib/db/schema", () => ({
 }))
 
 vi.mock("@/lib/auth", () => ({
-  getSession: vi.fn(),
+  readSession: vi.fn(),
 }))
 
 vi.mock("@/lib/logger", () => ({
@@ -52,7 +52,10 @@ function post(body: unknown) {
 
 /** Signed in with a real (non-pending) session and no username stored yet. */
 function signedInWithoutUsername() {
-  ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "deadbeef" })
+  ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+    status: "valid",
+    encryptionKey: "deadbeef",
+  })
   mockSettingsRow({ id: 1, username: null })
   return mockUpdateChain()
 }
@@ -68,7 +71,7 @@ describe("POST /api/auth/username", () => {
   // A TOTP-pending login also arrives here as no session. src/lib/__tests__/auth-jwe.test.ts
   // covers that branch with a real pending token, which a mocked null here could not.
   it("rejects an unauthenticated caller", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     mockSettingsRow({ id: 1, username: null })
     const { set } = mockUpdateChain()
 
@@ -177,7 +180,10 @@ describe("POST /api/auth/username", () => {
   })
 
   it("returns 400 when the instance has not been set up", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "deadbeef" })
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "valid",
+      encryptionKey: "deadbeef",
+    })
     mockSettingsRow(null)
     const { set } = mockUpdateChain()
 
@@ -192,7 +198,10 @@ describe("POST /api/auth/username", () => {
   // This endpoint only ever fills a NULL. Renaming is Settings › Account's job,
   // so a stale prompt left open in a second tab cannot rename the account.
   it("refuses to overwrite a username that is already set", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "deadbeef" })
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "valid",
+      encryptionKey: "deadbeef",
+    })
     mockSettingsRow({ id: 1, username: "existing" })
     const { set } = mockUpdateChain()
 

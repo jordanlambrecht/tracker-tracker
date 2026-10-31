@@ -9,11 +9,12 @@ import {
   validateHttpUrl,
   validateMaxLength,
 } from "@/lib/api-helpers"
+import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
-import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_URL_MAX } from "@/lib/limits"
+import { LONG_STRING_MAX, TRACKER_URL_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"

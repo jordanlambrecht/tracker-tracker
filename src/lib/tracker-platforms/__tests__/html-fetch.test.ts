@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/__tests__/html-fetch.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { DEFAULT_USER_AGENT } from "@/lib/user-agent"
 import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
 
@@ -29,6 +30,8 @@ describe("fetchTrackerHtml - headers", () => {
     vi.restoreAllMocks()
   })
 
+  // A session the app logged in for itself announces the app, and a copied one
+  // keeps the browser it was issued to.
   it("sends browser navigation headers only when a User-Agent is supplied", async () => {
     let headers: Record<string, string> | undefined
     vi.spyOn(global, "fetch").mockImplementation((_url, init) => {
@@ -42,7 +45,7 @@ describe("fetchTrackerHtml - headers", () => {
     expect(headers?.DNT).toBe("1")
 
     await fetchTrackerHtml(BASE)
-    expect(headers?.["User-Agent"]).toBeUndefined()
+    expect(headers?.["User-Agent"]).toBe(DEFAULT_USER_AGENT)
     expect(headers?.["Sec-Fetch-Mode"]).toBeUndefined()
     expect(headers?.DNT).toBeUndefined()
   })
@@ -214,6 +217,22 @@ describe("fetchTrackerHtml - redirects", () => {
       fetchTrackerHtml({ ...BASE, followRedirects: { loginPattern: /\/login/i } })
     ).rejects.toThrow("Unexpected response from tracker.example: redirect with no Location")
   })
+
+  it("reads an unreadable Location as an unexpected response, not as bad credentials", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(redirectResponse("http://["))
+
+    const err = await fetchTrackerHtml({
+      ...BASE,
+      followRedirects: { loginPattern: /\/login/i },
+    }).catch((e: Error) => e)
+
+    expect((err as Error).message).toBe(
+      "Unexpected response from tracker.example: redirect to an unreadable Location"
+    )
+    expect(sanitizeNetworkError((err as Error).message)).toBe(
+      "Tracker returned an unexpected response"
+    )
+  })
 })
 
 describe("fetchTrackerHtml - errors", () => {
@@ -229,6 +248,7 @@ describe("fetchTrackerHtml - errors", () => {
       status,
       statusText,
       headers: { get: () => null },
+      text: async () => "",
     } as unknown as Response)
     const err = await fetchTrackerHtml(BASE)
       .then(() => null)
@@ -264,6 +284,74 @@ describe("fetchTrackerHtml - errors", () => {
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
 
     await expect(fetchTrackerHtml(BASE)).rejects.toThrow("tracker.example")
+  })
+})
+
+describe("fetchTrackerHtml - a Cloudflare page on a failed status", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // Read by its status alone, a challenge served with a 403 becomes
+  // "Authentication failed" and sends the user to re-paste cookies that work.
+  function failWith(status: number, statusText: string, body: string): Promise<Error | null> {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status,
+      statusText,
+      headers: { get: () => null },
+      text: async () => body,
+    } as unknown as Response)
+    return fetchTrackerHtml(BASE)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+  }
+
+  it.each([
+    [403, "Forbidden"],
+    [503, "Service Unavailable"],
+  ])("reads the interstitial served with a %i as a challenge", async (status, statusText) => {
+    const err = await failWith(
+      status,
+      statusText,
+      "<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>"
+    )
+
+    expect(err?.message).toBe("Cloudflare challenge detected on ExampleTracker")
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(
+      "Cloudflare challenge blocked the request"
+    )
+  })
+
+  it("reads a Turnstile page served with a 403 as a challenge", async () => {
+    const err = await failWith(
+      403,
+      "Forbidden",
+      '<html><script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script></html>'
+    )
+
+    expect(err?.message).toBe("Cloudflare challenge detected on ExampleTracker")
+  })
+
+  it("keeps an ordinary 403 an authentication failure", async () => {
+    const err = await failWith(403, "Forbidden", "<html>Access denied</html>")
+
+    expect(err?.message).toBe("Tracker API error: 403 Forbidden")
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Authentication failed")
+  })
+
+  it("falls back to the status when the body of a 403 cannot be read", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      statusText: "Forbidden",
+      headers: { get: () => null },
+      text: async () => {
+        throw new TypeError("terminated")
+      },
+    } as unknown as Response)
+
+    await expect(fetchTrackerHtml(BASE)).rejects.toThrow("Tracker API error: 403 Forbidden")
   })
 })
 
@@ -350,9 +438,29 @@ describe("fetchTrackerHtml - through a proxy", () => {
     expect(proxyFetch).toHaveBeenCalledTimes(1)
   })
 
+  it("reads a Cloudflare page on a proxied 403 as a challenge", async () => {
+    proxyFetch.mockResolvedValueOnce(
+      proxyResponse(403, "<html><head><title>Just a moment...</title></head></html>")
+    )
+
+    await expect(run({})).rejects.toThrow("Cloudflare challenge detected on ExampleTracker")
+  })
+
   it("still returns the body on an ordinary proxied response", async () => {
     proxyFetch.mockResolvedValueOnce(proxyResponse(200, "<html>ok</html>"))
 
     expect(await run({})).toContain("ok")
+  })
+
+  // proxyFetch adds no User-Agent of its own, so a default missing here would
+  // send none at all through the proxy.
+  it("sends the app User-Agent through the proxy when the caller passes none", async () => {
+    proxyFetch.mockResolvedValueOnce(proxyResponse(200, "<html>ok</html>"))
+
+    await run({})
+
+    const headers = proxyFetch.mock.calls[0][2].headers as Record<string, string>
+    expect(headers["User-Agent"]).toBe(DEFAULT_USER_AGENT)
+    expect(headers["Sec-Fetch-Mode"]).toBeUndefined()
   })
 })

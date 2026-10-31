@@ -334,6 +334,56 @@ describe("replaceStoreTorrents", () => {
   })
 })
 
+describe("replaceStoreTorrents torrent cap", () => {
+  const CAP = SYNC_STORE_MAX_TORRENTS
+
+  function bulk(count: number, prefix: string) {
+    return Array.from({ length: count }, (_, i) => makeTorrent(`${prefix}${i}`))
+  }
+
+  it("accepts a list of exactly the cap", () => {
+    expect(replaceStoreTorrents(BASE, bulk(CAP, "a"))).toBeUndefined()
+    expect(getStoredTorrents(BASE)).toHaveLength(CAP)
+  })
+
+  it("refuses a list past the cap, keeping the last good state", () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"))
+      replaceStoreTorrents(BASE, bulk(10, "a"))
+      vi.advanceTimersByTime(6 * 60 * 1000)
+
+      const refusal = replaceStoreTorrents(BASE, bulk(CAP + 1, "b"))
+
+      expect(refusal).toEqual({ held: 10, projected: CAP + 1, cap: CAP })
+      expect(getStoredTorrents(BASE)).toHaveLength(10)
+      // A refusal is not a new poll. Marking the store fresh would let the warm
+      // read serve the old list as current.
+      expect(isStoreFresh(BASE, 5 * 60 * 1000)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("leaves a store that never synced uninitialised", () => {
+    // An initialised empty store reads as a client that holds no torrents.
+    expect(replaceStoreTorrents(BASE, bulk(CAP + 1, "b"))).toMatchObject({ cap: CAP })
+    expect(isStoreInitialized(BASE)).toBe(false)
+  })
+
+  // The scheduler logs the refusal once, naming the client. A second line here
+  // would double every refusal, and the store only knows the base URL, whose
+  // path can carry a proxy key.
+  it("returns the refusal for the scheduler to log and logs nothing itself", () => {
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
+
+    const refusal = replaceStoreTorrents(BASE, bulk(CAP + 1, "b"))
+
+    expect(refusal).toEqual({ held: 0, projected: CAP + 1, cap: CAP })
+    expect(warnSpy).not.toHaveBeenCalled()
+  })
+})
+
 describe("applyMaindataUpdate validates a delta for a torrent it already holds", () => {
   // The insert path coerces and shape-checks. The update path used to be a
   // bare Object.assign, so once a hash had been seen, a hostile or buggy host
@@ -471,22 +521,19 @@ describe("applyMaindataUpdate torrent cap", () => {
     expect(getStoreRevision(BASE_URL)).toBe(1)
   })
 
-  it("logs the refusal without the base URL, whose path can carry a proxy key", () => {
-    const pathUrl = "http://localhost:8080/proxy/qui-client-key"
-    applyMaindataUpdate(pathUrl, bulk(10, "a"))
+  // See the full-list sibling: the scheduler logs it once, naming the client.
+  it("returns the refusal for the scheduler to log and logs nothing itself", () => {
+    applyMaindataUpdate(BASE_URL, bulk(10, "a"))
     const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => undefined)
 
-    applyMaindataUpdate(pathUrl, {
+    const refusal = applyMaindataUpdate(BASE_URL, {
       rid: 99,
       fullUpdate: true,
       torrents: bulkTorrents(CAP + 1, "b"),
     } as DeltaSyncResponse)
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      { held: 10, projected: CAP + 1, cap: CAP },
-      expect.any(String)
-    )
-    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("qui-client-key")
+    expect(refusal).toEqual({ held: 10, projected: CAP + 1, cap: CAP })
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it("accepts a delta that only updates hashes it already holds", () => {

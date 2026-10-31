@@ -35,6 +35,9 @@ const mockTracker = {
   joinedAt: null,
   lastAccessAt: null,
   profileUrl: null,
+  prowlarrInstanceId: null,
+  prowlarrIndexerId: null,
+  prowlarrOptOut: false,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
 }
@@ -97,6 +100,15 @@ describe("serializeTrackerResponse", () => {
     const result = serializeTrackerResponse(mockTracker, mockSnapshot, mask)
     expect(result.latestStats?.username).toBe("▓▓▓")
     expect(result.latestStats?.uploadedBytes).toBe("1000")
+  })
+})
+
+describe("serializeTrackerResponse infinite ratio", () => {
+  it("reports an infinite ratio, not a stored 0, when nothing was downloaded", () => {
+    const snapshot = { ...mockSnapshot, ratio: 0, downloadedBytes: BigInt(0) }
+    const result = serializeTrackerResponse(mockTracker, snapshot, (v) => v ?? null)
+    expect(result.latestStats?.ratioIsInfinite).toBe(true)
+    expect(result.latestStats?.ratio).toBeNull()
   })
 })
 

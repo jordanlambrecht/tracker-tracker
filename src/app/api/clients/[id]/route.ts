@@ -9,6 +9,7 @@ import {
   parseRouteId,
   type RouteContext,
   validateAuthMethod,
+  validateAuthMethodForType,
   validateClientHost,
   validateIntRange,
   validateMaxLength,
@@ -19,12 +20,7 @@ import { encrypt } from "@/lib/crypto"
 import { sanitizeHost, stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
-import {
-  type AuthMethod,
-  CLIENT_CONNECTION_COLUMNS,
-  disposeClient,
-  VALID_CLIENT_TYPES,
-} from "@/lib/download-clients"
+import { type AuthMethod, CLIENT_CONNECTION_COLUMNS, disposeClient } from "@/lib/download-clients"
 import { errMsg } from "@/lib/error-utils"
 import { clearFailureLogKeysForClient } from "@/lib/failure-log-gate"
 import {
@@ -91,11 +87,13 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.host = sanitizedHost
   }
 
-  if (typeof body.type === "string") {
-    if (!(VALID_CLIENT_TYPES as readonly string[]).includes(body.type)) {
-      return NextResponse.json({ error: "Invalid client type" }, { status: 400 })
-    }
-    updates.type = body.type
+  // Fixed at creation: credentials and a URL path saved for one client type
+  // mean something else to another.
+  if (body.type !== undefined && body.type !== existing.type) {
+    return NextResponse.json(
+      { error: "A client's type can't be changed. Delete it and add a new one" },
+      { status: 400 }
+    )
   }
 
   if (typeof body.port === "number") {
@@ -173,6 +171,10 @@ export async function PATCH(request: Request, props: RouteContext) {
     credentialMode = "apikey"
   } else if (hasUsername || hasPassword) {
     credentialMode = "password"
+  }
+  if (credentialMode) {
+    const typeErr = validateAuthMethodForType(existing.type, credentialMode)
+    if (typeErr) return typeErr
   }
 
   switch (credentialMode) {

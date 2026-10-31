@@ -60,6 +60,7 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
   gazelle: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD, ...IRC_FIELDS],
   ggn: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD, ...IRC_FIELDS],
   nebulance: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD],
+  animebytes: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD, ...IRC_FIELDS],
   mam: [
     {
       id: "mam_id",
@@ -77,6 +78,7 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
     { id: "rss_feed_url", label: "RSS feed URL", secret: false },
   ],
   torrentleech: [{ id: "session_cookie", label: "Session cookie" }, PASSKEY_FIELD],
+  c411: [{ id: "api_key", label: "API key" }, PASSKEY_FIELD],
   // RetroToon issues three distinct secrets, and the API key is not the one
   // that polls: it uploads torrents, stats come from the session cookie, and
   // the passkey signs announce and the Torznab feed.
@@ -89,6 +91,7 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
       hint: "my.php -> API Keys. Uploads only, it cannot read stats",
     },
   ],
+  luminance: [{ id: "username", label: "Username", secret: false }, PASSKEY_FIELD],
   // `custom` is deliberately absent. It falls through to the universal fallback,
   // which is the only honest default for a tracker we know nothing about.
 }

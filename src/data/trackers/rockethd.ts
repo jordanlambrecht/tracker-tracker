@@ -22,7 +22,7 @@ export const rockethd: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#f97316",
-  logo: "",
+  logo: "/tracker-logos/rockethd_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

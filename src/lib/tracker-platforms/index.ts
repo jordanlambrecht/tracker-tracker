@@ -7,14 +7,17 @@
 import "server-only"
 import type { Agent as HttpAgent } from "node:http"
 import { registryEntryFor } from "@/data/tracker-registry"
+import { AnimeBytesAdapter } from "./adapters/animebytes"
 import { AvistazAdapter } from "./adapters/avistaz"
 import { BtnAdapter } from "./adapters/btn"
+import { C411Adapter } from "./adapters/c411"
 import { DigitalCoreAdapter } from "./adapters/digitalcore"
 import { FilelistAdapter } from "./adapters/filelist"
 import { GazelleAdapter } from "./adapters/gazelle"
 import { GGnAdapter } from "./adapters/ggn"
 import { HawkeAdapter } from "./adapters/hawke"
 import { IptorrentsAdapter } from "./adapters/iptorrents"
+import { LuminanceAdapter } from "./adapters/luminance"
 import { MamAdapter } from "./adapters/mam"
 import { NebulanceAdapter } from "./adapters/nebulance"
 import { RetrotoonAdapter } from "./adapters/retrotoon"
@@ -24,14 +27,17 @@ import { Unit3dAdapter } from "./adapters/unit3d"
 import type { FetchOptions, TrackerAdapter } from "./contract"
 
 const adapters: Record<string, TrackerAdapter> = {
+  animebytes: new AnimeBytesAdapter(),
   avistaz: new AvistazAdapter(),
   btn: new BtnAdapter(),
+  c411: new C411Adapter(),
   digitalcore: new DigitalCoreAdapter(),
   filelist: new FilelistAdapter(),
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
   hawke: new HawkeAdapter(),
   iptorrents: new IptorrentsAdapter(),
+  luminance: new LuminanceAdapter(),
   mam: new MamAdapter(),
   nebulance: new NebulanceAdapter(),
   retrotoon: new RetrotoonAdapter(),

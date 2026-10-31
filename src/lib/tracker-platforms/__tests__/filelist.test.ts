@@ -284,6 +284,14 @@ const EMPTY_CLASS_PAGE = editFixture(
   `<font color="#b8b7b7"></font></td></tr>`
 )
 
+// synthetic-fixture: the live Class value for a VIP account is
+// "VIP (Until: 2026-11-28 17:44:57)"; applied to the existing capture.
+const VIP_CLASS_PAGE = editFixture(
+  FULL_PAGE,
+  `<td class="colhead">Class</td><td style="text-align:left;"><font color="#b8b7b7">User</font></td>`,
+  `<td class="colhead">Class</td><td style="text-align:left;"><font color="#b8b7b7">VIP (Until: 2026-11-28 17:44:57)</font></td>`
+)
+
 // synthetic-fixture: no logged-out capture exists; minimal login-page shape
 // (takelogin.php form, no logout.php link anywhere in the body).
 const LOGIN_PAGE = `<!DOCTYPE html><html><head><title>FileList</title></head><body>
@@ -314,6 +322,10 @@ describe("parseFilelistProfile", () => {
   it("reports no class when the Class row is missing or empty", () => {
     expect(parseFilelistProfile(NO_CLASS_ROW_PAGE, HOST).group).toBeNull() // synthetic-fixture
     expect(parseFilelistProfile(EMPTY_CLASS_PAGE, HOST).group).toBeNull() // synthetic-fixture
+  })
+
+  it("drops the expiry suffix from a VIP class", () => {
+    expect(parseFilelistProfile(VIP_CLASS_PAGE, HOST).group).toBe("VIP")
   })
 
   it("returns ratio 0 and a zero buffer when both totals are zero", () => {

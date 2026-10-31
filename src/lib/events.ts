@@ -198,7 +198,7 @@ export function snapshotToEvent(row: SnapshotRow): SystemEvent {
     upGib = bytesToGiB(row.uploadedBytes).toFixed(1)
     downGib = bytesToGiB(row.downloadedBytes).toFixed(1)
   } catch {
-    // Non-numeric byte strings default to 0
+    // security-audit-ignore: non-numeric byte strings default to 0
   }
   const ratioStr = row.ratio !== null ? formatRatioDisplay(row.ratio) : ""
 

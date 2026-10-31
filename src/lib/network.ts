@@ -1,7 +1,7 @@
 // src/lib/network.ts
 //
 // Functions: toIpv4Integer, isPrivateIpv4Literal, normalizeShorthandIpv4, isUnsafeIpv6Literal,
-//            isUnsafeNetworkHost, isSafeHttpUrl, fetchFollowingSafeRedirects
+//            isUnsafeNetworkHost, isSafeHttpUrl, isRedirect, fetchFollowingSafeRedirects
 
 import { isIP } from "node:net"
 
@@ -155,7 +155,17 @@ function isSafeHttpUrl(url: string): boolean {
   return !isUnsafeNetworkHost(parsed.hostname)
 }
 
+/**
+ * Every status that carries a Location, not just the two most common. Callers
+ * fetch with redirect: "manual", so a status missing here is still never
+ * followed, but it skips the caller's redirect handling and reads as an
+ * ordinary non-ok answer.
+ */
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
+
+export function isRedirect(status: number): boolean {
+  return REDIRECT_STATUSES.has(status)
+}
 
 /**
  * fetch() that re-applies the private-address guard to every redirect hop.
@@ -187,7 +197,7 @@ export async function fetchFollowingSafeRedirects(
   })
 
   for (let hop = 0; hop < maxRedirects; hop++) {
-    if (!REDIRECT_STATUSES.has(response.status)) return response
+    if (!isRedirect(response.status)) return response
 
     const location = response.headers.get("location")
     if (!location) return response

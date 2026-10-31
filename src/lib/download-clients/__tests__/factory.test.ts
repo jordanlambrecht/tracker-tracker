@@ -3,14 +3,17 @@
 import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/download-clients/qbt/transport", () => ({
-  buildBaseUrl: vi.fn(() => "http://localhost:8080"),
   login: vi.fn(),
   getTorrents: vi.fn(),
   getTransferInfo: vi.fn(),
   syncMaindata: vi.fn(),
   invalidateSession: vi.fn(),
-  clearAuthBlocks: vi.fn(),
   withSessionRetry: vi.fn(),
+}))
+
+vi.mock("@/lib/download-clients/transport", () => ({
+  buildBaseUrl: vi.fn(() => "http://localhost:8080"),
+  clearAuthBlocks: vi.fn(),
 }))
 
 vi.mock("@/lib/download-clients/credentials", () => ({
@@ -53,6 +56,28 @@ describe("createAdapterForClient", () => {
     expect(adapter.getDeltaSync).toBeDefined()
   })
 
+  it("creates a transmission adapter, which has no delta sync", () => {
+    const adapter = createAdapterForClient(
+      {
+        name: "Test",
+        host: "localhost",
+        port: 9091,
+        useSsl: false,
+        authMethod: "password",
+        encryptedUsername: "enc-user",
+        encryptedPassword: "enc-pass",
+        encryptedApiKey: "",
+        encryptedUrlPath: "",
+        crossSeedTags: null,
+        type: "transmission",
+      },
+      Buffer.alloc(32, 0xab)
+    )
+    expect(adapter.type).toBe("transmission")
+    // The scheduler branches on this, so its absence is part of the contract.
+    expect(adapter.getDeltaSync).toBeUndefined()
+  })
+
   it("throws for unsupported client type", () => {
     const client = {
       name: "Bad",
@@ -80,6 +105,7 @@ describe("createAdapterForClient", () => {
       authMethod: "apikey",
       apiKey: "qbt_x",
       urlPath: "",
+      credentialKey: "apikey:enc-key",
     })
 
     const adapter = createAdapterForClient(
@@ -109,6 +135,7 @@ describe("createAdapterForClient", () => {
     expect(getTransferInfo).toHaveBeenCalledWith("http://localhost:8080", {
       mode: "apikey",
       key: "qbt_x",
+      credentialKey: "apikey:enc-key",
     })
     expect(withSessionRetry).not.toHaveBeenCalled()
     expect(login).not.toHaveBeenCalled()

@@ -33,6 +33,8 @@ const PASSKEY = "e7f3a9c1b5d24680deadbeefcafe1234"
 
 const LST_ANNOUNCE = `https://tracker.lst.gg/${PASSKEY}/announce`
 const AITHER_ANNOUNCE = `https://aither.cc/announce/${PASSKEY}`
+/** Redacted announces on flacsfor.me, not on its site's redacted.sh. */
+const REDACTED_ANNOUNCE = `https://flacsfor.me/${PASSKEY}/announce`
 
 /** Full TorrentRecord, i.e. what a qBittorrent adapter actually hands the sync store. */
 function makeTorrentRecord(overrides: Partial<TorrentRecord> & { hash: string }): TorrentRecord {
@@ -72,12 +74,26 @@ function makeTorrentRecord(overrides: Partial<TorrentRecord> & { hash: string })
  * on its qBittorrent tag, an untagged one keys on its announce host.
  */
 const TRACKERS: TrackerTag[] = [
-  { tag: "aither", name: "Aither", color: "#01d4ff", baseUrl: "https://aither.cc" },
+  {
+    tag: "aither",
+    name: "Aither",
+    color: "#01d4ff",
+    baseUrl: "https://aither.cc",
+    registrySlug: null,
+  },
   {
     tag: trackerHostKey("https://lst.gg") as string,
     name: "LST",
     color: "#3b82f6",
     baseUrl: "https://lst.gg",
+    registrySlug: null,
+  },
+  {
+    tag: trackerHostKey("https://redacted.sh") as string,
+    name: "Redacted",
+    color: "#e74c3c",
+    baseUrl: "https://redacted.sh",
+    registrySlug: "redacted",
   },
 ]
 
@@ -110,6 +126,17 @@ describe("fleet attribution through the real cache pipeline (issue #152)", () =>
     // pipeline used to drop `tracker`, so everything downstream silently no-opped.
     const slim = slimTorrentForCache(makeTorrentRecord({ hash: "p0" }))
     expect(slim.tracker).toBe("lst.gg")
+  })
+
+  it("attributes an untagged torrent announcing on a registry alias host", () => {
+    const result = aggregateThroughPipeline([
+      {
+        clientName: "qbt-1",
+        torrents: [makeTorrentRecord({ hash: "p5", tags: "", tracker: REDACTED_ANNOUNCE })],
+      },
+    ])
+
+    expect(result.trackerHealth.find((t) => t.name === "Redacted")?.torrentCount).toBe(1)
   })
 
   it("attributes an untagged torrent to its tracker by announce host", () => {

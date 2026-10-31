@@ -3,7 +3,7 @@
 // Join Date visibility and the cookie-paste messages come from the credential
 // table; these pin what the user sees in the dialog.
 
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -77,6 +77,7 @@ describe("AddTrackerDialog join date visibility", () => {
     ["filelist", "FileList"],
     ["retrotoon", "RetroToon World"],
     ["ggn", "GazelleGames"],
+    ["iptorrents", "IPTorrents"],
     ["gazelle with enrichment", "Orpheus"],
   ] as const
 
@@ -89,10 +90,7 @@ describe("AddTrackerDialog join date visibility", () => {
     expect(screen.queryByLabelText(JOIN_DATE)).not.toBeInTheDocument()
   })
 
-  const SHOWN = [
-    ["iptorrents", "IPTorrents"],
-    ["hawke", "HAWKE-UNO"],
-  ] as const
+  const SHOWN = [["hawke", "HAWKE-UNO"]] as const
 
   it.each(SHOWN)("shows it for %s", async (_platform, trackerName) => {
     const user = userEvent.setup()
@@ -142,5 +140,29 @@ describe("AddTrackerDialog cookie paste errors", () => {
     await pick(user, "CinemaZ")
 
     expect(screen.getByLabelText("CinemaZ Username")).toBeInTheDocument()
+  })
+})
+
+describe("AddTrackerDialog AnimeBytes credentials", () => {
+  /** The parsed credential blob a request carried, or undefined if none was sent. */
+  function sentCredential(target: string): unknown {
+    const call = fetchMock.mock.calls.find(([url]) => String(url) === target)
+    return call ? JSON.parse(JSON.parse(String(call[1]?.body)).apiToken) : undefined
+  }
+
+  it("asks for the username beside the API token and sends both as one blob", async () => {
+    // The adapter reads the username from the blob, since the API never reports it.
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pick(user, "AnimeBytes")
+    await user.type(screen.getByLabelText("AnimeBytes Username"), "someone")
+    await user.type(screen.getByLabelText("API Token"), "tok123")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+
+    await waitFor(() => expect(sentCredential("/api/trackers")).toBeDefined())
+    for (const target of ["/api/trackers/test-connection", "/api/trackers"]) {
+      expect(sentCredential(target)).toEqual({ token: "tok123", username: "someone" })
+    }
   })
 })

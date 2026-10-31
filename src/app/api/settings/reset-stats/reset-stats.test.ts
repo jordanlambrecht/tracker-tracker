@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { verifyPassword } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import { POST } from "./route"
 
 vi.mock("@/lib/api-helpers", () => ({
@@ -29,13 +30,63 @@ vi.mock("@/lib/db/schema", () => ({
   appSettings: {},
   trackerSnapshots: {},
   clientSnapshots: {},
-  trackers: {},
+  // Column tokens are the row keys applyUpdates reads.
+  trackers: { lastError: "lastError" },
+}))
+
+vi.mock("drizzle-orm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("drizzle-orm")>()),
+  ne: (column: unknown, value: unknown) => ({ ne: [column, value] }),
 }))
 
 const VALID_KEY = "abcd1234".repeat(8)
 
 function makeRequest() {
   return new Request("http://localhost/api/settings/reset-stats", { method: "POST" })
+}
+
+interface TrackerUpdate {
+  values: Record<string, unknown>
+  where?: { ne: [string, unknown] }
+}
+
+/** Runs the route's transaction against a tx double and records its tracker updates. */
+function mockResetTransaction() {
+  const deletes: unknown[] = []
+  const updates: TrackerUpdate[] = []
+  const tx = {
+    delete: vi.fn((table: unknown) => {
+      deletes.push(table)
+      return Promise.resolve(undefined)
+    }),
+    update: vi.fn(() => ({
+      set: (values: Record<string, unknown>) => {
+        const update: TrackerUpdate = { values }
+        updates.push(update)
+        return Object.assign(Promise.resolve(undefined), {
+          where: (where: TrackerUpdate["where"]) => {
+            update.where = where
+            return Promise.resolve(undefined)
+          },
+        })
+      },
+    })),
+  }
+  ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+    async (fn: (tx: unknown) => Promise<unknown>) => fn(tx)
+  )
+  return { deletes, updates }
+}
+
+/** Applies the updates to rows as Postgres would, where NULL <> x matches nothing. */
+function applyUpdates(updates: TrackerUpdate[], rows: Record<string, unknown>[]) {
+  for (const { values, where } of updates) {
+    for (const row of rows) {
+      const matches =
+        where === undefined || (row[where.ne[0]] !== null && row[where.ne[0]] !== where.ne[1])
+      if (matches) Object.assign(row, values)
+    }
+  }
 }
 
 function mockSelectSettings(settings: Record<string, unknown>) {
@@ -84,32 +135,34 @@ describe("POST /api/settings/reset-stats", () => {
     mockSelectSettings({ id: 1, passwordHash: "hash" })
     ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
 
-    // Mock the transaction to invoke the callback with a tx mock
-    const txDeleteCalls: unknown[] = []
-    const txSetCalls: unknown[] = []
-    const txMock = {
-      delete: vi.fn().mockImplementation((table) => {
-        txDeleteCalls.push(table)
-        return Promise.resolve(undefined)
-      }),
-      update: vi.fn().mockReturnValue({
-        set: vi.fn().mockImplementation((data) => {
-          txSetCalls.push(data)
-          return Promise.resolve(undefined)
-        }),
-      }),
-    }
-    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
-      async (fn: (tx: unknown) => Promise<unknown>) => fn(txMock)
-    )
+    const { deletes, updates } = mockResetTransaction()
 
     const res = await POST(makeRequest())
     const data = await res.json()
 
     expect(res.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(txMock.delete).toHaveBeenCalledTimes(2)
-    expect(txMock.update).toHaveBeenCalledTimes(1)
-    expect(txSetCalls[0]).toEqual({ lastPolledAt: null, lastError: null })
+    expect(deletes).toHaveLength(2)
+    const row = { lastPolledAt: new Date(), lastError: "HTTP 503" }
+    applyUpdates(updates, [row])
+    expect(row).toEqual({ lastPolledAt: null, lastError: null })
+  })
+
+  // Without its marker, a restore-paused tracker reads as an ordinary failure
+  // pause, and a manual poll would send its token to the backup's address.
+  it("keeps the restore marker on a restore-paused tracker", async () => {
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: VALID_KEY })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ password: "correct" })
+    mockSelectSettings({ id: 1, passwordHash: "hash" })
+    ;(verifyPassword as ReturnType<typeof vi.fn>).mockResolvedValue(true)
+    const { updates } = mockResetTransaction()
+
+    expect((await POST(makeRequest())).status).toBe(200)
+
+    const restored = { lastPolledAt: new Date(), lastError: UNLINKED_RESTORE_ERROR }
+    const failing = { lastPolledAt: new Date(), lastError: "HTTP 503" }
+    applyUpdates(updates, [restored, failing])
+    expect(restored).toEqual({ lastPolledAt: null, lastError: UNLINKED_RESTORE_ERROR })
+    expect(failing).toEqual({ lastPolledAt: null, lastError: null })
   })
 })

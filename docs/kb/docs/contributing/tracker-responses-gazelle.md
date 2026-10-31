@@ -165,14 +165,12 @@ If enrichment fails, we keep the index stats. No problem.
 | Orpheus (OPS)        | `bonusPoints`     | Sometimes       | No                    |
 | BroadcasTheNet (BTN) | Varies            | No              | No                    |
 | PassThePopcorn (PTP) | Varies            | No              | No                    |
-| AnimeBytes (AB)      | Varies            | Varies          | No                    |
 
 GGn uses a separate adapter. See the [GGn page](tracker-responses-ggn.md).
 
 ## Supported Trackers
 
 - [AlphaRatio](trackers/alpharatio.md)
-- [AnimeBytes](trackers/animebytes.md)
 - [BroadcasTheNet](trackers/broadcasthenet.md)
 - [Empornium](trackers/empornium.md)
 - [Great Poster Wall](trackers/greatposterwall.md)

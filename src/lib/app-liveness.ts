@@ -13,8 +13,8 @@
 // Downtime is written down while it is observable and never reconstructed from
 // missing rows. Gaps in client_uptime_buckets are NOT evidence of downtime: they
 // cascade-delete with their client, do not exist before the uptime feature was
-// instrumented, are absent entirely when no client is configured, and are lost on
-// every clean stop by the un-awaited flush in stopClientScheduler. Inferring from
+// instrumented, are absent entirely when no client is configured, and are cut
+// short on every clean stop, which drops the in-progress bucket. Inferring from
 // them would hatch fake outages across all four cases.
 //
 // ── The catch-22, resolved ──────────────────────────────────────────────────
@@ -255,13 +255,12 @@ export async function touchAppLiveness(nowMs: number = Date.now()): Promise<void
  */
 export async function markAppStopped(nowMs: number = Date.now()): Promise<void> {
   const state = getState()
+  // Before the first touch there is no row id, and an unkeyed UPDATE would
+  // overwrite the previous run's lastSeenAt and hide the outage before this boot.
+  if (state.rowId === null) return
   try {
     const values = { lastSeenAt: new Date(nowMs), stoppedAt: new Date(nowMs) }
-    if (state.rowId === null) {
-      await db.update(appLiveness).set(values)
-    } else {
-      await db.update(appLiveness).set(values).where(eq(appLiveness.id, state.rowId))
-    }
+    await db.update(appLiveness).set(values).where(eq(appLiveness.id, state.rowId))
     state.lastTouchMs = nowMs
     // Force the next touch to write, so a stop that turns out not to be a
     // shutdown (lockdown, restore) clears the marker promptly.

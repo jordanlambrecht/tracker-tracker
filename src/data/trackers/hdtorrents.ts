@@ -21,7 +21,7 @@ export const hdtorrents: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#43a047",
-  logo: "",
+  logo: "/tracker-logos/hdtorrents_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

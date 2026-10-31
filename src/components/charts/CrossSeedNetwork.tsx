@@ -6,10 +6,9 @@ import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import type { CrossSeedEdge, CrossSeedNode } from "@/lib/fleet-aggregation"
-import { formatCount } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { fmtNum } from "./lib/chart-helpers"
 import { CHART_THEME, chartTooltip, escHtml } from "./lib/theme"
 
 interface CrossSeedNetworkProps {
@@ -96,13 +95,14 @@ function buildCrossSeedNetworkOption(nodes: NetworkNode[], edges: NetworkEdge[])
         }
 
         const node = p.data as NetworkNode
-        const pct =
-          node.torrentCount > 0 ? fmtNum((node.crossSeeded / node.torrentCount) * 100, 1) : "0.0"
+        const pct = formatPercent(
+          node.torrentCount > 0 ? (node.crossSeeded / node.torrentCount) * 100 : 0
+        )
         return (
           `<span style="color:${node.itemStyle.color};font-weight:600;">${escHtml(node.name)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatCount(node.torrentCount)} torrents</span><br/>` +
           `<span style="color:${CHART_THEME.accent};">${formatCount(node.crossSeeded)} cross-seeded</span>` +
-          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%</span>`
+          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}</span>`
         )
       },
     }),

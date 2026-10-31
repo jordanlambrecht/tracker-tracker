@@ -1,21 +1,19 @@
 // src/lib/tracker-platforms/adapters/torrentleech.ts
 //
-// Functions: parseTlCredentials, sessionKey, getTlSession, withTlSession, login,
-//            isRedirect, textAfterNode, firstText, topBarCell, parenCount,
-//            trailingCount, parseTlProfile, fetchHtml, TorrentleechAdapter
+// Functions: parseTlCredentials, login, textAfterNode, firstText, topBarCell, parenCount,
+//            trailingCount, parseTlProfile, fetchHtml, withTlSession, TorrentleechAdapter
 
-import { randomBytes, scrypt } from "node:crypto"
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
-import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isRedirect } from "@/lib/network"
 import { parseBytes } from "@/lib/parser"
-import { proxyFetch } from "@/lib/tunnel"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "../contract"
 import { parseCredentialJson } from "../helpers/cookie-credentials"
 import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
+import { isCloudflareChallenge, isCloudflareInterstitial } from "../helpers/html-parse"
+import { loginRequest, withLoginSession } from "../helpers/login-session"
 
 // ---------------------------------------------------------------------------
 // Credential handling
@@ -56,68 +54,6 @@ export function parseTlCredentials(apiToken: string): TlCredentials {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Login flow
-// ---------------------------------------------------------------------------
-
-/** Every status that carries a Location, matching html-fetch's own set. */
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
-
-function isRedirect(status: number): boolean {
-  return REDIRECT_STATUSES.has(status)
-}
-
-// ---------------------------------------------------------------------------
-// Session cache
-//
-// TorrentLeech has no API, so every poll would otherwise POST the user's
-// password to /user/account/login/. Trackers watch login frequency, so reuse
-// the session cookie across polls and only re-authenticate when it expires,
-// the same approach the qBittorrent transport takes with its SID cache.
-// Stored on globalThis so an HMR reload in dev doesn't orphan the cache or
-// the salt its keys depend on.
-// ---------------------------------------------------------------------------
-
-const gTl = globalThis as typeof globalThis & {
-  __tlSessionCache?: Map<string, string>
-  __tlSessionSalt?: Buffer
-}
-if (!gTl.__tlSessionCache) gTl.__tlSessionCache = new Map()
-if (!gTl.__tlSessionSalt) gTl.__tlSessionSalt = randomBytes(16)
-const tlSessionCache = gTl.__tlSessionCache
-const tlSessionSalt = gTl.__tlSessionSalt
-
-/**
- * Scoped per site and per credential set. The password and 2FA token are in
- * the key because the connection test authenticates through this cache.
- * Hashed so the long-lived global map never holds a password. The hash is
- * scrypt because CodeQL flags a password reaching a fast one, and async
- * because scryptSync would block the event loop.
- */
-function sessionKey(baseUrl: string, creds: TlCredentials): Promise<string> {
-  const input = `${creds.username}\u0000${creds.password}\u0000${creds.alt2FAToken ?? ""}`
-  return new Promise((resolve, reject) => {
-    scrypt(input, tlSessionSalt, 32, (err, derived) => {
-      if (err) reject(err)
-      else resolve(`${baseUrl}|${derived.toString("hex")}`)
-    })
-  })
-}
-
-async function getTlSession(
-  key: string,
-  baseUrl: string,
-  creds: TlCredentials,
-  proxyAgent?: FetchOptions["proxyAgent"]
-): Promise<string> {
-  const cached = tlSessionCache.get(key)
-  if (cached) return cached
-
-  const cookies = await login(baseUrl, creds, proxyAgent)
-  tlSessionCache.set(key, cookies)
-  return cookies
-}
-
 /**
  * Logs in and returns the Cookie header built from the Set-Cookie headers.
  * Honors the configured proxy, since this is the one request that carries the
@@ -141,45 +77,12 @@ async function login(
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   }
 
-  let setCookieHeaders: string[]
-  let loginStatus: number
-  let loginStatusText: string
-  let readBody: () => Promise<string>
-  try {
-    if (proxyAgent) {
-      // https.request does not follow redirects, which is what `redirect:
-      // "manual"` buys on the direct path. TL answers a good login with a 302
-      // that carries the session cookie.
-      const res = await proxyFetch(loginUrl, proxyAgent, {
-        method: "POST",
-        body,
-        headers,
-        timeoutMs: ADAPTER_FETCH_TIMEOUT_MS,
-      })
-      const raw = res.headers["set-cookie"]
-      setCookieHeaders = Array.isArray(raw) ? raw : raw ? [raw] : []
-      loginStatus = res.status
-      loginStatusText = res.statusText
-      readBody = () => res.text()
-    } else {
-      const response = await fetch(loginUrl, {
-        method: "POST",
-        headers,
-        body,
-        redirect: "manual",
-        signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
-      })
-      setCookieHeaders = response.headers.getSetCookie?.() ?? []
-      loginStatus = response.status
-      loginStatusText = response.statusText
-      readBody = () => response.text()
-    }
-  } catch (err) {
-    const hostname = new URL(baseUrl).hostname
-    throw proxyAgent ? classifyProxyFetchError(err, hostname) : classifyFetchError(err, hostname)
-  }
+  // TL answers a good login with a 302 that carries the session cookie, which
+  // loginRequest does not follow on either transport.
+  const response = await loginRequest(loginUrl, { method: "POST", headers, body }, proxyAgent)
+  const loginStatus = response.status
 
-  const cookiePairs = setCookieHeaders
+  const cookiePairs = response.setCookies
     .map((raw) => raw.split(";")[0]?.trim())
     .filter((pair): pair is string => Boolean(pair))
 
@@ -200,7 +103,7 @@ async function login(
     let html = ""
     if (!isRedirect(loginStatus)) {
       try {
-        html = await readBody()
+        html = await response.text()
       } catch (readErr) {
         // Fall through to the generic message rather than masking the login
         // failure with a body read error, but leave a trace of it.
@@ -211,15 +114,15 @@ async function login(
     // A challenge, a proxy refusal, a 429 and a 5xx are no verdict on the
     // credentials, and TL sets tluid on a refused login too, so none of them may
     // reach the cookie check below. The challenge is matched before the status,
-    // since one can come with a 503, and only on its own markers, because a
-    // login form can embed the Turnstile script that parseTlProfile also matches.
-    if (html.includes("<title>Just a moment...</title>") || html.includes("cf_chl_opt")) {
+    // since one can come with a 503, and by the interstitial check alone, because
+    // a login form can embed the Turnstile script that parseTlProfile also matches.
+    if (isCloudflareInterstitial(html)) {
       throw new Error("Cloudflare challenge detected on the TorrentLeech login page")
     }
     // Same wording adapterFetch throws, which sanitizeNetworkError matches on. A
     // 407 is the proxy asking for its own credentials.
     if (loginStatus === 407 || loginStatus === 429 || loginStatus >= 500) {
-      throw new Error(`Tracker API error: ${loginStatus} ${loginStatusText}`)
+      throw new Error(`Tracker API error: ${loginStatus} ${response.statusText}`)
     }
 
     const looksLikeLoginPage =
@@ -301,11 +204,7 @@ export function parseTlProfile(html: string, username: string, hostname: string)
     throw new SessionExpiredError("Session expired. TorrentLeech cookies need to be refreshed")
   }
 
-  if (
-    html.includes("<title>Just a moment...</title>") ||
-    html.includes("cf_chl_opt") ||
-    html.includes("challenges.cloudflare.com/turnstile")
-  ) {
+  if (isCloudflareChallenge(html)) {
     throw new Error("Cloudflare challenge detected. The TorrentLeech session needs refreshing")
   }
 
@@ -400,9 +299,8 @@ export function parseTlProfile(html: string, username: string, hostname: string)
 // ---------------------------------------------------------------------------
 
 /**
- * No browser User-Agent is sent, here or on the login POST. The session cookie
- * comes from our own login POST, not from a browser, so claiming a browser UA
- * would be inconsistent with it.
+ * No userAgent: the session comes from our own login POST, not a browser, so
+ * the app User-Agent goes out rather than a browser's.
  */
 function fetchHtml(
   url: string,
@@ -431,20 +329,18 @@ function fetchHtml(
  * parseTlProfile raises its own session-expired error for a login page that
  * the fetch reports as a success.
  */
-async function withTlSession<T>(
+function withTlSession<T>(
   baseUrl: string,
   creds: ReturnType<typeof parseTlCredentials>,
   proxyAgent: FetchOptions["proxyAgent"],
   work: (cookies: string) => Promise<T>
 ): Promise<T> {
-  const key = await sessionKey(baseUrl, creds)
-  try {
-    return await work(await getTlSession(key, baseUrl, creds, proxyAgent))
-  } catch (err) {
-    if (!(err instanceof SessionExpiredError)) throw err
-    tlSessionCache.delete(key)
-    return work(await getTlSession(key, baseUrl, creds, proxyAgent))
-  }
+  return withLoginSession(
+    baseUrl,
+    [creds.username, creds.password, creds.alt2FAToken ?? ""],
+    () => login(baseUrl, creds, proxyAgent),
+    work
+  )
 }
 
 export class TorrentleechAdapter implements TrackerAdapter {

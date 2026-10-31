@@ -11,9 +11,9 @@
 // It must stay the first statement in the handler. Two guards keep it honest:
 // checkAuthEnforcement() in scripts/security-audit.ts walks every route.ts under
 // src/app/api and fails CI (severity: critical) for a handler that is not in
-// NO_AUTH_ROUTES and calls none of authenticate/getSession/requireAuth, and
-// "rejects an unauthenticated caller" in the tests next to this file asserts the
-// 401 directly.
+// NO_AUTH_ROUTES and calls none of authenticate/getSession/readSession/requireAuth,
+// and "rejects an unauthenticated caller" in the tests next to this file asserts
+// the 401 directly.
 //
 // Functions: POST
 

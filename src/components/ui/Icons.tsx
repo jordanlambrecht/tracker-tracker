@@ -6,7 +6,8 @@
 //            UserIcon, PlusIcon, ActivityIcon, ShareScoreIcon, ShieldIcon, StarIcon,
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
 //            ClockIcon, BoxIcon, ServerIcon, TagIcon, BookIcon, BugIcon, XIcon,
-//            TransitPapersIcon, SpinnerIcon, InfoIcon, QuestionIcon
+//            TransitPapersIcon, SpinnerIcon, InfoIcon, QuestionIcon, LockIcon, UnlockIcon,
+//            VaultIcon, FavoriteStarIcon, InfinitySign
 
 import type { SVGProps } from "react"
 
@@ -27,6 +28,17 @@ function InfinityIcon(props: IconProps) {
     >
       <path d="M6 1.5a4.5 4.5 0 1 0 0 9c2.5 0 4-2.25 6-4.5s3.5-4.5 6-4.5a4.5 4.5 0 1 1 0 9c-2.5 0-4-2.25-6-4.5S8.5 1.5 6 1.5Z" />
     </svg>
+  )
+}
+
+// InfinityIcon sized to the surrounding text, for an infinite ratio. The hidden
+// text keeps it readable to screen readers
+function InfinitySign() {
+  return (
+    <>
+      <InfinityIcon className="inline-block h-[0.55em] w-[1.1em] align-middle" />
+      <span className="sr-only">∞</span>
+    </>
   )
 }
 
@@ -824,6 +836,92 @@ function InfoIcon(props: IconProps) {
   )
 }
 
+// Padlock, closed. Used in the Sidebar drag-and-drop lock toggle and the BackupsSection encrypted-backup marker
+function LockIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      <line x1="12" y1="15" x2="12" y2="17" />
+    </svg>
+  )
+}
+
+// Padlock with the shackle swung open. Used in the Sidebar drag-and-drop lock toggle
+function UnlockIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 7.75-1.4" />
+      <line x1="12" y1="15" x2="12" y2="17" />
+    </svg>
+  )
+}
+
+// Safe door with a dial and four bolts (Lucide's vault). Used for the tracker
+// credentials button in TrackerDetailHeader
+function VaultIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
+      <path d="m7.9 7.9 2.7 2.7" />
+      <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
+      <path d="m13.4 10.6 2.7-2.7" />
+      <circle cx="7.5" cy="16.5" r=".5" fill="currentColor" />
+      <path d="m7.9 16.1 2.7-2.7" />
+      <circle cx="16.5" cy="16.5" r=".5" fill="currentColor" />
+      <path d="m13.4 13.4 2.7 2.7" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  )
+}
+
+// Five-pointed star outline; fill="currentColor" fills it. Used in the Sidebar favorites filter, SortableTrackerItem favorite toggle and TrackerOverviewGrid favorites pill
+function FavoriteStarIcon(props: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M12 4L14.32 10.21L20.94 10.5L15.75 14.62L17.53 21L12 17.35L6.47 21L8.25 14.62L3.06 10.5L9.68 10.21Z" />
+    </svg>
+  )
+}
+
 export {
   ActivityIcon,
   BookIcon,
@@ -841,13 +939,16 @@ export {
   ExternalLinkSmallIcon,
   EyeIcon,
   EyeOffIcon,
+  FavoriteStarIcon,
   GearIcon,
   GitHubIcon,
   GridIcon,
   HamburgerIcon,
   InfinityIcon,
+  InfinitySign,
   InfoIcon,
   LeechingIcon,
+  LockIcon,
   PauseIcon,
   PlayIcon,
   PlusIcon,
@@ -865,7 +966,9 @@ export {
   TransitPapersIcon,
   TrashIcon,
   TriangleWarningIcon,
+  UnlockIcon,
   UploadArrowIcon,
   UserIcon,
+  VaultIcon,
   XIcon,
 }

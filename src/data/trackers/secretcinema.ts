@@ -27,6 +27,7 @@ export const secretcinema: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "secret-cinema",
   statusPageUrl: "",
+  announceHosts: ["secret-cinema.pw"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

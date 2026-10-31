@@ -4,7 +4,8 @@
 import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
 import { getRatioBuckets } from "@/lib/fleet"
-import { formatCount } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
+import { torrentRatioValue } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { buildBucketedBarOption } from "./lib/chart-helpers"
@@ -45,12 +46,12 @@ function buildRatioBucketedOption(
         const p = params as { value: number; color: string; dataIndex: number }
         const bucket = buckets[p.dataIndex]
         if (!bucket) return ""
-        const pct = total > 0 ? ((bucket.count / total) * 100).toFixed(1) : "0.0"
+        const pct = formatPercent(total > 0 ? (bucket.count / total) * 100 : 0)
         return (
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${labelPrefix} ${bucket.label}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatCount(bucket.count)} torrents</span>` +
-          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%</span>`
+          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}</span>`
         )
       },
     }),
@@ -104,7 +105,8 @@ function TorrentRatioDistribution(props: TorrentRatioDistributionProps) {
       buckets,
       torrents: rawTorrents,
       getThreshold: (b) => b.max,
-      getValue: (t) => t.ratio,
+      // An infinite ratio counts in the top bucket, as in the fleet chart.
+      getValue: (t) => torrentRatioValue(t.ratio),
       getLabel: (b) => b.label,
       getColor: (b) => b.color,
       labelPrefix: "Ratio",

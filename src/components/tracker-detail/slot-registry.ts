@@ -2,7 +2,7 @@
 //
 // Exports: SLOT_DEFINITIONS, renderSlotElement, AnySlotDefinition
 // Slot IDs defined:
-//   stat-card: login-deadline, api-key-expiry, gold, snatched-nebulance, seedbonus, ggn-share-score-card,
+//   stat-card: login-deadline, api-key-expiry, gold, yen, snatched-nebulance, seedbonus, ggn-share-score-card,
 //              gazelle-tokens, perfect-flacs, snatched-gazelle, torrents-uploaded,
 //              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments,
 //              mam-wedges, mam-completed, mam-tracker-errors
@@ -16,6 +16,8 @@
 //   dc stat-card: dc-activity, dc-real-data
 //   dc badge: dc-download-ban, dc-upload-ban, dc-hnr-warned, dc-parked,
 //             dc-unconnectable, dc-seedbox-donor, dc-invites, dc-hearts
+//   c411 badge: c411-download-disabled
+//   hawke badge: hawke-download-disabled
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -27,7 +29,6 @@ import {
   UploadArrowIcon,
   UserIcon,
 } from "@/components/ui/Icons"
-import { PulseDot } from "@/components/ui/PulseDot"
 import type {
   StatCardBasicProps,
   StatCardDeadlineProps,
@@ -35,6 +36,7 @@ import type {
   StatCardStackedProps,
 } from "@/components/ui/StatCard"
 import { StatCard } from "@/components/ui/StatCard"
+import { StatusDot } from "@/components/ui/StatusDot"
 import { registryBonusName } from "@/data/tracker-registry"
 import { formatBytesNum, formatCount, formatRatio } from "@/lib/formatters"
 import type { SlotCategory, SlotContext } from "@/types/slots"
@@ -106,13 +108,45 @@ const goldSlot: SlotDefinition<StatCardStackedProps> = {
     const gold = Math.floor(ctx.latestSnapshot.seedbonus)
     return {
       type: "stacked" as const,
-      title: "Gold",
+      title: registryBonusName(ctx.registry) ?? "Gold",
       rows: [
         { label: "Balance", value: formatCount(gold) },
         {
           label: "Per Hour",
           value: ggMeta.hourlyGold != null ? `+${formatCount(Math.floor(ggMeta.hourlyGold))}` : "—",
           colorClass: ggMeta.hourlyGold ? "text-success" : undefined,
+        },
+      ],
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
+const yenSlot: SlotDefinition<StatCardStackedProps> = {
+  id: "yen",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 10,
+  span: 2,
+  resolve(ctx) {
+    const abMeta = metaFor(ctx, "animebytes")
+    if (!abMeta) return null
+    if (ctx.latestSnapshot?.seedbonus == null) return null
+    const rate = (n: number | undefined) => (n != null ? `+¥${formatCount(Math.floor(n))}` : "—")
+    return {
+      type: "stacked" as const,
+      title: registryBonusName(ctx.registry) ?? "Yen",
+      rows: [
+        { label: "Balance", value: `¥${formatCount(Math.floor(ctx.latestSnapshot.seedbonus))}` },
+        {
+          label: "Per Hour",
+          value: rate(abMeta.yenPerHour),
+          colorClass: abMeta.yenPerHour ? "text-success" : undefined,
+        },
+        {
+          label: "Per Day",
+          value: rate(abMeta.yenPerDay),
+          colorClass: abMeta.yenPerDay ? "text-success" : undefined,
         },
       ],
       accentColor: ctx.accentColor,
@@ -144,7 +178,7 @@ const seedbonusSlot: SlotDefinition<StatCardBasicProps> = {
   priority: 10,
   resolve(ctx) {
     if (ctx.latestSnapshot?.seedbonus == null) return null
-    if (metaFor(ctx, "ggn") || metaFor(ctx, "nebulance")) return null
+    if (metaFor(ctx, "ggn") || metaFor(ctx, "animebytes")) return null
     const bonusName = registryBonusName(ctx.registry)
     return {
       label: bonusName ?? "Seedbonus",
@@ -512,7 +546,7 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
     const children = createElement(
       "span",
       { className: "inline-flex items-center gap-2" },
-      createElement(PulseDot, { status: "healthy", size: "sm" }),
+      createElement(StatusDot, { tone: "accent", glow: true, size: "sm" }),
       "IRC"
     )
     return { variant: "default", children }
@@ -991,6 +1025,28 @@ const dcHeartsBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   },
 }
 
+const c411DownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "c411-download-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    if (metaFor(ctx, "c411")?.canDownload !== false) return null
+    return { variant: "danger", label: "Downloads Disabled" }
+  },
+}
+
+const hawkeDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "hawke-download-disabled",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    if (metaFor(ctx, "hawke")?.canDownload !== false) return null
+    return { variant: "danger", label: "Downloads Disabled" }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Exported registry
 // ---------------------------------------------------------------------------
@@ -1000,6 +1056,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   loginDeadlineSlot,
   apiKeyExpirySlot,
   goldSlot,
+  yenSlot,
   snatchedNebulanceSlot,
   seedbonusSlot,
   ggnShareScoreCardSlot,
@@ -1055,6 +1112,10 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   dcSeedboxDonorBadgeSlot,
   dcInvitesBadgeSlot,
   dcHeartsBadgeSlot,
+  // C411 slots (badge)
+  c411DownloadDisabledBadgeSlot,
+  // HAWKE-UNO slots (badge)
+  hawkeDownloadDisabledBadgeSlot,
 ]
 
 // Shared component lookup: single source for rendering resolved slots

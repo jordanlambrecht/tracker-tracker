@@ -4,6 +4,7 @@
 // Used by both the CI script and the test suite.
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import { trackerHostKey } from "@/lib/tracker-matching"
 
 export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 export const LOGO_NAME_RE = /^\/tracker-logos\/[a-z0-9_]+_logo\.(svg|png)$/
@@ -15,6 +16,9 @@ export const PLACEHOLDER_RE = /^TODO$/i
  * display string ("May 2026") would parse to Invalid Date there.
  */
 export const DEFUNCT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** A bare lowercase hostname: no scheme, port, path or query. */
+export const ANNOUNCE_HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/
 
 export const VALID_CONTENT_CATEGORIES = new Set([
   "Movies",
@@ -104,6 +108,24 @@ export function validateDefunct(tracker: Partial<TrackerRegistryEntry>): {
   }
 
   return { errors, warnings }
+}
+
+/**
+ * Every `announceHosts` entry must already be its own registrable domain. The
+ * matcher reduces a host to that, so a pasted announce URL or a passkey
+ * subdomain would still work and nothing else would catch the passkey. The
+ * message names the index, not the value, so CI output never repeats one. An
+ * empty list fails too, since a present field says someone checked.
+ */
+export function validateAnnounceHosts(tracker: Partial<TrackerRegistryEntry>): string[] {
+  if (tracker.announceHosts !== undefined && tracker.announceHosts.length === 0) {
+    return ["announceHosts is empty, so leave it out until someone checks where torrents announce"]
+  }
+  return (tracker.announceHosts ?? []).flatMap((host, i) =>
+    ANNOUNCE_HOST_RE.test(host) && trackerHostKey(host) === host
+      ? []
+      : [`announceHosts[${i}] must be a lowercase registrable domain, never a URL or subdomain`]
+  )
 }
 
 export { normalizeUrl as normalizeTrackerUrl } from "@/lib/data-transforms"

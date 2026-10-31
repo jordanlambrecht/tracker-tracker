@@ -105,6 +105,7 @@ Auth fails silently, and you get HTML instead of JSON. That HTML fails the JSON 
 | `unsatisfiedLimit` | `snatch_summary.unsat.limit` | `number` | Class-dependent limit (User=50, PU=100, VIP=150, above VIP=200) |
 | `inactiveSatisfiedCount` | `snatch_summary.inactSat.count` | `number` | Completed torrents no longer seeding |
 | `seedingHnrCount` | `snatch_summary.seedHnr.count` | `number` | HnR torrents being actively resolved |
+| `seedingUnsatisfiedCount` | `snatch_summary.seedUnsat.count` | `number` | Torrents seeding toward the 72h requirement |
 | `inactiveUnsatisfiedCount` | `snatch_summary.inactUnsat.count` | `number` | Pre-HnR torrents not being seeded (ticking clock) |
 | `trackerErrorCount` | `snatch_summary.ite.count` | `number` | Important Tracker Errors |
 | `recentlyDeleted` | `snatch_summary.recently_deleted` | `number` | Recently deleted torrents |

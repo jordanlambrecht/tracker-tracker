@@ -4,6 +4,7 @@
 //   - Auth param: Nebulance uses "api_key", Anthelion uses "apikey"
 //   - SubClass field: Nebulance "SubClass" (singular), Anthelion "SubClasses" (plural)
 //   - HnR field: present on Nebulance, absent on Anthelion
+//   - Orbs (bonus points): sent by Anthelion, possibly absent on Nebulance
 //   - Response may be wrapped {"status":"success","response":{...}} or flat
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
@@ -26,6 +27,7 @@ interface NebulanceUserData {
   Downloaded: number
   SeedCount: number
   HnR?: number
+  Orbs?: number
   Invites: number
   Class: string
   SubClass?: string | null
@@ -161,7 +163,7 @@ export class NebulanceAdapter implements TrackerAdapter {
       bufferBytes: computeBufferBytes(uploaded, downloaded),
       seedingCount: resp.SeedCount ?? null,
       leechingCount: null, // Not available from Nebulance API
-      seedbonus: null, // Not available from Nebulance API
+      seedbonus: resp.Orbs ?? null,
       hitAndRuns: resp.HnR ?? null,
       requiredRatio: null, // Not available from Nebulance API
       warned: null, // Not available from Nebulance API

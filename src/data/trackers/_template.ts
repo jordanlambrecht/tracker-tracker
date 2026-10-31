@@ -17,7 +17,7 @@
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"
 //   - apiPath must match platform default:
 //       unit3d   → "/api/user"
 //       gazelle  → "/ajax.php"
@@ -43,7 +43,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only. "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only. Enables enrichment call
@@ -63,6 +63,7 @@ export const mytracker: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "", // slug on trackerhub.xyz, if listed. "" if none
   statusPageUrl: "", // external status page URL. "" if none
+  // announceHosts: ["flacsfor.me"], // optional. Domains torrents announce on, checked in your client. Omit if unchecked. Registrable domains only, never a URL or subdomain
 
   // ── Community ───────────────────────────────────────────────────────
   // Lowest to highest. Flag staff/donor classes outsideLadder: "above" and

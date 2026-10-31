@@ -19,7 +19,7 @@ import type {
 import { parseCredentialJson } from "../helpers/cookie-credentials"
 import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
-import { tryParseCount } from "../helpers/html-parse"
+import { isCloudflareChallenge, tryParseCount } from "../helpers/html-parse"
 
 // ---------------------------------------------------------------------------
 // Credential handling
@@ -131,12 +131,7 @@ export function parseAvistazProfile(
     throw new SessionExpiredError("Session expired. Browser cookies need to be refreshed")
   }
 
-  // Detect Cloudflare challenge (classic JS challenge or Turnstile widget)
-  if (
-    html.includes("<title>Just a moment...</title>") ||
-    html.includes("cf_chl_opt") ||
-    html.includes("challenges.cloudflare.com/turnstile")
-  ) {
+  if (isCloudflareChallenge(html)) {
     throw new Error("Cloudflare challenge detected. The cf_clearance cookie needs refreshing")
   }
 

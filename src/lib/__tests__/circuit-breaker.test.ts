@@ -105,12 +105,7 @@ import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { getAdapter } from "@/lib/tracker-platforms"
-import {
-  fetchTrackerStats,
-  POLL_FAILURE_THRESHOLD,
-  pollAllTrackers,
-  pollTracker,
-} from "@/lib/tracker-scheduler"
+import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -397,19 +392,6 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
 
     // No adapter was resolved and no request went out, despite one being ready.
     expect(getAdapter).not.toHaveBeenCalled()
-    expect(adapter.fetchStats).not.toHaveBeenCalled()
-  })
-
-  // fetchTrackerStats carries the same guard as pollTracker but reports by
-  // throwing to its caller rather than recording to the row.
-  it("fetchTrackerStats rejects an empty API token without contacting the tracker", async () => {
-    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("")
-    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
-      mockSelectOnce([makeTrackerRow({ consecutiveFailures: 0 })])
-    )
-    const adapter = mockSuccessAdapter()
-
-    await expect(fetchTrackerStats(1, MOCK_KEY)).rejects.toThrow(/API key is missing or invalid/)
     expect(adapter.fetchStats).not.toHaveBeenCalled()
   })
 

@@ -1,12 +1,15 @@
 // src/lib/tracker-platforms/helpers/html-fetch.ts
 //
-// Functions: buildHtmlHeaders, fetchFailure, getHtmlViaProxy, getHtml, isRedirect,
+// Functions: buildHtmlHeaders, fetchFailure, failureBody, getHtmlViaProxy, getHtml,
 //            followRedirectChain, fetchTrackerHtml
 
 import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { isRedirect } from "@/lib/network"
+import { withDefaultUserAgent } from "@/lib/user-agent"
 import type { FetchOptions } from "../contract"
 import { SessionExpiredError } from "./errors"
+import { isCloudflareChallenge } from "./html-parse"
 
 // ---------------------------------------------------------------------------
 // Shared HTML fetcher for the scraping adapters.
@@ -33,11 +36,15 @@ const ACCEPT_HTML = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q
 export interface TrackerHtmlRequest {
   url: string
   cookies: string
-  /** Tracker display name, used in the redirect error messages. */
+  /** Tracker display name, used in error messages. */
   label: string
   /** Thrown when an authenticated request is bounced to a login page. */
   sessionExpiredMessage: string
-  /** Copied browser User-Agent. When set, navigation headers are sent too. */
+  /**
+   * The browser User-Agent a copied session was issued to, sent with the
+   * navigation headers. Omitted for a session the app logged in for itself,
+   * which sends the app User-Agent and no navigation headers.
+   */
   userAgent?: string
   proxyAgent?: FetchOptions["proxyAgent"]
   /**
@@ -48,12 +55,10 @@ export interface TrackerHtmlRequest {
 }
 
 function buildHtmlHeaders(cookies: string, userAgent?: string): Record<string, string> {
-  return {
-    Cookie: cookies,
-    Accept: ACCEPT_HTML,
-    "Accept-Language": "en-US,en;q=0.9",
-    ...(userAgent ? { "User-Agent": userAgent, ...NAVIGATION_HEADERS } : {}),
-  }
+  const headers = { Cookie: cookies, Accept: ACCEPT_HTML, "Accept-Language": "en-US,en;q=0.9" }
+  return userAgent
+    ? { ...headers, "User-Agent": userAgent, ...NAVIGATION_HEADERS }
+    : withDefaultUserAgent(headers)
 }
 
 /**
@@ -80,6 +85,18 @@ interface HtmlResponse {
 }
 
 type HtmlFetcher = (url: string) => Promise<HtmlResponse>
+
+/**
+ * A failed response's body, or "" when it cannot be read, so the error falls
+ * back to the status.
+ */
+async function failureBody(response: HtmlResponse): Promise<string> {
+  try {
+    return await response.text()
+  } catch {
+    return ""
+  }
+}
 
 async function getHtmlViaProxy(
   url: string,
@@ -132,18 +149,6 @@ async function getHtml(url: string, headers: Record<string, string>): Promise<Ht
 }
 
 /**
- * Every status that carries a Location, not just the two most common. A status
- * missing from this set is returned to the caller as though it were the final
- * response, which means it never reaches the same-origin check below, so
- * narrowing this set silently narrows that guard too.
- */
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
-
-function isRedirect(status: number): boolean {
-  return REDIRECT_STATUSES.has(status)
-}
-
-/**
  * Walks a redirect chain by hand (redirect: "manual") so a bounce to the login
  * page can be distinguished from an ordinary relocation such as / -> /t.
  */
@@ -173,7 +178,16 @@ async function followRedirectChain(
     }
     if (hop === maxHops) break
 
-    const nextUrl = new URL(location, currentUrl)
+    // new URL's own error says "Invalid URL", which the sanitizer would read as
+    // bad credentials.
+    let nextUrl: URL
+    try {
+      nextUrl = new URL(location, currentUrl)
+    } catch {
+      throw new Error(
+        `Unexpected response from ${new URL(fromUrl).hostname}: redirect to an unreadable Location`
+      )
+    }
     // `headers` carries the user's tracker session cookie. Location is chosen by
     // the remote host, so following it blindly would replay that cookie wherever
     // the response points. A hostile or compromised tracker could harvest the
@@ -222,7 +236,17 @@ export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<str
     throw new SessionExpiredError(sessionExpiredMessage)
   }
 
-  if (!response.ok) throw fetchFailure(response.status, response.statusText)
+  if (!response.ok) {
+    // Cloudflare serves its challenge with a 403 or a 503. Read by its status
+    // alone, the 403 would show as rejected credentials.
+    if (
+      (response.status === 403 || response.status === 503) &&
+      isCloudflareChallenge(await failureBody(response))
+    ) {
+      throw new Error(`Cloudflare challenge detected on ${label}`)
+    }
+    throw fetchFailure(response.status, response.statusText)
+  }
 
   return response.text()
 }

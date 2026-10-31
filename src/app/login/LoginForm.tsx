@@ -5,11 +5,17 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { type SubmitEvent, useState } from "react"
 import { USERNAME_PROMPT_SKIP_KEY } from "@/components/auth/UsernamePromptDialog"
-import { Button, Card, Input } from "@/components/ui"
+import { Button, Card, Input, Notice } from "@/components/ui"
 
 type LoginStep = "password" | "totp"
 
-export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
+export function LoginForm({
+  hasUsername,
+  notice,
+}: {
+  hasUsername: boolean
+  notice: string | null
+}) {
   const router = useRouter()
   const [step, setStep] = useState<LoginStep>("password")
   const [username, setUsername] = useState("")
@@ -134,6 +140,8 @@ export function LoginForm({ hasUsername }: { hasUsername: boolean }) {
         <Card elevation="elevated" className="p-6">
           {step === "password" && (
             <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-5">
+              <Notice variant="warn" box message={notice} />
+
               {hasUsername && (
                 <Input
                   label="Username"

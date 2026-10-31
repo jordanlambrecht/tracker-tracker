@@ -170,6 +170,7 @@ export class MamAdapter implements TrackerAdapter {
       unsatisfiedLimit: snatch.unsat?.limit ?? undefined,
       inactiveSatisfiedCount: snatch.inactSat?.count ?? undefined,
       seedingHnrCount: snatch.seedHnr?.count ?? undefined,
+      seedingUnsatisfiedCount: snatch.seedUnsat?.count ?? undefined,
       inactiveUnsatisfiedCount: snatch.inactUnsat?.count ?? undefined,
       trackerErrorCount: snatch.ite?.count ?? undefined,
       recentlyDeleted: snatch.recently_deleted ?? undefined,

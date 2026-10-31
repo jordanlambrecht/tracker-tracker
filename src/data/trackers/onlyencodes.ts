@@ -27,6 +27,7 @@ export const onlyencodes: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "only-encodes",
   statusPageUrl: "",
+  announceHosts: ["onlyencodes.cc"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
@@ -90,39 +91,39 @@ export const onlyencodes: TrackerRegistryEntry = {
     // Staff-assigned
     {
       name: "Learner",
-      requirements: "Staff — learning the ropes of uploading (Junior Uploader). Torrent mod bypass",
+      requirements: "Staff (Junior Uploader, learning the ropes of uploading). Torrent mod bypass",
       outsideLadder: "above",
     },
     {
       name: "Supplier",
       requirements:
-        "Staff — uploads without staff needing to edit or fix. Freeleech, H&R immune, torrent mod bypass",
+        "Staff (uploads without staff needing to edit or fix). Freeleech, H&R immune, torrent mod bypass",
       outsideLadder: "above",
     },
     {
       name: "ThunderKeeper",
       requirements:
-        "Staff — internal uploaders. Freeleech, 2x upload, H&R immune, torrent mod bypass",
+        "Staff (internal uploaders). Freeleech, 2x upload, H&R immune, torrent mod bypass",
       outsideLadder: "above",
     },
     {
       name: "SnowGlober",
-      requirements: "Staff — legacy VIP class. Freeleech, 2x upload, H&R immune",
+      requirements: "Staff (legacy VIP class). Freeleech, 2x upload, H&R immune",
       outsideLadder: "above",
     },
     {
       name: "Bot",
-      requirements: "Staff — automated release bot. H&R immune, torrent mod bypass",
+      requirements: "Staff (automated release bot). H&R immune, torrent mod bypass",
       outsideLadder: "above",
     },
     {
       name: "Torrent Moderator",
-      requirements: "Staff — freeleech, H&R immune, torrent mod bypass",
+      requirements: "Staff. Freeleech, H&R immune, torrent mod bypass",
       outsideLadder: "above",
     },
     {
       name: "Editor",
-      requirements: "Staff — freeleech, H&R immune, torrent mod bypass",
+      requirements: "Staff. Freeleech, H&R immune, torrent mod bypass",
       outsideLadder: "above",
     },
   ],
@@ -298,7 +299,7 @@ export const onlyencodes: TrackerRegistryEntry = {
       "## Internal Releases",
       "",
       "- All internal releases receive freeleech",
-      "- 72-hour exclusivity before posting externally — violation = DL revoked, repeat = ban",
+      "- 72-hour exclusivity before posting externally. Violation = DL revoked, repeat = ban",
       "",
       "## Hit & Run",
       "",
@@ -309,7 +310,7 @@ export const onlyencodes: TrackerRegistryEntry = {
       "## Uploading",
       "",
       "- Personal releases must be seeded for 2 weeks",
-      "- No series packs — seasons only. Season pack trumps individual episodes",
+      "- No series packs, seasons only. Season pack trumps individual episodes",
       "- Non-English content requires English subs or audio",
       "",
       "## Inactivity",

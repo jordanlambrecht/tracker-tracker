@@ -1,7 +1,7 @@
 // src/lib/tracker-scheduler.ts
 //
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
-// startScheduler, stopScheduler, ensureSchedulerRunning, fetchTrackerStats, POLL_FAILURE_THRESHOLD
+// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning, POLL_FAILURE_THRESHOLD
 // Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
@@ -13,7 +13,7 @@ import { pruneCoverageGaps } from "@/lib/app-liveness"
 import { decrypt } from "@/lib/crypto"
 import { withCycleDeadline } from "@/lib/cycle-deadline"
 import { db } from "@/lib/db"
-import type { NotificationTargetRow, TrackerRow } from "@/lib/db/schema"
+import type { NotificationTargetRow } from "@/lib/db/schema"
 import {
   appSettings,
   notificationTargets,
@@ -31,13 +31,25 @@ import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
-import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
+import { getPauseState, isRestorePaused, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type {
   AvistazPlatformMeta,
+  C411PlatformMeta,
   DigitalCorePlatformMeta,
+  HawkePlatformMeta,
   MamPlatformMeta,
 } from "@/types/tracker-stats"
+
+// Platforms whose only platform alert is download-revoked, read from
+// platformMeta.canDownload.
+const DOWNLOAD_ALERT_ONLY_PLATFORMS = new Set(["c411", "hawke"])
+// Platforms whose download-revoked alert compares this poll's meta with the last.
+const DOWNLOAD_ALERT_PLATFORMS = new Set([
+  "avistaz",
+  "digitalcore",
+  ...DOWNLOAD_ALERT_ONLY_PLATFORMS,
+])
 
 // Store on globalThis to survive HMR in development.
 // Without this, each hot-reload orphans the old cron job (it keeps firing)
@@ -123,73 +135,6 @@ export const POLL_FAILURE_THRESHOLD = 4
  */
 const BATCH_TOLERANCE_MS = 60_000
 
-/**
- * Fetch fresh stats from a tracker's API without writing a snapshot. Also
- * writes the metadata side effects (remoteUserId, joinedAt, lastAccessAt,
- * platformMeta, avatarRemoteUrl).
- */
-export async function fetchTrackerStats(
-  trackerId: number,
-  encryptionKey: Buffer,
-  proxyAgent?: HttpAgent
-) {
-  const [tracker] = await db
-    .select(POLL_TRACKER_COLUMNS)
-    .from(trackers)
-    .where(eq(trackers.id, trackerId))
-    .limit(1)
-  if (!tracker?.isActive) throw new Error("Tracker not found or inactive")
-
-  let apiToken: string
-  try {
-    apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
-  } catch (err) {
-    const cause = errMsg(err)
-    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
-  }
-  // An empty token decrypts cleanly but can never authenticate. Fail here so
-  // the user sees an actionable local error instead of the tracker's 401. This
-  // prevents a doomed request every poll cycle discovering it.
-  if (!apiToken) {
-    throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
-  }
-
-  const adapter = getAdapter(tracker.platformType)
-  if (tracker.useProxy && !proxyAgent) {
-    throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
-  }
-
-  const baseUrl = await pollUrlFor(tracker)
-  const fetchOptions = buildFetchOptions({
-    registrySlug: tracker.registrySlug,
-    proxyAgent: tracker.useProxy ? proxyAgent : undefined,
-    remoteUserId: tracker.remoteUserId ?? undefined,
-  })
-  const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
-
-  // Write metadata side effects
-  const metaUpdates: Partial<TrackerRow> = {}
-  if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
-    metaUpdates.remoteUserId = stats.remoteUserId
-  }
-  if (stats.joinedDate && !tracker.joinedAt) {
-    const joined = trackerDateStr(stats.joinedDate)
-    if (joined) metaUpdates.joinedAt = joined
-  }
-  if (stats.lastAccessDate) {
-    const lastAccess = trackerDateStr(stats.lastAccessDate)
-    if (lastAccess) metaUpdates.lastAccessAt = lastAccess
-  }
-  if (stats.platformMeta) metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
-  if (stats.avatarUrl) metaUpdates.avatarRemoteUrl = stats.avatarUrl
-  if (Object.keys(metaUpdates).length > 0) {
-    await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
-  }
-
-  // Merge metadata in-memory instead of re-fetching
-  return { stats, tracker: { ...tracker, ...metaUpdates } }
-}
-
 export async function pollTracker(
   trackerId: number,
   encryptionKey: Buffer,
@@ -206,6 +151,12 @@ export async function pollTracker(
     .limit(1)
 
   if (!tracker?.isActive) return
+  // Its address came from a backup file and matches no registry entry, so only
+  // Resume, which clears this marker, may send the token there.
+  if (isRestorePaused(tracker)) {
+    log.info({ trackerId: tracker.id }, "Skipping a restored tracker that has not been resumed")
+    return
+  }
 
   const timestamp = batchTimestamp ?? new Date()
 
@@ -217,7 +168,8 @@ export async function pollTracker(
       const cause = errMsg(err)
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
     }
-    // See fetchTrackerStats: an empty token decrypts cleanly but never authenticates.
+    // An empty token decrypts cleanly but can never authenticate, so fail here
+    // with an actionable error rather than spend a request on the tracker's 401.
     if (!apiToken) {
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
@@ -236,10 +188,7 @@ export async function pollTracker(
     // Snapshot the previous platformMeta before writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
     let previousPlatformMeta: Record<string, unknown> | null = null
-    if (
-      (tracker.platformType === "avistaz" || tracker.platformType === "digitalcore") &&
-      tracker.platformMeta
-    ) {
+    if (DOWNLOAD_ALERT_PLATFORMS.has(tracker.platformType) && tracker.platformMeta) {
       try {
         previousPlatformMeta = JSON.parse(tracker.platformMeta) as Record<string, unknown>
       } catch (err) {
@@ -357,6 +306,10 @@ export async function pollTracker(
           ? (stats.platformMeta as DigitalCorePlatformMeta | undefined)
           : undefined
 
+      const canDownloadMeta = DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+        ? (stats.platformMeta as C411PlatformMeta | HawkePlatformMeta | undefined)
+        : undefined
+
       await dispatchNotifications(
         {
           trackerId: tracker.id,
@@ -394,8 +347,9 @@ export async function pollTracker(
                 }
               : tracker.platformType === "avistaz"
                 ? {
-                    currentSeedbonus: stats.seedbonus ?? null,
-                    previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                    // The 99,999 bonus cap these feed is MAM's.
+                    currentSeedbonus: null,
+                    previousSeedbonus: null,
                     vipUntil: avistazMeta?.vipExpiry ?? null,
                     unsatisfiedCount: null,
                     unsatisfiedLimit: null,
@@ -407,8 +361,9 @@ export async function pollTracker(
                   }
                 : tracker.platformType === "digitalcore"
                   ? {
-                      currentSeedbonus: stats.seedbonus ?? null,
-                      previousSeedbonus: previousSnapshot?.seedbonus ?? null,
+                      // The 99,999 bonus cap these feed is MAM's.
+                      currentSeedbonus: null,
+                      previousSeedbonus: null,
                       vipUntil: null,
                       unsatisfiedCount: null,
                       unsatisfiedLimit: null,
@@ -427,7 +382,20 @@ export async function pollTracker(
                             ? true
                             : null,
                     }
-                  : undefined,
+                  : DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+                    ? {
+                        currentSeedbonus: null,
+                        previousSeedbonus: null,
+                        vipUntil: null,
+                        unsatisfiedCount: null,
+                        unsatisfiedLimit: null,
+                        inactiveHnrCount: null,
+                        previousInactiveHnrCount: null,
+                        canDownload: canDownloadMeta?.canDownload ?? null,
+                        previousCanDownload:
+                          (previousPlatformMeta?.canDownload as boolean | null) ?? null,
+                      }
+                    : undefined,
         },
         encryptionKey,
         enabledTargets

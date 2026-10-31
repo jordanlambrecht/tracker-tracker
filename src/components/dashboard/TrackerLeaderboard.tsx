@@ -1,10 +1,11 @@
 // src/components/dashboard/TrackerLeaderboard.tsx
 "use client"
 
+import { InfinitySign } from "@icons"
 import { DataCell } from "@typography"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/Badge"
-import { PulseDot } from "@/components/ui/PulseDot"
+import { StatusDot } from "@/components/ui/StatusDot"
 import type { Column } from "@/components/ui/Table"
 import { Table } from "@/components/ui/Table"
 import { computeBufferBytes } from "@/lib/data-transforms"
@@ -16,8 +17,8 @@ import {
 } from "@/lib/formatters"
 import {
   getHealthBadgeVariant,
+  getHealthDot,
   getHealthLabel,
-  getHealthPulseDot,
   getTrackerHealth,
 } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
@@ -47,8 +48,8 @@ const columns: Column<TrackerSummary>[] = [
       const health = getTrackerHealth(t)
       return (
         <div className="flex items-center gap-2.5">
-          <PulseDot
-            status={getHealthPulseDot(health)}
+          <StatusDot
+            {...getHealthDot(health)}
             size="sm"
             color={health === "healthy" ? t.color : undefined}
           />
@@ -71,8 +72,12 @@ const columns: Column<TrackerSummary>[] = [
       t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : (t.latestStats?.ratio ?? -1),
     render: (t) => (
       <DataCell>
-        {formatRatioDisplay(
-          t.latestStats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : t.latestStats?.ratio
+        {t.latestStats?.ratioIsInfinite ? (
+          <>
+            <InfinitySign />x
+          </>
+        ) : (
+          formatRatioDisplay(t.latestStats?.ratio)
         )}
       </DataCell>
     ),
@@ -136,7 +141,11 @@ const columns: Column<TrackerSummary>[] = [
     align: "right",
     render: (t) => {
       const health = getTrackerHealth(t)
-      return <Badge variant={getHealthBadgeVariant(health)}>{getHealthLabel(health)}</Badge>
+      return (
+        <Badge variant={getHealthBadgeVariant(health)} className="whitespace-nowrap">
+          {getHealthLabel(health)}
+        </Badge>
+      )
     },
   },
 ]

@@ -31,6 +31,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackers: {},
   trackerSnapshots: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {},
   dbSizeHistory: {},
   tagGroups: {},

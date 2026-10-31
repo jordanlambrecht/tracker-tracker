@@ -4,9 +4,9 @@
 import type { EChartsOption } from "echarts"
 import { useMemo } from "react"
 import type { TrackerCategoryCount } from "@/lib/fleet-aggregation"
+import { formatPercent } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
-import { fmtNum } from "./lib/chart-helpers"
 import {
   CHART_THEME,
   chartAxisLabel,
@@ -60,7 +60,7 @@ function buildFleetCategoryBreakdownOption(
           color: CHART_THEME.textPrimary,
           formatter: (params: unknown) => {
             const p = params as { value: number }
-            return p.value >= 5 ? `${fmtNum(p.value, 1)}%` : ""
+            return p.value >= 5 ? formatPercent(p.value) : ""
           },
         },
       },
@@ -83,7 +83,7 @@ function buildFleetCategoryBreakdownOption(
         const rows = items
           .filter((item) => item.value > 0)
           .sort((a, b) => b.value - a.value)
-          .map((item) => chartTooltipRow(item.color, item.seriesName, `${fmtNum(item.value, 1)}%`))
+          .map((item) => chartTooltipRow(item.color, item.seriesName, formatPercent(item.value)))
           .join("<br/>")
         return `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${escHtml(trackerLabel)}</span><br/>${rows}`
       },
@@ -109,7 +109,7 @@ function buildFleetCategoryBreakdownOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => `${val}%`,
+        formatter: (val: number) => formatPercent(val, { decimals: 0 }),
       }),
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },

@@ -4,10 +4,11 @@
 //   - describe("transit papers validation")
 //   - describe("user class ladder validation")
 //   - describe("defunct validation")
+//   - describe("announce hosts validation")
 
 import { describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { validateDefunct } from "@/data/tracker-validation-rules"
+import { validateAnnounceHosts, validateDefunct } from "@/data/tracker-validation-rules"
 
 // ---------------------------------------------------------------------------
 // Local mirror of the transit-papers rule in scripts/validate-trackers.ts,
@@ -302,6 +303,35 @@ describe("defunct validation", () => {
       "defunctMessage is set but defunct is not true",
       "defunctLink is set but defunct is not true",
       "defunctDate is set but defunct is not true",
+    ])
+  })
+})
+
+describe("announce hosts validation", () => {
+  it("registrable domains produce no errors", () => {
+    expect(validateAnnounceHosts({ announceHosts: ["flacsfor.me", "alpha.co.uk"] })).toEqual([])
+  })
+
+  // Most entries leave the field out, so the empty check must not see a default [].
+  it("an absent field produces no errors", () => {
+    expect(validateAnnounceHosts({})).toEqual([])
+  })
+
+  it("an empty list produces an error", () => {
+    expect(validateAnnounceHosts({ announceHosts: [] })).toEqual([
+      "announceHosts is empty, so leave it out until someone checks where torrents announce",
+    ])
+  })
+
+  // The matcher would accept either form, so this rule is all that stops a
+  // passkey being merged, and the CI comment must not print it.
+  const passkey = "0123456789abcdef0123456789abcdef"
+  it.each([
+    ["an announce URL", `https://flacsfor.me/${passkey}/announce`],
+    ["a passkey subdomain", `${passkey}.flacsfor.me`],
+  ])("%s produces an error that names its index, not its value", (_form, host) => {
+    expect(validateAnnounceHosts({ announceHosts: ["flacsfor.me", host] })).toEqual([
+      "announceHosts[1] must be a lowercase registrable domain, never a URL or subdomain",
     ])
   })
 })

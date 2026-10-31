@@ -78,7 +78,6 @@ Field names vary across Gazelle forks. Here's what we track:
 | Orpheus (OPS)        | `bonusPoints`   | Sometimes        | No                              |
 | BroadcasTheNet (BTN) | Varies          | No               | No                              |
 | PassThePopcorn (PTP) | Varies          | No               | No                              |
-| AnimeBytes (AB)      | Varies          | Varies           | No                              |
 
 GGn is a Gazelle fork but uses its own dedicated adapter due to significant API differences. It is not interchangeable with the `gazelle` platform type.
 

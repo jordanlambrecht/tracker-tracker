@@ -62,8 +62,8 @@ jobs:
           fi
           TOTAL=$(python3 -c "import json; print(json.load(open('/tmp/security-results.json'))['summary']['total'])")
           echo "Audit checks: $TOTAL"
-          if [ "$TOTAL" -lt 36 ]; then
-            echo "::error::Audit check count dropped below expected minimum (36). Was a check removed?"
+          if [ "$TOTAL" -lt 38 ]; then
+            echo "::error::Audit check count dropped below expected minimum (38). Was a check removed?"
             exit 1
           fi
 

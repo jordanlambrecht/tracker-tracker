@@ -5,6 +5,7 @@ import type { EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
 import type { TorrentRaw } from "@/lib/fleet"
 import { formatCount } from "@/lib/formatters"
+import { torrentRatioValue } from "@/lib/torrent-utils"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { fmtNum } from "./lib/chart-helpers"
@@ -39,7 +40,8 @@ function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): ECha
     const sizeGiB = t.size / 1024 ** 3
     const seedDays = t.seedingTime / 86400
     const ageDays = (nowSec - t.addedAt) / 86400
-    return [sizeGiB, t.ratio, seedDays, t.seedCount, ageDays, Math.max(0, t.availability ?? 0)]
+    const ratio = torrentRatioValue(t.ratio)
+    return [sizeGiB, ratio, seedDays, t.seedCount, ageDays, Math.max(0, t.availability ?? 0)]
   })
 
   // Compute per-dimension min/max from data for reasonable axis ranges
@@ -50,6 +52,8 @@ function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): ECha
   for (const row of rows) {
     for (let d = 0; d < colCount; d++) {
       const v = row[d]
+      // An infinite ratio would stretch the axis without end, so it sets no range.
+      if (!Number.isFinite(v)) continue
       if (v < mins[d]) mins[d] = v
       if (v > maxs[d]) maxs[d] = v
     }
@@ -63,6 +67,15 @@ function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): ECha
     const buffer = base === safeMins[i] ? 1 : (base - safeMins[i]) * 0.1
     return base + buffer
   })
+
+  // A linear axis has no point at infinity, so an infinite ratio is drawn at the
+  // top of the axis, above every finite one as a 9999 would be. The tooltip reads
+  // `rows`, so it still shows the infinity.
+  const plotted = rows.map((row) =>
+    row[DIM_RATIO] === Number.POSITIVE_INFINITY
+      ? row.map((v, d) => (d === DIM_RATIO ? safeMaxs[DIM_RATIO] : v))
+      : row
+  )
 
   const parallelAxes = [
     {
@@ -159,8 +172,8 @@ function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): ECha
     tooltip: chartTooltip("item", {
       borderColor: trackerColor,
       formatter: (params: unknown) => {
-        const p = params as { data: number[] }
-        const d = p.data
+        const p = params as { dataIndex: number }
+        const d = rows[p.dataIndex]
         if (!d) return ""
         return [
           `<span style="color:${CHART_THEME.textTertiary};font-size:${CHART_THEME.fontSizeDense}px;font-family:${CHART_THEME.fontMono};">Torrent</span>`,
@@ -203,7 +216,7 @@ function buildParallelOption(torrents: TorrentRaw[], trackerColor: string): ECha
             shadowBlur: 8,
           },
         },
-        data: rows,
+        data: plotted,
       },
     ],
   }

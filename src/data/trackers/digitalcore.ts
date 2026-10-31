@@ -63,7 +63,7 @@ export const digitalcore: TrackerRegistryEntry = {
     },
     {
       name: "Titan",
-      requirements: "Staff-granted — highest community honor",
+      requirements: "Staff-granted. Highest community honor",
       outsideLadder: "above",
     },
     {
@@ -103,12 +103,12 @@ export const digitalcore: TrackerRegistryEntry = {
       "",
       "## Account Inactivity",
       "",
-      "- Must remain active — inactive accounts are disabled",
+      "- Must remain active. Inactive accounts are disabled",
       "",
       "## General",
       "",
       "- One account per person per lifetime",
-      "- Torrent files are unique to you — do not share or use with debrid services",
+      "- Torrent files are unique to you. Do not share or use with debrid services",
       "- Cross-seeding is allowed",
       "- VPNs are allowed (bind to torrent client only recommended)",
       "- No buying/selling invites",

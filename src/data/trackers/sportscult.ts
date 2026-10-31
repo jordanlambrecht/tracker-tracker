@@ -21,7 +21,7 @@ export const sportscult: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#ff5722",
-  logo: "",
+  logo: "/tracker-logos/sportscult_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

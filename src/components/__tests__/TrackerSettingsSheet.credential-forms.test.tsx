@@ -1,12 +1,14 @@
 // src/components/__tests__/TrackerSettingsSheet.credential-forms.test.tsx
 //
-// The sheet validates cookies through the same table as the dialog; pins the
-// message for a bare cookie name pasted on its own.
+// The sheet reads the same table as the dialog for cookie checks and Join Date
+// visibility; pins the message for a bare cookie name pasted on its own.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { VALID_PLATFORM_TYPES } from "@/data/platform-types"
+import { CREDENTIAL_FORMS } from "@/lib/credential-forms"
 import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
@@ -52,9 +54,12 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
   return { ok, status, json: async () => body }
 }
 
+// Reads the sheet makes on open, which touch no credential.
+const OPEN_READS = new Set(["/api/settings", "/api/prowlarr/indexers"])
+
 /** Every call that would have written or verified the credential. */
 function credentialRequests() {
-  return fetchMock.mock.calls.filter(([url]) => String(url) !== "/api/settings")
+  return fetchMock.mock.calls.filter(([url]) => !OPEN_READS.has(String(url)))
 }
 
 beforeEach(() => {
@@ -141,5 +146,59 @@ describe("TrackerSettingsSheet credential re-test", () => {
     expect(body.baseUrl).toBe(RETROTOON.baseUrl)
     expect(body.platformType).toBe("retrotoon")
     expect(body).not.toHaveProperty("slug")
+  })
+})
+
+describe("TrackerSettingsSheet AnimeBytes credentials", () => {
+  const ANIMEBYTES: TrackerSummary = {
+    ...RETROTOON,
+    name: "AnimeBytes",
+    baseUrl: "https://animebytes.tv",
+    registrySlug: "animebytes",
+    platformType: "animebytes",
+  }
+
+  it("asks for the username and the API token, and saves both as one blob", async () => {
+    // The adapter reads the username from the blob, since the API never reports it.
+    const user = userEvent.setup()
+    renderSheet(ANIMEBYTES)
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByLabelText("Username"), "someone")
+    await user.type(screen.getByLabelText("API Token"), "tok123")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() =>
+      expect(credentialRequests().some(([, init]) => init?.method === "PATCH")).toBe(true)
+    )
+    const blob = { token: "tok123", username: "someone" }
+    const test = testConnectionBody() as Record<string, unknown>
+    expect(test.slug).toBe("animebytes")
+    expect(JSON.parse(String(test.apiToken))).toEqual(blob)
+    const patch = credentialRequests().find(([, init]) => init?.method === "PATCH")
+    expect(JSON.parse(JSON.parse(String(patch?.[1]?.body)).apiToken)).toEqual(blob)
+  })
+})
+
+describe("TrackerSettingsSheet join date visibility", () => {
+  // Split by the table's flag, so a platform added to the table is covered
+  // here too. Enrichment is per tracker, so that case names its registry entry.
+  const JOIN_DATE = "Join Date"
+  const HIDDEN = VALID_PLATFORM_TYPES.filter((p) => CREDENTIAL_FORMS[p].hidesJoinDate)
+  const SHOWN = VALID_PLATFORM_TYPES.filter((p) => !CREDENTIAL_FORMS[p].hidesJoinDate)
+
+  it.each(HIDDEN)("hides it for %s", (platformType) => {
+    renderSheet({ ...RETROTOON, platformType })
+    expect(screen.queryByLabelText(JOIN_DATE)).not.toBeInTheDocument()
+  })
+
+  it.each(SHOWN)("shows it for %s", (platformType) => {
+    renderSheet({ ...RETROTOON, platformType })
+    expect(screen.getByLabelText(JOIN_DATE)).toBeInTheDocument()
+  })
+
+  it("hides it for a gazelle tracker whose registry entry enriches", () => {
+    renderSheet({ ...RETROTOON, platformType: "gazelle", registrySlug: "orpheus" })
+    expect(screen.queryByLabelText(JOIN_DATE)).not.toBeInTheDocument()
   })
 })

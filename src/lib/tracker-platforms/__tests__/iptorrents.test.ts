@@ -16,7 +16,28 @@ const STATS_HTML = `
 
 const FULL_PAGE = `<!doctype html><html><head></head><body>${STATS_HTML}</body></html>`
 
+// The signed-in member's own profile: the stats bar every page carries, then the
+// class badge and dates. Shapes from the live page on 2026-10-24, values invented.
+const PROFILE_PAGE = `<!doctype html><html><body>${STATS_HTML}
+  <div class="up-header-info">
+    <h1 class="up-username">testuser</h1>
+    <div class="up-class-line"><span class="up-class-badge"><svg viewBox="0 0 16 16"></svg>Power User</span></div>
+  </div>
+  <div class="up-section">
+    <div class="up-field">
+      <span class="up-field-label">Join Date</span>
+      <span class="up-field-value">2024-05-06 07:08:09 (<span class="elapsedDate" title="Monday, May 6, 2024 at 7:08am">2 years ago</span>)</span>
+    </div>
+    <div class="up-field">
+      <span class="up-field-label">Last Seen</span>
+      <span class="up-field-value">2026-01-02 03:04:05 (<span class="elapsedDate" title="Friday, January 2, 2026 at 3:04am">3 minutes ago</span>)</span>
+    </div>
+  </div>
+</body></html>`
+
 const HOSTNAME = "iptorrents.com"
+
+const page = (html: string) => ({ ok: true, status: 200, text: async () => html }) as Response
 
 describe("parseIptProfile", () => {
   it("extracts stats from the header stats bar", () => {
@@ -94,9 +115,9 @@ describe("parseIptProfile", () => {
     expect(stats.bufferBytes).toBe(-5_100_000_000n)
   })
 
-  it("defaults group to 'User' with no VIP badge", () => {
-    const stats = parseIptProfile(FULL_PAGE, HOSTNAME)
-    expect(stats.group).toBe("User")
+  it("reads a page with no class as unknown rather than User", () => {
+    // A guessed "User" would land in rank history as the member's class.
+    expect(parseIptProfile(FULL_PAGE, HOSTNAME).group).toBeNull()
   })
 
   it("detects VIP group from the hdr-vip badge title", () => {
@@ -123,13 +144,17 @@ describe("parseIptProfile", () => {
         <div class="up-stat"><div class="up-stat-label">Balance</div><div class="up-stat-value">10.5</div></div>
       </div>
     </body></html>`
-    const stats = parseIptProfile(upStatPage, HOSTNAME)
+    const stats = parseIptProfile(upStatPage, HOSTNAME, 1)
     expect(stats.uploadedBytes).toBe(2_000_000_000n)
     expect(stats.downloadedBytes).toBe(1_000_000_000n)
     // The Ratio card deliberately contradicts the byte totals: 2 GB over 1 GB
     // is 2, so reading 0.5 here would mean the site's own field won.
     expect(stats.ratio).toBe(2)
     expect(stats.seedbonus).toBe(10.5)
+
+    // The cards are the profile owner's, so another member's page must not
+    // stand in for the signed-in member's totals.
+    expect(() => parseIptProfile(upStatPage, HOSTNAME, 2)).toThrow(/upload\/download bytes/)
   })
 
   it("reports an unreadable bonus figure as unknown rather than NaN", () => {
@@ -152,7 +177,7 @@ describe("parseIptProfile", () => {
         <div class="up-stat"><div class="up-stat-label">Balance</div><div class="up-stat-value">...</div></div>
       </div>
     </body></html>`
-    expect(parseIptProfile(upStatPage, HOSTNAME).seedbonus).toBeNull()
+    expect(parseIptProfile(upStatPage, HOSTNAME, 1).seedbonus).toBeNull()
   })
 
   it("returns Infinity for ratio when downloaded is zero and uploaded is positive", () => {
@@ -192,6 +217,51 @@ describe("parseIptProfile", () => {
     expect(sanitizeNetworkError(message, "Poll failed")).toBe(
       "Cloudflare challenge blocked the request"
     )
+  })
+})
+
+describe("parseIptProfile on a profile page", () => {
+  it("reads the class and dates on the signed-in member's own profile", () => {
+    const stats = parseIptProfile(PROFILE_PAGE, HOSTNAME, 12345)
+    expect(stats.group).toBe("Power User")
+    expect(stats.joinedDate).toBe("2024-05-06")
+    expect(stats.lastAccessDate).toBe("2026-01-02")
+    expect(stats.remoteUserId).toBe(12345)
+  })
+
+  it("skips the class and dates on another member's profile but keeps the stats bar", () => {
+    // The stats bar is always the signed-in member's; the badge and dates belong
+    // to whoever the profile is for.
+    const stats = parseIptProfile(PROFILE_PAGE, HOSTNAME, 999)
+    expect(stats.group).toBeNull()
+    expect(stats.joinedDate).toBeUndefined()
+    expect(stats.lastAccessDate).toBeUndefined()
+    expect(stats.uploadedBytes).toBe(14_500_000_000n)
+    expect(stats.remoteUserId).toBe(12345)
+  })
+
+  it("takes the member's id from the stats bar, not a member link elsewhere on the page", () => {
+    const linkFirst = PROFILE_PAGE.replace(
+      "<body>",
+      '<body><a class="uname" href="/u/777">inviter</a>'
+    )
+    expect(parseIptProfile(linkFirst, HOSTNAME).remoteUserId).toBe(12345)
+    expect(parseIptProfile(linkFirst, HOSTNAME, 777).group).toBeNull()
+  })
+
+  it("ignores a username link that is not a profile path", () => {
+    const offsite = FULL_PAGE.replace('href="/u/12345"', 'href="https://elsewhere.example/u/1"')
+    expect(parseIptProfile(offsite, HOSTNAME).remoteUserId).toBeUndefined()
+  })
+
+  it("prefers the badge, then the header's VIP flag, then unknown", () => {
+    const vipFlag = '<span class="hdr-vip" title="VIP active - expires in 30 days"></span>'
+    const withFlag = PROFILE_PAGE.replace('<div class="stats">', `<div class="stats">${vipFlag}`)
+    const noBadge = (page: string) => page.replace(/<span class="up-class-badge">.*?<\/span>/, "")
+
+    expect(parseIptProfile(withFlag, HOSTNAME, 12345).group).toBe("Power User")
+    expect(parseIptProfile(noBadge(withFlag), HOSTNAME, 12345).group).toBe("VIP")
+    expect(parseIptProfile(noBadge(PROFILE_PAGE), HOSTNAME, 12345).group).toBeNull()
   })
 })
 
@@ -313,21 +383,71 @@ describe("IptorrentsAdapter.fetchStats - network error classification", () => {
     )
   })
 
-  it("fetches the homepage with cookie and user-agent headers", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: async () => FULL_PAGE,
-    } as Response)
+  it("looks the id up on the homepage, then reads the profile page, with cookie and user-agent headers", async () => {
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockResolvedValueOnce(page(PROFILE_PAGE))
 
-    await adapter.fetchStats("https://iptorrents.com", validToken, "")
+    const stats = await adapter.fetchStats("https://iptorrents.com", validToken, "")
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    const [calledUrl, init] = fetchSpy.mock.calls[0]
-    expect(calledUrl).toBe("https://iptorrents.com/")
-    const headers = init?.headers as Record<string, string>
-    expect(headers.Cookie).toBe("uid=123; pass=abc123")
-    expect(headers["User-Agent"]).toBe("Mozilla/5.0")
+    expect(fetchSpy.mock.calls.map(([url]) => url)).toEqual([
+      "https://iptorrents.com/",
+      "https://iptorrents.com/u/12345",
+    ])
+    for (const [, init] of fetchSpy.mock.calls) {
+      const headers = init?.headers as Record<string, string>
+      expect(headers.Cookie).toBe("uid=123; pass=abc123")
+      expect(headers["User-Agent"]).toBe("Mozilla/5.0")
+    }
+    expect(stats.group).toBe("Power User")
+    expect(stats.remoteUserId).toBe(12345)
+  })
+
+  it("reads everything from the profile page alone once the id is cached", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(page(PROFILE_PAGE))
+
+    const stats = await adapter.fetchStats("https://iptorrents.com", validToken, "", {
+      remoteUserId: 12345,
+    })
+
+    expect(fetchSpy.mock.calls.map(([url]) => url)).toEqual(["https://iptorrents.com/u/12345"])
+    expect(stats.uploadedBytes).toBe(14_500_000_000n)
+    expect(stats.group).toBe("Power User")
+    expect(stats.joinedDate).toBe("2024-05-06")
+    expect(stats.lastAccessDate).toBe("2026-01-02")
+  })
+
+  it("fails the poll on a challenge page served in place of the profile", async () => {
+    const cfChallenge = `<!doctype html><html><head><title>Just a moment...</title></head><body></body></html>`
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(page(cfChallenge))
+
+    await expect(
+      adapter.fetchStats("https://iptorrents.com", validToken, "", { remoteUserId: 12345 })
+    ).rejects.toThrow("Cloudflare challenge detected")
+  })
+
+  it("reads a stale cached id's page as no class and returns the signed-in member's id", async () => {
+    // Cookies swapped to another account keep the old id until this poll
+    // returns the new one.
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(page(PROFILE_PAGE))
+
+    const stats = await adapter.fetchStats("https://iptorrents.com", validToken, "", {
+      remoteUserId: 999,
+    })
+
+    expect(stats.group).toBeNull()
+    expect(stats.joinedDate).toBeUndefined()
+    expect(stats.uploadedBytes).toBe(14_500_000_000n)
+    expect(stats.remoteUserId).toBe(12345)
+  })
+
+  it("names the missing profile link when the homepage has none", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(page(FULL_PAGE.replace(' href="/u/12345"', "")))
+
+    await expect(adapter.fetchStats("https://iptorrents.com", validToken, "")).rejects.toThrow(
+      "Unexpected response from iptorrents.com: Could not find the profile link in the IPTorrents stats bar"
+    )
   })
 })
 
@@ -406,13 +526,60 @@ describe("IptorrentsAdapter - redirect handling", () => {
         return new Response(statsHtml, { status: 200 })
       }
 
+      if (callCount === 3) {
+        expect(reqUrl).toBe("https://iptorrents.com/u/123")
+        return new Response(statsHtml, { status: 200 })
+      }
+
       return new Response(null, { status: 404 })
     })
 
     const adapter = new IptorrentsAdapter()
     const stats = await adapter.fetchStats("https://iptorrents.com", creds, "/")
     expect(stats.username).toBe("testuser")
-    expect(callCount).toBe(2)
+    // The redirect, the page it lands on, and the profile page
+    expect(callCount).toBe(3)
+  })
+
+  it("follows the profile link's redirect to user.php", async () => {
+    const urls: string[] = []
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
+      const reqUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      urls.push(reqUrl)
+      if (urls.length === 1) {
+        return new Response(null, { status: 302, headers: { location: "/user.php?u=12345" } })
+      }
+      return new Response(PROFILE_PAGE, { status: 200 })
+    })
+
+    const stats = await new IptorrentsAdapter().fetchStats(
+      "https://iptorrents.com",
+      JSON.stringify({ cookies: "uid=123; pass=abc", userAgent: "Mozilla/5.0" }),
+      "/",
+      { remoteUserId: 12345 }
+    )
+
+    expect(urls).toEqual([
+      "https://iptorrents.com/u/12345",
+      "https://iptorrents.com/user.php?u=12345",
+    ])
+    expect(stats.group).toBe("Power User")
+  })
+
+  it("throws session expired when the profile link bounces to login", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(null, { status: 302, headers: { location: "/auth/login" } })
+    )
+
+    await expect(
+      new IptorrentsAdapter().fetchStats(
+        "https://iptorrents.com",
+        JSON.stringify({ cookies: "uid=123; pass=expired", userAgent: "Mozilla/5.0" }),
+        "/",
+        { remoteUserId: 12345 }
+      )
+    ).rejects.toThrow("Session expired")
   })
 })
 
@@ -424,31 +591,85 @@ describe("IptorrentsAdapter.fetchRaw", () => {
     vi.restoreAllMocks()
   })
 
-  it("returns the parsed profile as a successful call", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: async () => FULL_PAGE,
-    } as Response)
+  it("returns the id lookup and the parsed profile page as successful calls", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockResolvedValueOnce(page(PROFILE_PAGE))
 
     const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "")
 
-    expect(calls).toHaveLength(1)
-    expect(calls[0].error).toBeNull()
-    expect(calls[0].data).not.toBeNull()
+    expect(calls).toHaveLength(2)
+    expect(calls[0]).toMatchObject({
+      label: "Home Page (user id lookup)",
+      data: { userId: 12345 },
+      error: null,
+    })
+    expect(calls[1]).toMatchObject({
+      label: "Profile Page",
+      endpoint: "/u/12345",
+      data: { group: "Power User" },
+      error: null,
+    })
   })
 
-  it("records an unreadable page instead of throwing", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: async () => "<html><body>nothing recognisable</body></html>",
-    } as Response)
+  it("records a failed profile page next to the id lookup", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce(page(FULL_PAGE))
+      .mockRejectedValueOnce(new Error("network down"))
 
     const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "")
 
-    expect(calls).toHaveLength(1)
+    expect(calls[0].error).toBeNull()
+    expect(calls[1].data).toBeNull()
+    expect(calls[1].error).toBe("Failed to connect to iptorrents.com: Error")
+  })
+
+  it("records an unreadable homepage and the profile call it skipped", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      page("<html><body>nothing recognisable</body></html>")
+    )
+
+    const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "")
+
+    expect(calls).toHaveLength(2)
     expect(calls[0].data).toBeNull()
-    expect(calls[0].error).toBeTruthy()
+    expect(calls[0].error).toBe(
+      "Unexpected response from iptorrents.com: Could not find stats bar on IPTorrents page. The page may not be authenticated"
+    )
+    expect(calls[1]).toEqual({
+      label: "Profile Page",
+      endpoint: "/u/{id}",
+      data: null,
+      error: "Skipped: Home Page failed and no user id is cached",
+    })
+  })
+
+  it("shows a stale cached id's skipped class as the profile call's error", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(page(PROFILE_PAGE))
+
+    const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "", {
+      remoteUserId: 999,
+    })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].data).toMatchObject({ group: null, remoteUserId: 12345 })
+    expect(calls[0].error).toMatch(/did not match the signed-in member/)
+  })
+
+  it("names a missing profile link as the reason the badge was skipped", async () => {
+    // With a cached id the poll still succeeds on the stats bar, so this entry
+    // is where a link that changed shape shows up.
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      page(PROFILE_PAGE.replace(' href="/u/12345"', ""))
+    )
+
+    const calls = await adapter.fetchRaw("https://iptorrents.com", validToken, "", {
+      remoteUserId: 12345,
+    })
+
+    expect(calls[0].data).toMatchObject({ group: null })
+    expect(calls[0].error).toBe(
+      "Unexpected response from iptorrents.com: Could not find the profile link in the IPTorrents stats bar, so the badge and dates were skipped"
+    )
   })
 })

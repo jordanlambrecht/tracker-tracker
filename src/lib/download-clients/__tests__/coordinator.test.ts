@@ -134,17 +134,21 @@ vi.mock("../transforms", () => ({
 }))
 
 vi.mock("../qbt/transport", () => ({
+  parseCachedTorrents: vi.fn(() => []),
+}))
+
+vi.mock("../transport", () => ({
   buildBaseUrl: vi.fn(
     (host: string, port: number, ssl: boolean, urlPath: string) =>
       `${ssl ? "https" : "http"}://${host}:${port}${urlPath}`
   ),
-  parseCachedTorrents: vi.fn(() => []),
 }))
 
 // ---------------------------------------------------------------------------
 // Re-import mocked modules for assertions
 // ---------------------------------------------------------------------------
 
+import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TorrentRecord } from "@/lib/download-clients"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation } from "@/lib/fleet-aggregation"
@@ -159,9 +163,10 @@ import {
 import { decryptClientUrlPath } from "../credentials"
 import { fetchAndMergeTorrents } from "../fetch"
 import { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "../merge"
-import { buildBaseUrl, parseCachedTorrents } from "../qbt/transport"
+import { parseCachedTorrents } from "../qbt/transport"
 import { getFilteredTorrents, isStoreFresh } from "../sync-store"
 import { slimTorrentForCache } from "../transforms"
+import { buildBaseUrl } from "../transport"
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -174,6 +179,7 @@ function makeTracker(
     name?: string
     color?: string
     baseUrl?: string
+    registrySlug?: string | null
   } = {}
 ) {
   return {
@@ -182,6 +188,7 @@ function makeTracker(
     name: "Aither",
     color: "#00d4ff",
     baseUrl: "https://aither.cc",
+    registrySlug: null,
     ...overrides,
   }
 }
@@ -648,6 +655,27 @@ describe("fetchTrackerTorrents", () => {
     )
   })
 
+  it("should match an untagged tracker's torrents on its registry alias host", async () => {
+    setupDbReturns([
+      [
+        makeTracker({
+          id: 3,
+          qbtTag: null,
+          baseUrl: "https://redacted.sh",
+          registrySlug: "redacted",
+        }),
+      ],
+      [makeFetchClient()],
+    ])
+
+    await fetchTrackerTorrents(3, makeKey())
+    const matches = capturedMatcher()
+
+    expect(matches(makeTorrent("h1", { tags: "", tracker: "https://flacsfor.me/announce" }))).toBe(
+      true
+    )
+  })
+
   it("should still match by tag when the tracker has one", async () => {
     setupDbReturns([
       [makeTracker({ id: 1, qbtTag: "Aither", baseUrl: "https://aither.cc" })],
@@ -885,7 +913,15 @@ describe("fetchFleetAggregation", () => {
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array), // stamped torrents
-      [{ tag: "aither", name: "Aither", color: "#ff0000", baseUrl: "https://aither.cc" }],
+      [
+        {
+          tag: "aither",
+          name: "Aither",
+          color: "#ff0000",
+          baseUrl: "https://aither.cc",
+          registrySlug: null,
+        },
+      ],
       expect.any(Array), // crossSeedTags
       [] // tagGroups, omitted by callers that don't want the breakdown
     )
@@ -909,7 +945,9 @@ describe("fetchFleetAggregation", () => {
     )
   })
 
-  it("should use default color #01d4ff when tracker color is null", async () => {
+  // The Fleet dashboard draws each tracker in this colour, so it has to match the
+  // default the tracker's own card uses.
+  it("should use the shared default color when tracker color is null", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
@@ -922,7 +960,15 @@ describe("fetchFleetAggregation", () => {
 
     expect(computeFleetAggregation).toHaveBeenCalledWith(
       expect.any(Array),
-      [{ tag: "aither", name: "Aither", color: "#01d4ff", baseUrl: "https://aither.cc" }],
+      [
+        {
+          tag: "aither",
+          name: "Aither",
+          color: DEFAULT_TRACKER_COLOR,
+          baseUrl: "https://aither.cc",
+          registrySlug: null,
+        },
+      ],
       expect.any(Array),
       []
     )
@@ -992,11 +1038,29 @@ describe("fetchFleetAggregation", () => {
     expect(mergeTorrentLists).toHaveBeenCalledWith([])
   })
 
-  it("should report clientErrors when a client with cachedTorrentsAt returns 0 torrents", async () => {
+  // A client with no tracked torrents yet is not broken, so neither a fresh
+  // empty store nor an empty cached list may raise the corrupt-cache error.
+  it("reports no clientErrors for a fresh store with no tracked torrents", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
     vi.mocked(getFilteredTorrents).mockReturnValue([])
 
     setupDbReturns([[makeCachedClient()], [makeTracker()]])
+
+    const result = await fetchFleetAggregation(makeKey())
+
+    expect(result.clientErrors).toEqual([])
+  })
+
+  it("reports no clientErrors for a cold store whose cache is an empty list", async () => {
+    setupDbReturns([[makeCachedClient()], [makeTracker()], [{ cachedTorrents: [] }]])
+
+    const result = await fetchFleetAggregation(makeKey())
+
+    expect(result.clientErrors).toEqual([])
+  })
+
+  it("reports clientErrors for a cold store whose cache won't parse", async () => {
+    setupDbReturns([[makeCachedClient()], [makeTracker()], [{ cachedTorrents: "{not json" }]])
 
     const result = await fetchFleetAggregation(makeKey())
 
@@ -1032,6 +1096,35 @@ describe("fetchFleetAggregation", () => {
     expect(hashes).toContain("h1")
     expect(hashes).toContain("h2")
     expect(hashes).not.toContain("h3")
+  })
+
+  it("keeps an untagged torrent announcing on a known tracker's registry alias", async () => {
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: TorrentRecord) => boolean) =>
+        [
+          makeTorrent("alias", { tags: "", tracker: "https://flacsfor.me/announce" }),
+          makeTorrent("stranger", { tags: "", tracker: "https://unknown.test/announce" }),
+        ].filter(pred)
+    )
+
+    setupDbReturns([
+      [makeCachedClient()],
+      [
+        makeTracker({
+          qbtTag: null,
+          name: "Redacted",
+          baseUrl: "https://redacted.sh",
+          registrySlug: "redacted",
+        }),
+      ],
+    ])
+
+    await fetchFleetAggregation(makeKey())
+
+    const mergeCall = vi.mocked(mergeTorrentLists).mock.calls[0]
+    const hashes = (mergeCall[0] as { hash: string }[][]).flat().map((t) => t.hash)
+    expect(hashes).toEqual(["alias"])
   })
 
   // The scheduler keys the sync store by the adapter's baseUrl, path included.

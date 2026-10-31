@@ -1,10 +1,12 @@
 // src/lib/download-client-scheduler.ts
 //
 // Two polling loops with different cadences:
-//   heartbeat: lightweight (login + getTransferInfo, 2 requests). Runs every 5s.
+//   heartbeat: lightweight (getTransferInfo, usually one request). Runs every 5s.
 //             Stores upload/download speed in memory cache. Updates connection status.
 //             Records success/failure in uptime accumulator (5-min buckets).
-//   deep poll: heavy (login + syncMaindata delta, post-filter, aggregation).
+//             Stamps the app liveness ledger that app and tracker outage bands need.
+//             A slow host skips only its own ticks, never another client's.
+//   deep poll: heavy (torrent list or sync delta, post-filter, aggregation).
 //             Runs on each client's configured pollIntervalSeconds.
 //             Stores full tagStats alongside speed data.
 //
@@ -29,9 +31,15 @@
 // state changes only (outage onset, a changed cause, a periodic reminder,
 // recovery). Uptime recording sits outside the gate, so every attempt is still
 // recorded.
+//
+// Error fields: errorSince is the heartbeat's outage clock, set by its failure
+// and cleared by its recovery or a successful deep poll. A deep-poll failure
+// writes lastError alone, so a client that still answers is never shown as
+// down, and only a successful deep poll clears it.
 
 import { eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
+import { markAppStopped, touchAppLiveness } from "@/lib/app-liveness"
 import { db } from "@/lib/db"
 import {
   appSettings,
@@ -54,6 +62,8 @@ import {
   replaceStoreTorrents,
   slimTorrentForCache,
 } from "@/lib/download-clients"
+import type { SyncStoreRefusal } from "@/lib/download-clients/sync-store"
+import { isResponseTooLarge } from "@/lib/download-clients/transport"
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import {
   clearFailureLogGate,
@@ -62,9 +72,9 @@ import {
   retainFailureLogClients,
 } from "@/lib/failure-log-gate"
 import { parseTorrentTags } from "@/lib/fleet"
-import { localDateStr } from "@/lib/formatters"
+import { formatCount, localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
-import { createTrackedTorrentPredicate, trackerHostKey } from "@/lib/tracker-matching"
+import { announceHostKeySet, createTrackedTorrentPredicate } from "@/lib/tracker-matching"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
 /** Needed by heartbeatClient. Excludes large blobs like cachedTorrents */
@@ -82,7 +92,7 @@ export const HEARTBEAT_COLUMNS = {
   encryptedApiKey: downloadClients.encryptedApiKey,
   encryptedUrlPath: downloadClients.encryptedUrlPath,
   crossSeedTags: downloadClients.crossSeedTags,
-  lastError: downloadClients.lastError,
+  errorSince: downloadClients.errorSince,
 } as const
 
 /** Needed by deepPollClient. Heartbeat fields + poll config */
@@ -100,8 +110,27 @@ const g = globalThis as typeof globalThis & {
   __heartbeatInFlight?: boolean
   __deepPollInFlight?: boolean
   __lastPruneAt?: number
+  __deepPollRefusedUntil?: Map<number, number>
+  __heartbeatsInFlight?: Set<number>
 }
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000
+
+/**
+ * When a client the sync store refused may be deep-polled again, by clientId.
+ * A refused poll leaves lastPolledAt alone, so without this the client is
+ * overdue on every 30s tick and refetches its whole library to be refused
+ * again. Lazy for the same HMR reason as failure-log-gate.ts.
+ */
+function getRefusedUntil(): Map<number, number> {
+  if (!g.__deepPollRefusedUntil) g.__deepPollRefusedUntil = new Map()
+  return g.__deepPollRefusedUntil
+}
+
+/** Clients whose heartbeat is still running, by clientId. Lazy for the same HMR reason. */
+function getHeartbeatsInFlight(): Set<number> {
+  if (!g.__heartbeatsInFlight) g.__heartbeatsInFlight = new Set()
+  return g.__heartbeatsInFlight
+}
 
 function getHeartbeatTask(): ScheduledTask | null {
   return g.__clientHeartbeatTask ?? null
@@ -134,7 +163,7 @@ async function heartbeatClient(
     encryptedApiKey: string
     encryptedUrlPath: string
     crossSeedTags: string[] | null
-    lastError: string | null
+    errorSince: Date | null
   },
   encryptionKey: Buffer
 ): Promise<void> {
@@ -145,7 +174,7 @@ async function heartbeatClient(
     recordHeartbeat(client.id, true)
 
     // Unconditional, and deliberately outside the DB guard below: the gate is
-    // memory-backed, so it must clear even when lastError already reads null.
+    // memory-backed, so it must clear even when errorSince already reads null.
     // For a healthy client this is one Map lookup that returns null.
     const recovered = noteSuccess(client.id, "heartbeat")
     if (recovered) {
@@ -160,8 +189,9 @@ async function heartbeatClient(
       )
     }
 
-    // Only write to DB if recovering from error. Skip if already healthy.
-    if (client.lastError !== null) {
+    // Only write to DB when ending an outage this loop recorded. A deep-poll
+    // error has no errorSince and stays until a deep poll succeeds.
+    if (client.errorSince !== null) {
       await db
         .update(downloadClients)
         .set({ lastError: null, errorSince: null, updatedAt: new Date() })
@@ -240,11 +270,26 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
   // re-enable is wrongly treated as a repeat instead of a fresh first failure.
   // This one line covers deletion, disable, and restore-from-backup. It also
   // sweeps deep-poll keys. A disabled client should hold neither.
-  retainFailureLogClients(new Set(allClients.map((c) => c.id)))
+  const liveIds = new Set(allClients.map((c) => c.id))
+  retainFailureLogClients(liveIds)
+  const refusedUntil = getRefusedUntil()
+  for (const id of refusedUntil.keys()) {
+    if (!liveIds.has(id)) refusedUntil.delete(id)
+  }
 
   if (allClients.length === 0) return
 
-  await Promise.allSettled(allClients.map((c) => heartbeatClient(c, encryptionKey)))
+  // Not awaited, or one host waiting out its timeout holds every client's tick.
+  const inFlight = getHeartbeatsInFlight()
+  for (const c of allClients) {
+    if (inFlight.has(c.id)) continue
+    inFlight.add(c.id)
+    heartbeatClient(c, encryptionKey)
+      .finally(() => inFlight.delete(c.id))
+      .catch((error) => {
+        log.error(error, `Heartbeat error for client ${c.id}`)
+      })
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -254,12 +299,18 @@ async function heartbeatAllClients(encryptionKey: Buffer): Promise<void> {
 /**
  * The sync store refused a whole update, so it still holds the previous poll.
  * A class rather than a recognisable message because the catch below has to
- * tell this verdict of ours apart from a fault the host reported.
+ * tell this verdict of ours apart from a fault the host reported. The message
+ * is the card's text, so it is worded for the user.
  */
 class SyncStoreRefusedError extends Error {
-  constructor(cap: number) {
-    super(`Sync store limit reached: this client would hold more than ${cap} torrents`)
+  readonly refusal: SyncStoreRefusal
+
+  constructor(refusal: SyncStoreRefusal) {
+    super(
+      `This client has ${formatCount(refusal.projected)} torrents, more than the ${formatCount(refusal.cap)} Tracker Tracker tracks per client. Stats are paused and the last figures are kept.`
+    )
     this.name = "SyncStoreRefusedError"
+    this.refusal = refusal
   }
 }
 
@@ -318,7 +369,7 @@ export async function deepPollClient(
       // poll, so the poll fails here rather than reading stale figures out of
       // it and filing them as this poll's observation.
       const refused = applyMaindataUpdate(adapter.baseUrl, data)
-      if (refused) throw new SyncStoreRefusedError(refused.cap)
+      if (refused) throw new SyncStoreRefusedError(refused)
 
       // A heartbeat that takes a 403 resets the store during this await, and a
       // delta merged into an empty store never re-arms `initialized`. Re-sync
@@ -331,7 +382,7 @@ export async function deepPollClient(
         )
         data = await adapter.getDeltaSync(0)
         const refusedResync = applyMaindataUpdate(adapter.baseUrl, data)
-        if (refusedResync) throw new SyncStoreRefusedError(refusedResync.cap)
+        if (refusedResync) throw new SyncStoreRefusedError(refusedResync)
         if (!isStoreInitialized(adapter.baseUrl)) {
           throw new Error("Sync store failed to initialise after a full re-sync")
         }
@@ -351,9 +402,11 @@ export async function deepPollClient(
         (data.torrents != null && Object.keys(data.torrents).length > 0) ||
         (data.torrentsRemoved != null && data.torrentsRemoved.length > 0)
     } else {
-      // Full fetch path (rTorrent and other non-delta clients).
+      // Full fetch path, for clients without delta sync. A refusal fails the
+      // poll, as on the delta path.
       const allTorrents = await adapter.getTorrents()
-      replaceStoreTorrents(adapter.baseUrl, allTorrents)
+      const refused = replaceStoreTorrents(adapter.baseUrl, allTorrents)
+      if (refused) throw new SyncStoreRefusedError(refused)
       hasChanges = true
       isFullSync = true
       syncSummary = `full fetch, ${allTorrents.length} torrents`
@@ -455,6 +508,7 @@ export async function deepPollClient(
             }
       )
       .where(eq(downloadClients.id, clientId))
+    getRefusedUntil().delete(clientId)
 
     const recovered = noteSuccess(clientId, "deep-poll")
     if (recovered) {
@@ -474,16 +528,25 @@ export async function deepPollClient(
     }
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
+    const refusal = error instanceof SyncStoreRefusedError ? error.refusal : null
     // A refusal is our own verdict on the payload rather than a fault the host
-    // reported, and it names the cap the operator has to act on. The sanitizer
+    // reported, and its message is already worded for the user. The sanitizer
     // has no rule for it, and its fallback means the host never answered.
-    const message = error instanceof SyncStoreRefusedError ? raw : sanitizeNetworkError(raw)
+    const message = refusal ? raw : sanitizeNetworkError(raw)
+    // A client refused by the store or by the response cap waits its interval:
+    // neither a library nor an oversized body changes in 30s. Network failures
+    // keep the fast retry.
+    if ((refusal || isResponseTooLarge(error)) && client) {
+      getRefusedUntil().set(clientId, Date.now() + client.pollIntervalSeconds * 1000)
+    }
     // Keyed on the clientId parameter, which is always defined. The row lookup
     // itself may be what failed.
     const verdict = noteFailure(clientId, "deep-poll", raw)
     // See heartbeatClient: the sanitised message is for the UI, the raw cause
-    // is what makes the failure diagnosable from the logs.
-    const base = { clientId, clientName: client?.name, cause: raw }
+    // is what makes the failure diagnosable from the logs. The store returns a
+    // refusal without logging it, so its counts are logged here, once per gate
+    // transition, beside the client's identity.
+    const base = { clientId, clientName: client?.name, cause: raw, ...refusal }
     switch (verdict.kind) {
       case "first":
         log.error(
@@ -524,11 +587,10 @@ export async function deepPollClient(
     try {
       await db
         .update(downloadClients)
-        .set({
-          lastError: message,
-          errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
-          updatedAt: new Date(),
-        })
+        // No errorSince, which is the heartbeat's outage clock: a client that
+        // fails here may still answer, and the UI reads lastError alone as a
+        // problem rather than an outage.
+        .set({ lastError: message, updatedAt: new Date() })
         .where(eq(downloadClients.id, clientId))
     } catch (dbErr) {
       log.error(
@@ -550,8 +612,10 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
     .where(eq(downloadClients.enabled, true))
 
   const now = Date.now()
+  const refusedUntil = getRefusedUntil()
 
   const overdue = allClients.filter((client) => {
+    if ((refusedUntil.get(client.id) ?? 0) > now) return false
     const intervalMs = client.pollIntervalSeconds * 1000
     const lastPoll = client.lastPolledAt?.getTime() ?? 0
     return now - lastPoll >= intervalMs
@@ -560,15 +624,17 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
   if (overdue.length === 0) return
 
   // Fetch trackers once for the entire cycle (same for all clients). Untagged
-  // trackers are read too: they contribute no tag, but their announce host is
-  // what lets the cached list match the warm read.
+  // trackers are read too: they contribute no tag, but their announce hosts are
+  // what let the cached list match the warm read.
   const trackerRows = await db
-    .select({ qbtTag: trackers.qbtTag, baseUrl: trackers.baseUrl })
+    .select({
+      qbtTag: trackers.qbtTag,
+      baseUrl: trackers.baseUrl,
+      registrySlug: trackers.registrySlug,
+    })
     .from(trackers)
   const trackerTags = trackerRows.map((r) => r.qbtTag).filter((t): t is string => Boolean(t))
-  const announceHostKeys = new Set(
-    trackerRows.map((r) => trackerHostKey(r.baseUrl)).filter((h): h is string => h !== null)
-  )
+  const announceHostKeys = announceHostKeySet(trackerRows)
 
   await Promise.allSettled(
     overdue.map((c) => deepPollClient(c.id, encryptionKey, trackerTags, announceHostKeys))
@@ -605,11 +671,15 @@ export function startClientScheduler(encryptionKey: Buffer): void {
 
   // Heartbeat: every 5 seconds
   const hbTask = cron.schedule("*/5 * * * * *", async () => {
+    // Latches the tick's own work. The heartbeats it starts run past it.
     if (g.__heartbeatInFlight) return
     g.__heartbeatInFlight = true
     try {
       await heartbeatAllClients(encryptionKey)
       await flushCompletedBuckets()
+      // Without this stamp app_liveness stays empty, and the outage route draws
+      // neither app nor tracker bands.
+      await touchAppLiveness()
     } catch (error) {
       log.error(error, "Client heartbeat error")
     } finally {
@@ -653,14 +723,15 @@ export function startClientScheduler(encryptionKey: Buffer): void {
 }
 
 /**
- * Tears the scheduler down and resolves once the final uptime flush has landed.
+ * Tears the scheduler down and resolves once the final uptime flush and the
+ * stop mark are written.
  *
  * Every side effect runs synchronously before the single trailing await, so
  * both callers, which drop the promise, still get the full teardown. It never
  * rejects: an unhandled rejection takes the process down, so a flush failure is
- * logged and swallowed. No caller awaits it yet, so the SIGTERM handler in
- * scheduler.ts can exit before the flush lands. The in-progress 5-minute bucket
- * is never flushed and is lost on stop.
+ * logged and swallowed. No caller awaits it. On SIGTERM the flush and the stop
+ * mark race Next's exit, so neither is guaranteed. The in-progress 5-minute
+ * bucket is never flushed and is lost on stop.
  */
 export function stopClientScheduler(): Promise<void> {
   const hb = getHeartbeatTask()
@@ -683,12 +754,17 @@ export function stopClientScheduler(): Promise<void> {
   const flushed = flushCompletedBuckets().catch((err) => {
     log.warn(err, "Failed to flush uptime buckets during scheduler stop")
   })
+  // Dates the coming gap from this stop and labels it a shutdown. It logs its
+  // own failure and never rejects.
+  const marked = markAppStopped()
   clearUptimeAccumulator()
   clearFailureLogGate()
+  getRefusedUntil().clear()
+  getHeartbeatsInFlight().clear()
 
   // Must stay last. Anything placed after this await becomes a side effect the
   // fire-and-forget callers would silently lose.
-  return flushed.then(() => undefined)
+  return Promise.all([flushed, marked]).then(() => undefined)
 }
 
 /**

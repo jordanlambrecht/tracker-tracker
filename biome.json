@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
   "files": {
     "includes": ["**", "!.next", "!node_modules", "!public", "!.history", "!docs/kb/site"]
   },
@@ -39,6 +39,16 @@
   },
   "overrides": [
     {
+      "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noComponentHookFactories": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["src/lib/tracker-platforms/**"],
       "linter": {
         "rules": {
@@ -57,20 +67,10 @@
               "level": "error",
               "options": {
                 "paths": {
-                  "@/lib/tunnel": "Adapters reach the network through adapterFetch, adapterRequest or fetchTrackerHtml in ../helpers, which apply the shared timeout, the default User-Agent and the proxy in one place. Importing @/lib/tunnel directly reimplements the proxy branch and skips all three. torrentleech.ts is the one exception, declared in its own override below, because its login POST needs to read Set-Cookie through the proxy."
+                  "@/lib/tunnel": "Adapters reach the network through adapterFetch, adapterRequest, fetchTrackerHtml or loginRequest in ../helpers, which apply the shared timeout, the default User-Agent and the proxy in one place. Importing @/lib/tunnel directly reimplements the proxy branch and skips all three."
                 }
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/lib/tracker-platforms/adapters/torrentleech.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": "off"
           }
         }
       }

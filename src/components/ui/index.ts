@@ -88,8 +88,6 @@ export type { ProgressBarProps, ProgressBarSize } from "./ProgressBar"
 export { ProgressBar } from "./ProgressBar"
 export type { ProgressWidgetProps } from "./ProgressWidget"
 export { ProgressWidget } from "./ProgressWidget"
-export type { PulseDotProps, PulseDotSize, PulseDotStatus } from "./PulseDot"
-export { PulseDot } from "./PulseDot"
 export { QBT_TAG_WARN_PATTERN, QbtTagWarning } from "./QbtTagWarning"
 export { RedactedText } from "./RedactedText"
 export type { SaveDiscardBarProps } from "./SaveDiscardBar"
@@ -106,6 +104,8 @@ export type { SparklineProps } from "./Sparkline"
 export { Sparkline } from "./Sparkline"
 export type { AlertLevel, StatCardProps } from "./StatCard"
 export { StatCard } from "./StatCard"
+export type { StatusDotProps, StatusDotTone } from "./StatusDot"
+export { StatusDot } from "./StatusDot"
 export {
   CardListSkeleton,
   CardSkeleton,

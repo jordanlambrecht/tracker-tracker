@@ -8,6 +8,7 @@ import {
   type AgeBucket,
   type Bucket,
   type FleetStats,
+  LEECHING_STATES,
   normalizeCategory,
   parseTorrentTags,
   RATIO_BUCKETS,
@@ -18,7 +19,8 @@ import {
   type TrackerTag,
   toMonthKey,
 } from "@/lib/fleet"
-import { trackerHostKey } from "@/lib/tracker-matching"
+import { torrentRatioValue } from "@/lib/torrent-utils"
+import { trackerAnnounceKeys, trackerHostKey } from "@/lib/tracker-matching"
 import type { TagGroup } from "@/types/api"
 
 // Re-export types used by callers so they don't need to import from fleet.ts
@@ -182,8 +184,9 @@ export function computeFleetAggregation(
   // even when the user tags nothing per-tracker (issue #152).
   const announceKeyMap = new Map<string, string>()
   for (const tt of trackerTags) {
-    const host = trackerHostKey(tt.baseUrl)
-    if (host) announceKeyMap.set(host, tt.tag.toLowerCase())
+    for (const host of trackerAnnounceKeys(tt)) {
+      announceKeyMap.set(host, tt.tag.toLowerCase())
+    }
   }
   const keyForAnnounce = (announce: string | null | undefined): string | null => {
     const host = trackerHostKey(announce)
@@ -220,6 +223,7 @@ export function computeFleetAggregation(
   // Stats accumulators
   let totalSeeding = 0
   let totalLeeching = 0
+  let totalInactive = 0
   let fleetUploadSpeed = 0
   let fleetDownloadSpeed = 0
   let totalLibrarySize = 0
@@ -263,7 +267,8 @@ export function computeFleetAggregation(
     // -- Stats --
     const isSeeding = SEEDING_STATES.has(torrent.state)
     if (isSeeding) totalSeeding++
-    else totalLeeching++
+    else if (LEECHING_STATES.has(torrent.state)) totalLeeching++
+    else totalInactive++
     fleetUploadSpeed += torrent.uploadSpeed
     fleetDownloadSpeed += torrent.downloadSpeed
     totalLibrarySize += torrent.size
@@ -273,11 +278,10 @@ export function computeFleetAggregation(
     if (isCrossSeed) crossSeededCount++
 
     // -- Ratio bucket --
-    // qBT returns ratio: -1 for infinite ratio (zero downloads, i.e. cross-seeded).
-    // Exclude these from the distribution since they don't have a meaningful ratio.
-    // Cross-seed coverage is shown by the dedicated cross-seed donut chart.
-    if (torrent.ratio >= 0) {
-      const rBucketIdx = RATIO_BUCKETS.findIndex((b: Bucket) => torrent.ratio < b.max)
+    // An infinite ratio is under no bucket's max, so the fallback puts it in the top one.
+    const ratio = torrentRatioValue(torrent.ratio)
+    if (ratio >= 0) {
+      const rBucketIdx = RATIO_BUCKETS.findIndex((b: Bucket) => ratio < b.max)
       ratioCounts[rBucketIdx === -1 ? RATIO_BUCKETS.length - 1 : rBucketIdx]++
     }
 
@@ -338,8 +342,10 @@ export function computeFleetAggregation(
       const acc = trackerAccMap.get(matchedTrackerTag)
       if (acc) {
         acc.torrentCount++
-        if (torrent.ratio >= 0) {
-          acc.ratioSum += torrent.ratio
+        // An infinite ratio counts in the top bucket above but has no value to
+        // average, and a bad negative is no ratio at all.
+        if (Number.isFinite(ratio) && ratio >= 0) {
+          acc.ratioSum += ratio
           acc.validRatioCount++
         }
         acc.uploadSpeedSum += torrent.uploadSpeed
@@ -389,6 +395,7 @@ export function computeFleetAggregation(
     torrentCount,
     totalSeeding,
     totalLeeching,
+    totalInactive,
     fleetUploadSpeed,
     fleetDownloadSpeed,
     totalLibrarySize,

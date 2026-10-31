@@ -8,8 +8,7 @@ export const tr4ker: TrackerRegistryEntry = {
   name: "TR4KER",
   abbreviation: "TR4K",
   url: "https://tr4ker.net",
-  description:
-    "French private general tracker covering movies, TV, music, games, apps, and books.",
+  description: "French private general tracker covering movies, TV, music, games, apps, and books.",
 
   // -- Platform & API ---------------------------------------------------
   platform: "tr4ker",
@@ -22,7 +21,7 @@ export const tr4ker: TrackerRegistryEntry = {
 
   // -- Visual -----------------------------------------------------------
   color: "#0ea5e9",
-  logo: "",
+  logo: "/tracker-logos/tr4ker_logo.png",
 
   // -- External Links ---------------------------------------------------
   trackerHubSlug: "",

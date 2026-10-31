@@ -1,9 +1,12 @@
 // src/lib/image-hosting/onlyimage.ts
 
+import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import { safeImageUrl, validateImageUrl } from "@/lib/validators"
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
-const UPLOAD_URL = "https://onlyimage.org/api/1/upload/"
+// No trailing slash. onlyimage.org answers the slash form with a 301, which
+// fails the upload.
+const UPLOAD_URL = "https://onlyimage.org/api/1/upload"
 
 interface CheveretoResponse {
   status_code: number
@@ -33,6 +36,9 @@ export const onlyimageAdapter: ImageHostAdapter = {
     apiKey: string,
     options?: UploadOptions
   ): Promise<UploadResult> {
+    // The key goes in a header, and undici's refusal of a bad one quotes it in
+    // full, which the upload route would log.
+    const key = validateHeaderToken(apiKey)
     const form = new FormData()
     form.set("source", new Blob([new Uint8Array(fileBuffer)]), fileName)
     form.set("format", "json")
@@ -43,8 +49,11 @@ export const onlyimageAdapter: ImageHostAdapter = {
 
     const response = await fetch(UPLOAD_URL, {
       method: "POST",
-      headers: { "X-API-Key": apiKey },
+      headers: { "X-API-Key": key },
       body: form,
+      // fetch keeps a custom header like X-API-Key when a redirect changes host.
+      // Manual mode makes any redirect the non-ok throw below.
+      redirect: "manual",
       signal: AbortSignal.timeout(30_000),
     })
 

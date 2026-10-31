@@ -45,11 +45,15 @@ export const DOCS = {
   },
   DOWNLOAD_CLIENTS: {
     href: `${DOCS_URL}/features/download-clients/`,
-    description: "Connect qBittorrent to track torrents by tag",
+    description: "Connect qBittorrent or Transmission to track your torrents",
+  },
+  PROWLARR: {
+    href: `${DOCS_URL}/features/prowlarr/`,
+    description: "Show the status of each tracker's Prowlarr indexer",
   },
   TAG_GROUPS: {
     href: `${DOCS_URL}/features/tag-groups/`,
-    description: "Bundle qBittorrent tags into groups for breakdown charts",
+    description: "Bundle client tags into groups for breakdown charts",
   },
   QBITMANAGE: {
     href: `${DOCS_URL}/features/qbitmanage/`,

@@ -24,6 +24,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackerSnapshots: {},
   trackerRoles: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   tagGroups: {},
   tagGroupMembers: {},
   clientSnapshots: {},
@@ -212,6 +214,32 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("must not target localhost")
   })
 
+  it("rejects a tracker whose platformType is not a supported platform", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).platformType = "torrentz"
+    expect(() => validateBackupJson(p)).toThrow(
+      "Backup validation: trackers[0].platformType must be one of: unit3d, gazelle"
+    )
+  })
+
+  it("rejects a tracker whose apiPath is not a string", () => {
+    const p = validPayload()
+    ;(p.trackers[0] as Record<string, unknown>).apiPath = null
+    expect(() => validateBackupJson(p)).toThrow("trackers[0].apiPath must be a string")
+  })
+
+  // The column defaults apply to a row without them, and old BTN rows hold an
+  // absolute API URL that the restore replaces rather than refuses.
+  it("accepts a tracker with no platformType or apiPath, or an absolute apiPath", () => {
+    const p = validPayload()
+    const tracker = p.trackers[0] as Record<string, unknown>
+    delete tracker.platformType
+    delete tracker.apiPath
+    expect(() => validateBackupJson(p)).not.toThrow()
+    tracker.apiPath = "https://api.broadcasthe.net/"
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
   it("accepts tracker with empty API token (post-restore backups)", () => {
     const p = validPayload()
     ;(p.trackers[0] as Record<string, unknown>).encryptedApiToken = ""
@@ -254,6 +282,66 @@ describe("validateBackupJson", () => {
       },
     ]
     expect(() => validateBackupJson(p)).toThrow("downloadClients[0].port")
+  })
+
+  // Passes every client check. No authMethod, like a backup from before API-key auth.
+  const validClient = () => ({
+    id: 1,
+    host: "192.168.1.1",
+    port: 8080,
+    type: "qbittorrent",
+    encryptedUsername: "enc",
+    encryptedPassword: "enc",
+  })
+
+  // The client routes refuse these, so a restore must not store them either.
+  it.each([
+    ["an unknown type", { type: "deluge" }, "type must be one of"],
+    ["no type", { type: undefined }, "type must be a string"],
+    ["a numeric type", { type: 1 }, "type must be a string"],
+    ["an unknown authMethod", { authMethod: "token" }, "authMethod must be one of"],
+    [
+      "an API key on Transmission",
+      { type: "transmission", authMethod: "apikey" },
+      "authMethod apikey is not supported for transmission",
+    ],
+  ])("rejects a download client with %s", (_case, fields, message) => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.downloadClients = [{ ...validClient(), ...fields }]
+    expect(() => validateBackupJson(p)).toThrow(`downloadClients[0].${message}`)
+  })
+
+  it("accepts a download client without authMethod", () => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.downloadClients = [validClient()]
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
+  it("accepts an API key on a qBittorrent client", () => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.downloadClients = [{ ...validClient(), authMethod: "apikey" }]
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
+  // The Prowlarr routes refuse these, so a restore must not store them either.
+  it.each([
+    "http://user:secret@prowlarr.test:9696",
+    "http://prowlarr.test:9696/?apikey=secret",
+    "http://prowlarr.test:9696/?",
+    "http://prowlarr.test:9696/#",
+    "ftp://prowlarr.test",
+  ])("rejects a Prowlarr instance with the URL %s", (url) => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.prowlarrInstances = [{ id: 1, name: "Home", url, encryptedApiKey: null }]
+    expect(() => validateBackupJson(p)).toThrow("prowlarrInstances[0].url")
+  })
+
+  it("accepts a Prowlarr instance on a private host", () => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.prowlarrInstances = [
+      { id: 1, name: "Home", url: "http://192.168.1.10:9696", encryptedApiKey: null },
+    ]
+    expect(() => validateBackupJson(p)).not.toThrow()
   })
 
   it("rejects tagGroupMember without groupId", () => {

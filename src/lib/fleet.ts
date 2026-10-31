@@ -14,6 +14,7 @@ export interface TorrentRaw {
   category: string
   uploaded: number
   downloaded: number
+  /** -1 is INFINITE_TORRENT_RATIO (torrent-utils.ts). Read it with torrentRatioValue. */
   ratio: number
   size: number
   seedingTime: number
@@ -47,6 +48,8 @@ export interface TrackerTag {
   color: string
   /** Tracker web URL, used to match torrents by announce host (issue #152). */
   baseUrl?: string
+  /** Registry entry whose `announceHosts` also match. */
+  registrySlug: string | null
 }
 
 /** Parse comma-separated qBT tag string into trimmed array */
@@ -163,6 +166,7 @@ export function getSeedTimeBuckets(accentColor?: string): Bucket[] {
 export interface FleetStats {
   totalSeeding: number
   totalLeeching: number
+  totalInactive: number
   fleetUploadSpeed: number
   fleetDownloadSpeed: number
   totalLibrarySize: number
@@ -170,18 +174,14 @@ export interface FleetStats {
   staleCount: number
 }
 
-export const SEEDING_STATES = new Set([
-  "uploading",
-  "stalledUP",
-  "forcedUP",
-  "queuedUP",
-  "pausedUP",
-])
+// Running states only. Queued, paused (qBT 4.x), stopped (5.x), checking, error
+// and any state qBT adds later fall in neither set and count as inactive.
+export const SEEDING_STATES = new Set(["uploading", "stalledUP", "forcedUP"])
 export const LEECHING_STATES = new Set([
   "downloading",
   "stalledDL",
   "forcedDL",
-  "queuedDL",
   "metaDL",
+  "forcedMetaDL",
 ])
 export const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000

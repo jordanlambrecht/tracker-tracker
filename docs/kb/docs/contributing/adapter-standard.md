@@ -1,6 +1,6 @@
 # Tracker adapter standard
 
-What a tracker adapter must do, written from what the thirteen existing adapters actually do. If
+What a tracker adapter must do, written from what the existing adapters actually do. If
 you are adding a **site**, you probably want [adding-a-tracker.md](adding-a-tracker.md) instead;
 most new sites need a data file and no code at all.
 
@@ -19,7 +19,7 @@ ratio rules, user classes, content categories, logo. That folder holds 55 entrie
 `_template.ts` and the `index.ts` barrel.
 
 **One adapter usually serves many sites.** `unit3d` serves 19, `gazelle` 9, `avistaz` 5,
-`nebulance` 2. The other nine adapters serve one site each today, but that is a fact about the
+`nebulance` 2. The other twelve adapters serve one site each today, but that is a fact about the
 world, not a licence to hardcode. If your site runs a platform that already has an adapter, you
 are adding a data file.
 
@@ -39,7 +39,7 @@ export interface TrackerAdapter {
 }
 ```
 
-All thirteen implement both. `fetchRaw` is still declared optional at
+All sixteen implement both. `fetchRaw` is still declared optional at
 `src/lib/tracker-platforms/contract.ts`; treat it as required.
 
 ### 2.1 The null versus zero rule
@@ -67,9 +67,7 @@ Eight `TrackerStats` fields are nullable for exactly this reason (`src/types/tra
 **An absent or blank class is `null` in `group`, never a placeholder** such as `"Unknown"` or
 `"User"`, so rank history and the rank-change alert read it as not reported. A JSON adapter that
 receives the class as text reads it through `presentClass`, and one that receives an id maps it
-through its own table, as DigitalCore and TR4KER do. IPTorrents is the one exception. Its page
-shows a VIP badge and no class, so an account without the badge is stored as `"User"`, which keeps
-VIP gained and VIP lost alerting.
+through its own table, as DigitalCore and TR4KER do.
 
 **A JSON `null` on the wire is data, not an absent key.** If the API declares
 `invites: number | null` and sends `null`, the tracker is stating the figure is unknown. Map it to
@@ -150,7 +148,7 @@ matches on wording. Wording is an interface, not prose.
   adapter that parses text itself follows `parseJsonSafe` in `digitalcore.ts`.
 - **Log through `log` from `@/lib/logger`**, in the structured `log.warn({ err }, "message")`
   form, never `console`. The in-app event feed is built by parsing pino output, so a
-  `console.warn` failure is invisible to the operator. Reference: `torrentleech.ts:210`.
+  `console.warn` failure is invisible to the operator. Reference: `torrentleech.ts:110`.
 - A `SessionExpiredError` from any call aborts the poll. Every other secondary-call failure is
   logged and leaves its fields `null`.
 
@@ -172,6 +170,8 @@ matches on wording. Wording is an interface, not prose.
   such check.
 - `userAgent` is **required** for a cookie scraper, because the session is fingerprinted against
   the agent it was issued to. It is **optional** for a JSON API, where the transport supplies one.
+  A session the adapter logs in for itself passes none, and `loginRequest` and `fetchTrackerHtml`
+  send the app's.
 
 ### 2.6 fetchRaw and the debug view
 
@@ -199,7 +199,7 @@ must not lie.
 - **Apply the same pacing `fetchStats` applies.** The debug route runs both methods in one
   request, so a missing pause means one press issues every request back to back.
 - **Build the endpoint string first and derive the URL from it**, so the two cannot encode
-  differently. Reference: `torrentleech.ts:470-475`.
+  differently. Reference: `torrentleech.ts:377-380`.
 - `label` is Title Case and names what the call fetches.
 
 ---
@@ -211,14 +211,17 @@ it. Import it rather than writing it again.
 
 | Helper | File | Use it for | Do not hand-roll |
 |---|---|---|---|
-| `adapterFetch` | `helpers/adapter-fetch.ts` | Every JSON API request on the happy path. Applies the shared timeout, default User-Agent and proxy, throws on non-2xx. | Your own fetch, timeout, proxy branch or non-2xx message |
-| `adapterRequest` | `helpers/adapter-fetch.ts` | Same, but returns a non-2xx instead of throwing. Only when your API reports errors in the body of a non-2xx. | Reaching for this by default |
+| `adapterFetch` | `helpers/adapter-fetch.ts` | Every JSON API request on the happy path. Applies the shared timeout, default User-Agent and proxy, refuses every redirect, throws on non-2xx. | Your own fetch, timeout, proxy branch or non-2xx message |
+| `adapterRequest` | `helpers/adapter-fetch.ts` | Same, but returns a non-2xx other than a redirect instead of throwing. Only when your API reports errors in the body of a non-2xx. | Reaching for this by default |
 | `fetchTrackerHtml` | `helpers/html-fetch.ts` | Every authenticated page fetch in a scraper. Handles headers, cookies, the redirect chain, the off-origin refusal. | A private fetch with a Cookie header, your own redirect following |
+| `loginRequest` | `helpers/login-session.ts` | Each request of a login flow that posts the user's password, where the adapter needs the Set-Cookie and Location of the answer. Same proxy, timeout and app User-Agent as the helpers above, never follows a redirect, and classifies a failure by transport. | Your own `fetch` or `proxyFetch` for a login, and the biome exception it would need |
+| `withLoginSession` | `helpers/login-session.ts` | The poll that runs on such a login. Caches the session per site and per whole credential set, and logs in again once on `SessionExpiredError`. | A private session map, a key without the password, a retry keyed on the message |
 | `pollError` | `helpers/poll-error.ts` | `fetchRaw`, on every 200 body `fetchStats` reads. Runs the function `fetchStats` reads it with and returns the message that function throws, or null. | Restating `fetchStats`'s checks inside `fetchRaw` |
 | `normalizeWhitespace` | `helpers/html-parse.ts` | Any text you compare against a literal label. Labels carry U+00A0, which an exact match will not survive. | `value.replace(/\s+/g, " ").trim()` |
 | `datePrefix` | `helpers/html-parse.ts` | Slicing `YYYY-MM-DD` off a site-printed datetime | Your own date regex |
 | `tryParseCount` | `helpers/html-parse.ts` | Any site-printed count. The first number in the text, commas stripped, decimals and sign kept, `undefined` when there is none. | `parseInt(text, 10)` with your own `NaN` test |
 | `tryParseSiteBytes` | `helpers/html-parse.ts` | Site-printed byte totals. Strips grouping commas and canonicalises the unit, so both `1,024 kB` and `1 GiB` parse. Returns `undefined` rather than throwing. | A private `parseBytes` wrapper with its own tolerances |
+| `isCloudflareChallenge`, `isCloudflareInterstitial` | `helpers/html-parse.ts` | Telling a Cloudflare challenge apart from the page you asked for. `isCloudflareChallenge` (the interstitial or a Turnstile widget) on an authenticated page; `isCloudflareInterstitial` on a login page, which can embed Turnstile of its own. `fetchTrackerHtml` already runs the full check on a 403 or 503. | Your own `html.includes("cf_chl_opt")` test |
 | `requireBytes` | `helpers/bytes.ts` | A byte total a JSON API is contracted to send. Throws naming the host and the field when it is absent or not a number, because both byte totals are non-nullable `bigint` and cannot hold unknown. | `floatBytesToBigInt` straight off the wire, which answers `0n` for an absent field |
 | `presentClass` | `helpers/class-name.ts` | The class a JSON API sends as text for `group`. Returns it, or `null` when it is absent, blank or not a string. | `class ?? "Unknown"`, or `class \|\| null`, which keeps a whitespace-only class |
 | `computeRatio`, `computeBufferBytes` | `@/lib/data-transforms` | `ratio` and `bufferBytes` | Reading the tracker's ratio with no `computeRatio` fallback |
@@ -252,34 +255,27 @@ break them:
 All four return `null` because each value goes straight into a `TrackerStats` field (2.1). Reach
 for `tryParseCount` unless you are in one of those four shapes.
 
-**One helper that does not exist yet.** If you need it, promote it into `helpers/html-parse.ts`
-rather than adding another private copy:
-
-- The **Cloudflare challenge predicate**. The same three-condition test is copied in all five
-  scrapers, and three of them already throw the identical message.
-
 ---
 
 ## 4. Naming and file shape
 
 **Settled, not open questions.** Line 1 is the file's own path comment. The class is last,
 exported, and declares `fetchStats` before `fetchRaw`. The `fetchRaw` catch fallback is
-byte-identical everywhere: `err instanceof Error ? err.message : "Request failed"`. All five
+byte-identical everywhere: `err instanceof Error ? err.message : "Request failed"`. All six
 scrapers name their transport wrapper `fetchHtml`. Tests use `vi.spyOn(global, "fetch")` with
 `vi.restoreAllMocks()` in `beforeEach`, and there are no skipped or `.only` tests.
 
 | Rule | Dominant | Deviation |
 |---|---|---|
-| Class name flattens the filename | 11 of 13 | `GGnAdapter` and `DigitalCoreAdapter` keep the site's real casing. Do not rename them; the names are public. New adapters flatten. |
-| Helpers are module-scope functions | 12 of 13 | `gazelle.ts` puts one helper on the class as a `private async` that never touches `this`, so it cannot be unit-tested directly. |
+| Class name flattens the filename | 14 of 16 | `GGnAdapter` and `DigitalCoreAdapter` keep the site's real casing. Do not rename them; the names are public. New adapters flatten. |
+| Helpers are module-scope functions | 15 of 16 | `gazelle.ts` puts one helper on the class as a `private async` that never touches `this`, so it cannot be unit-tested directly. |
 | A prefix predicts the failure mode | Mixed | `parse*` throws, `tryParse*` returns `undefined`. Whatever it is called, "not reported" must reach `TrackerStats` as `null`. |
 | Label lookups compare exactly on normalized text | filelist, retrotoon | A bare `.includes(label)` matches any cell containing it, so "Last Access IP" satisfies a "Last Access" lookup. Normalize, then compare exactly, or anchor the regex. |
 | Ignoring the persisted `_apiPath` | 7 adapters | When the path is intrinsic to the platform, ignore `_apiPath` so a stale persisted value self-heals, and say so in one comment naming **your** intrinsic path. |
 | Date shape | No convention | Emit one shape and say which. The scheduler preserves a bare `YYYY-MM-DD` exactly as printed (`trackerDateStr`). Adapters still emit three shapes. |
 
-**The `Functions:` file header.** 10 of 13 adapters carry one and 4 of those are already wrong.
-Either generate and verify it in CI (7.7) or drop it. A manifest that is wrong half the time is
-worse than none, because a contributor trusts it and writes a duplicate helper. The path comment
+**The `Functions:` file header.** 13 of 16 adapters carry one.
+Either generate and verify it in CI (7.7) or drop it. A manifest that drifts is worse than none, because a contributor trusts it and writes a duplicate helper. The path comment
 on line 1 stays either way.
 
 **Comments.** `filelist.ts` is the calibration reference. A comment states the constraint the
@@ -327,6 +323,9 @@ dashes.
 - [ ] No credential appears in any error, log line, or debug `endpoint`, `data` or `error`.
 - [ ] Any call I make directly carries `ADAPTER_FETCH_TIMEOUT_MS`. Calls through `adapterFetch`
       and `fetchTrackerHtml` get it automatically.
+- [ ] Any call I make directly that carries a credential sets `redirect: "manual"` and refuses
+      the 3xx, as `adapterRequest` does. A followed redirect sends a custom key header or a 307
+      body to whatever host the Location names.
 - [ ] I log through `log` from `@/lib/logger`. There is no `console.` in my file.
 
 **fetchRaw**
@@ -350,6 +349,8 @@ dashes.
 - [ ] A test omits the source key entirely for any coalescing path I kept.
 - [ ] A timeout rejection is asserted to produce a message naming my tracker's host.
 - [ ] My fixture states where it came from and on what date.
+- [ ] My fixture is redacted as [Sharing a Response Sample](tracker-responses.md#sharing-a-response-sample)
+      describes.
 - [ ] No em dash, no `.only`, no `.skip`.
 - [ ] `pnpm tsc` and `pnpm test:run` pass. Both block CI.
 - [ ] `biome check .` reports nothing new. The tree currently carries 0 errors and 12 warnings;
@@ -474,14 +475,13 @@ files, no AST needed.
 
 - `suspicious/noConsole` at error level, scoped to `src/lib/tracker-platforms/**`.
 - `style/noRestrictedImports` scoped to `src/lib/tracker-platforms/adapters/*.ts` (adapters only, not `helpers/`),
-  banning a direct `@/lib/tunnel` import with a message pointing at `adapterFetch` and
-  `fetchTrackerHtml`. One current exception, `torrentleech.ts`, which calls `proxyFetch` directly
-  for its login POST, so it needs its own override entry. That exception being visible in
-  `biome.json` is itself the documentation.
+  banning a direct `@/lib/tunnel` import with a message pointing at `adapterFetch`,
+  `fetchTrackerHtml` and `loginRequest`. No adapter is exempt: a login POST that has to read
+  Set-Cookie through the proxy goes through `loginRequest`.
 
 **Done.** `noConsole` is an error across the module, and `noRestrictedImports` bans a direct
-`@/lib/tunnel` import from `adapters/*.ts` with `torrentleech.ts` declared as its own override. The
-`$schema` is bumped to 2.5.10 to match the installed version.
+`@/lib/tunnel` import from every file in `adapters/`. The `$schema` is bumped to 2.5.10 to match
+the installed version.
 
 ### 7.6 Targeted helper tests
 

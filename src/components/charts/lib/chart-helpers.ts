@@ -1,13 +1,14 @@
 // src/components/charts/lib/chart-helpers.ts
 //
-// Functions: fmtNum, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
+// Functions: fmtNum, CHANGE_COLOR, formatGiB, yAxisPad, formatDateLabel, yAxisAutoRange,
 // autoByteScale, DAY_LABELS, HOUR_LABELS, buildBucketedBarOption, buildGlowAreaStyle,
 // buildAxisPointer, buildThemeRiverSingleAxis, floorTimestamp, adaptiveDotSize,
 // buildTimeXAxis, insideZoom, buildDonutShell, buildStackedAreaOption
 
 import type { EChartsOption } from "echarts"
+import type { TrendDirection } from "@/components/ui/StatCard"
 import { hexToRgba } from "@/lib/color-utils"
-import { formatCount } from "@/lib/formatters"
+import { formatCount, formatPercent } from "@/lib/formatters"
 import type { StackedAreaSeries } from "@/types/charts"
 import {
   CHART_THEME,
@@ -27,6 +28,13 @@ export function fmtNum(v: number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
+}
+
+/** Tooltip colour for a change, by the direction formatSignedChange reports */
+export const CHANGE_COLOR: Record<TrendDirection, string> = {
+  up: CHART_THEME.positive,
+  down: CHART_THEME.negative,
+  flat: CHART_THEME.neutral,
 }
 
 /** Formats a GiB value with automatic TiB scaling for display in chart tooltips. */
@@ -113,9 +121,12 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
 
   const enriched = buckets.map((bucket, i) => {
     const prevThreshold = i === 0 ? -Infinity : getThreshold(buckets[i - 1])
-    const count = torrents.filter(
-      (t) => getValue(t) >= prevThreshold && getValue(t) < getThreshold(bucket)
-    ).length
+    // The top bucket has no ceiling, so an infinite value counts there.
+    const isTop = i === buckets.length - 1
+    const count = torrents.filter((t) => {
+      const value = getValue(t)
+      return value >= prevThreshold && (isTop || value < getThreshold(bucket))
+    }).length
     return { bucket, count }
   })
 
@@ -157,12 +168,12 @@ export function buildBucketedBarOption<TBucket, TTorrent>(
         const p = params as { name: string; value: number; color: string; dataIndex: number }
         const entry = enriched[p.dataIndex]
         if (!entry) return ""
-        const pct = total > 0 ? ((entry.count / total) * 100).toFixed(1) : "0.0"
+        const pct = formatPercent(total > 0 ? (entry.count / total) * 100 : 0)
         return (
           chartDot(p.color) +
           `<span style="color:${CHART_THEME.textPrimary};font-weight:600;">${labelPrefix} ${getLabel(entry.bucket)}</span><br/>` +
           `<span style="color:${CHART_THEME.textSecondary};">${formatCount(entry.count)} torrents</span>` +
-          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}%${pctSuffix}</span>`
+          `<span style="color:${CHART_THEME.textTertiary};"> · ${pct}${pctSuffix}</span>`
         )
       },
     }),

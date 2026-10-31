@@ -2,6 +2,12 @@
 //
 // Security invariant tests: auth enforcement, token leakage,
 // input validation, setup protection, crypto integrity
+//
+// The upload routes are driven with Node's own Request. Under jsdom, FormData
+// and Blob are jsdom's, which that Request cannot read since jsdom 30.1, so
+// this file opts into the native Node environment like auth-jwe.test.ts.
+
+// @vitest-environment node
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -39,6 +45,7 @@ vi.mock("@/lib/crypto", () => ({
   decrypt: vi.fn().mockReturnValue("decrypted"),
   deriveKey: vi.fn().mockResolvedValue(Buffer.from("a".repeat(32))),
   generateSalt: vi.fn().mockReturnValue("a".repeat(64)),
+  masterKeyFingerprint: vi.fn().mockReturnValue("fp-of-the-current-row"),
 }))
 
 vi.mock("@/lib/tracker-scheduler", () => ({
@@ -46,7 +53,6 @@ vi.mock("@/lib/tracker-scheduler", () => ({
   startTrackerPolling: vi.fn(),
   stopTrackerPolling: vi.fn(),
   isTrackerPollingRunning: vi.fn(() => false),
-  fetchTrackerStats: vi.fn(),
 }))
 
 vi.mock("@/lib/scheduler", () => ({
@@ -73,16 +79,22 @@ vi.mock("@/lib/image-hosting", () => ({
   }),
 }))
 
-vi.mock("@/lib/auth", () => ({
-  hashPassword: vi.fn().mockResolvedValue("hashed"),
-  verifyPassword: vi.fn().mockResolvedValue(false),
-  createSetupToken: vi.fn().mockResolvedValue("setup-token"),
-  verifySetupToken: vi.fn().mockResolvedValue(null),
-  createPendingToken: vi.fn().mockResolvedValue("pending-token"),
-  verifyPendingToken: vi.fn().mockResolvedValue(null),
-  clearSession: vi.fn().mockResolvedValue(undefined),
-  getSession: vi.fn().mockResolvedValue(null),
-}))
+vi.mock("@/lib/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth")>()
+  return {
+    fingerprintMatches: actual.fingerprintMatches,
+    STALE_SESSION_MESSAGE: actual.STALE_SESSION_MESSAGE,
+    hashPassword: vi.fn().mockResolvedValue("hashed"),
+    verifyPassword: vi.fn().mockResolvedValue(false),
+    createSetupToken: vi.fn().mockResolvedValue("setup-token"),
+    verifySetupToken: vi.fn().mockResolvedValue(null),
+    createPendingToken: vi.fn().mockResolvedValue("pending-token"),
+    verifyPendingToken: vi.fn().mockResolvedValue(null),
+    clearSession: vi.fn().mockResolvedValue(undefined),
+    getSession: vi.fn().mockResolvedValue(null),
+    readSession: vi.fn().mockResolvedValue(null),
+  }
+})
 
 vi.mock("@/lib/totp", () => ({
   generateTotpSecret: vi.fn().mockReturnValue({
@@ -103,6 +115,8 @@ vi.mock("@/lib/db/schema", () => ({
   trackerSnapshots: {},
   trackerRoles: {},
   downloadClients: {},
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   tagGroups: {},
   tagGroupMembers: {},
   clientSnapshots: {},
@@ -204,6 +218,10 @@ vi.mock("@/lib/download-clients", () => ({
 vi.mock("@/lib/privacy-db", () => ({
   createPrivacyMask: vi.fn(async () => (v: string | null | undefined) => v ?? null),
   createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
+}))
+
+vi.mock("@/lib/prowlarr/sync", () => ({
+  loadTrackerProwlarrStates: vi.fn().mockResolvedValue(new Map()),
 }))
 
 // The create route takes the address, platform and API path from the registry
@@ -314,7 +332,7 @@ import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
 // ---------------------------------------------------------------------------
 
 import { authenticate, parseJsonBody, parseRouteId, parseTrackerId } from "@/lib/api-helpers"
-import { getSession } from "@/lib/auth"
+import { readSession } from "@/lib/auth"
 import { db } from "@/lib/db"
 
 // ---------------------------------------------------------------------------
@@ -537,7 +555,7 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
   })
 
   it("POST /api/auth/logout returns 401 when no session", async () => {
-    ;(getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    ;(readSession as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     const res = await LogoutPOST()
     expect(res.status).toBe(401)
   })
@@ -1945,6 +1963,7 @@ describe("TOTP verify decrypt failure handling", () => {
 
     vi.mocked(verifyPendingToken).mockResolvedValue({
       encryptionKey: "a".repeat(64),
+      fingerprint: "fp-of-the-current-row",
     })
 
     vi.mocked(db.select).mockReturnValue({

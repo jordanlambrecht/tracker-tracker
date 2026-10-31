@@ -5,9 +5,10 @@
 // getSnapshotsForTracker, getFleetSnapshots, getTagGroupsWithMembers,
 // getProxyTrackers, getDatabaseSize, getDatabaseSizeBytes, recordDatabaseSize,
 // getDbSizeHistory, fetchDownloadClients, serializeDownloadClientResponse,
-// fetchNotificationTargets, serializeNotificationTarget
+// fetchNotificationTargets, serializeNotificationTarget, fetchProwlarrInstances,
+// serializeProwlarrInstance
 // Constants: settingsColumns, trackerColumns, snapshotColumns, clientColumns,
-// notificationTargetColumns
+// notificationTargetColumns, prowlarrInstanceColumns
 //
 // Server-side data fetchers: single source of truth for safe DB queries
 // that return client-safe shapes. Used by both API route handlers and
@@ -22,6 +23,7 @@
 //   downloadClients: encryptedUsername, encryptedPassword, encryptedApiKey,
 //     encryptedUrlPath
 //   notificationTargets: encryptedConfig
+//   prowlarrInstances: encryptedApiKey
 
 import "server-only"
 
@@ -33,6 +35,8 @@ import {
   dbSizeHistory,
   downloadClients,
   notificationTargets,
+  prowlarrIndexers,
+  prowlarrInstances,
   tagGroupMembers,
   tagGroups as tagGroupsTable,
   trackerSnapshots,
@@ -42,8 +46,15 @@ import { parseQbitmanageTags } from "@/lib/download-clients/qbt/qbitmanage-defau
 import { localDateStr } from "@/lib/formatters"
 import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
+import { loadTrackerProwlarrStates } from "@/lib/prowlarr/sync"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
-import type { Snapshot, TagGroup, TagGroupChartType, TrackerSummary } from "@/types/api"
+import type {
+  SafeProwlarrInstance,
+  Snapshot,
+  TagGroup,
+  TagGroupChartType,
+  TrackerSummary,
+} from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -193,6 +204,50 @@ export function serializeDownloadClientResponse(row: DownloadClientListRow) {
 }
 
 // ---------------------------------------------------------------------------
+// Prowlarr instances
+// ---------------------------------------------------------------------------
+
+/** Reduces the API key to a presence boolean in SQL, like clientColumns. */
+export const prowlarrInstanceColumns = {
+  id: prowlarrInstances.id,
+  name: prowlarrInstances.name,
+  url: prowlarrInstances.url,
+  hasApiKey: sql<boolean>`(${prowlarrInstances.encryptedApiKey} IS NOT NULL)`.as("has_api_key"),
+  enabled: prowlarrInstances.enabled,
+  lastPolledAt: prowlarrInstances.lastPolledAt,
+  lastError: prowlarrInstances.lastError,
+  errorSince: prowlarrInstances.errorSince,
+  indexersReadAt: prowlarrInstances.indexersReadAt,
+  statsReadAt: prowlarrInstances.statsReadAt,
+  version: prowlarrInstances.version,
+  indexerCount:
+    sql<number>`(SELECT COUNT(*)::int FROM ${prowlarrIndexers} WHERE ${prowlarrIndexers.instanceId} = ${prowlarrInstances.id})`.as(
+      "indexer_count"
+    ),
+  createdAt: prowlarrInstances.createdAt,
+  updatedAt: prowlarrInstances.updatedAt,
+}
+
+export function fetchProwlarrInstances() {
+  return db.select(prowlarrInstanceColumns).from(prowlarrInstances).orderBy(prowlarrInstances.id)
+}
+
+export type ProwlarrInstanceListRow = Awaited<ReturnType<typeof fetchProwlarrInstances>>[number]
+
+export function serializeProwlarrInstance(row: ProwlarrInstanceListRow): SafeProwlarrInstance {
+  return {
+    ...row,
+    indexerCount: Number(row.indexerCount) || 0,
+    lastPolledAt: row.lastPolledAt?.toISOString() ?? null,
+    indexersReadAt: row.indexersReadAt?.toISOString() ?? null,
+    statsReadAt: row.statsReadAt?.toISOString() ?? null,
+    errorSince: row.errorSince?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Notification targets
 // ---------------------------------------------------------------------------
 
@@ -287,6 +342,9 @@ export const trackerColumns = {
   joinedAt: trackers.joinedAt,
   lastAccessAt: trackers.lastAccessAt,
   profileUrl: trackers.profileUrl,
+  prowlarrInstanceId: trackers.prowlarrInstanceId,
+  prowlarrIndexerId: trackers.prowlarrIndexerId,
+  prowlarrOptOut: trackers.prowlarrOptOut,
   createdAt: trackers.createdAt,
   updatedAt: trackers.updatedAt,
 }
@@ -311,12 +369,14 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
+  const prowlarrByTracker = await loadTrackerProwlarrStates(allTrackers)
 
   // SECURITY: Never include encryptedApiToken in response
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
   return allTrackers.map((tracker) => {
     const latest = snapshotByTracker.get(tracker.id) ?? null
-    return serializeTrackerResponse(tracker, latest, mask)
+    const prowlarr = prowlarrByTracker.get(tracker.id) ?? null
+    return serializeTrackerResponse(tracker, latest, mask, prowlarr)
   })
 }
 
@@ -346,9 +406,10 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
   // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
   // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
+  const prowlarr = (await loadTrackerProwlarrStates([tracker])).get(tracker.id) ?? null
 
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
-  return serializeTrackerResponse(tracker, latest ?? null, mask)
+  return serializeTrackerResponse(tracker, latest ?? null, mask, prowlarr)
 }
 
 // ---------------------------------------------------------------------------
@@ -467,7 +528,7 @@ function serializeSnapshot(
     polledAt: s.polledAt.toISOString(),
     uploadedBytes: s.uploadedBytes?.toString() ?? "0",
     downloadedBytes: s.downloadedBytes?.toString() ?? "0",
-    ratio: s.ratio,
+    ratio: s.downloadedBytes === 0n && (s.uploadedBytes ?? 0n) > 0n ? null : s.ratio,
     // Same predicate tracker-serializer.ts uses for TrackerLatestStats. `ratio`
     // is null here because JSON cannot carry Infinity, so without this flag the
     // consumer cannot tell an infinite ratio from a never-measured one.

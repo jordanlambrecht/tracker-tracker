@@ -9,7 +9,7 @@ export const torrentleech: TrackerRegistryEntry = {
   abbreviation: "TL",
   url: "https://www.torrentleech.org",
   description:
-    "Large general tracker known for having open signups very often. Broad content library across most categories.",
+    "Large general tracker that opens signups often. Broad content library across most categories.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "torrentleech",
@@ -28,6 +28,7 @@ export const torrentleech: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "torrent-leech",
   statusPageUrl: "",
+  announceHosts: ["tleechreload.org", "torrentleech.org"],
 
   // ── Community ───────────────────────────────────────────────────────
   // wiki.torrentleech.org/doku.php/user_classes. Staff roles (Uploader, FLS,
@@ -75,7 +76,28 @@ export const torrentleech: TrackerRegistryEntry = {
     // is the safe direction to be wrong in.
     seedTimeHours: 240,
     satisfactionMode: "any",
-    loginIntervalDays: 0,
+    loginIntervalDays: 120,
+    fullRulesMarkdown: [
+      "## Hit & Run",
+      "",
+      "- Seed every torrent to ratio 1:1 or for your class minimum: Registered 10 days, Power User 8, Super User 7, Extreme User 6, TL God 4, VIP none",
+      "- The requirement applies to freeleech torrents too",
+      "- Partially downloaded torrents never accrue seed time and must be seeded to 1:1",
+      "- 50+ H&Rs for 5 consecutive days triggers a warning; 3 warnings disable the account",
+      "- Clear an H&R by seeding, with TL points, or with surplus upload credit",
+      "- VIP clears existing H&Rs and is exempt while active; torrents downloaded during VIP do not gain H&R after it expires",
+      "",
+      "## Ratio & Client",
+      "",
+      "- A low ratio can disable the account; keep the torrent client active",
+      "- Tracker stats update about every 30 minutes; check the snatchlist before removing a torrent",
+      "- Pause a torrent and wait at least 60 minutes for the tracker to update before deleting it",
+      "",
+      "## Account",
+      "",
+      "- Do not beg for invites in PMs or IRC",
+      "- Use the #tlhelp IRC channel for account issues and wait for staff",
+    ],
   },
 
   // ── Status ──────────────────────────────────────────────────────────

@@ -95,7 +95,7 @@ export const animez: TrackerRegistryEntry = {
       "- **50 GB and over:** Complex logarithmic formula (larger torrents = diminishing time increase).",
       "- **Alternatively:** Seed until you reach 0.9 ratio on that torrent.",
       "- **Partial downloads (10%+ downloaded):** Must seed back 90% of what you downloaded, or seed for 60 days.",
-      "- **Under 10% downloaded:** No H&R penalty — you can delete it.",
+      "- **Under 10% downloaded:** No H&R penalty. You can delete it.",
       "- H&R can be cleared with **bonus points** at 10 BP per hour of seeding time owed.",
       "- Re-downloaded torrents must be seeded again.",
       "",

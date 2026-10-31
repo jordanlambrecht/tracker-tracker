@@ -11,12 +11,29 @@ import { formatRatio } from "@/lib/formatters"
 export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
 
 /**
- * Formats a per-torrent ratio for display. qBT reports -1 for an infinite
- * ratio (zero downloads, i.e. a cross-seed), so negatives render as infinity.
+ * The per-torrent ratio qBittorrent 5.1.1+ sends for an infinite ratio, which
+ * means something uploaded with nothing downloaded and no pieces held. Versions
+ * 4.1.0 to 5.1.0 never send it and cap the same torrent at 9999. A complete
+ * cross-seed has a finite ratio. Storage keeps -1 because JSONB cannot hold
+ * Infinity, so read a ratio through torrentRatioValue.
+ */
+export const INFINITE_TORRENT_RATIO = -1
+
+export function isInfiniteTorrentRatio(ratio: number): boolean {
+  return ratio === INFINITE_TORRENT_RATIO
+}
+
+/** The per-torrent ratio as a number, with the sentinel read as Infinity. */
+export function torrentRatioValue(ratio: number): number {
+  return isInfiniteTorrentRatio(ratio) ? Number.POSITIVE_INFINITY : ratio
+}
+
+/**
+ * Formats a per-torrent ratio for display, the sentinel as infinity.
  * Account-level ratios have no sentinel; format those with formatRatio.
  */
 export function formatTorrentRatio(ratio: number): string {
-  return formatRatio(ratio < 0 ? Number.POSITIVE_INFINITY : ratio)
+  return formatRatio(torrentRatioValue(ratio))
 }
 
 // ---------------------------------------------------------------------------

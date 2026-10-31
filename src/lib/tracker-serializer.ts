@@ -4,7 +4,7 @@ import "server-only"
 import type { PlatformType } from "@/data/platform-types"
 import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
-import type { TrackerSummary } from "@/types/api"
+import type { TrackerProwlarrState, TrackerSummary } from "@/types/api"
 import type { PlatformMeta } from "@/types/tracker-stats"
 
 // The ciphertext columns are omitted from the input type, not just left out of
@@ -37,7 +37,8 @@ export function parsePlatformMeta(raw: string | null): PlatformMeta | null {
 export function serializeTrackerResponse(
   tracker: TrackerRow,
   latest: TrackerSnapshotRow | null,
-  mask: (val: string | null | undefined) => string | null
+  mask: (val: string | null | undefined) => string | null,
+  prowlarr: TrackerProwlarrState | null = null
 ): TrackerSummary {
   return {
     id: tracker.id,
@@ -66,14 +67,21 @@ export function serializeTrackerResponse(
     remoteUserId: tracker.remoteUserId ?? null,
     platformMeta: parsePlatformMeta(tracker.platformMeta),
     createdAt: tracker.createdAt?.toISOString() ?? new Date().toISOString(),
+    prowlarrPin:
+      tracker.prowlarrInstanceId != null && tracker.prowlarrIndexerId != null
+        ? { instanceId: tracker.prowlarrInstanceId, indexerId: tracker.prowlarrIndexerId }
+        : null,
+    prowlarrOptOut: tracker.prowlarrOptOut ?? false,
+    prowlarr,
     latestStats: latest
       ? {
           // Derived from byte totals, not the stored `ratio`. JSON turns Infinity
           // into null, so this flag is what carries an infinite ratio.
           ratioIsInfinite: latest.downloadedBytes === 0n && latest.uploadedBytes > 0n,
-          // Never emit a non-finite number: it serializes to null anyway, and
-          // doing it explicitly keeps the contract obvious at the boundary.
-          ratio: Number.isFinite(latest.ratio) ? latest.ratio : null,
+          // Never emit a non-finite number, nor a stored ratio (some trackers
+          // report 0) that contradicts an infinite one
+          ratio:
+            latest.downloadedBytes !== 0n && Number.isFinite(latest.ratio) ? latest.ratio : null,
           uploadedBytes: latest.uploadedBytes.toString(),
           downloadedBytes: latest.downloadedBytes.toString(),
           seedingCount: latest.seedingCount,

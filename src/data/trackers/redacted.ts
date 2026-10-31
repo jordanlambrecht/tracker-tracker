@@ -9,7 +9,7 @@ export const redacted: TrackerRegistryEntry = {
   abbreviation: "RED",
   url: "https://redacted.sh",
   description:
-    "The largest general music tracker (also has some software). Has an interview to join, although the wait can be notoriously long.",
+    "The largest general music tracker (also has some software). Has an interview to join, although the wait can be very long.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",
@@ -26,11 +26,12 @@ export const redacted: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#f44336",
-  logo: "",
+  logo: "/tracker-logos/redacted_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "redacted",
-  statusPageUrl: "https://red.trackerstatus.info/",
+  statusPageUrl: "",
+  announceHosts: ["flacsfor.me"],
 
   // ── Community ───────────────────────────────────────────────────────
   // wiki.php?action=article&name=classes (r27). Counts are torrents uploaded,

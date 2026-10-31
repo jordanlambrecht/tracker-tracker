@@ -11,7 +11,7 @@ import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { clearSession, verifyPassword } from "@/lib/auth"
 import { generateSalt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings, downloadClients, trackers } from "@/lib/db/schema"
+import { appSettings, downloadClients, prowlarrInstances, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { PASSWORD_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -78,6 +78,14 @@ export async function POST(request: Request) {
         authMethod: "password",
         enabled: false,
         lastError: "Emergency lockdown: credentials revoked",
+        updatedAt: now,
+      })
+
+      // 3b. Revoke the Prowlarr API keys. NULL, never a marker string.
+      await tx.update(prowlarrInstances).set({
+        encryptedApiKey: null,
+        enabled: false,
+        lastError: "Emergency lockdown: API key revoked",
         updatedAt: now,
       })
 

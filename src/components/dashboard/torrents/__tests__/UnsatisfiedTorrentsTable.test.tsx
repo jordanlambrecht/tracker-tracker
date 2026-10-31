@@ -177,12 +177,12 @@ describe("UnsatisfiedTorrentsTable remaining column", () => {
 describe("UnsatisfiedTorrentsTable progress", () => {
   it("reports the nearer route under an either/or", () => {
     renderTable(EITHER_OR, [makeTorrent({ seedingTime: 60 * HOUR, ratio: 0.9 })])
-    expect(screen.getByText("90%")).toBeVisible()
+    expect(screen.getByText("90.0%")).toBeVisible()
   })
 
   it("reports the laggard when both are required", () => {
     renderTable(BOTH_REQUIRED, [makeTorrent({ seedingTime: 72 * HOUR, ratio: 0.3 })])
-    expect(screen.getByText("30%")).toBeVisible()
+    expect(screen.getByText("30.0%")).toBeVisible()
   })
 })
 
@@ -196,7 +196,7 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
     const { container } = renderTable(EITHER_OR, [
       makeTorrent({ seedingTime: undefined as unknown as number }),
     ])
-    expect(screen.getByText("0%")).toBeVisible()
+    expect(screen.getByText("0.0%")).toBeVisible()
     const bar = progressBar(container)
     expect(bar.style.width).toBe("0%")
     expect(bar.style.backgroundColor).toBe(DANGER)
@@ -214,9 +214,9 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
   })
 
   it("scores qBittorrent's -1 infinite-ratio sentinel as no progress", () => {
-    // -1 means the torrent downloaded nothing, i.e. a pure cross-seed. Whether
-    // that satisfies a 1:1 rule is a hit-and-run judgement nobody has made, so
-    // it clears on seed time instead. See the sentinel note in fleet-aggregation.
+    // qBT sends -1 only with nothing downloaded and no pieces held. Whether that
+    // satisfies a 1:1 rule is an open hit-and-run question, so it clears on seed
+    // time instead. See INFINITE_TORRENT_RATIO in torrent-utils.
     const { container } = renderTable(RATIO_ONLY, [makeTorrent({ ratio: -1 })])
     const bar = progressBar(container)
     expect(bar.style.width).toBe("0%")
@@ -242,7 +242,7 @@ describe("UnsatisfiedTorrentsTable bad numbers", () => {
       makeTorrent({ seedingTime: 24 * HOUR, ratio: -1 }),
     ])
     // 24h of 240h is 10%, and the ratio route contributes nothing.
-    expect(screen.getByText("10%")).toBeVisible()
+    expect(screen.getByText("10.0%")).toBeVisible()
     expect(progressBar(container).style.backgroundColor).toBe(DANGER)
   })
 })

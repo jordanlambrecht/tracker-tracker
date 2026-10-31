@@ -9,7 +9,7 @@ export const asiancinema: TrackerRegistryEntry = {
   abbreviation: "AC",
   url: "https://asiancinema.me",
   description:
-    "UNIT3D tracker specializing in Asian cinema — movies, TV dramas, music, and variety shows from East and Southeast Asia.",
+    "UNIT3D tracker specializing in Asian cinema, with movies, TV dramas, music, and variety shows from East and Southeast Asia.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

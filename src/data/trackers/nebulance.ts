@@ -26,7 +26,7 @@ export const nebulance: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "nebulance",
-  statusPageUrl: "https://nbl.trackerstatus.info/",
+  statusPageUrl: "",
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

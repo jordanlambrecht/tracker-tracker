@@ -277,6 +277,8 @@ const MASTER_KEY_TABLES = [
     columns: ["encrypted_username", "encrypted_password", "encrypted_api_key", "encrypted_url_path"],
   },
   { table: "notification_targets", label: "name", columns: ["encrypted_config"] },
+  // NULLABLE, like encrypted_credentials: an instance without a key stores NULL.
+  { table: "prowlarr_instances", label: "name", columns: ["encrypted_api_key"] },
 ]
 
 const MASTER_KEY_SETTINGS_COLUMNS = [
@@ -774,20 +776,11 @@ async function main() {
         (args.disableTotp ? "  TOTP is disabled. Set it up again from Settings.\n" : "") +
         "\n  Restart the app so the scheduler reloads the re-wrapped key:\n" +
         "    docker compose restart tracker-tracker-app\n" +
-        // Sessions are stateless JWEs carrying the OLD master key, and they are
-        // sealed with SESSION_SECRET, which this reset deliberately leaves alone.
-        // A restart does not invalidate them and proxy.ts refreshes them on every
-        // request, so an already-signed-in browser keeps decrypting with a key
-        // that no longer exists anywhere. Anything it writes afterwards is
-        // encrypted under that dead key and is unrecoverable, the exact failure
-        // this tool exists to prevent. Nothing can revoke a stateless token from
-        // here, so the warning IS the mitigation.
-        "\n[!!] SIGN OUT EVERYWHERE ELSE BEFORE ENTERING ANY NEW SECRETS.\n" +
-        "     Sessions opened before this reset still carry the OLD key and are\n" +
-        "     not invalidated by the restart. A tracker token or password saved\n" +
-        "     from one of them is encrypted under a key that no longer exists and\n" +
-        "     cannot be recovered. Clear the tt_session cookie on every other\n" +
-        "     device, or just sign out of each one, then log back in.\n\n"
+        // Every session carries a fingerprint of password_hash and encryption_salt,
+        // and the app checks it against this row on each request. The new hash
+        // refuses every session opened before the reset, restart or not.
+        "\n  Every browser that was signed in before the reset is signed out on its\n" +
+        "  next request. Sign in again with the new password.\n\n"
     )
     return EXIT_OK
   } finally {

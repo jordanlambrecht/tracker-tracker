@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
+import { StatusDot, type StatusDotTone } from "@/components/ui/StatusDot"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { type MouseholeStatusResponse, mouseholeStatus, stripUrlCredentials } from "@/lib/mousehole"
 
@@ -198,13 +199,13 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
   const notice = fetchError ?? data.stateError
   // After a failed poll or Check Now the status is out of date, so it is greyed.
   const pollFailed = fetchError !== null
-  const dotClass = pollFailed
-    ? "bg-muted"
+  const dotTone: StatusDotTone = pollFailed
+    ? "muted"
     : isOk
-      ? "bg-success animate-pulse-glow"
+      ? "success"
       : isStale
-        ? "bg-warn"
-        : "bg-danger"
+        ? "warn"
+        : "danger"
   const labelClass = pollFailed
     ? "text-muted"
     : isOk
@@ -228,31 +229,34 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
           alt="Mousehole"
           width={32}
           height={32}
-          className="invert opacity-70"
+          // Raised by the header row's offset, so it lines up with the header text.
+          className="invert opacity-70 -translate-y-[1.5px]"
           aria-hidden="true"
         />
       </a>
 
       {/* Right: Content (separated from logo by gap, not border) */}
-      <div className="flex flex-col flex-1 min-w-0 py-3 pr-4 pl-1">
-        {/* Header (always visible) */}
-        <div className="flex items-center justify-between gap-4 w-full">
+      <div className="flex flex-col flex-1 min-w-0 pt-3 pb-3.25 pr-4 pl-1">
+        {/* Header (always visible). All in Space Mono at one size so the pieces share a
+            line; it sits about a pixel low in its line box, so the row is raised and
+            the centred info icon lowered to match, as on the TrackerHub card. */}
+        <div className="flex items-center justify-between gap-4 w-full -translate-y-px">
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
             className="flex items-center gap-2 cursor-pointer min-w-0"
           >
             <ChevronToggle expanded={expanded} className="text-muted" />
-            <span className={clsx("inline-block w-2 h-2 rounded-full shrink-0", dotClass)} />
+            <StatusDot tone={dotTone} glow={!pollFailed} />
             <span
               className={clsx(
-                "text-sm font-mono font-semibold tracking-wider uppercase",
+                "text-xs font-mono font-semibold tracking-wider uppercase",
                 labelClass
               )}
             >
               {status.label}
             </span>
-            <span className="text-xs font-sans text-muted">Mousehole</span>
+            <span className="text-xs font-mono text-muted">Mousehole</span>
           </button>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -275,7 +279,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
             <InfoTip
               content="Mousehole keeps your MAM seedbox IP updated automatically."
               size="sm"
-              className="ml-1"
+              className="ml-1 translate-y-px"
               docs={{ href: "https://github.com/t-mart/mousehole", description: "Mousehole docs" }}
             />
           </div>

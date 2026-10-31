@@ -1,5 +1,137 @@
 # Changelog
 
+## [2.15.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.15.0...v2.15.1) (2026-10-30)
+
+### Bug Fixes
+
+* **trackers:** drop the dead trackerstatus.info status page links
+
+## [2.15.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.14.0...v2.15.0) (2026-10-30)
+
+### Bug Fixes
+
+* **backups:** carry dismissed alerts and notification scopes over to restored ids
+* **backups:** keep a restored backup from sending tracker keys to unknown addresses
+* **backups:** restore Mousehole settings only from an encrypted backup
+* **dashboard:** only say no torrent matches a tracker when none does
+* **events:** read auth failures from the status code and name client HTTP errors
+* **trackers:** use the health badge's required ratio on the stat cards and ratio chart
+
+### Refactoring
+
+* **db-fleet:** use the shared default tracker color in the fleet data
+* **scheduler:** remove the unused fetchTrackerStats
+
+## [2.14.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.5...v2.14.0) (2026-10-29)
+
+### Features
+
+* **dashboard:** yesterday at a glance
+* **db-fleet:** add a Transmission download-client adapter
+* **sidebar:** draw the favorites filter star and the drag-and-drop lock as matching SVG icons
+* **trackers:** add checked announce domains for 14 trackers
+* **trackers:** add FileList rules
+* **trackers:** add landof.tv as BroadcasTheNet's announce domain
+* **trackers:** add logo assets
+* **trackers:** add MyAnonaMouse rules and class details
+* **trackers:** add RetroToon rules
+* **trackers:** add Seedpool rules and class perks
+* **trackers:** add TorrentLeech rules
+* **trackers:** anthelion orbs (closes [#153](https://github.com/jordanlambrecht/tracker-tracker/issues/153))
+* **trackers:** c411 (thanks [@vasilvestre](https://github.com/vasilvestre))
+* **trackers:** c411 and hawke-uno download alerts
+* **trackers:** IPTorrents class ladder, login interval and bonus currency name
+* **trackers:** match IPTorrents' bgp.technology announces
+* **trackers:** match Orpheus' opsfet.ch announces
+* **trackers:** match TorrentLeech's tleechreload.org announces
+* **trackers:** match torrents on a tracker's other announce domains
+* **trackers:** name GGn's bonus currency Gold
+* **trackers:** name MAM's bonus currency Bonus
+* **trackers:** Orpheus class ladder
+* **trackers:** read the IPTorrents join and last-seen dates from the profile page
+* **trackers:** read the join date, last seen, required ratio and tokens from Luminance profiles
+* **trackers:** show each matched indexer's Prowlarr stats on the tracker page
+* **trackers:** show each tracker's indexer status from Prowlarr
+* **trackers:** support AnimeBytes on its own API
+* **trackers:** support Cathode-Ray.Tube on Luminance
+* **ui:** add Transmission clients from the Add Client form
+* **ui:** draw the remaining favorite stars, the backup lock and every infinite ratio as SVG icons
+* **ui:** lay out the TrackerHub card's uptime and response times as a grid by window
+* **ui:** place the status cards beside the user card on the tracker page
+
+### Bug Fixes
+
+* **auth:** sign out every session when the password or salt changes
+* **backups:** don't use unknown dl clients in backups
+* **backups:** refuse Transmission API keys on restore
+* **charts:** show app and tracker outage bands
+* **charts:** treat a -1 torrent ratio as infinite
+* **dashboard:** count qBittorrent's -1 ratio in the top bucket of both ratio charts
+* **dashboard:** count stopped and queued torrents as inactive
+* **dashboard:** count the bonus change over a day's readings, today or yesterday
+* **dashboard:** show a zero change without a sign or gain colour
+* **dashboard:** sign each change by the value as displayed
+* **db-fleet:** apply the sync store torrent cap to clients without delta sync
+* **db-fleet:** back off after an oversized client response
+* **db-fleet:** bring the Transmission transport up to the qBittorrent standard
+* **db-fleet:** count only downloading and seeding Transmission torrents as active
+* **db-fleet:** give Transmission failures their own error messages
+* **db-fleet:** keep one slow client from holding up every heartbeat
+* **db-fleet:** keep the torrent store when testing a client connection
+* **db-fleet:** no longer hides sync errors
+* **db-fleet:** poll only Transmission's private torrents
+* **db-fleet:** poll Transmission's lighter trackers field
+* **db-fleet:** stop calling an empty client cache corrupt
+* **db-fleet:** validate Transmission torrents before they reach the store
+* **profile:** count account age in local calendar days, so an account that joined today east of UTC reads 0 days instead of -1
+* **scheduler:** let shutdown finish requests and keep schedulers stopped
+* **security:** audit API keys and notification configs like the other secrets
+* **security:** check only the catch body for bare catches
+* **security:** keep torrent field values out of the logs
+* **security:** redirect key leak
+* **security:** require lockdown password check
+* **security:** stop hashing download client passwords
+* **settings:** read hidesJoinDate from the credential forms
+* **tracker-adapters:** strip FileList VIP expiry from user class
+* **trackers:** bring AnimeBytes up to the adapter standard and bound its username
+* **trackers:** bring announce host matching up to the registry standard
+* **trackers:** bring Luminance up to the adapter standard
+* **trackers:** clear the cached member id and avatar on a token change
+* **trackers:** count MAM's unsatisfied seeding torrents as amber in the health breakdown
+* **trackers:** don't allow hashtags or question marks in Prowlarr URLs
+* **trackers:** include C411's refusal reason in the error and hide its manual join date
+* **trackers:** never report a stored ratio for an infinite-ratio account
+* **trackers:** read a Cloudflare page served with a 403 or 503 as a challenge (thanks @Avamander)
+* **trackers:** read a missing GGn downloaded total as zero for zero-download accounts
+* **trackers:** read IPTorrents from the member's own profile page in one request
+* **trackers:** read the 24h ratio arrow and delta from the last two days unbucketed
+* **trackers:** read the IPTorrents class from the profile page
+* **trackers:** report no class instead of an empty string when a luminance profile shows none
+* **trackers:** retry a failed Prowlarr stats read at its next slot
+* **trackers:** set the SeedPool login interval to 120 days
+* **trackers:** set the TorrentLeech login interval to 120 days
+* **trackers:** show GGn achievement progress as points earned out of the next level's threshold
+* **trackers:** show the ratio card's arrow as the change over the last 24 hours
+* **ui:** centre each user rank on its requirements and perks
+* **ui:** line up the Mousehole card's header like the TrackerHub card's
+* **ui:** make the retention prompt's text readable
+* **ui:** open What's New after the retention prompt
+* **ui:** show every percentage with one decimal
+* **user-proxy:** resolve tracker hostnames through SOCKS5 proxies
+* **webhooks:** bonus cap alert for MAM only
+
+### Refactoring
+
+* **db-fleet:** move the client-agnostic transport helpers into a shared module
+* **trackers:** derive the token cap from credential forms
+* **ui:** remove the dead linked trackers section from the download client card
+* **ui:** share one status dot between the TrackerHub and Mousehole cards
+* **ui:** use one status dot everywhere
+
+## [2.13.5](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.4...v2.13.5) (2026-10-20)
+
+## [2.13.4](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.3...v2.13.4) (2026-10-20)
+## [2.13.3](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.2...v2.13.3) (2026-10-20)
 ## [2.13.2](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.13.1...v2.13.2) (2026-10-20)
 
 ### Bug Fixes

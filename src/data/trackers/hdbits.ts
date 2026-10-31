@@ -9,7 +9,7 @@ export const hdbits: TrackerRegistryEntry = {
   abbreviation: "HDB",
   url: "https://hdbits.org",
   description:
-    "HD tracker known for being the internal release site for an enormous number of encoders, including many of the top groups. Also has a massive collection of full discs.",
+    "HD tracker and the internal release site for a large number of encoders, including many of the top groups. Also has a large collection of full discs.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "custom",
@@ -22,7 +22,7 @@ export const hdbits: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#ffd700",
-  logo: "",
+  logo: "/tracker-logos/hdbits_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "hd-bits",

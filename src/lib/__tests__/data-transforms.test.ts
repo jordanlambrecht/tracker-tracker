@@ -1,15 +1,18 @@
 // src/lib/__tests__/data-transforms.test.ts
 
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   compareBigIntDesc,
+  computeDelta,
   computePctChange,
   isUnixTimestampOnDate,
   normalizeUrl,
+  ratioTrend24h,
   sanitizeHost,
   stripTrailingSlash,
 } from "@/lib/data-transforms"
 import { localDateStr } from "@/lib/formatters"
+import type { Snapshot } from "@/types/api"
 
 // ---------------------------------------------------------------------------
 // sanitizeHost
@@ -159,5 +162,87 @@ describe("isUnixTimestampOnDate", () => {
   it("returns false when the date string does not match", () => {
     const ts = Math.floor(new Date("2026-03-15T12:00:00").getTime() / 1000)
     expect(isUnixTimestampOnDate(ts, "1999-01-01")).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ratioTrend24h and computeDelta's window
+// ---------------------------------------------------------------------------
+
+describe("ratioTrend24h", () => {
+  const NOW = Date.UTC(2026, 9, 24, 12)
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(NOW)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function snap(hoursAgo: number, ratio: number | null, uploaded = "1000"): Snapshot {
+    return {
+      polledAt: new Date(NOW - hoursAgo * 3_600_000).toISOString(),
+      uploadedBytes: uploaded,
+      downloadedBytes: "1000",
+      ratio,
+      ratioIsInfinite: false,
+    } as Snapshot
+  }
+
+  const infinite = (hoursAgo: number): Snapshot => ({
+    ...snap(hoursAgo, null),
+    ratioIsInfinite: true,
+  })
+
+  it("compares the latest reading with the earliest inside the last 24 hours", () => {
+    // 3.0 until a day ago, 3.5 for 14 hours, then 3.2 for the last 10
+    const series = [
+      snap(48, 3.0),
+      snap(30, 3.0),
+      snap(24, 3.5),
+      snap(11, 3.5),
+      snap(10, 3.2),
+      snap(0, 3.2),
+    ]
+    expect(ratioTrend24h(series)).toBe("down")
+    expect(ratioTrend24h([snap(20, 4.4), snap(0, 4.48)])).toBe("up")
+    expect(ratioTrend24h([snap(20, 4.48), snap(2, 4.0), snap(0, 4.48)])).toBe("flat")
+  })
+
+  it("ignores an old tracker's daily rows from before the window", () => {
+    // What the all-time query returns past 90 days: the last poll of each day
+    const daily = [snap(72, 3.0), snap(47, 3.0), snap(23, 3.5), snap(0, 3.2)]
+    expect(ratioTrend24h(daily)).toBe("down")
+    expect(ratioTrend24h(daily.slice(0, 3).concat(snap(0, 3.5)))).toBe("flat")
+    expect(ratioTrend24h([snap(72, 3.0), snap(47, 3.0), snap(0, 3.2)])).toBeUndefined()
+  })
+
+  it("shows a young tracker's movement since its first poll", () => {
+    expect(ratioTrend24h([snap(23, 1), snap(0, 2)])).toBe("up")
+  })
+
+  it("has no trend without two readings in the window or without a ratio", () => {
+    expect(ratioTrend24h([])).toBeUndefined()
+    expect(ratioTrend24h([snap(0, 2)])).toBeUndefined()
+    expect(ratioTrend24h([snap(50, 1), snap(25, 2)])).toBeUndefined()
+    expect(ratioTrend24h([snap(20, null), snap(0, 2)])).toBeUndefined()
+  })
+
+  it("reads snapshots in any order", () => {
+    expect(ratioTrend24h([snap(0, 2), snap(20, 1)])).toBe("up")
+  })
+
+  it("ranks an infinite ratio above any finite one", () => {
+    expect(ratioTrend24h([snap(20, 3), infinite(0)])).toBe("up")
+    expect(ratioTrend24h([infinite(20), snap(0, 3)])).toBe("down")
+    expect(ratioTrend24h([infinite(20), infinite(0)])).toBe("flat")
+  })
+
+  it("matches the window computeDelta measures", () => {
+    const daily = [snap(47, 3.0, "1000"), snap(23, 3.5, "4000"), snap(0, 3.2, "5000")]
+    expect(computeDelta(daily)).toEqual({ uploaded: "1000", downloaded: "0" })
+    expect(computeDelta([snap(47, 3.0), snap(0, 3.2)])).toBeNull()
   })
 })

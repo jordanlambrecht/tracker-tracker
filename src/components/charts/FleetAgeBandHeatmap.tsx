@@ -6,6 +6,7 @@ import { useMemo } from "react"
 import { hexToRgba } from "@/lib/color-utils"
 import { AGE_BUCKETS } from "@/lib/fleet"
 import type { AgeBandEntry } from "@/lib/fleet-aggregation"
+import { formatPercent } from "@/lib/formatters"
 import { ChartECharts } from "./lib/ChartECharts"
 import { ChartEmptyState } from "./lib/ChartEmptyState"
 import { CHART_THEME, chartTooltip, chartTooltipRow, escHtml } from "./lib/theme"
@@ -43,13 +44,13 @@ function buildAgeBandHeatmapOption(trackers: AgeBandEntry[]): EChartsOption {
         const [bucketIdx, trackerIdx, count] = p.data
         const tracker = trackers[trackerIdx]
         const bucket = bucketLabels[bucketIdx]
-        const pct = tracker.total > 0 ? ((count / tracker.total) * 100).toFixed(1) : "0"
+        const pct = formatPercent(tracker.total > 0 ? (count / tracker.total) * 100 : 0)
         return (
           `<div style="font-family:var(--font-mono),monospace;font-size:${CHART_THEME.fontSizeDense}px;` +
           `color:${CHART_THEME.textTertiary};margin-bottom:4px;">${escHtml(tracker.name)} · ${escHtml(bucket)}</div>` +
           chartTooltipRow(tracker.color, "Torrents", String(count)) +
           "<br/>" +
-          chartTooltipRow(tracker.color, "Share", `${pct}%`)
+          chartTooltipRow(tracker.color, "Share", pct)
         )
       },
     }),

@@ -7,6 +7,7 @@ import {
   checkAnniversaryMilestone,
   checkBonusCapReached,
   checkBufferMilestoneCrossed,
+  checkDownloadDisabled,
   checkHnrIncrease,
   checkRankChange,
   checkRatioBelowMinimum,
@@ -429,5 +430,23 @@ describe("checkActiveHnrs", () => {
   })
   it("returns false when count decreased (resolving HnRs)", () => {
     expect(checkActiveHnrs(2, 5)).toBe(false)
+  })
+})
+
+describe("checkDownloadDisabled", () => {
+  it("returns true when downloads go from allowed to revoked (transition)", () => {
+    expect(checkDownloadDisabled(false, true)).toBe(true)
+  })
+  it("returns false when already revoked (already notified)", () => {
+    expect(checkDownloadDisabled(false, false)).toBe(false)
+  })
+  it("returns false when downloads are restored", () => {
+    expect(checkDownloadDisabled(true, false)).toBe(false)
+  })
+  it("returns false when the previous state is unknown (first poll)", () => {
+    expect(checkDownloadDisabled(false, null)).toBe(false)
+  })
+  it("returns false when this poll carries no flag", () => {
+    expect(checkDownloadDisabled(null, true)).toBe(false)
   })
 })

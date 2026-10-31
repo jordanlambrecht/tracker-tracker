@@ -1,8 +1,8 @@
 // src/components/TrackerSettingsSheet.tsx
 "use client"
 
-import { useQueryClient } from "@tanstack/react-query"
-import { H2 } from "@typography"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { H2, Subtext } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react"
@@ -15,6 +15,7 @@ import {
   MaskedSecret,
   Notice,
   QbtTagWarning,
+  Select,
   Sheet,
   Toggle,
 } from "@/components/ui"
@@ -24,17 +25,14 @@ import { registryEntryFor } from "@/data/tracker-registry"
 import {
   buildCredentialBlob,
   type CredentialValues,
-  credentialFormForPlatform,
+  credentialFormFor,
   EMPTY_CREDENTIAL_VALUES,
   validateCredentialValues,
 } from "@/lib/credential-forms"
 import { localDateStr } from "@/lib/formatters"
-import {
-  MOUSEHOLE_TOKEN_TIP,
-  MOUSEHOLE_URL_PLACEHOLDER,
-  MOUSEHOLE_URL_TIP,
-} from "@/lib/mousehole"
-import { trackerQueryOptions } from "@/lib/query-options"
+import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
+import { matchTrackerIndexers } from "@/lib/prowlarr/matching"
+import { prowlarrIndexerQueryOptions, trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsSheetProps {
@@ -59,6 +57,29 @@ interface FormState {
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
   mouseholeUrl: string
+  /** AUTO_INDEXER, NO_INDEXER or pinValue(instanceId, indexerId) */
+  prowlarrIndexer: string
+}
+
+// Select values for the Prowlarr picker. Only the sheet uses them; the API
+// takes prowlarrPin and prowlarrOptOut.
+const AUTO_INDEXER = "auto"
+const NO_INDEXER = "none"
+
+function pinValue(instanceId: number, indexerId: number): string {
+  return `${instanceId}:${indexerId}`
+}
+
+function indexerValue(t: TrackerSummary): string {
+  if (t.prowlarrOptOut) return NO_INDEXER
+  return t.prowlarrPin ? pinValue(t.prowlarrPin.instanceId, t.prowlarrPin.indexerId) : AUTO_INDEXER
+}
+
+function indexerPayload(value: string): Record<string, unknown> {
+  if (value === AUTO_INDEXER) return { prowlarrPin: null, prowlarrOptOut: false }
+  if (value === NO_INDEXER) return { prowlarrPin: null, prowlarrOptOut: true }
+  const [instanceId, indexerId] = value.split(":").map(Number)
+  return { prowlarrPin: { instanceId, indexerId }, prowlarrOptOut: false }
 }
 
 function formStateFromTracker(t: TrackerSummary): FormState {
@@ -72,6 +93,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
     hideUnreadBadges: t.hideUnreadBadges ?? false,
     mouseholeUrl: t.mouseholeUrl ?? "",
+    prowlarrIndexer: indexerValue(t),
   }
 }
 
@@ -111,6 +133,31 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
   const [proxyAvailable, setProxyAvailable] = useState<boolean | null>(null)
 
+  // Empty unless a Prowlarr instance is configured, which hides the picker.
+  const { data: indexerOptions = [] } = useQuery({ ...prowlarrIndexerQueryOptions, enabled: open })
+  const indexerSelectOptions = [
+    { value: AUTO_INDEXER, label: "Match by hostname" },
+    { value: NO_INDEXER, label: "None" },
+    ...indexerOptions.map((o) => ({
+      value: pinValue(o.instanceId, o.indexerId),
+      label: `${o.name} (${o.instanceName})`,
+    })),
+  ]
+  // Matched here rather than read from the tracker, so the hint follows the
+  // selected option before it is saved.
+  const autoMatch = matchTrackerIndexers(
+    { ...tracker, prowlarrInstanceId: null, prowlarrIndexerId: null, prowlarrOptOut: false },
+    indexerOptions
+  )
+  // A pin whose indexer was removed from Prowlarr stays selectable, so saving
+  // other fields does not silently change it.
+  if (!indexerSelectOptions.some((o) => o.value === form.prowlarrIndexer)) {
+    indexerSelectOptions.push({
+      value: form.prowlarrIndexer,
+      label: "Indexer no longer in Prowlarr",
+    })
+  }
+
   useEffect(() => {
     if (!open || proxyAvailable !== null) return
     fetch("/api/settings")
@@ -128,7 +175,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   // close, where MaskedSecret would hide it until the next save sent it.
   const [mouseholeToken, setMouseholeToken] = useState("")
   const [credentials, setCredentials] = useState<CredentialValues>(EMPTY_CREDENTIAL_VALUES)
-  const credentialForm = credentialFormForPlatform(tracker.platformType)
+  const credentialForm = credentialFormFor({
+    platform: tracker.platformType,
+    gazelleEnrich: registryEntry?.gazelleEnrich,
+  })
 
   const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
     setCredentials((prev) => ({ ...prev, [field]: value }))
@@ -234,6 +284,10 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
     if (changingKey && trimmedToken) {
       payload.apiToken = trimmedToken
+    }
+
+    if (form.prowlarrIndexer !== indexerValue(tracker)) {
+      Object.assign(payload, indexerPayload(form.prowlarrIndexer))
     }
 
     // mouseholeToken travels only with a new value, so a save with the field
@@ -368,11 +422,14 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
           <div className="flex flex-col gap-1">
             <Input
-              label="qBittorrent Tag"
+              label="Client Tag"
               value={form.qbtTag}
               onChange={(e) => updateField("qbtTag", e.target.value)}
               placeholder="i.e, aither"
             />
+            <Subtext>
+              Optional. The qBittorrent tag or Transmission label on this tracker's torrents.
+            </Subtext>
             <QbtTagWarning tag={form.qbtTag} />
           </div>
 
@@ -435,16 +492,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
           <ColorPicker label="Color" value={form.color} onChange={(v) => updateField("color", v)} />
 
-          {!(
-            registryEntry?.gazelleEnrich ||
-            tracker.platformType === "ggn" ||
-            tracker.platformType === "avistaz" ||
-            tracker.platformType === "digitalcore" ||
-            tracker.platformType === "filelist" ||
-            tracker.platformType === "iptorrents" ||
-            tracker.platformType === "torrentleech" ||
-            tracker.platformType === "retrotoon"
-          ) && (
+          {!credentialForm.hidesJoinDate && (
             <div>
               <label
                 htmlFor="settings-joined-at"
@@ -534,6 +582,26 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               label="Hide unread badges"
               description="Don't show inbox/notification counts on this tracker's detail page"
             />
+          )}
+
+          {indexerOptions.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <Select
+                label="Prowlarr Indexer"
+                ariaLabel="Prowlarr indexer"
+                size="md"
+                value={form.prowlarrIndexer}
+                onChange={(v) => updateField("prowlarrIndexer", v)}
+                options={indexerSelectOptions}
+              />
+              {form.prowlarrIndexer === AUTO_INDEXER && (
+                <p className="text-xs font-sans text-muted mt-1">
+                  {autoMatch
+                    ? `Matched: ${autoMatch.indexers.map((i) => i.name).join(", ")}.`
+                    : "No indexer shares this tracker's hostname."}
+                </p>
+              )}
+            </div>
           )}
 
           <Notice message={errors.form} />

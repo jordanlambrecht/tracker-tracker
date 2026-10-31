@@ -20,7 +20,7 @@ import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBa
 import { registryBonusName, registryEntryFor } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { hexToRgba } from "@/lib/color-utils"
-import { computeDelta } from "@/lib/data-transforms"
+import { computeDelta, ratioTrend24h } from "@/lib/data-transforms"
 import type {
   DayRange,
   GazellePlatformMeta,
@@ -45,6 +45,8 @@ interface TrackerDetailClientProps {
   trackerId: number
   initialTracker: TrackerSummary
   initialAllTimeSnapshots: Snapshot[]
+  /** The last two days unbucketed, for the 24-hour figures */
+  initialRecentSnapshots: Snapshot[]
   initialTagGroups: TagGroup[]
   initialQbitmanageConfig: { enabled: boolean; tags: QbitmanageTagConfig } | null
   initialTab?: string | null
@@ -54,6 +56,7 @@ export function TrackerDetailClient({
   trackerId,
   initialTracker,
   initialAllTimeSnapshots,
+  initialRecentSnapshots,
   initialTagGroups,
   initialQbitmanageConfig,
   initialTab: initialTabProp,
@@ -67,6 +70,7 @@ export function TrackerDetailClient({
 
   const [tracker, setTracker] = useState<TrackerSummary>(initialTracker)
   const [allTimeSnapshots, setAllTimeSnapshots] = useState<Snapshot[]>(initialAllTimeSnapshots)
+  const [recentSnapshots, setRecentSnapshots] = useState<Snapshot[]>(initialRecentSnapshots)
   const tagGroups = initialTagGroups
   const qbitmanageConfig = initialQbitmanageConfig
   const [days, setDays] = useState<DayRange>(30)
@@ -167,12 +171,14 @@ export function TrackerDetailClient({
         const body = await res.json().catch(() => ({ error: "Poll failed" }))
         setPollError((body as { error?: string }).error ?? "Poll failed")
       } else {
-        const [trackerRes, allTimeRes] = await Promise.all([
+        const [trackerRes, allTimeRes, recentRes] = await Promise.all([
           fetch(`/api/trackers/${id}`),
           fetch(`/api/trackers/${id}/snapshots?days=0`),
+          fetch(`/api/trackers/${id}/snapshots?days=2`),
         ])
         if (trackerRes.ok) setTracker(await trackerRes.json())
         if (allTimeRes.ok) setAllTimeSnapshots(await allTimeRes.json())
+        if (recentRes.ok) setRecentSnapshots(await recentRes.json())
       }
     } catch {
       setPollError("Network error during poll")
@@ -214,7 +220,10 @@ export function TrackerDetailClient({
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null
   const stats = tracker?.latestStats ?? null
-  const delta = useMemo(() => computeDelta(snapshots), [snapshots])
+  // The all-time series is bucketed by hour past two days stored and by day past 90,
+  // so the 24-hour figures read the raw last two days
+  const delta = useMemo(() => computeDelta(recentSnapshots), [recentSnapshots])
+  const ratioTrend = useMemo(() => ratioTrend24h(recentSnapshots), [recentSnapshots])
 
   const tc = tracker?.color || CHART_THEME.accent
   const trackerStyle = useMemo(
@@ -338,7 +347,7 @@ export function TrackerDetailClient({
           days={days}
           onDaysChange={setDays}
           delta={delta}
-          minimumRatio={registryEntry?.rules?.minimumRatio}
+          ratioTrend={ratioTrend}
           bonusName={registryBonusName(registryEntry)}
           statCardSlots={statCardSlots}
           progressSlots={progressSlots}

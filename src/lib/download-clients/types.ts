@@ -1,8 +1,19 @@
 // src/lib/download-clients/types.ts
 
-export const VALID_CLIENT_TYPES = ["qbittorrent"] as const
+export const VALID_CLIENT_TYPES = ["qbittorrent", "transmission"] as const
 
 export type ClientType = (typeof VALID_CLIENT_TYPES)[number]
+
+/** The port each client's web API listens on out of the box. */
+export const DEFAULT_CLIENT_PORTS: Record<ClientType, number> = {
+  qbittorrent: 8080,
+  transmission: 9091,
+}
+
+/** Transmission's RPC takes HTTP Basic and nothing else. */
+export function clientSupportsApiKey(type: string): boolean {
+  return type === "qbittorrent"
+}
 
 export const VALID_AUTH_METHODS = ["password", "apikey"] as const
 
@@ -18,20 +29,22 @@ export interface TransferStats {
 export interface TorrentRecord {
   hash: string
   name: string
-  state: string // "uploading", "stalledUP", "downloading", "stalledDL", "pausedUP", "pausedDL", etc.
+  state: string // "uploading", "stalledUP", "downloading", "stalledDL", "stoppedUP", "stoppedDL", etc.
   tags: string // comma-separated, i.e "aither, cross-seed"
   category: string
   uploadSpeed: number // bytes/sec
   downloadSpeed: number // bytes/sec
   uploaded: number // total bytes uploaded
   downloaded: number // total bytes downloaded
+  // -1 means infinite: uploaded with nothing downloaded and no pieces held.
+  // Adapters map their own infinity to -1 and any not-applicable value to 0.
   ratio: number
   size: number // bytes
   seedCount: number // connected seeds
   leechCount: number // connected leechers
-  swarmSeeders: number // total seeders in swarm
-  swarmLeechers: number // total leechers in swarm
-  tracker: string // primary tracker URL
+  swarmSeeders: number // total seeders in swarm; connected ones only for Transmission
+  swarmLeechers: number // total leechers in swarm; connected ones only for Transmission
+  tracker: string // announce URL (qBittorrent) or announce host (Transmission)
   addedAt: number // unix timestamp. When torrent was added
   completedAt: number // unix timestamp. When download completed (-1 if incomplete)
   lastActivityAt: number // unix timestamp. Last transfer activity
@@ -93,10 +106,20 @@ export function assertAuthMethod(authMethod: string): AuthMethod {
  * union rather than a bag of optional fields means the mode and the secret it
  * describes can never disagree: reading `apiKey` off a password client, or
  * `password` off a key client, is a compile error.
+ *
+ * `credentialKey` names the saved credential without holding the secret. It is
+ * built from the stored ciphertext, which changes on every save, and keys the
+ * auth blocks and qBittorrent's session cache.
  */
 export type ClientCredentials =
-  | { authMethod: "password"; username: string; password: string; urlPath: string }
-  | { authMethod: "apikey"; apiKey: string; urlPath: string }
+  | {
+      authMethod: "password"
+      username: string
+      password: string
+      urlPath: string
+      credentialKey: string
+    }
+  | { authMethod: "apikey"; apiKey: string; urlPath: string; credentialKey: string }
 
 /**
  * Download client adapter interface. Adapters produce TorrentRecord-shaped

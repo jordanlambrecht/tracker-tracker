@@ -4,7 +4,8 @@
 // filesystem or the process, so a test can import it; the audit script keeps
 // its CLI entry and still runs every check on load.
 //
-// Functions: fetchWindowEnd, hasInjectionGuard, logsCredential
+// Functions: fetchWindowEnd, catchBodyLines, swallowsError, hasInjectionGuard, logsCredential,
+//            gatesAuthResult, stripEncryptAssignment
 
 export const FETCH_RE = /\bfetch\s*\(/
 
@@ -37,6 +38,47 @@ export function fetchWindowEnd(lines: string[], startIndex: number): number {
   }
 
   return windowEnd
+}
+
+export const CATCH_RE = /}\s*catch\s*(?:\([^)]*\))?\s*\{/
+
+// Inside the body, a log, a rethrow, an error response or any return counts as
+// handling the error.
+const RECOVERY_RE =
+  /console\.error|console\.warn|log\.error|log\.warn|\bthrow\b|setPollError|setError|return\s+null|return\s+\[\]|return\s+0|return\s+false|NextResponse\.json|Response\.json|return\s+new\s+Response|return\s+NextResponse|status:\s*[45]\d\d|\.push\s*\(|\breturn\b|\berror\b.*message/
+
+// A file with an unbalanced brace must not drag the body to the end of the
+// file, so the balancer gives up after this many lines.
+export const CATCH_BODY_MAX_LINES = 60
+
+// The catch block that opens on lines[startIndex], one entry per line, from
+// after its "{" to before the matching "}". Code after the block, such as an
+// unrelated return, is not part of it. Braces in strings, comments and regex
+// literals still count, so the line cap is the backstop.
+export function catchBodyLines(lines: string[], startIndex: number): string[] {
+  const match = CATCH_RE.exec(lines[startIndex])
+  if (!match) return []
+  const body: string[] = []
+  let depth = 1
+
+  for (let j = startIndex; j < Math.min(startIndex + CATCH_BODY_MAX_LINES, lines.length); j++) {
+    const from = j === startIndex ? match.index + match[0].length : 0
+    let k = from
+    for (; k < lines[j].length; k++) {
+      const ch = lines[j][k]
+      if (ch === "{") depth++
+      else if (ch === "}") depth--
+      if (depth === 0) break
+    }
+    body.push(lines[j].slice(from, k))
+    if (depth === 0) break
+  }
+
+  return body
+}
+
+export function swallowsError(lines: string[], startIndex: number): boolean {
+  return !catchBodyLines(lines, startIndex).some((line) => RECOVERY_RE.test(line))
 }
 
 // Evidence that a file validates cookie values before interpolation. Each
@@ -86,4 +128,45 @@ const CRED_IN_LOG_RE = new RegExp(
 
 export function logsCredential(line: string): boolean {
   return CRED_IN_LOG_RE.test(line)
+}
+
+// Routes that may check readSession() for null alone. Logout signs out a stale
+// session too, so it refuses only a request that sent no usable cookie.
+const READ_SESSION_NULL_GATE_ROUTES = new Set(["api/auth/logout"])
+
+const READ_SESSION_RE = /\breadSession\s*\(/
+const INSTANCEOF_GATE_RE = /instanceof\s+(?:Next)?Response/
+const NULL_GATE_RE = /!\s*session\b|session\s*===?\s*null/
+const VALID_STATUS_GATE_RE = /\.status\s*(?:===|!==)\s*["']valid["']/
+
+// authenticate() returns NextResponse | { encryptionKey }, so instanceof checks
+// it, and getSession() returns { encryptionKey } | null, so !session does.
+// readSession() can also return { status: "stale" }, which is truthy, so a null
+// check lets a session from before a password change or lockdown through.
+// Outside READ_SESSION_NULL_GATE_ROUTES it needs a status === "valid" check.
+export function gatesAuthResult(routePath: string, handlerBody: string): boolean {
+  // A commented-out check is not a check
+  const code = handlerBody
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim()
+      return !trimmed.startsWith("//") && !trimmed.startsWith("*")
+    })
+    .join("\n")
+
+  if (READ_SESSION_RE.test(code) && !READ_SESSION_NULL_GATE_ROUTES.has(routePath)) {
+    return VALID_STATUS_GATE_RE.test(code)
+  }
+  return INSTANCEOF_GATE_RE.test(code) || NULL_GATE_RE.test(code)
+}
+
+// `const x = encrypt(JSON.stringify(...))` and `updates.x = encrypt(JSON.stringify(...))`
+// serialize a value for storage, so check 6 reads the line without that prefix. A property
+// line such as `x: encrypt(JSON.stringify(...))` keeps it, since it can sit inside a
+// multi-line NextResponse.json.
+const ENCRYPT_ASSIGNMENT_RE =
+  /^\s*(?:(?:const|let)\s+\w+|updates\.\w+)\s*=\s*encrypt\(\s*JSON\.stringify\(/
+
+export function stripEncryptAssignment(line: string): string {
+  return line.replace(ENCRYPT_ASSIGNMENT_RE, "")
 }

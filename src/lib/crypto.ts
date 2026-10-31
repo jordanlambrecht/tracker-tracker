@@ -1,7 +1,15 @@
 // src/lib/crypto.ts
 //
-// Functions: deriveKey, deriveWrappingKey, encrypt, decrypt, reencrypt, generateSalt
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes, scryptSync } from "node:crypto"
+// Functions: deriveKey, masterKeyFingerprint, deriveWrappingKey, encrypt, decrypt, reencrypt,
+//            generateSalt
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  hkdfSync,
+  randomBytes,
+  scryptSync,
+} from "node:crypto"
 
 const KEY_LENGTH = 32 // 256 bits for AES-256
 const SCRYPT_N = 16384
@@ -16,6 +24,18 @@ export async function deriveKey(password: string, salt: string): Promise<Buffer>
     r: SCRYPT_R,
     p: SCRYPT_P,
   })
+}
+
+/**
+ * Names the master key without revealing it. Every key change rewrites the
+ * password hash, the salt or both, so a session that carries an older value
+ * belongs to a dead key.
+ *
+ * SHA-256 is deliberate. The inputs are an argon2 hash and a random salt, not a
+ * password, and readSession runs this on every authenticated request.
+ */
+export function masterKeyFingerprint(passwordHash: string, encryptionSalt: string): string {
+  return createHash("sha256").update(`${passwordHash}\u0000${encryptionSalt}`).digest("hex")
 }
 
 /**

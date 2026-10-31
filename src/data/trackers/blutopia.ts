@@ -9,7 +9,7 @@ export const blutopia: TrackerRegistryEntry = {
   abbreviation: "BLU",
   url: "https://blutopia.cc",
   description:
-    "Community-built Movie/TV/FANRES database with a strong focus on HD content. Known for one of the best FANRES selections available, an experienced staff team, and a security-focused codebase. No donation pestering.",
+    "Community-built Movie/TV/FANRES database with a strong focus on HD content. Has one of the best FANRES selections available, an experienced staff team, and a security-focused codebase. No donation pestering.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
@@ -28,13 +28,14 @@ export const blutopia: TrackerRegistryEntry = {
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "blutopia",
   statusPageUrl: "",
+  announceHosts: ["blutopia.cc"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [
     // Dynamic. activity-based
     {
       name: "Leech",
-      requirements: "Ratio below 0.4 — download, invite, and request privileges revoked",
+      requirements: "Ratio below 0.4. Download, invite, and request privileges revoked",
       outsideLadder: "below",
     },
     {
@@ -81,37 +82,37 @@ export const blutopia: TrackerRegistryEntry = {
     // Staff-assigned
     {
       name: "Junior Uploader",
-      requirements: "Staff — brings fresh content",
+      requirements: "Staff (brings fresh content)",
       outsideLadder: "above",
     },
-    { name: "Uploader", requirements: "Staff — brings quality content", outsideLadder: "above" },
+    { name: "Uploader", requirements: "Staff (brings quality content)", outsideLadder: "above" },
     {
       name: "Trustee",
-      requirements: "Staff — former staff, former internals, close associates",
+      requirements: "Staff (former staff, former internals, close associates)",
       outsideLadder: "above",
     },
     {
       name: "Internal",
-      requirements: "Staff — internal release group members",
+      requirements: "Staff (internal release group members)",
       outsideLadder: "above",
     },
-    { name: "Editor", requirements: "Staff — fixes torrent pages", outsideLadder: "above" },
+    { name: "Editor", requirements: "Staff (fixes torrent pages)", outsideLadder: "above" },
     {
       name: "Torrent Moderator",
-      requirements: "Staff — moderates torrent queue",
+      requirements: "Staff (moderates torrent queue)",
       outsideLadder: "above",
     },
     { name: "Moderator", requirements: "Staff", outsideLadder: "above" },
     { name: "Super Mod", requirements: "Staff", outsideLadder: "above" },
     {
       name: "systemd",
-      requirements: "Staff — site and infrastructure management",
+      requirements: "Staff (site and infrastructure management)",
       outsideLadder: "above",
     },
     { name: "Administrator", requirements: "Staff", outsideLadder: "above" },
     {
       name: "Super Admin",
-      requirements: "Staff — site and infrastructure",
+      requirements: "Staff (site and infrastructure)",
       outsideLadder: "above",
     },
   ],
@@ -228,14 +229,14 @@ export const blutopia: TrackerRegistryEntry = {
       "## Ratio",
       "",
       "- Minimum ratio: 0.4 (you can download up to 2.5x what you upload)",
-      "- Falling below 0.4 moves you to Leech group — download, invite, and request privileges revoked",
+      "- Falling below 0.4 moves you to Leech group, and download, invite, and request privileges are revoked",
       "- Buffer = Upload x 2.5 - Download",
       "",
       "## Seedtime",
       "",
       "- 7-day seedtime required on all torrents if ≥ 10% was downloaded",
       "- Failure to seed results in an H&R warning",
-      '- Encouraged to seed as long as possible — "Seed til you bleed"',
+      '- Encouraged to seed as long as possible ("Seed til you bleed")',
       "",
       "## Upload Rules",
       "",
@@ -269,7 +270,7 @@ export const blutopia: TrackerRegistryEntry = {
       "## Hit & Run",
       "",
       "- 7-day (168h) seedtime required on all torrents, regardless of ratio",
-      "- 10% download buffer before H&R kicks in — torrents <10% downloaded won't trigger",
+      "- 10% download buffer before H&R kicks in (torrents <10% downloaded won't trigger)",
       "- Seeding rules still apply to freeleech torrents",
       "- If disconnected >72h without completing 7-day seedtime → H&R warning",
       "- Pre-warning PM sent after 24h disconnection if seedtime incomplete",
@@ -278,8 +279,8 @@ export const blutopia: TrackerRegistryEntry = {
       "",
       "## General Rules",
       "",
-      "- One account per person per lifetime — no trading, selling, or sharing accounts",
-      "- No ratio cheating — reporting incorrect data is strictly prohibited",
+      "- One account per person per lifetime. No trading, selling, or sharing accounts",
+      "- No ratio cheating. Reporting incorrect data is strictly prohibited",
       "- Bug bounties: 100k BON (low), 1M (medium), 2M (high severity)",
       "- Do not upload internal content to public trackers/DDL/Usenet",
       "- Wait 24h before cross-seeding internal uploads",
@@ -287,7 +288,7 @@ export const blutopia: TrackerRegistryEntry = {
       "",
       "## Inviting",
       "",
-      "- You are responsible for your invitees — if they break rules, you may be banned too",
+      "- You are responsible for your invitees. If they break rules, you may be banned too",
       "- No trading/selling invites; invite only people you know or trust",
       "",
       "## Requests",

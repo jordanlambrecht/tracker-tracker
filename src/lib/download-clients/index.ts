@@ -45,4 +45,10 @@ export type {
   TorrentRecord,
   TransferStats,
 } from "./types"
-export { assertAuthMethod, assertClientType, VALID_AUTH_METHODS, VALID_CLIENT_TYPES } from "./types"
+export {
+  assertAuthMethod,
+  assertClientType,
+  DEFAULT_CLIENT_PORTS,
+  VALID_AUTH_METHODS,
+  VALID_CLIENT_TYPES,
+} from "./types"

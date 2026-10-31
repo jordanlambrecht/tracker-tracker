@@ -19,6 +19,7 @@ import {
   PLACEHOLDER_RE,
   SLUG_RE,
   VALID_CONTENT_CATEGORIES,
+  validateAnnounceHosts,
   validateDefunct,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
@@ -246,6 +247,9 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     const defunct = validateDefunct(tracker)
     errors.push(...defunct.errors)
     warnings.push(...defunct.warnings)
+
+    // ── Announce hosts ────────────────────────────────────────────────
+    errors.push(...validateAnnounceHosts(tracker))
 
     // ── Warn-level fields ─────────────────────────────────────────────
     if (isEmpty(tracker.abbreviation)) warnings.push("Missing abbreviation")

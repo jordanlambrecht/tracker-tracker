@@ -48,6 +48,7 @@ nav:
       - Proxy Support: features/proxies.md
       - Backups & Restore: features/backups.md
       - Download Clients: features/download-clients.md
+      - Prowlarr: features/prowlarr.md
       - Tag Groups: features/tag-groups.md
       - qbitmanage Integration: features/qbitmanage.md
       - Webhooks: features/webhooks.md

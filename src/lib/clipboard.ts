@@ -52,6 +52,7 @@ function copyViaExecCommand(text: string): boolean {
     textarea.setSelectionRange(0, text.length)
     copied = document.execCommand("copy")
   } catch {
+    // security-audit-ignore: false is the outcome, and the caller reports it as "unavailable"
     copied = false
   } finally {
     textarea.remove()
@@ -80,7 +81,7 @@ export async function copyTextToClipboard(text: string): Promise<ClipboardOutcom
       return "copied"
     }
   } catch {
-    // Permission denied, insecure context, or a lost user gesture. Fall through.
+    // security-audit-ignore: permission denied, insecure context, or a lost user gesture. Fall through.
     // Deliberately not rethrown, because there is still one route left to try.
   }
 

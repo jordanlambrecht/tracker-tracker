@@ -15,15 +15,7 @@ import { formatCount, formatRatio } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
 
 const Markdown = dynamic(
-  () =>
-    Promise.all([import("react-markdown"), import("remark-gfm")]).then(
-      ([{ default: ReactMarkdown }, { default: remarkGfm }]) => {
-        function GfmMarkdown(props: { children: string; className?: string }) {
-          return <ReactMarkdown remarkPlugins={[remarkGfm]} {...props} />
-        }
-        return GfmMarkdown
-      }
-    ),
+  () => import("@/components/tracker-detail/GfmMarkdown").then((m) => m.GfmMarkdown),
   { ssr: false }
 )
 
@@ -192,12 +184,12 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 <div
                   key={uc.name}
                   className={clsx(
-                    "flex items-start justify-between px-6 py-3.5",
+                    "flex items-center justify-between px-6 py-3.5",
                     i > 0 ? "border-t border-border" : ""
                   )}
                   style={isCurrent ? { backgroundColor: hexToRgba(tc, 0.08) } : undefined}
                 >
-                  <div className="flex items-center gap-3 pt-0.5">
+                  <div className="flex items-center gap-3">
                     <span
                       className={clsx(
                         "text-sm font-mono min-w-35",

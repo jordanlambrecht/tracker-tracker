@@ -46,29 +46,11 @@ export const PORT_MAX = 65535
 
 // ─── Tracker ──────────────────────────────────────────────────────────────────
 export const TRACKER_NAME_MAX = 100
+export const TRACKER_USERNAME_MAX = 100
 export const TRACKER_URL_MAX = 500
 export const TRACKER_TOKEN_MAX = 500
-/** Cap for platforms whose "token" is a JSON credential blob (cookies, UA, etc). */
+/** Cap for cookie, uid-pass and login credentials. */
 export const LARGE_TOKEN_MAX = 5000
-
-/**
- * Platforms that authenticate with a JSON credential blob rather than a plain
- * API key. These need the larger cap. An IPTorrents cookie header alone can
- * run past 1 KB. Add new blob-credential platforms here and every route picks
- * it up.
- */
-const LARGE_TOKEN_PLATFORMS: ReadonlySet<string> = new Set([
-  "avistaz",
-  "digitalcore",
-  "filelist",
-  "iptorrents",
-  "retrotoon",
-  "torrentleech",
-])
-
-export function maxTokenLengthFor(platform: string | null | undefined): number {
-  return platform && LARGE_TOKEN_PLATFORMS.has(platform) ? LARGE_TOKEN_MAX : TRACKER_TOKEN_MAX
-}
 export const TRACKER_TAG_MAX = 100
 export const TRACKER_NOTES_MAX = 2000
 export const TRACKER_ROLE_NAME_MAX = 255
@@ -120,6 +102,28 @@ export const CROSS_SEED_TAG_MAX = 100
 /** Upper bound on a URL path prefix that may carry a proxy API key. */
 export const URL_PATH_MAX = 500
 
+// ─── Prowlarr ─────────────────────────────────────────────────────────────────
+/** A few hundred indexers with their capability lists come to a few megabytes. */
+export const PROWLARR_RESPONSE_MAX_BYTES = 32 * 1024 * 1024
+/** A poll makes up to five requests, each bounded by ADAPTER_FETCH_TIMEOUT_MS. */
+export const PROWLARR_CYCLE_DEADLINE_MS = 2 * 60 * 1000
+/**
+ * How often the indexer list is read outside of saving an instance. The list
+ * includes each indexer's site credentials, so it is not read on every poll.
+ */
+export const PROWLARR_INDEXER_REFRESH_MS = 6 * 60 * 60 * 1000
+/**
+ * How often the 24 hour stats are read. The 7 day stats are read with the
+ * indexer list, since Prowlarr loads every history row in the window to count them.
+ */
+export const PROWLARR_STATS_REFRESH_MS = 60 * 60 * 1000
+/**
+ * An indexer reading older than this does not warn. It means the poller has
+ * stopped (no session key since a restart), and a failure from then may long
+ * since have cleared.
+ */
+export const PROWLARR_STALE_MS = 30 * 60 * 1000
+
 // ─── File Sizes ───────────────────────────────────────────────────────────────
 export const UPLOAD_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 export const BACKUP_RESTORE_MAX_BYTES = 50 * 1024 * 1024
@@ -142,6 +146,13 @@ export const SYNC_STORE_MAX_TORRENTS = 100_000
  * room for long paths and several trackers.
  */
 export const QBT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_560
+
+/**
+ * Ceiling on a Transmission RPC body, for the same reason. Measured on 4.1.3, a
+ * torrent with two trackers is about 0.8 KB and each further tracker adds about
+ * 0.14 KB, so 3 KB leaves room for long paths and a dozen trackers.
+ */
+export const TRANSMISSION_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 3_072
 
 /**
  * Ceiling on a decoded proxied response when the caller set no maxBytes.

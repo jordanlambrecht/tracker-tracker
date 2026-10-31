@@ -9,7 +9,7 @@ export const broadcasthenet: TrackerRegistryEntry = {
   abbreviation: "BTN",
   url: "https://broadcasthe.net",
   description:
-    "The top TV tracker, featuring a huge library, well-known internal releasers, great retention, and no ratio requirements.",
+    "The top TV tracker, with a huge library, well-known internal releasers, great retention, and no ratio requirements.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "btn",
@@ -27,7 +27,8 @@ export const broadcasthenet: TrackerRegistryEntry = {
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "broadcas-the-net",
-  statusPageUrl: "https://btn.trackerstatus.info/",
+  statusPageUrl: "",
+  announceHosts: ["landof.tv"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [],

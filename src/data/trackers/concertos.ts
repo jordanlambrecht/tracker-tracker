@@ -9,7 +9,7 @@ export const concertos: TrackerRegistryEntry = {
   abbreviation: "CON",
   url: "https://concertos.live",
   description:
-    "Private tracker focused on classical music and live concert recordings. Features a curated library of symphonic, chamber, and operatic works.",
+    "Private tracker focused on classical music and live concert recordings. Has a curated library of symphonic, chamber, and operatic works.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
@@ -22,7 +22,7 @@ export const concertos: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#b0b8c4",
-  logo: "",
+  logo: "/tracker-logos/concertos_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

@@ -2,13 +2,17 @@
 
 import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
+import { anthelion } from "@/data/trackers/anthelion"
 import { torrentleech } from "@/data/trackers/torrentleech"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 import type { SlotContext } from "@/types/slots"
 import type {
+  AnimeBytesPlatformMeta,
+  C411PlatformMeta,
   DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GGnPlatformMeta,
+  HawkePlatformMeta,
   NebulancePlatformMeta,
   Unit3dPlatformMeta,
 } from "@/types/tracker-stats"
@@ -443,10 +447,10 @@ describe("priority ordering", () => {
 })
 
 // ---------------------------------------------------------------------------
-// Test 6: Mutual exclusion, Nebulance context
+// Test 6: Nebulance context, Snatched beside the bonus card
 // ---------------------------------------------------------------------------
 
-describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
+describe("Nebulance: snatched-nebulance beside the bonus card", () => {
   const nebMeta: NebulancePlatformMeta = {
     snatched: 42,
     grabbed: 10,
@@ -458,7 +462,7 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
     tracker: makeTracker({ platformType: "nebulance" }),
     latestSnapshot: snap,
     meta: nebMeta,
-    registry: undefined,
+    registry: anthelion,
     accentColor: BASE_ACCENT,
   }
 
@@ -466,8 +470,11 @@ describe("mutual exclusion: Nebulance snatched-nebulance vs seedbonus", () => {
     expect(slotIds(ctx, "stat-card")).toContain("snatched-nebulance")
   })
 
-  it("does NOT resolve seedbonus (snatched in meta blocks it)", () => {
-    expect(slotIds(ctx, "stat-card")).not.toContain("seedbonus")
+  it("resolves seedbonus too, named the way Anthelion names it", () => {
+    const card = resolveSlots(ctx)
+      .get("stat-card")
+      ?.find((s) => s.id === "seedbonus")
+    expect(card?.props.label).toBe("Orbs")
   })
 
   it("does NOT resolve gold (no hourlyGold)", () => {
@@ -1004,6 +1011,80 @@ describe("slot resolution — DigitalCore", () => {
 })
 
 // ---------------------------------------------------------------------------
+// C411 context: the downloads-disabled badge
+// ---------------------------------------------------------------------------
+
+describe("C411 context", () => {
+  function c411Ctx(meta: C411PlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "c411" }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("resolves the downloads-disabled badge when downloads are refused", () => {
+    const badge = resolveSlots(c411Ctx({ canDownload: false }))
+      .get("badge")
+      ?.find((s) => s.id === "c411-download-disabled")
+    expect(badge?.props.label).toBe("Downloads Disabled")
+  })
+
+  it("does not resolve it when downloads are allowed or the flag is unknown", () => {
+    for (const meta of [{ canDownload: true }, {}]) {
+      expect(slotIds(c411Ctx(meta), "badge")).not.toContain("c411-download-disabled")
+    }
+  })
+
+  it("does not resolve it for another platform's canDownload", () => {
+    const avistaz: SlotContext = {
+      ...c411Ctx({ canDownload: false }),
+      tracker: makeTracker({ platformType: "avistaz" }),
+    }
+    expect(slotIds(avistaz, "badge")).not.toContain("c411-download-disabled")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// HAWKE-UNO context: the downloads-disabled badge
+// ---------------------------------------------------------------------------
+
+describe("HAWKE-UNO context", () => {
+  function hawkeCtx(meta: HawkePlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "hawke" }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("resolves the downloads-disabled badge when downloads are refused", () => {
+    const badge = resolveSlots(hawkeCtx({ canDownload: false }))
+      .get("badge")
+      ?.find((s) => s.id === "hawke-download-disabled")
+    expect(badge?.props.label).toBe("Downloads Disabled")
+  })
+
+  it("does not resolve it when downloads are allowed or the flag is unknown", () => {
+    for (const meta of [{ canDownload: true }, {}]) {
+      expect(slotIds(hawkeCtx(meta), "badge")).not.toContain("hawke-download-disabled")
+    }
+  })
+
+  it("does not resolve it for another platform's canDownload", () => {
+    const c411: SlotContext = {
+      ...hawkeCtx({ canDownload: false }),
+      tracker: makeTracker({ platformType: "c411" }),
+    }
+    expect(slotIds(c411, "badge")).not.toContain("hawke-download-disabled")
+  })
+})
+
+// ---------------------------------------------------------------------------
 // UNIT3D context: the API key expiry card (issue #214 follow-up)
 // ---------------------------------------------------------------------------
 
@@ -1066,6 +1147,48 @@ describe("UNIT3D context", () => {
   it("does not resolve for another platform carrying the same meta", () => {
     const ctx = unit3dCtx({ tracker: makeTracker({ platformType: "gazelle" }) })
     expect(slotIds(ctx, "stat-card")).not.toContain("api-key-expiry")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// AnimeBytes context: the Yen card
+// ---------------------------------------------------------------------------
+
+describe("AnimeBytes context", () => {
+  const abMeta: AnimeBytesPlatformMeta = { yenPerHour: 200, yenPerDay: 4800, potentialHnrs: 0 }
+
+  const ctx: SlotContext = {
+    tracker: makeTracker({ platformType: "animebytes" }),
+    latestSnapshot: makeSnapshot({ seedbonus: 123456 }),
+    meta: abMeta,
+    registry: undefined,
+    accentColor: BASE_ACCENT,
+  }
+
+  it("shows the bonus as Yen instead of the generic seedbonus card", () => {
+    const ids = slotIds(ctx, "stat-card")
+    expect(ids).toContain("yen")
+    expect(ids).not.toContain("seedbonus")
+  })
+
+  it("yen card rows include balance, per hour and per day in ¥", () => {
+    const yenCard = resolveSlots(ctx)
+      .get("stat-card")
+      ?.find((s) => s.id === "yen")
+    const rows = yenCard?.props.rows as { label: string; value: string | number }[]
+    expect(rows.map((r) => r.label)).toEqual(["Balance", "Per Hour", "Per Day"])
+    expect(rows[0].value).toBe("¥123,456")
+    expect(rows[1].value).toBe("+¥200")
+    expect(rows[2].value).toBe("+¥4,800")
+  })
+
+  it("shows a measured zero rate as +¥0, apart from an unreported one", () => {
+    const yenCard = resolveSlots({ ...ctx, meta: { yenPerHour: 0 } })
+      .get("stat-card")
+      ?.find((s) => s.id === "yen")
+    const rows = yenCard?.props.rows as { label: string; value: string | number }[]
+    expect(rows[1].value).toBe("+¥0")
+    expect(rows[2].value).toBe("—")
   })
 })
 

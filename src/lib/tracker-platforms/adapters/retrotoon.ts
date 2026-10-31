@@ -22,6 +22,7 @@ import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
 import {
   datePrefix,
+  isCloudflareChallenge,
   normalizeWhitespace,
   tryParseCount,
   tryParseSiteBytes,
@@ -69,11 +70,7 @@ export function parseRetrotoonCredentials(apiToken: string): RetrotoonCredential
 function assertAuthenticated(html: string, page: string): void {
   // Before the logout check: a challenge body also lacks the link, and its
   // message is the more useful error.
-  if (
-    html.includes("<title>Just a moment...</title>") ||
-    html.includes("cf_chl_opt") ||
-    html.includes("challenges.cloudflare.com/turnstile")
-  ) {
+  if (isCloudflareChallenge(html)) {
     throw new Error("Cloudflare challenge detected. Cookies need refreshing")
   }
 

@@ -9,7 +9,7 @@ export const racing4everyone: TrackerRegistryEntry = {
   abbreviation: "R4E",
   url: "https://racing4everyone.eu",
   description:
-    "The go-to tracker for motorsport fans. Covers Formula 1, MotoGP, WRC, NASCAR, endurance racing, and niche series from around the world.",
+    "Tracker for motorsport fans. Covers Formula 1, MotoGP, WRC, NASCAR, endurance racing, and niche series from around the world.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

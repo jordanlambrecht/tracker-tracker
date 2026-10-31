@@ -13,15 +13,16 @@ export function GgnAchievementProgress({ ggMeta, accentColor }: GgnAchievementPr
   if (!ggMeta?.achievements) return null
 
   const { userLevel, nextLevel, totalPoints, pointsToNextLvl } = ggMeta.achievements
-  const earned = totalPoints - pointsToNextLvl
-  const pct = totalPoints > 0 ? (earned / totalPoints) * 100 : 0
+  // totalPoints is what the user has, not the next level's threshold
+  const target = totalPoints + pointsToNextLvl
+  const pct = target > 0 ? (totalPoints / target) * 100 : 0
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-xs font-mono">
         <span className="text-secondary font-semibold">{userLevel}</span>
         <span className="text-tertiary">
-          {formatCount(earned)} / {formatCount(totalPoints)} pts
+          {formatCount(totalPoints)} / {formatCount(target)} pts
         </span>
         <span className="text-muted">{nextLevel}</span>
       </div>

@@ -11,13 +11,14 @@ import {
   TriangleWarningIcon,
   UploadArrowIcon,
 } from "@/components/ui/Icons"
-import type { AlertLevel } from "@/components/ui/StatCard"
+import type { AlertLevel, TrendDirection } from "@/components/ui/StatCard"
 import {
   formatBytesFromString,
   formatCount,
   formatRatio,
   formatRatioDisplay,
 } from "@/lib/formatters"
+import { checkRatioBelowMinimum } from "@/lib/tracker-events"
 import type { Snapshot, TrackerLatestStats } from "@/types/api"
 
 export interface StatDescriptor {
@@ -27,7 +28,7 @@ export interface StatDescriptor {
   value: string
   unit?: string
   subtitle?: string
-  trend?: "up" | "flat" | "down"
+  trend?: TrendDirection
   tooltip?: string
   alert?: AlertLevel
   alertReason?: string
@@ -36,7 +37,8 @@ export interface StatDescriptor {
 export function buildCoreStatDescriptors(
   stats: TrackerLatestStats | null,
   latestSnapshot: Snapshot | null,
-  minimumRatio?: number
+  requiredRatio: number | null,
+  ratioTrend?: TrendDirection
 ): StatDescriptor[] {
   const [upVal, upUnit] = formatBytesFromString(stats?.uploadedBytes ?? null).split(" ")
   const [dlVal, dlUnit] = formatBytesFromString(stats?.downloadedBytes ?? null).split(" ")
@@ -49,15 +51,10 @@ export function buildCoreStatDescriptors(
   // since Infinity can never be below a required ratio either way.
   const ratio = stats?.ratioIsInfinite ? Number.POSITIVE_INFINITY : stats?.ratio
 
-  const rawRequiredRatio = latestSnapshot?.requiredRatio ?? minimumRatio ?? null
-  const effectiveRequiredRatio =
-    rawRequiredRatio != null && rawRequiredRatio > 0 ? rawRequiredRatio : null
-  const ratioBelowRequired =
-    stats?.ratio != null && effectiveRequiredRatio != null && stats.ratio < effectiveRequiredRatio
-  const ratioAlertReason =
-    ratioBelowRequired && effectiveRequiredRatio != null
-      ? `Below required ratio (${formatRatioDisplay(effectiveRequiredRatio)})`
-      : undefined
+  const ratioBelowRequired = checkRatioBelowMinimum(stats?.ratio, requiredRatio ?? undefined)
+  const ratioAlertReason = ratioBelowRequired
+    ? `Below required ratio (${formatRatioDisplay(requiredRatio)})`
+    : undefined
   const bufferNegative = latestSnapshot?.bufferBytes?.startsWith("-")
 
   return [
@@ -81,7 +78,7 @@ export function buildCoreStatDescriptors(
       icon: <RatioIcon width="16" height="16" />,
       value: formatRatio(ratio),
       unit: ratio != null ? "x" : undefined,
-      trend: ratio == null ? undefined : ratio >= 2 ? "up" : ratio >= 1 ? "flat" : "down",
+      trend: ratio == null ? undefined : ratioTrend,
       alert: ratioBelowRequired ? "danger" : undefined,
       alertReason: ratioAlertReason,
     },
@@ -118,8 +115,9 @@ export function buildCoreStatDescriptors(
       key: "req-ratio",
       label: "Req. Ratio",
       icon: <RequiredRatioIcon width="16" height="16" />,
-      value: effectiveRequiredRatio != null ? formatRatio(effectiveRequiredRatio) : "—",
-      unit: effectiveRequiredRatio != null ? "x" : undefined,
+      // 0 means the tracker requires none; null means nothing is on record
+      value: requiredRatio === 0 ? "None" : formatRatio(requiredRatio),
+      unit: requiredRatio !== null && requiredRatio > 0 ? "x" : undefined,
       tooltip: "The minimum ratio you must maintain",
     },
   ]

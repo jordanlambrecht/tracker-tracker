@@ -58,7 +58,7 @@ describe("PollLog ratio column (infinite ratio)", () => {
     )
     await openLog()
 
-    expect(screen.getByText("∞x")).toBeInTheDocument()
+    expect(screen.getByText("∞").parentElement).toHaveTextContent("∞x")
   })
 
   it("keeps rendering '—' for a poll with a genuinely missing ratio", async () => {
@@ -82,7 +82,7 @@ describe("PollLog ratio column (infinite ratio)", () => {
     await openLog()
 
     expect(screen.getByText("—")).toBeInTheDocument()
-    expect(screen.queryByText("∞x")).not.toBeInTheDocument()
+    expect(screen.queryByText("∞")).not.toBeInTheDocument()
   })
 
   it("still renders a finite ratio normally", async () => {

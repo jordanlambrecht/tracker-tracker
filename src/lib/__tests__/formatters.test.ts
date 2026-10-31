@@ -16,6 +16,8 @@ import {
   formatPercent,
   formatRatio,
   formatRatioDisplay,
+  formatSignedChange,
+  formatSpanInWords,
 } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 
@@ -188,13 +190,27 @@ describe("formatPercent", () => {
   })
 
   it("respects custom decimal places", () => {
-    expect(formatPercent(85, 0)).toBe("85%")
-    expect(formatPercent(33.333, 2)).toBe("33.33%")
+    expect(formatPercent(85, { decimals: 0 })).toBe("85%")
+    expect(formatPercent(33.333, { decimals: 2 })).toBe("33.33%")
   })
 
   it("handles edge values", () => {
     expect(formatPercent(-5.1)).toBe("-5.1%")
-    expect(formatPercent(0.05, 0)).toBe("0%")
+    expect(formatPercent(0.05, { decimals: 0 })).toBe("0%")
+    expect(formatPercent(Number.POSITIVE_INFINITY, { signed: true })).toBe("—")
+  })
+
+  it("drops the minus from a negative that rounds to zero", () => {
+    expect(formatPercent(-0.04)).toBe("0.0%")
+    expect(formatPercent(-0.4, { decimals: 0 })).toBe("0%")
+  })
+
+  it("signs the rounded value in signed mode", () => {
+    expect(formatPercent(5.79, { signed: true })).toBe("+5.8%")
+    expect(formatPercent(-2.96, { signed: true })).toBe("-3.0%")
+    expect(formatPercent(0.04, { signed: true })).toBe("0.0%")
+    expect(formatPercent(-0.04, { signed: true })).toBe("0.0%")
+    expect(formatPercent(0.4, { decimals: 0, signed: true })).toBe("0%")
   })
 })
 
@@ -333,5 +349,44 @@ describe("formatOrdinal", () => {
   it("returns a dash for a missing value", () => {
     expect(formatOrdinal(null)).toBe("—")
     expect(formatOrdinal(undefined)).toBe("—")
+  })
+})
+
+describe("formatSignedChange", () => {
+  it("signs a change by its direction", () => {
+    expect(formatSignedChange(0.0123, 4)).toEqual({ text: "+0.0123", direction: "up" })
+    expect(formatSignedChange(-0.0123, 4)).toEqual({ text: "-0.0123", direction: "down" })
+  })
+
+  it("shows a change that rounds to zero without a sign", () => {
+    expect(formatSignedChange(0, 4)).toEqual({ text: "0.0000", direction: "flat" })
+    expect(formatSignedChange(0.00004, 4)).toEqual({ text: "0.0000", direction: "flat" })
+    expect(formatSignedChange(-0.04, 1)).toEqual({ text: "0.0", direction: "flat" })
+  })
+
+  it("passes the unsigned, rounded magnitude to the formatter", () => {
+    expect(formatSignedChange(-1234, 0, formatCount).text).toBe("-1,234")
+    expect(formatSignedChange(-0.04, 1, (v) => formatPercent(v)).text).toBe("0.0%")
+    expect(formatSignedChange(12.34, 1, (v) => formatPercent(v)).text).toBe("+12.3%")
+  })
+})
+
+const SPAN_MINUTE = 60_000
+const SPAN_HOUR = 60 * SPAN_MINUTE
+const SPAN_DAY = 24 * SPAN_HOUR
+
+describe("formatSpanInWords", () => {
+  it.each([
+    [30_000, "less than a minute"],
+    [SPAN_MINUTE, "1 minute"],
+    [45 * SPAN_MINUTE, "45 minutes"],
+    [SPAN_HOUR, "1 hour"],
+    [3 * SPAN_HOUR + 59 * SPAN_MINUTE, "3 hours"],
+    [SPAN_DAY, "1 day"],
+    [2 * SPAN_DAY + 5 * SPAN_HOUR, "2 days, 5 hours"],
+    [SPAN_DAY + SPAN_HOUR, "1 day, 1 hour"],
+    [-3 * SPAN_HOUR, "3 hours"],
+  ])("formats %d ms as %s", (ms, text) => {
+    expect(formatSpanInWords(ms)).toBe(text)
   })
 })

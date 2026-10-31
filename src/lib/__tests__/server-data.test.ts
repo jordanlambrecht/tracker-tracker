@@ -109,6 +109,8 @@ vi.mock("@/lib/db/schema", () => ({
     createdAt: "createdAt",
     updatedAt: "updatedAt",
   },
+  prowlarrIndexers: {},
+  prowlarrInstances: {},
   notificationTargets: {
     id: "id",
     name: "name",
@@ -149,7 +151,12 @@ vi.mock("@/lib/privacy-db", () => ({
 // ---------------------------------------------------------------------------
 
 import type { SettingsRow } from "@/lib/server-data"
-import { serializeSettingsResponse, settingsColumns, trackerColumns } from "@/lib/server-data"
+import {
+  prowlarrInstanceColumns,
+  serializeSettingsResponse,
+  settingsColumns,
+  trackerColumns,
+} from "@/lib/server-data"
 
 // ---------------------------------------------------------------------------
 // 1. Settings column projection: encrypted fields structurally excluded
@@ -375,6 +382,9 @@ describe("serializeTrackerResponse excludes encryptedApiToken", () => {
       joinedAt: null,
       lastAccessAt: null,
       profileUrl: null,
+      prowlarrInstanceId: null,
+      prowlarrIndexerId: null,
+      prowlarrOptOut: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -439,5 +449,37 @@ describe("trackerColumns security invariant", () => {
     for (const key of expectedKeys) {
       expect(columnKeys).toContain(key)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 5. prowlarrInstanceColumns: the API key is reduced to a presence flag
+// ---------------------------------------------------------------------------
+
+describe("prowlarrInstanceColumns security invariant", () => {
+  // Pinned exactly, so a column added here has to be added to this list on purpose.
+  it("is exactly the client-safe column set", () => {
+    expect(Object.keys(prowlarrInstanceColumns).sort()).toEqual(
+      [
+        "id",
+        "name",
+        "url",
+        "hasApiKey",
+        "enabled",
+        "lastPolledAt",
+        "indexersReadAt",
+        "statsReadAt",
+        "lastError",
+        "errorSince",
+        "version",
+        "indexerCount",
+        "createdAt",
+        "updatedAt",
+      ].sort()
+    )
+  })
+
+  it("does NOT include encryptedApiKey", () => {
+    expect(Object.keys(prowlarrInstanceColumns)).not.toContain("encryptedApiKey")
   })
 })

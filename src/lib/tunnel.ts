@@ -34,7 +34,8 @@ export function buildProxyUrl(config: ProxyConfig): string {
     throw new Error(`Invalid proxy type: ${config.type}`)
   }
 
-  const scheme = config.type === "socks5" ? "socks5" : config.type
+  // socks5h leaves DNS to the proxy, so the local resolver never sees tracker hostnames
+  const scheme = config.type === "socks5" ? "socks5h" : config.type
   const auth =
     config.username && config.password
       ? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`
@@ -177,9 +178,9 @@ export function proxyFetch(
         method,
         agent,
         // No default User-Agent here on purpose. This is transport; which UA
-        // to send is the caller's policy. adapterRequest sets one for the JSON
-        // APIs, the scraping adapters send the exact UA their session cookie
-        // was issued to, and TorrentLeech deliberately sends none.
+        // to send is the caller's policy. The adapter helpers send the app's
+        // when the caller passes none, and the scraping adapters send the
+        // exact UA their session cookie was issued to.
         headers: {
           Accept: "application/json",
           ...(body === undefined

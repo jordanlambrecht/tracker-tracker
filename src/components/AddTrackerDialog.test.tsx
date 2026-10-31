@@ -135,6 +135,56 @@ describe("AddTrackerDialog torrentleech credentials", () => {
     expect(screen.getByLabelText("TorrentLeech Password")).toHaveValue("")
     expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
   })
+
+  it("shows no session cookie field, which TorrentLeech would ignore", async () => {
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pickTorrentLeech(user)
+    expect(screen.queryByLabelText("Session Cookie (2FA accounts)")).toBeNull()
+  })
+})
+
+describe("AddTrackerDialog luminance credentials", () => {
+  // A 2FA account cannot pass the login POST, so its pasted session replaces
+  // the password and carries the browser it was issued to.
+  it("stores a pasted session cookie with this browser's User-Agent instead of a password", async () => {
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await user.type(screen.getByPlaceholderText("Search trackers..."), "Cathode")
+    await user.keyboard("{Enter}")
+    await user.type(screen.getByLabelText("Cathode-Ray.Tube Username"), "bob")
+    await user.type(screen.getByLabelText("Session Cookie (2FA accounts)"), "sid=abc123")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+
+    const blob = JSON.parse(JSON.parse(String(createRequest()?.[1]?.body)).apiToken)
+    expect(blob).toEqual({ username: "bob", cookies: "sid=abc123", userAgent: navigator.userAgent })
+  })
+
+  it("shows a refused session cookie's error under the cookie field, not the password", async () => {
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await user.type(screen.getByPlaceholderText("Search trackers..."), "Cathode")
+    await user.keyboard("{Enter}")
+    await user.type(screen.getByLabelText("Session Cookie (2FA accounts)"), "cid=1")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+    expect(screen.getByLabelText("Session Cookie (2FA accounts)")).not.toHaveAccessibleDescription(
+      /Username is required/
+    )
+
+    await user.type(screen.getByLabelText("Cathode-Ray.Tube Username"), "bob")
+    await user.click(screen.getByRole("button", { name: "Add Tracker" }))
+
+    expect(screen.getByLabelText("Session Cookie (2FA accounts)")).toHaveAccessibleDescription(
+      /no sid cookie/
+    )
+    expect(screen.getByLabelText("Cathode-Ray.Tube Password")).not.toHaveAccessibleDescription(
+      /no sid cookie/
+    )
+    expect(createRequest()).toBeUndefined()
+  })
 })
 
 async function pickRetroToon(user: ReturnType<typeof userEvent.setup>) {

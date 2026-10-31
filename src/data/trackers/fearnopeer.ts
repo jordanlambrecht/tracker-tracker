@@ -43,7 +43,7 @@ export const fearnopeer: TrackerRegistryEntry = {
     // Dynamic. Upload-based
     {
       name: "Leech",
-      requirements: "Ratio below 0.8 — download, request, chat, and forum privileges revoked",
+      requirements: "Ratio below 0.8. Download, request, chat, and forum privileges revoked",
       outsideLadder: "below",
     },
     { name: "User", requirements: "Ratio ≥ 0.8. 7 download slots" },
@@ -90,67 +90,67 @@ export const fearnopeer: TrackerRegistryEntry = {
     // Donation classes
     {
       name: "V.I.P.",
-      requirements: "Donation — freeleech, 2x upload, H&R immune. 35 download slots",
+      requirements: "Donation. Freeleech, 2x upload, H&R immune. 35 download slots",
       outsideLadder: "above",
     },
     {
       name: "Diamond V.I.P.",
-      requirements: "Donation — freeleech, 2x upload, H&R immune. 500 download slots",
+      requirements: "Donation. Freeleech, 2x upload, H&R immune. 500 download slots",
       outsideLadder: "above",
     },
     {
       name: "Jedi",
-      requirements: "Lifetime VIP — freeleech, 2x upload, H&R immune. 500 download slots",
+      requirements: "Lifetime VIP. Freeleech, 2x upload, H&R immune. 500 download slots",
       outsideLadder: "above",
     },
     {
       name: "Sith",
-      requirements: "Lifetime VIP — freeleech, 2x upload, H&R immune. 500 download slots",
+      requirements: "Lifetime VIP. Freeleech, 2x upload, H&R immune. 500 download slots",
       outsideLadder: "above",
     },
     // Staff-picked
     {
       name: "Trustee",
       requirements:
-        "Staff — seasoned veterans of other sites. 50 download slots, freeleech, H&R immune",
+        "Staff (seasoned veterans of other sites). 50 download slots, freeleech, H&R immune",
       outsideLadder: "above",
     },
     {
       name: "Encoders",
       requirements:
-        "Staff — reputable encoders with personal encoding releases. Freeleech, 2x upload, H&R immune",
+        "Staff (reputable encoders with personal encoding releases). Freeleech, 2x upload, H&R immune",
       outsideLadder: "above",
     },
     {
       name: "Nova Uploader",
-      requirements: "Staff — first tier hand-selected uploader. Freeleech, 2x upload",
+      requirements: "Staff (first tier hand-selected uploader). Freeleech, 2x upload",
       outsideLadder: "above",
     },
     {
       name: "Pulse Uploader",
-      requirements: "Staff — second tier uploader, continuous contributions. Freeleech, H&R immune",
+      requirements: "Staff (second tier uploader, continuous contributions). Freeleech, H&R immune",
       outsideLadder: "above",
     },
     {
       name: "Omega Uploader",
       requirements:
-        "Staff — third tier, peak dedication. 100 download slots, freeleech, 2x upload, H&R immune",
+        "Staff (third tier, peak dedication). 100 download slots, freeleech, 2x upload, H&R immune",
       outsideLadder: "above",
     },
     {
       name: "Internal",
       requirements:
-        "Staff — in-house release group members. 75 download slots, freeleech, 2x upload, H&R immune",
+        "Staff (in-house release group members). 75 download slots, freeleech, 2x upload, H&R immune",
       outsideLadder: "above",
     },
     {
       name: "Editor",
-      requirements: "Staff — polishes torrent names and metadata",
+      requirements: "Staff (polishes torrent names and metadata)",
       outsideLadder: "above",
     },
     {
       name: "Torrent Moderator",
-      requirements: "Staff — enforces upload rules, moderates queue",
+      requirements: "Staff (enforces upload rules, moderates queue)",
       outsideLadder: "above",
     },
   ],
@@ -194,7 +194,7 @@ export const fearnopeer: TrackerRegistryEntry = {
       "",
       "- Must seed uploads for 120 hours (5 days) or until 3+ seeds/snatches",
       "- No RAR archives; MKV or MP4 containers only for video",
-      "- No movie boxsets — separate each movie individually",
+      "- No movie boxsets. Separate each movie individually",
       "- TV complete packs only for ended series; all seasons required, no partial packs",
       "- Single episodes only for currently airing seasons",
       "- No pornographic/XXX content (erotica with valid IMDB/TMDB ID is allowed)",
@@ -223,7 +223,7 @@ export const fearnopeer: TrackerRegistryEntry = {
       "",
       "## Inviting",
       "",
-      "- No selling/trading/brokering invites — permanent ban to entire invite tree",
+      "- No selling/trading/brokering invites. Permanent ban to entire invite tree",
       "- You are accountable for your invitees' actions",
       "- Invite forum access: VIP Tier 2, Seeder, and above",
       "",
@@ -231,7 +231,7 @@ export const fearnopeer: TrackerRegistryEntry = {
       "",
       "- One title per request; no boxsets or multi-season packs",
       "- Requester and fulfiller encouraged to seed as long as possible",
-      "- No duplicate requests — search first, then vote on existing ones",
+      "- No duplicate requests. Search first, then vote on existing ones",
       "- Reseed requests do not belong on the Requests page",
       "- Claims must be fulfilled within 7 days",
     ],

@@ -11,19 +11,22 @@ Error strings in the Tracker Tracker interface, with causes and fixes.
 
 ## Understanding Tracker Health
 
-The **PulseDot** next to each tracker name indicates polling status:
+The **status dot** next to each tracker name indicates polling status:
 
-| State      | Color | Meaning                                                                            |
-| ---------- | ----- | ---------------------------------------------------------------------------------- |
-| `healthy`  | Cyan  | Ratio ≥ 2.0, polling normally                                                      |
-| `warning`  | Amber | Ratio between 1.0 and 2.0, a thin buffer                                           |
-| `no-seeds` | Red   | Zero active seeds, nothing is uploading, whatever the ratio says                   |
-| `critical` | Red   | Ratio < 1.0, or the tracker has warned your account                                |
-| `error`    | Red   | The last poll failed, but polling has not paused yet                               |
-| `paused`   | Red   | Polling has been automatically suspended after repeated failures                   |
-| `offline`  | Gray  | No snapshot data exists yet (tracker was just added, or all snapshots were pruned) |
+| State | Color | Dot | Meaning |
+| --- | --- | --- | --- |
+| `healthy` | Cyan | Glows | Ratio at least twice the tracker's required ratio, or an infinite ratio (uploads with nothing downloaded), polling normally |
+| `warning` | Amber | Glows | Ratio at or above the required ratio, but below twice it |
+| `no-seeds` | Red | Glows | Zero active seeds on a tracker that would otherwise be `healthy` or `warning`, so nothing is uploading. Trackers that don't report a seeding count never show it |
+| `critical` | Red | Glows | Ratio below the required ratio, or the tracker has warned your account, whatever the ratio |
+| `error` | Light gray | Still, dimmed | The last poll failed, but polling has not paused yet |
+| `paused` | Red | Still, dimmed | Polling has been automatically suspended after 4 failed polls in a row |
+| `paused-user` | Amber | Still, dimmed | You paused automated polling for this tracker |
+| `offline` | Dark gray | Still, dimmed | No snapshot data exists yet (tracker was just added, or all snapshots were pruned), or the latest snapshot has no usable ratio |
 
-When a tracker matches more than one row, the most severe state wins: `critical` outranks `no-seeds`, which outranks `warning`. So a tracker with a 1.4 ratio and nothing seeding shows `no-seeds`, because the ratio band alone would not tell you that you need to start seeding.
+The required ratio is the one the tracker reports for your account, or the minimum in the built-in tracker registry when it reports none. With no requirement on record, the bands assume a requirement of 1.0, so `healthy` starts at 2.0, `warning` at 1.0, and anything lower is `critical`. A requirement of 0 means the tracker asks for no ratio, so every ratio counts as `healthy`, though `no-seeds` and a tracker warning still apply.
+
+When a tracker matches more than one row, `paused-user` wins first, then `paused`, `error` and `offline`, and only then the ratio states. Among those, `critical` outranks `no-seeds`, which outranks `healthy` and `warning`. So a tracker with a 1.4 ratio against a 1.0 requirement and nothing seeding shows `no-seeds`, because the ratio band alone would not tell you that you need to start seeding. Against a 2.0 requirement the same tracker shows `critical`.
 
 ---
 
@@ -42,7 +45,7 @@ If it's 240, stats update every 4 hours. That's normal.
 
 ### Step 2. Check if polling is running
 
-Look at the PulseDot next to the tracker name. If it's `paused` or `error`, fix that first before worrying about stale stats. See [Automatic Poll Pausing](#automatic-poll-pausing) below for guidance.
+Look at the status dot next to the tracker name. If it's `paused` or `error`, fix that first before worrying about stale stats. See [Automatic Poll Pausing](#automatic-poll-pausing) below for guidance.
 
 ### Step 3. Trigger an immediate poll
 
@@ -76,7 +79,7 @@ If Last Polled updated but the chart didn't, the API returned the same values. T
 
 After **4 consecutive failed polls**, the tracker automatically pauses to prevent hammering a broken tracker. When this happens:
 
-- The PulseDot switches to `paused`
+- The status dot switches to `paused`
 - The **Poll Error Banner** appears at the top of the tracker detail page with:
   - Red "Polling Paused" heading
   - Pause timestamp
@@ -243,12 +246,24 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 ---
 
+### `Tracker redirected the request`
+
+**Cause:** The tracker's API answered with a redirect instead of your stats. Tracker Tracker never follows a redirect on an API request, because it could carry your API key or session cookie to another host.
+
+!!! success "Solution"
+
+    1. Check that your API key or session cookie still works on the tracker. Some trackers answer a request without valid credentials by redirecting it to their login page; if yours were revoked or expired, paste new ones into the tracker's settings.
+    2. Open the tracker in a browser and check whether it has moved to a new address. If it has, open an issue with the new address so the tracker's entry can be updated.
+    3. If neither, check `docker compose logs tracker-tracker-app` for the `Poll failed for tracker` line and open an issue with it.
+
+---
+
 ### Stale error banner (no pause)
 
 If you see a **Last Error** banner without "Polling Paused", a recent poll failed but not enough to trigger a pause. It clears on the next success.
 
 !!! info "No action if the last poll succeeded"
-    The banner shows the most recent error even if later polls recovered. If the PulseDot is `healthy`, `warning`, or `critical`, polling already recovered.
+    The banner shows the most recent error even if later polls recovered. If the status dot is `healthy`, `warning`, or `critical`, polling already recovered.
 
 ---
 

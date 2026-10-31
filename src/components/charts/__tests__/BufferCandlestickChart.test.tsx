@@ -258,3 +258,35 @@ describe("BufferCandlestickChart with a signed buffer", () => {
     expect(option.series?.[0]?.data?.[0]?.[1]).toBe(-2)
   })
 })
+
+describe("BufferCandlestickChart tooltip change", () => {
+  type Formatter = (params: unknown) => string
+
+  function changeLine(open: number, close: number): string {
+    optionSpy.mockClear()
+    render(
+      <BufferCandlestickChart
+        trackerData={series([
+          snap("2026-08-01T12:00:00.000Z", 1),
+          snap("2026-08-02T12:00:00.000Z", 2),
+        ])}
+      />
+    )
+    const option = optionSpy.mock.calls.at(-1)?.[0] as { tooltip: { formatter: Formatter } }
+    const html = option.tooltip.formatter([
+      { seriesName: "Tracker A", color: "#00ff00", value: [0, open, close, open, close] },
+    ])
+    return (html.split("Change:</span>")[1] ?? "").replace(/<[^>]+>/g, "").trim()
+  }
+
+  it("shows a gain and a loss with their sign and arrow", () => {
+    expect(changeLine(1, 3.5)).toBe("+2.50 GiB (▲)")
+    expect(changeLine(3.5, 1)).toBe("-2.50 GiB (▼)")
+  })
+
+  it("shows a change that rounds to zero without a sign or arrow", () => {
+    expect(changeLine(1, 1)).toBe("0.00 GiB")
+    expect(changeLine(1, 1.001)).toBe("0.00 GiB")
+    expect(changeLine(1.001, 1)).toBe("0.00 GiB")
+  })
+})

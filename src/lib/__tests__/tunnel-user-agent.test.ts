@@ -1,9 +1,9 @@
 // src/lib/__tests__/tunnel-user-agent.test.ts
 //
-// proxyFetch is transport and takes no view on the User-Agent. adapterRequest
-// applies the default a layer up, which is what lets the scraping adapters keep
-// the UA their cookie was issued to and TorrentLeech send none. A default here
-// would silently override both.
+// proxyFetch is transport and takes no view on the User-Agent. The adapter
+// helpers apply the default a layer up, and the scraping adapters pass the UA
+// their cookie was issued to. A default here would be a second policy beneath
+// both.
 
 import type { Agent } from "node:http"
 import { Readable } from "node:stream"

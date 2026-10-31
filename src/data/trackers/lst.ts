@@ -9,7 +9,7 @@ export const lst: TrackerRegistryEntry = {
   abbreviation: "LST",
   url: "https://lst.gg",
   description:
-    "Community-built Movie/TV/Fanres database with a strong focus on HD content. Known for one of the best Fanres selections available. Hosts a 300TB+ public seedbox archive with dedicated 1Gbit connection.",
+    "Community-built Movie/TV/Fanres database with a strong focus on HD content. Has one of the best Fanres selections available. Hosts a 300TB+ public seedbox archive with dedicated 1Gbit connection.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
@@ -33,11 +33,12 @@ export const lst: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#12BC00",
-  logo: "",
+  logo: "/tracker-logos/lst_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
   statusPageUrl: "",
+  announceHosts: ["lst.gg"],
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [

@@ -15,6 +15,7 @@ Tracker Tracker backs up your configuration and history. Download backups manual
 | Trackers and configurations                                     | ✓          | All metadata                                    |
 | Upload/download history (snapshots)                             | ✓          | Full time-series                                |
 | Download client configurations                                  | ✓          | Encrypted (credentials)                         |
+| Prowlarr instances                                              | ✓          | Encrypted (API key); indexer list is re-read    |
 | Tag groups & notification targets                               | ✓          | All destinations                                |
 | **Your login password**                                         | ✗          | Never exported; use current password to restore |
 | **Encryption salt**                                             | ✗          | Never backed up; stays on instance              |

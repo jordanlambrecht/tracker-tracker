@@ -7,7 +7,7 @@
 import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
-import { localDateStr } from "@/lib/formatters"
+import { formatSignedChange, localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { FleetChartProps } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -16,6 +16,7 @@ import {
   autoByteScale,
   buildAxisPointer,
   buildTimeXAxis,
+  CHANGE_COLOR,
   fmtNum,
   insideZoom,
 } from "./lib/chart-helpers"
@@ -251,9 +252,9 @@ function buildBufferVelocityOption(
           .filter((item) => item.value !== null && item.value !== undefined)
           .map((item) => {
             const val = (item.value as [number, number])[1]
-            const sign = val >= 0 ? "+" : ""
-            const valueColor = val >= 0 ? CHART_THEME.positive : CHART_THEME.negative
-            const display = `${sign}${fmtNum(val)} ${unit}`
+            const change = formatSignedChange(val, 2, fmtNum)
+            const valueColor = CHANGE_COLOR[change.direction]
+            const display = `${change.text} ${unit}`
             return (
               chartDot(item.color) +
               `<span style="color:${CHART_THEME.textSecondary};">${escHtml(item.seriesName)}:</span> ` +
@@ -278,10 +279,7 @@ function buildBufferVelocityOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: chartAxisLabel({
-        formatter: (val: number) => {
-          const sign = val > 0 ? "+" : ""
-          return `${sign}${fmtNum(val, 1)}`
-        },
+        formatter: (val: number) => formatSignedChange(val, 1, (v) => fmtNum(v, 1)).text,
       }),
       splitLine: {
         lineStyle: { color: CHART_THEME.gridLine, width: 1 },

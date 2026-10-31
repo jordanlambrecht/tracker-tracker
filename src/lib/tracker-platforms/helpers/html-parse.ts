@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/helpers/html-parse.ts
 //
-// Functions: normalizeWhitespace, datePrefix, tryParseCount, tryParseSiteBytes
+// Functions: normalizeWhitespace, datePrefix, tryParseCount, tryParseSiteBytes,
+//            isCloudflareInterstitial, isCloudflareChallenge
 
 import { parseBytes } from "@/lib/parser"
 
@@ -74,4 +75,17 @@ export function tryParseSiteBytes(value: string): bigint | undefined {
   } catch {
     return undefined
   }
+}
+
+/**
+ * Cloudflare's "Just a moment..." page, served in place of the one asked for.
+ * Use this on a login page, which can embed a Turnstile widget of its own.
+ */
+export function isCloudflareInterstitial(html: string): boolean {
+  return html.includes("<title>Just a moment...</title>") || html.includes("cf_chl_opt")
+}
+
+/** The interstitial, or a Turnstile widget where an authenticated page should be. */
+export function isCloudflareChallenge(html: string): boolean {
+  return isCloudflareInterstitial(html) || html.includes("challenges.cloudflare.com/turnstile")
 }

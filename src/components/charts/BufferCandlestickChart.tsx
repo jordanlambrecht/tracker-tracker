@@ -3,7 +3,7 @@
 
 import type { CandlestickSeriesOption, EChartsOption } from "echarts"
 import { hexToRgba } from "@/lib/color-utils"
-import { bytesToGiB, localDateStr } from "@/lib/formatters"
+import { bytesToGiB, formatSignedChange, localDateStr } from "@/lib/formatters"
 import type { Snapshot } from "@/types/api"
 import type { FleetChartProps, TrackerSnapshotSeries } from "@/types/charts"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -12,6 +12,7 @@ import {
   autoByteScale,
   buildAxisPointer,
   buildTimeXAxis,
+  CHANGE_COLOR,
   fmtNum,
   insideZoom,
 } from "./lib/chart-helpers"
@@ -202,11 +203,9 @@ function buildCandlestickOption(
               number,
               number,
             ]
-            const change = close - open
-            const changeAbs = Math.abs(change)
-            const changeSign = change >= 0 ? "+" : "-"
-            const arrow = change >= 0 ? "▲" : "▼"
-            const changeColor = change >= 0 ? CHART_THEME.positive : CHART_THEME.negative
+            const change = formatSignedChange(close - open, 2, fmtNum)
+            const arrow = { up: " (▲)", down: " (▼)", flat: "" }[change.direction]
+            const changeColor = CHANGE_COLOR[change.direction]
 
             const swatch = chartDot(item.color)
             const name = `<span style="color:${CHART_THEME.textSecondary};font-weight:600;">${escHtml(item.seriesName)}:</span>`
@@ -215,7 +214,7 @@ function buildCandlestickOption(
             const closeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Close:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(close)} ${unit}</span>`
             const highLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">High:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(high)} ${unit}</span>`
             const lowLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Low:</span> <span style="color:${CHART_THEME.textPrimary};">${fmtNum(low)} ${unit}</span>`
-            const changeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Change:</span> <span style="color:${changeColor};font-weight:600;">${changeSign}${fmtNum(changeAbs)} ${unit} (${arrow})</span>`
+            const changeLine = `${indent}<span style="color:${CHART_THEME.textTertiary};">Change:</span> <span style="color:${changeColor};font-weight:600;">${change.text} ${unit}${arrow}</span>`
 
             return `<div style="margin-bottom:8px;">${swatch}${name}<br/>${openLine}&nbsp;&nbsp;${closeLine}<br/>${highLine}&nbsp;&nbsp;${lowLine}<br/>${changeLine}</div>`
           })

@@ -142,8 +142,7 @@ function makeContext() {
 
 function authorizationSentTo(url: string): string | undefined {
   const headers = requested.find((r) => r.url === url)?.init?.headers as
-    | Record<string, string>
-    | undefined
+    Record<string, string> | undefined
   return headers?.Authorization
 }
 

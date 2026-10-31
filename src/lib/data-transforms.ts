@@ -1,39 +1,38 @@
 // src/lib/data-transforms.ts
 
-// Functions: computeDelta, compareBigIntDesc, computePctChange,
+// Functions: lastDayEnds, computeDelta, snapshotRatio, ratioTrend24h,
+//            compareBigIntDesc, computePctChange,
 //            floatBytesToBigInt, signedFloatBytesToBigInt, computeBufferBytes,
 //            computeRatio, isUnixTimestampOnDate,
 //            sanitizeHost, stripTrailingSlash, normalizeUrl
 
+import type { TrendDirection } from "@/components/ui/StatCard"
 import { localDateStr } from "@/lib/formatters"
+import { MS_PER_DAY } from "@/lib/limits"
 import type { Snapshot } from "@/types/api"
 
 /**
- * Computes the 24-hour upload/download delta from a snapshot array.
- * Sorts snapshots ascending by polledAt before processing, so the result
- * is correct regardless of the order snapshots arrive in.
- * Returns null if fewer than 2 snapshots exist or no snapshot falls within
- * the 24-hour window.
+ * The earliest and latest snapshots inside the last 24 hours, measured from now,
+ * or null with fewer than two. Needs unbucketed snapshots: a daily bucket keeps
+ * only each day's last poll, so the span it measures can shrink to minutes.
+ */
+function lastDayEnds(snaps: Snapshot[]): [Snapshot, Snapshot] | null {
+  const cutoff = Date.now() - MS_PER_DAY
+  const inWindow = snaps
+    .filter((s) => new Date(s.polledAt).getTime() >= cutoff)
+    .sort((a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime())
+  if (inWindow.length < 2) return null
+  return [inWindow[0], inWindow[inWindow.length - 1]]
+}
+
+/**
+ * Computes the 24-hour upload/download delta from a snapshot array, in any
+ * order. Returns null without two snapshots inside the 24-hour window.
  */
 export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded: string } | null {
-  if (snaps.length < 2) return null
-
-  const sorted = [...snaps].sort(
-    (a, b) => new Date(a.polledAt).getTime() - new Date(b.polledAt).getTime()
-  )
-
-  const latest = sorted[sorted.length - 1]
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000
-
-  let earliest: Snapshot | null = null
-  for (const s of sorted) {
-    if (new Date(s.polledAt).getTime() >= cutoff) {
-      earliest = s
-      break
-    }
-  }
-
-  if (!earliest || earliest === latest) return null
+  const ends = lastDayEnds(snaps)
+  if (!ends) return null
+  const [earliest, latest] = ends
   if (
     !latest.uploadedBytes ||
     !earliest.uploadedBytes ||
@@ -49,6 +48,23 @@ export function computeDelta(snaps: Snapshot[]): { uploaded: string; downloaded:
   } catch {
     return null
   }
+}
+
+function snapshotRatio(snapshot: Snapshot): number | null {
+  return snapshot.ratioIsInfinite ? Number.POSITIVE_INFINITY : snapshot.ratio
+}
+
+/**
+ * The ratio's movement over the same window as computeDelta. Undefined without
+ * two snapshots in it or without a ratio at either end.
+ */
+export function ratioTrend24h(snaps: Snapshot[]): TrendDirection | undefined {
+  const ends = lastDayEnds(snaps)
+  if (!ends) return undefined
+  const then = snapshotRatio(ends[0])
+  const now = snapshotRatio(ends[1])
+  if (now === null || then === null) return undefined
+  return now === then ? "flat" : now > then ? "up" : "down"
 }
 
 export function compareBigIntDesc(a: bigint, b: bigint): number {

@@ -25,7 +25,44 @@ export function isDecryptionError(error: unknown): boolean {
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
-  // qBittorrent auth outcomes first, these need different user action from
+  // Transmission outcomes come first. Its credential and oversized messages
+  // would match the qBittorrent rules below and name the wrong client, and the
+  // rest would reach the fallback, which reads as unreachable. Each rule matches
+  // a whole phrase, since a hostname can contain the word Transmission.
+  if (/Transmission (rejected the|requires a) username and password/i.test(raw)) {
+    return "Credentials rejected by Transmission. Check the username and password"
+  }
+  if (/Transmission has no API-key authentication/i.test(raw)) {
+    return "Transmission has no API key login. Set this client to username and password"
+  }
+  if (/Transmission refused the request\. Either its IP whitelist/i.test(raw)) {
+    return "Transmission refused the connection. Check its IP whitelist, or restart it if its anti-brute-force lockout tripped"
+  }
+  if (/Transmission refused the hostname/i.test(raw)) {
+    return "Transmission refused this hostname. Add it to rpc-host-whitelist, or turn on password authentication"
+  }
+  if (/Transmission returned an oversized response/i.test(raw)) {
+    return "Transmission returned an oversized response"
+  }
+  if (/Transmission RPC error: 3\d\d/i.test(raw)) {
+    return "Transmission redirected the request. Check the URL path"
+  }
+  if (/Transmission RPC error: 40[45]/i.test(raw)) {
+    return "Transmission's RPC was not found at this address. Check the port and URL path"
+  }
+  // The replay carried the id the first 409 handed back, so a second 409 means
+  // the id did not reach the daemon, or rotated between the two requests.
+  if (/Transmission RPC error: 409/i.test(raw)) {
+    return "Transmission did not accept the session id. Check that any proxy in front of it passes the X-Transmission-Session-Id header"
+  }
+  if (/Transmission sent an unexpected response|Transmission returned 409 without/i.test(raw)) {
+    return "Transmission sent an unexpected response"
+  }
+  if (/Transmission refused the RPC call/i.test(raw)) return "Transmission refused the request"
+  // Any status left over. Only the digits are kept, never the status text.
+  const transmissionStatus = raw.match(/Transmission RPC error: (\d{3})/i)
+  if (transmissionStatus) return `Transmission returned HTTP ${transmissionStatus[1]}`
+  // qBittorrent auth outcomes next. These need different user action from
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
   // "IP temporarily banned by tracker" and "Authentication failed").
@@ -63,6 +100,10 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/qBittorrent API error: 40[45]/i.test(raw)) {
     return "qBittorrent's API was not found at this address. Check the port and URL path"
   }
+  // Any status left over except 401 and 403, which the auth rule below reads.
+  // Only the digits are kept, never the status text.
+  const qbtStatus = raw.match(/qBittorrent API error: (?!40[13]\b)(\d{3})/i)
+  if (qbtStatus) return `qBittorrent returned HTTP ${qbtStatus[1]}`
   // The tracker proxy transport's own cap, worded differently and, through the
   // proxy branch, wrapped as a proxy failure that the rule further down would
   // otherwise read as the proxy being down.
@@ -75,10 +116,22 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
     return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
   }
   if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
-  // A tracker that answered 2xx with a body the adapter could not read.
-  // "Unexpected response from <host>: ..." is the wording the Gazelle, BTN,
-  // GGn, MAM, Nebulance, Hawke and UNIT3D adapters share (issue #214); the
-  // other three are parseBytes rejecting a byte string ("", "1,024.50 GiB").
+  // Luminance login refusals, the same kind of static strings. A wrong password
+  // reaches the generic credentials rule below.
+  if (/Luminance login refused: the account is disabled/i.test(raw)) {
+    return "Account is disabled on the tracker. Log in on the site to see why"
+  }
+  if (/Luminance login refused: the password is in a known breach/i.test(raw)) {
+    return "Tracker refused the password as breached. Change it on the site, then update it here"
+  }
+  if (/Luminance login refused: the account uses two-factor login/i.test(raw)) {
+    return "Two-factor login is on for this account. Add a session cookie from a browser login to the tracker's credentials"
+  }
+  // A tracker answer the adapter could not use, such as a 2xx body it could
+  // not read or a scraper's redirect with no readable Location. "Unexpected
+  // response from <host>: ..." is the wording the adapters and the shared fetch
+  // helpers use (issue #214); the other three are parseBytes rejecting a byte
+  // string ("", "1,024.50 GiB").
   // Matched before the generic rules on purpose: "Invalid byte format" and a
   // key called "invalid" in a listed payload would otherwise both fall into
   // the credential rule below and surface as "Invalid credentials".
@@ -91,18 +144,22 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/Cloudflare challenge detected/i.test(raw)) {
     return "Cloudflare challenge blocked the request"
   }
-  // The scrapers refuse a redirect off the tracker's own origin, which would
-  // carry the session cookies to another host, and give up on a loop. The
-  // tracker answered either way, so neither is an unreachable host.
+  // Scrapers that opt into following redirects refuse one off the tracker's own
+  // origin, which would carry the session cookies to another host, and give up
+  // on a loop. JSON API requests refuse every redirect. The tracker answered in
+  // all three cases, so none is an unreachable host.
   if (/redirected off-site/i.test(raw)) return "Tracker redirected to another site"
   if (/Too many redirects from/i.test(raw)) return "Tracker redirected too many times"
+  if (/answered with a \d{3} redirect/i.test(raw)) return "Tracker redirected the request"
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
   if (/ENOTFOUND/i.test(raw)) return "Host not found"
   if (/EHOSTUNREACH/i.test(raw)) return "Host unreachable"
   if (/ECONNRESET/i.test(raw)) return "Connection reset"
   if (/ip.*ban|ban.*ip|rate.?limit/i.test(raw)) return "IP temporarily banned by tracker"
-  if (/401|403|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
+  // Anchored to the "API error: <status>" shape every caller throws. Log lines
+  // that reach this carry ids, counts and durations with the same digits.
+  if (/API error: 40[13]\b/i.test(raw)) return "Authentication failed"
   if (/Session expired/i.test(raw)) return "Session expired"
   if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"
   if (/proxy/i.test(raw)) return "Proxy connection failed"

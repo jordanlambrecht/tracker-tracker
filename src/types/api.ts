@@ -12,7 +12,7 @@ export type {
 } from "@/types/tracker-stats"
 
 import type { PlatformType } from "@/data/platform-types"
-import type { DownloadClientRow, NotificationTargetRow } from "@/lib/db/schema"
+import type { DownloadClientRow, NotificationTargetRow, ProwlarrInstanceRow } from "@/lib/db/schema"
 import type { SystemEvent } from "@/lib/events"
 import type { NotificationThresholds } from "@/lib/notifications/types"
 import type { PlatformMeta } from "@/types/tracker-stats"
@@ -76,6 +76,61 @@ export interface TrackerSummary {
   platformMeta: PlatformMeta | null
   createdAt: string
   latestStats: TrackerLatestStats | null
+  /** A pinned Prowlarr indexer, or null for hostname matching. */
+  prowlarrPin?: { instanceId: number; indexerId: number } | null
+  /** True when the tracker is kept out of Prowlarr matching. */
+  prowlarrOptOut?: boolean
+  /** The Prowlarr indexers this tracker matched. Null when none did. */
+  prowlarr?: TrackerProwlarrState | null
+}
+
+export interface TrackerProwlarrIndexer {
+  instanceId: number
+  instanceName: string
+  instanceUrl: string
+  /** The instance's last poll error. While set, the fields below are stale. */
+  instanceError: string | null
+  /** True when the last reading is too old to show (the poller has stopped). */
+  stale: boolean
+  indexerId: number
+  name: string
+  enabled: boolean
+  disabledTill: string | null
+  mostRecentFailure: string | null
+  initialFailure: string | null
+  checkedAt: string
+  /** Null when never read or no longer current, which statsStaleSince then reports. */
+  stats24h: ProwlarrIndexerStats | null
+  stats7d: ProwlarrIndexerStats | null
+  /** When the oldest stats window left out for its age was last read, or null. */
+  statsStaleSince: string | null
+}
+
+/** One Prowlarr indexer's counters over a stats window. */
+export interface ProwlarrIndexerStats {
+  averageResponseTime: number
+  queries: number
+  grabs: number
+  rssQueries: number
+  authQueries: number
+  failedQueries: number
+  failedGrabs: number
+  failedRssQueries: number
+  failedAuthQueries: number
+}
+
+export interface TrackerProwlarrState {
+  matchedBy: "auto" | "manual"
+  indexers: TrackerProwlarrIndexer[]
+}
+
+/** An indexer offered as a manual match in the tracker settings sheet. */
+export interface ProwlarrIndexerOption {
+  instanceId: number
+  instanceName: string
+  indexerId: number
+  name: string
+  hosts: string[]
 }
 
 export interface Snapshot extends TrackerStatFields {
@@ -139,6 +194,8 @@ export interface DashboardSettings {
   showOutageBands: boolean
 }
 
+export type GlanceDay = "today" | "yesterday"
+
 export interface TodayAtAGlance {
   fleet: {
     uploadDelta: string
@@ -165,7 +222,10 @@ export interface TodayAtAGlance {
   movers: {
     /** Number of configured download clients. */
     clientCount: number
-    /** Torrents seen but not attributable to any tracker by tag or announce URL. */
+    /**
+     * Torrents seen but not attributable to any tracker by tag or announce URL.
+     * 0 whenever at least one torrent matched, moving or not.
+     */
     unmatchedTorrents: number
     topUploaders: Array<{
       hash: string
@@ -241,6 +301,29 @@ export type SafeNotificationTarget = Omit<
   hasConfig: boolean
   thresholds: NotificationThresholds | null
   lastDeliveryAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** API response shape for Prowlarr instances (API key stripped, dates serialized) */
+export type SafeProwlarrInstance = Omit<
+  ProwlarrInstanceRow,
+  | "encryptedApiKey"
+  | "lastPolledAt"
+  | "indexersReadAt"
+  | "statsReadAt"
+  | "statsAttemptedAt"
+  | "stats7dReadAt"
+  | "errorSince"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  hasApiKey: boolean
+  indexerCount: number
+  lastPolledAt: string | null
+  indexersReadAt: string | null
+  statsReadAt: string | null
+  errorSince: string | null
   createdAt: string
   updatedAt: string
 }

@@ -6,6 +6,7 @@ import { H1 } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
+import { ProwlarrIndexerCard } from "@/components/tracker-detail/ProwlarrIndexerCard"
 import { MamMouseholeCard } from "@/components/tracker-detail/platform/MamMouseholeCard"
 import { SlotRenderer } from "@/components/tracker-detail/SlotRenderer"
 import { UserProfileCard } from "@/components/tracker-detail/UserProfileCard"
@@ -17,15 +18,15 @@ import {
   GearIcon,
   PauseIcon,
   PlayIcon,
-  ShieldIcon,
+  VaultIcon,
 } from "@/components/ui/Icons"
-import { PulseDot } from "@/components/ui/PulseDot"
+import { StatusDot } from "@/components/ui/StatusDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
   getHealthBadgeVariant,
   getHealthDescription,
-  getHealthPulseDot,
+  getHealthDot,
   getTrackerHealth,
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
@@ -68,6 +69,12 @@ export function TrackerDetailHeader({
   settingsSaves,
 }: TrackerDetailHeaderProps) {
   const health = getTrackerHealth(tracker)
+  const prowlarrIndexers = tracker.prowlarr?.indexers ?? []
+  const hasStatusCards = Boolean(
+    registryEntry?.trackerHubSlug ||
+    (tracker.platformType === "mam" && tracker.mouseholeUrl) ||
+    prowlarrIndexers.length > 0
+  )
 
   return (
     <div className="flex flex-col gap-5">
@@ -86,7 +93,7 @@ export function TrackerDetailHeader({
               />
             )}
             <H1 className="text-3xl font-bold tracking-tight">{tracker.name}</H1>
-            <PulseDot status={getHealthPulseDot(health)} size="md" />
+            <StatusDot {...getHealthDot(health)} size="md" />
             <Tooltip content={`Open ${tracker.name}`}>
               <a
                 href={tracker.baseUrl}
@@ -158,7 +165,7 @@ export function TrackerDetailHeader({
             onClick={onOpenCredentials}
             aria-label="Tracker credentials"
           >
-            <ShieldIcon width="16" height="16" />
+            <VaultIcon width="16" height="16" />
           </Button>
           <Button
             variant="secondary"
@@ -171,33 +178,38 @@ export function TrackerDetailHeader({
         </div>
       </div>
 
-      {(registryEntry?.trackerHubSlug ||
-        (tracker.platformType === "mam" && tracker.mouseholeUrl)) && (
-        <div className="flex flex-col gap-3 my-4">
-          {registryEntry?.trackerHubSlug && (
-            <TrackerHubStatus
-              trackerHubSlug={registryEntry.trackerHubSlug}
-              statusPageUrl={registryEntry.statusPageUrl}
+      {/* The status cards sit beside the user card when there is room, below it otherwise */}
+      {(stats || hasStatusCards) && (
+        <div className="flex flex-wrap items-start gap-4">
+          {stats && (
+            <UserProfileCard
+              tracker={tracker}
+              stats={stats}
+              registryEntry={registryEntry}
+              accentColor={tc}
             />
           )}
-          {/* Remounted on each settings save so a new URL or token is fetched at once */}
-          {tracker.platformType === "mam" && tracker.mouseholeUrl && (
-            <MamMouseholeCard
-              key={settingsSaves}
-              trackerId={tracker.id}
-              mouseholeUrl={tracker.mouseholeUrl}
-            />
+
+          {hasStatusCards && (
+            <div className="flex flex-col gap-3 flex-1 min-w-80 max-w-xl">
+              {registryEntry?.trackerHubSlug && (
+                <TrackerHubStatus
+                  trackerHubSlug={registryEntry.trackerHubSlug}
+                  statusPageUrl={registryEntry.statusPageUrl}
+                />
+              )}
+              {/* Remounted on each settings save so a new URL or token is fetched at once */}
+              {tracker.platformType === "mam" && tracker.mouseholeUrl && (
+                <MamMouseholeCard
+                  key={settingsSaves}
+                  trackerId={tracker.id}
+                  mouseholeUrl={tracker.mouseholeUrl}
+                />
+              )}
+              {prowlarrIndexers.length > 0 && <ProwlarrIndexerCard indexers={prowlarrIndexers} />}
+            </div>
           )}
         </div>
-      )}
-
-      {stats && (
-        <UserProfileCard
-          tracker={tracker}
-          stats={stats}
-          registryEntry={registryEntry}
-          accentColor={tc}
-        />
       )}
     </div>
   )

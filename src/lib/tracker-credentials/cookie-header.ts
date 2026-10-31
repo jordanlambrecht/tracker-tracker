@@ -21,10 +21,16 @@ const COMMON_COOKIE_NAMES = [
  * Normalizes and sanity-checks a pasted Cookie header, returning the cleaned
  * value. Catches the three mistakes that actually reach us: the "Cookie: "
  * prefix, a lone cookie name, and DevTools truncating a long value.
+ * `requiredCookieNames` are cookies the session cannot work without, so a
+ * paste missing one is refused here rather than read as an expired session.
  */
 export function validateCookieHeader(
   cookies: string,
-  options: { extraCookieNames?: readonly string[]; example: string }
+  options: {
+    extraCookieNames?: readonly string[]
+    requiredCookieNames?: readonly string[]
+    example: string
+  }
 ): string {
   // Strip "Cookie: " prefix if user copied from raw headers view
   const trimmed = cookies.trim().replace(/^Cookie:\s*/i, "")
@@ -73,6 +79,15 @@ export function validateCookieHeader(
       `Cookie string contains a non-ASCII character ("${char}", U+${code?.toString(16).toUpperCase().padStart(4, "0")}) at position ${idx}. ` +
         "This usually means the browser truncated a long value when copying. Re-copy the full cookie string from DevTools."
     )
+  }
+
+  const present = new Set(trimmed.split(";").map((pair) => pair.split("=")[0].trim()))
+  for (const required of options.requiredCookieNames ?? []) {
+    if (!present.has(required)) {
+      throw new Error(
+        `Cookie string has no ${required} cookie. Copy the entire value after "Cookie:" in DevTools.`
+      )
+    }
   }
 
   return trimmed

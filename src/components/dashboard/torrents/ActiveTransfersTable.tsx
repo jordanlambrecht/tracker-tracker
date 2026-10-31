@@ -83,7 +83,7 @@ export function ActiveTransfersTable({
       width: 36,
       render: (t) => (
         <span className="torrent-cell">
-          {isDownload ? formatPercent(t.progress * 100, 0) : formatTorrentRatio(t.ratio)}
+          {isDownload ? formatPercent(t.progress * 100) : formatTorrentRatio(t.ratio)}
         </span>
       ),
     },

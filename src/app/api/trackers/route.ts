@@ -14,11 +14,12 @@ import {
   validateMouseholeToken,
   validateMouseholeUrl,
 } from "@/lib/api-helpers"
+import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
-import { LONG_STRING_MAX, maxTokenLengthFor, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
+import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerListForDashboard } from "@/lib/server-data"
 
@@ -42,17 +43,16 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } =
-    body as {
-      name?: string
-      slug?: string
-      apiToken?: string
-      color?: string
-      qbtTag?: string
-      mouseholeUrl?: string
-      mouseholeToken?: string
-      joinedAt?: string
-    }
+  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } = body as {
+    name?: string
+    slug?: string
+    apiToken?: string
+    color?: string
+    qbtTag?: string
+    mouseholeUrl?: string
+    mouseholeToken?: string
+    joinedAt?: string
+  }
 
   if (
     typeof name !== "string" ||
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   }
 
   if (typeof qbtTag === "string") {
-    const qbtTagErr = validateMaxLength(qbtTag, TRACKER_TAG_MAX, "qBittorrent tag")
+    const qbtTagErr = validateMaxLength(qbtTag, TRACKER_TAG_MAX, "Client tag")
     if (qbtTagErr) return qbtTagErr
   }
 

@@ -99,7 +99,7 @@ describe("TagGroupBreakdownChart — thousand separators", () => {
       const option = optionFor("donut")
       const out = tooltipFormatter(option)({ name: "1080p", value: 12345, percent: 42 })
       expect(out).toContain("12,345")
-      expect(out).toContain("42%")
+      expect(out).toContain("(42.0%)")
     })
 
     it("separates thousands in the slice label", () => {

@@ -9,7 +9,7 @@ export const cinemageddon: TrackerRegistryEntry = {
   abbreviation: "CG",
   url: "https://cinemageddon.net",
   description:
-    "Focused around B movies and trashy movies. A niche archive for cult, exploitation, and obscure cinema.",
+    "Focused on B movies and trashy movies. A niche archive for cult, exploitation, and obscure cinema.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "custom",

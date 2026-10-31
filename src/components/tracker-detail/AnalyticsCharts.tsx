@@ -19,7 +19,7 @@ interface AnalyticsChartsProps {
   onDaysChange: (d: DayRange) => void
   delta: DeltaDisplay
   gazelleMeta: GazellePlatformMeta | null
-  minimumRatio?: number
+  requiredRatio: number | null
   bonusName?: string
 }
 
@@ -32,7 +32,7 @@ export function AnalyticsCharts({
   onDaysChange,
   delta,
   gazelleMeta,
-  minimumRatio,
+  requiredRatio,
   bonusName,
 }: AnalyticsChartsProps) {
   const candlestickData = [{ name: trackerName, color: tc, snapshots }]
@@ -60,7 +60,7 @@ export function AnalyticsCharts({
             metric="ratio"
             snapshots={snapshots}
             accentColor={tc}
-            baselineValue={minimumRatio}
+            baselineValue={requiredRatio ?? undefined}
           />
         </Card>
 
@@ -74,10 +74,10 @@ export function AnalyticsCharts({
           <BufferCandlestickChart trackerData={candlestickData} height={320} />
         </Card>
 
-        {/* Seedbonus / Gold */}
+        {/* Seedbonus */}
         <Card
           lazy
-          title={platformType === "ggn" ? "Gold" : (bonusName ?? "Seedbonus")}
+          title={bonusName ?? "Seedbonus"}
           trackerColor={tc}
           className="flex flex-col gap-4"
         >

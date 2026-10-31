@@ -19,6 +19,7 @@ import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
 import {
   datePrefix,
+  isCloudflareChallenge,
   normalizeWhitespace,
   tryParseCount,
   tryParseSiteBytes,
@@ -72,11 +73,7 @@ export function parseFilelistCredentials(apiToken: string): FilelistCredentials 
 function assertAuthenticated(html: string): void {
   // Cloudflare first: a challenge body also lacks the logout link, and the
   // specific challenge message must win over the generic session-expired one.
-  if (
-    html.includes("<title>Just a moment...</title>") ||
-    html.includes("cf_chl_opt") ||
-    html.includes("challenges.cloudflare.com/turnstile")
-  ) {
+  if (isCloudflareChallenge(html)) {
     throw new Error("Cloudflare challenge detected. Cookies need refreshing")
   }
 
@@ -115,7 +112,10 @@ export function parseFilelistProfile(html: string, hostname: string): TrackerSta
     } else if (label === "Downloaded") {
       downloadedBytes = tryParseSiteBytes(value) ?? downloadedBytes
     } else if (label === "Class") {
-      group = value || null
+      // A live VIP account renders "VIP (Until: 2026-11-28 17:44:57)". The
+      // rank ladder matches on the bare class name, so the expiry suffix is
+      // dropped here rather than leaking into the profile badge.
+      group = value.replace(/\s*\(until:[^)]*\)\s*$/i, "").trim() || null
     } else if (label === "Join date") {
       joinedDate = datePrefix(value) ?? joinedDate
     } else if (label === "Last seen") {

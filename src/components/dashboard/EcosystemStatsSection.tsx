@@ -85,15 +85,6 @@ function EcosystemStatsSection({ trackers, aggregateStats }: EcosystemStatsSecti
         label="Avg Ratio"
         value={formatRatio(aggregateStats.avgRatio)}
         icon={AGGREGATE_ICONS.ratio}
-        trend={
-          aggregateStats.avgRatio === null
-            ? undefined
-            : aggregateStats.avgRatio >= 2
-              ? "up"
-              : aggregateStats.avgRatio >= 1
-                ? "flat"
-                : "down"
-        }
       />
       <StatCard
         label="Seeding"

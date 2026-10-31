@@ -6,6 +6,7 @@
 //   "ring"     . countdown ring (login deadline)
 //   "deadline" . countdown ring to an absolute date (API key expiry)
 
+import { InfinitySign } from "@icons"
 import clsx from "clsx"
 import type { HTMLAttributes, ReactNode } from "react"
 import { CHART_THEME } from "@/components/charts/lib/theme"
@@ -217,7 +218,9 @@ function BasicContent({
   return (
     <>
       <div className="flex items-end gap-2">
-        <span className="font-mono text-2xl font-semibold text-primary leading-none">{value}</span>
+        <span className="font-mono text-2xl font-semibold text-primary leading-none">
+          {value === "∞" ? <InfinitySign /> : value}
+        </span>
         {unit && (
           <span className="font-mono text-xs font-normal text-muted leading-none mb-0.5">
             {unit}

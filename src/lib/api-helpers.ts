@@ -4,13 +4,14 @@
 //            validateHttpUrl, validateMouseholeUrl, validateMouseholeToken,
 //            validateHexColor, validatePort, validatePastDate, validateJoinedAt,
 //            validateLastAccessAt, validateIntRange, validateMaxLength,
-//            validateAuthMethod, validateUrlPath, validateClientHost, decodeKey
+//            validateAuthMethod, validateAuthMethodForType, validateUrlPath,
+//            validateClientHost, decodeKey
 
 import { NextResponse } from "next/server"
-import { getSession } from "@/lib/auth"
+import { clearSession, readSession, STALE_SESSION_MESSAGE } from "@/lib/auth"
 // Imported from the module rather than the barrel: the barrel pulls in
 // credentials.ts, which is "server-only".
-import { VALID_AUTH_METHODS } from "@/lib/download-clients/types"
+import { clientSupportsApiKey, VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
 import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import { isUnsafeNetworkHost } from "@/lib/network"
@@ -22,9 +23,14 @@ export type RouteContext<P = { id: string }> = {
 }
 
 export async function authenticate(): Promise<NextResponse | { encryptionKey: string }> {
-  const session = await getSession()
+  const session = await readSession()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  return session
+  if (session.status === "stale") {
+    // Only a route handler can delete a cookie. Pages leave a stale one for the next API call.
+    await clearSession()
+    return NextResponse.json({ error: STALE_SESSION_MESSAGE }, { status: 401 })
+  }
+  return { encryptionKey: session.encryptionKey }
 }
 
 export async function parseRouteId(
@@ -203,6 +209,17 @@ export function validateAuthMethod(value: string): NextResponse | null {
   if (!(VALID_AUTH_METHODS as readonly string[]).includes(value)) {
     return NextResponse.json(
       { error: `authMethod must be one of: ${VALID_AUTH_METHODS.join(", ")}` },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
+/** Reject an API key for a client type whose API has no key login. */
+export function validateAuthMethodForType(type: string, authMethod: string): NextResponse | null {
+  if (authMethod === "apikey" && !clientSupportsApiKey(type)) {
+    return NextResponse.json(
+      { error: "This client type has no API key login. Use a username and password" },
       { status: 400 }
     )
   }
