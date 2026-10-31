@@ -21,6 +21,7 @@ import {
   VALID_CONTENT_CATEGORIES,
   validateAnnounceHosts,
   validateDefunct,
+  validateTrackerUrl,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { isValidHex } from "@/lib/validators"
@@ -76,20 +77,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
         )
       }
     }
-    if (!/^https:\/\//.test(tracker.url)) {
-      errors.push("URL must use https://")
-    } else {
-      try {
-        new URL(tracker.url)
-      } catch {
-        errors.push("Invalid URL format")
-      }
-      // Adapters both concatenate onto this and pass it to `new URL`; a stored
-      // trailing slash doubles the separator in the first form.
-      if (/\/$/.test(tracker.url)) {
-        errors.push("URL must not end with a trailing slash")
-      }
-    }
+    errors.push(...validateTrackerUrl(tracker.url))
     if (isEmpty(tracker.contentCategories)) {
       errors.push("Missing contentCategories")
     } else {

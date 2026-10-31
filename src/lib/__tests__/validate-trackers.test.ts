@@ -5,10 +5,15 @@
 //   - describe("user class ladder validation")
 //   - describe("defunct validation")
 //   - describe("announce hosts validation")
+//   - describe("url validation")
 
 import { describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
-import { validateAnnounceHosts, validateDefunct } from "@/data/tracker-validation-rules"
+import {
+  validateAnnounceHosts,
+  validateDefunct,
+  validateTrackerUrl,
+} from "@/data/tracker-validation-rules"
 
 // ---------------------------------------------------------------------------
 // Local mirror of the transit-papers rule in scripts/validate-trackers.ts,
@@ -333,5 +338,38 @@ describe("announce hosts validation", () => {
     expect(validateAnnounceHosts({ announceHosts: ["flacsfor.me", host] })).toEqual([
       "announceHosts[1] must be a lowercase registrable domain, never a URL or subdomain",
     ])
+  })
+})
+
+describe("url validation", () => {
+  it.each([
+    ["a bare host", "https://tracker.example"],
+    ["a www host", "https://www.tracker.example"],
+  ])("%s produces no errors", (_form, url) => {
+    expect(validateTrackerUrl(url)).toEqual([])
+  })
+
+  it.each([
+    ["a path", "https://tracker.example/forum"],
+    ["a trailing slash", "https://tracker.example/"],
+    ["an uppercase host", "https://Tracker.example"],
+    ["an explicit default port", "https://tracker.example:443"],
+    ["another port", "https://tracker.example:8443"],
+    ["a query", "https://tracker.example?lang=en"],
+    ["a fragment", "https://tracker.example#top"],
+    ["credentials", "https://user:pass@tracker.example"],
+    ["a trailing dot", "https://tracker.example."],
+  ])("%s produces an error naming the origin it should be", (_form, url) => {
+    expect(validateTrackerUrl(url)).toEqual([
+      `URL must be exactly its origin (got "${url}", expected "https://tracker.example")`,
+    ])
+  })
+
+  it("an http URL produces the https error", () => {
+    expect(validateTrackerUrl("http://tracker.example")).toEqual(["URL must use https://"])
+  })
+
+  it("a URL that does not parse produces the format error", () => {
+    expect(validateTrackerUrl("https://")).toEqual(["Invalid URL format"])
   })
 })

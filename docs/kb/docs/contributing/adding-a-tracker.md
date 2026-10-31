@@ -75,7 +75,7 @@ Full template:
 //       ggn        → "/api.php"
 //       nebulance  → "/api.php"
 //       mam        → "/jsonLoad.php"
-//   - url: https only
+//   - url: the https origin only, no path, port or trailing slash
 //   - contentCategories: values must come from the allowed list above
 //   - language: required
 //   - rules: required (minimumRatio, seedTimeHours, loginIntervalDays as numbers)
@@ -87,7 +87,7 @@ export const mytracker: TrackerRegistryEntry = {
   slug: "mytracker", // lowercase, hyphens only (e.g. "my-tracker")
   name: "My Tracker", // display name
   abbreviation: "", // short code (e.g. "ATH", "RED"), "" if none
-  url: "https://example.com", // base URL (https only)
+  url: "https://example.com", // https origin only
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
@@ -195,7 +195,13 @@ abbreviation: "" // no abbreviation
 
 Type: `string`
 
-The base URL including protocol. HTTPS only, no trailing slash.
+The site's https origin, with a lowercase host and nothing after it. A path,
+port, query or trailing slash fails CI, and the error names the origin it
+expects.
+
+Use the host the site answers on without a redirect. Tracker API requests
+don't follow redirects, so a site that sends its bare domain to www keeps the
+www (`https://www.myanonamouse.net`, not `https://myanonamouse.net`).
 
 ```typescript
 url: "https://blutopia.cc"

@@ -23,7 +23,7 @@
 //       gazelle  → "/ajax.php"
 //       ggn      → "/api.php"
 //       avistaz  → "/profile"
-//   - url: https only
+//   - url: the https origin only, no path, port or trailing slash
 //   - contentCategories: values must come from the allowed list above
 //   - language: required
 //   - rules: required (minimumRatio, seedTimeHours, loginIntervalDays as numbers)
@@ -39,7 +39,7 @@ export const mytracker: TrackerRegistryEntry = {
   slug: "mytracker", // lowercase, hyphens only ("my-tracker")
   name: "My Tracker", // display name
   abbreviation: "", // short code ("ATH", "RED"). "" if none
-  url: "https://example.com", // base URL (https only)
+  url: "https://example.com", // https origin only
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────

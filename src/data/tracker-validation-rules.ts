@@ -128,4 +128,25 @@ export function validateAnnounceHosts(tracker: Partial<TrackerRegistryEntry>): s
   )
 }
 
+/**
+ * A registry `url` must be exactly its own origin, with no port and no trailing
+ * dot on the host. Adapters both concatenate onto it and pass it to `new URL`,
+ * and the two forms treat anything past the origin differently. Concatenation
+ * doubles a trailing slash, for one.
+ */
+export function validateTrackerUrl(url: string): string[] {
+  if (!/^https:\/\//.test(url)) return ["URL must use https://"]
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return ["Invalid URL format"]
+  }
+  // The hostname, unlike the origin, leaves out the port, and URL keeps a trailing dot.
+  const expected = `${parsed.protocol}//${parsed.hostname.replace(/\.$/, "")}`
+  return url === expected
+    ? []
+    : [`URL must be exactly its origin (got "${url}", expected "${expected}")`]
+}
+
 export { normalizeUrl as normalizeTrackerUrl } from "@/lib/data-transforms"

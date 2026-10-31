@@ -28,6 +28,7 @@ import {
   VALID_CONTENT_CATEGORIES,
   validateAnnounceHosts,
   validateDefunct,
+  validateTrackerUrl,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
 import { trackerHostKey } from "@/lib/tracker-matching"
@@ -191,13 +192,8 @@ describe("tracker registry", () => {
           ).toBe(true)
         })
 
-        it("has a valid https URL", () => {
-          expect(tracker.url).toMatch(/^https:\/\//)
-          expect(() => new URL(tracker.url)).not.toThrow()
-        })
-
-        it("has no trailing slash, which adapters would double when they concatenate", () => {
-          expect(tracker.url).not.toMatch(/\/$/)
+        it("has an https URL that is exactly its origin", () => {
+          expect(validateTrackerUrl(tracker.url)).toEqual([])
         })
 
         it("has at least one content category", () => {
