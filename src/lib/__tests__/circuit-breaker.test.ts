@@ -5,7 +5,7 @@
 // Functions covered:
 //   pollTracker:                    success resets state; failures increment atomically via SQL expression; threshold triggers pause
 //   pollAllTrackers:                skips trackers with pausedAt set; polls overdue non-paused trackers
-//   POST /api/trackers/[id]/resume: clears pausedAt + lastError + lastErrorAt; resets consecutiveFailures to 0; idempotent 200 when not paused; 404 when not found
+//   POST /api/trackers/[id]/resume: clears pausedAt + lastError + lastErrorAt; resets consecutiveFailures to 0; idempotent 200 when not paused; 404 when not found; 400 for an unlinked row
 //   post-resume behavior:           clean slate after resume; full threshold required to re-pause
 
 import { SQL } from "drizzle-orm"
@@ -73,10 +73,6 @@ vi.mock("@/lib/download-client-scheduler", () => ({
   ensureClientSchedulerRunning: vi.fn(),
 }))
 
-vi.mock("@/data/tracker-registry", () => ({
-  registryEntryFor: vi.fn(() => undefined),
-}))
-
 vi.mock("node-cron", () => ({
   default: {
     schedule: vi.fn().mockReturnValue({ stop: vi.fn() }),
@@ -106,6 +102,7 @@ import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { getAdapter } from "@/lib/tracker-platforms"
 import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
+import { TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -157,6 +154,7 @@ function makeTrackerRow(overrides: Record<string, unknown> = {}) {
     baseUrl: "https://aither.cc",
     apiPath: "/api/user",
     platformType: "unit3d",
+    registrySlug: "aither",
     encryptedApiToken: "enc-token",
     isActive: true,
     lastPolledAt: null,
@@ -623,6 +621,7 @@ describe("POST /api/trackers/[id]/resume", () => {
               pausedAt: new Date("2026-03-15"),
               consecutiveFailures: 4,
               lastError: "API returned 429",
+              registrySlug: "aither",
             },
           ]),
         }),
@@ -655,6 +654,7 @@ describe("POST /api/trackers/[id]/resume", () => {
               pausedAt: new Date("2026-03-15"),
               consecutiveFailures: 4,
               lastError: "API returned 429",
+              registrySlug: "aither",
             },
           ]),
         }),
@@ -685,7 +685,9 @@ describe("POST /api/trackers/[id]/resume", () => {
         where: vi.fn().mockReturnValue({
           limit: vi
             .fn()
-            .mockResolvedValue([{ pausedAt: null, consecutiveFailures: 0, lastError: null }]),
+            .mockResolvedValue([
+              { pausedAt: null, consecutiveFailures: 0, lastError: null, registrySlug: "aither" },
+            ]),
         }),
       }),
     }
@@ -700,6 +702,33 @@ describe("POST /api/trackers/[id]/resume", () => {
     expect(data.success).toBe(true)
     expect(data.alreadyResumed).toBe(true)
     // No update should have been issued
+    expect(db.update).not.toHaveBeenCalled()
+  })
+
+  // An unlinked row is never polled, so resuming it would only hide why it is
+  // paused. The refusal comes before the not-paused check, so it applies either way.
+  it.each([
+    ["paused", new Date("2026-03-15")],
+    ["not paused", null],
+  ])("refuses an unlinked tracker that is %s, without writing", async (_state, pausedAt) => {
+    const selectChain = {
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi
+            .fn()
+            .mockResolvedValue([
+              { pausedAt, consecutiveFailures: 0, lastError: null, registrySlug: null },
+            ]),
+        }),
+      }),
+    }
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(selectChain)
+
+    const request = makeRequest("http://localhost/api/trackers/1/resume")
+    const response = await ResumePost(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: TRACKER_UNLINKED_ERROR })
     expect(db.update).not.toHaveBeenCalled()
   })
 
@@ -755,6 +784,7 @@ describe("POST /api/trackers/[id]/resume", () => {
               pausedAt: new Date("2026-03-15"),
               consecutiveFailures: 4,
               lastError: "API returned 429",
+              registrySlug: "aither",
             },
           ]),
         }),

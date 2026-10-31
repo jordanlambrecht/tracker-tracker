@@ -372,4 +372,13 @@ describe("url validation", () => {
   it("a URL that does not parse produces the format error", () => {
     expect(validateTrackerUrl("https://")).toEqual(["Invalid URL format"])
   })
+
+  // Each is otherwise exactly its origin, so only the address check refuses it.
+  it.each([
+    ["a private IPv4 address", "https://10.0.0.5"],
+    ["localhost", "https://localhost"],
+    ["a home network address", "https://192.168.1.1"],
+  ])("%s produces the private address error", (_form, url) => {
+    expect(validateTrackerUrl(url)).toEqual(["URL must not be a private or local address"])
+  })
 })

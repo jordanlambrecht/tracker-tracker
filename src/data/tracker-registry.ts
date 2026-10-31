@@ -152,13 +152,32 @@ export function getTrackerBySlug(slug: string): TrackerRegistryEntry | undefined
 
 /**
  * The registry entry a tracker row points at. The row names it by slug; the URL
- * it stores is the poll address, never the key. Undefined for a row with no slug
+ * it stores is only a copy, never the key. Undefined for a row with no slug
  * (a pre-registry custom site) or a slug the registry no longer carries.
  */
 export function registryEntryFor(tracker: {
   registrySlug: string | null
 }): TrackerRegistryEntry | undefined {
   return tracker.registrySlug ? getTrackerBySlug(tracker.registrySlug) : undefined
+}
+
+/** Where a tracker is polled and how, all from one registry entry. */
+export interface TrackerSite {
+  url: string
+  apiPath: string
+  platform: PlatformType
+  entry: TrackerRegistryEntry
+}
+
+/**
+ * The site a row is polled at. It takes the slug alone, so a caller cannot hand
+ * it the row's stored copies, and it never falls back to them: null means the
+ * tracker list does not carry the row, and nothing may be sent for it. A defunct
+ * entry still has a site, so each caller checks `entry.defunct`.
+ */
+export function trackerSiteFor(tracker: { registrySlug: string | null }): TrackerSite | null {
+  const entry = registryEntryFor(tracker)
+  return entry ? { url: entry.url, apiPath: entry.apiPath, platform: entry.platform, entry } : null
 }
 
 /**
@@ -176,9 +195,10 @@ export function registryBonusName(entry: TrackerRegistryEntry | undefined): stri
  * a restored backup can carry because it never passed the create route's
  * validateHttpUrl.
  *
- * The startup backfill is the only caller: it is how a row that predates
+ * The startup backfill is the only lookup by URL: it is how a row that predates
  * `registrySlug` is matched to an entry once. Nothing else may reach the
- * registry by URL.
+ * registry by URL. The poll also uses it, but only to name the host an unlinked
+ * row was set up for.
  */
 export function registryHostname(url: string): string | undefined {
   try {

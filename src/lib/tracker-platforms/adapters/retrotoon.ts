@@ -309,8 +309,8 @@ const BONUS_PATH = "/bonus.php"
 const HNR_PATH = "/myhr.php"
 
 export class RetrotoonAdapter implements TrackerAdapter {
-  // _apiPath is ignored: userdetails.php is intrinsic to the platform, so a
-  // stale persisted value self-heals (btn.ts and filelist.ts do the same).
+  // _apiPath is ignored: userdetails.php is intrinsic to the platform, so the
+  // adapter owns it (btn.ts and filelist.ts do the same).
   async fetchStats(
     baseUrl: string,
     apiToken: string,

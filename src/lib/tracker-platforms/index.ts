@@ -6,7 +6,7 @@
 // this makes fail at build time rather than at runtime.
 import "server-only"
 import type { Agent as HttpAgent } from "node:http"
-import { registryEntryFor } from "@/data/tracker-registry"
+import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { AnimeBytesAdapter } from "./adapters/animebytes"
 import { AvistazAdapter } from "./adapters/avistaz"
 import { BtnAdapter } from "./adapters/btn"
@@ -54,25 +54,21 @@ export function getAdapter(platformType: string): TrackerAdapter {
   return adapter
 }
 
-/**
- * Resolve registry config plus caller-supplied infra options into one FetchOptions.
- * The registry entry comes from the row's slug; a row with none gets no registry
- * options and polls by its stored URL alone.
- */
-export function buildFetchOptions(opts?: {
-  registrySlug?: string | null
+/** The entry's auth options plus caller-supplied infra options, as one FetchOptions. */
+export function buildFetchOptions(opts: {
+  entry: TrackerRegistryEntry
   proxyAgent?: HttpAgent
   remoteUserId?: number
 }): FetchOptions {
+  const { entry } = opts
   const fetchOptions: FetchOptions = {}
-  if (opts?.proxyAgent) fetchOptions.proxyAgent = opts.proxyAgent
-  if (opts?.remoteUserId) fetchOptions.remoteUserId = opts.remoteUserId
+  if (opts.proxyAgent) fetchOptions.proxyAgent = opts.proxyAgent
+  if (opts.remoteUserId) fetchOptions.remoteUserId = opts.remoteUserId
 
-  const entry = registryEntryFor({ registrySlug: opts?.registrySlug ?? null })
-  if (entry?.gazelleAuthStyle) fetchOptions.authStyle = entry.gazelleAuthStyle
-  if (entry?.gazelleEnrich) fetchOptions.enrich = true
-  if (entry?.unit3dAuthStyle) fetchOptions.unit3dAuthStyle = entry.unit3dAuthStyle
-  if (entry?.nebulanceAuthParam) fetchOptions.nebulanceAuthParam = entry.nebulanceAuthParam
+  if (entry.gazelleAuthStyle) fetchOptions.authStyle = entry.gazelleAuthStyle
+  if (entry.gazelleEnrich) fetchOptions.enrich = true
+  if (entry.unit3dAuthStyle) fetchOptions.unit3dAuthStyle = entry.unit3dAuthStyle
+  if (entry.nebulanceAuthParam) fetchOptions.nebulanceAuthParam = entry.nebulanceAuthParam
 
   return fetchOptions
 }

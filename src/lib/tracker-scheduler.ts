@@ -5,9 +5,9 @@
 // Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
-import { and, desc, eq, isNotNull, lt, notInArray, sql } from "drizzle-orm"
+import { and, desc, eq, isNotNull, isNull, lt, notInArray, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
-import { registryEntryFor } from "@/data/tracker-registry"
+import { registryHostname, trackerSiteFor } from "@/data/tracker-registry"
 import { pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { pruneCoverageGaps } from "@/lib/app-liveness"
 import { decrypt } from "@/lib/crypto"
@@ -31,7 +31,7 @@ import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
-import { getPauseState, isRestorePaused, resolveRequiredRatio } from "@/lib/tracker-status"
+import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type {
   AvistazPlatformMeta,
@@ -86,10 +86,8 @@ const POLL_TRACKER_COLUMNS = {
   name: trackers.name,
   isActive: trackers.isActive,
   encryptedApiToken: trackers.encryptedApiToken,
-  platformType: trackers.platformType,
   registrySlug: trackers.registrySlug,
   baseUrl: trackers.baseUrl,
-  apiPath: trackers.apiPath,
   useProxy: trackers.useProxy,
   remoteUserId: trackers.remoteUserId,
   platformMeta: trackers.platformMeta,
@@ -104,25 +102,33 @@ const POLL_TRACKER_COLUMNS = {
 } as const
 
 /**
- * The URL to poll. The row names its registry entry by slug; the URL it stores is
- * only the address, so when the registry's URL differs (a site moved, or the row was
- * restored with an older spelling) the registry wins and is written back. A domain
- * change then ships as a registry edit rather than a per-user fix.
+ * Pauses a row the tracker list does not carry, naming the host it was set up
+ * for. A row already paused keeps its own reason, and the isNull claim keeps two
+ * overlapping polls from writing it twice.
  */
-async function pollUrlFor(tracker: {
+async function pauseUnlinked(tracker: {
   id: number
   name: string
   baseUrl: string
-  registrySlug: string | null
-}): Promise<string> {
-  const entry = registryEntryFor(tracker)
-  if (!entry || entry.url === tracker.baseUrl) return tracker.baseUrl
-  await db.update(trackers).set({ baseUrl: entry.url }).where(eq(trackers.id, tracker.id))
-  log.info(
-    { trackerId: tracker.id, tracker: tracker.name, from: tracker.baseUrl, to: entry.url },
-    "tracker URL refreshed from the registry"
-  )
-  return entry.url
+  pausedAt: Date | null
+}): Promise<void> {
+  if (tracker.pausedAt) return
+  const host = registryHostname(tracker.baseUrl)
+  const lastError = host
+    ? `Not in the tracker list, so it isn't polled. It was set up for ${host}`
+    : "Not in the tracker list, so it isn't polled"
+  const now = new Date()
+  const [paused] = await db
+    .update(trackers)
+    .set({ pausedAt: now, lastError, lastErrorAt: now, updatedAt: now })
+    .where(and(eq(trackers.id, tracker.id), isNull(trackers.pausedAt)))
+    .returning({ id: trackers.id })
+  if (paused) {
+    log.warn(
+      { trackerId: tracker.id, trackerName: tracker.name, host },
+      "Paused a tracker that is not in the tracker list"
+    )
+  }
 }
 
 export const POLL_FAILURE_THRESHOLD = 4
@@ -151,12 +157,13 @@ export async function pollTracker(
     .limit(1)
 
   if (!tracker?.isActive) return
-  // Its address came from a backup file and matches no registry entry, so only
-  // Resume, which clears this marker, may send the token there.
-  if (isRestorePaused(tracker)) {
-    log.info({ trackerId: tracker.id }, "Skipping a restored tracker that has not been resumed")
+  // The token only ever goes to an address from the tracker list.
+  const site = trackerSiteFor(tracker)
+  if (!site) {
+    await pauseUnlinked(tracker)
     return
   }
+  if (site.entry.defunct) return
 
   const timestamp = batchTimestamp ?? new Date()
 
@@ -173,22 +180,21 @@ export async function pollTracker(
     if (!apiToken) {
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
-    const adapter = getAdapter(tracker.platformType)
+    const adapter = getAdapter(site.platform)
     if (tracker.useProxy && !proxyAgent) {
       throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
     }
-    const baseUrl = await pollUrlFor(tracker)
     const fetchOptions = buildFetchOptions({
-      registrySlug: tracker.registrySlug,
+      entry: site.entry,
       proxyAgent: tracker.useProxy ? proxyAgent : undefined,
       remoteUserId: tracker.remoteUserId ?? undefined,
     })
-    const stats = await adapter.fetchStats(baseUrl, apiToken, tracker.apiPath, fetchOptions)
+    const stats = await adapter.fetchStats(site.url, apiToken, site.apiPath, fetchOptions)
 
     // Snapshot the previous platformMeta before writing the current poll's metadata to DB.
     // dispatchNotifications uses this for change detection (i.e. canDownload transition).
     let previousPlatformMeta: Record<string, unknown> | null = null
-    if (DOWNLOAD_ALERT_PLATFORMS.has(tracker.platformType) && tracker.platformMeta) {
+    if (DOWNLOAD_ALERT_PLATFORMS.has(site.platform) && tracker.platformMeta) {
       try {
         previousPlatformMeta = JSON.parse(tracker.platformMeta) as Record<string, unknown>
       } catch (err) {
@@ -292,21 +298,19 @@ export async function pollTracker(
 
     try {
       const mamMeta =
-        tracker.platformType === "mam"
-          ? (stats.platformMeta as MamPlatformMeta | undefined)
-          : undefined
+        site.platform === "mam" ? (stats.platformMeta as MamPlatformMeta | undefined) : undefined
 
       const avistazMeta =
-        tracker.platformType === "avistaz"
+        site.platform === "avistaz"
           ? (stats.platformMeta as AvistazPlatformMeta | undefined)
           : undefined
 
       const dcMeta =
-        tracker.platformType === "digitalcore"
+        site.platform === "digitalcore"
           ? (stats.platformMeta as DigitalCorePlatformMeta | undefined)
           : undefined
 
-      const canDownloadMeta = DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+      const canDownloadMeta = DOWNLOAD_ALERT_ONLY_PLATFORMS.has(site.platform)
         ? (stats.platformMeta as C411PlatformMeta | HawkePlatformMeta | undefined)
         : undefined
 
@@ -333,7 +337,7 @@ export async function pollTracker(
           trackerJoinedAt: tracker.joinedAt ?? null,
           minimumRatio: resolveRequiredRatio(stats.requiredRatio, tracker) ?? undefined,
           platformContext:
-            tracker.platformType === "mam"
+            site.platform === "mam"
               ? {
                   currentSeedbonus: stats.seedbonus ?? null,
                   previousSeedbonus: previousSnapshot?.seedbonus ?? null,
@@ -345,7 +349,7 @@ export async function pollTracker(
                   canDownload: null,
                   previousCanDownload: null,
                 }
-              : tracker.platformType === "avistaz"
+              : site.platform === "avistaz"
                 ? {
                     // The 99,999 bonus cap these feed is MAM's.
                     currentSeedbonus: null,
@@ -359,7 +363,7 @@ export async function pollTracker(
                     previousCanDownload:
                       (previousPlatformMeta?.canDownload as boolean | null) ?? null,
                   }
-                : tracker.platformType === "digitalcore"
+                : site.platform === "digitalcore"
                   ? {
                       // The 99,999 bonus cap these feed is MAM's.
                       currentSeedbonus: null,
@@ -382,7 +386,7 @@ export async function pollTracker(
                             ? true
                             : null,
                     }
-                  : DOWNLOAD_ALERT_ONLY_PLATFORMS.has(tracker.platformType)
+                  : DOWNLOAD_ALERT_ONLY_PLATFORMS.has(site.platform)
                     ? {
                         currentSeedbonus: null,
                         previousSeedbonus: null,

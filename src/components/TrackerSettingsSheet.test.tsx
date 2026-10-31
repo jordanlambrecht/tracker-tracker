@@ -439,7 +439,7 @@ describe("TrackerSettingsSheet torrentleech credentials", () => {
 
 describe("TrackerSettingsSheet registry data", () => {
   // The row names its registry entry by slug. A stored URL that happens to
-  // match an entry is a poll address, not a key.
+  // match an entry is only a copy, not a key.
   const loginHint = () => screen.queryByText(/no login-interval policy/i)
 
   it("reads the login policy from the slug, not the stored URL", () => {

@@ -244,18 +244,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
         const testRes = await fetch("/api/trackers/test-connection", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // A row that names a registry entry is tested by slug, and the route
-          // takes the address and platform from the entry. A pre-registry row
-          // has nothing but what it stores.
-          body: JSON.stringify(
-            tracker.registrySlug
-              ? { slug: tracker.registrySlug, apiToken: trimmedToken }
-              : {
-                  baseUrl: tracker.baseUrl,
-                  apiToken: trimmedToken,
-                  platformType: tracker.platformType,
-                }
-          ),
+          // The route takes the address and platform from the registry entry
+          // the slug names, and refuses a row with none.
+          body: JSON.stringify({ slug: tracker.registrySlug, apiToken: trimmedToken }),
         })
         if (!testRes.ok) {
           const testData = await testRes.json().catch(() => ({ error: "Connection failed" }))

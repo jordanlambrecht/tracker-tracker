@@ -519,8 +519,8 @@ export async function POST(request: Request) {
           mouseholeToken = null
         }
 
-        // The token is sent wherever these three point, so a slug the registry
-        // knows takes them from its entry and never from the file.
+        // For a slug the registry knows, these three copies come from its entry
+        // and never from the file.
         const entry = registryEntryFor({
           registrySlug: (fields.registrySlug as string | null) ?? null,
         })
@@ -555,7 +555,7 @@ export async function POST(request: Request) {
             // when the registry does not know it. The backfill after the commit
             // matches both by host.
             registrySlug: entry?.slug ?? null,
-            // Until that backfill links it, the row would poll the file's address.
+            // Until that backfill links it, the row stays paused and says why.
             ...(entry
               ? {}
               : {
@@ -1149,7 +1149,7 @@ export async function POST(request: Request) {
   }
 
   // The boot-time backfill ran long before these rows existed, so a tracker from
-  // a backup older than registry_slug would poll without its registry options.
+  // a backup older than registry_slug would stay unlinked and never poll.
   await backfillRegistrySlugs({ force: true })
 
   // A row the backfill linked now polls the registry's address, so the restore's

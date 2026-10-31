@@ -1,10 +1,12 @@
 // src/app/api/trackers/[id]/resume/route.ts
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
+import { TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -18,6 +20,7 @@ export async function POST(_request: Request, props: RouteContext) {
       pausedAt: trackers.pausedAt,
       consecutiveFailures: trackers.consecutiveFailures,
       lastError: trackers.lastError,
+      registrySlug: trackers.registrySlug,
     })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
@@ -25,6 +28,11 @@ export async function POST(_request: Request, props: RouteContext) {
 
   if (!tracker) {
     return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
+  }
+
+  // An unlinked row is never polled, so it is never resumed either.
+  if (!trackerSiteFor(tracker)) {
+    return NextResponse.json({ error: TRACKER_UNLINKED_ERROR }, { status: 400 })
   }
 
   if (!tracker.pausedAt) {

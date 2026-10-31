@@ -280,8 +280,7 @@ function fetchHtml(
 export class IptorrentsAdapter implements TrackerAdapter {
   // The profile page carries the stats bar as well as the class and dates, so
   // one request covers a poll; the homepage is fetched only to learn the id.
-  // _apiPath is ignored: /u/{id} is intrinsic to IPT, so a stale persisted
-  // path self-heals.
+  // _apiPath is ignored: /u/{id} is intrinsic to IPT, so the adapter owns it.
   async fetchStats(
     baseUrl: string,
     apiToken: string,

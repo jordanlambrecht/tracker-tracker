@@ -1,6 +1,7 @@
 // src/app/api/trackers/[id]/poll/route.ts
 import { and, eq, isNull, lte, or } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
@@ -8,6 +9,7 @@ import { isDecryptionError } from "@/lib/error-utils"
 import { POLL_MANUAL_COOLDOWN_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { pollTracker } from "@/lib/tracker-scheduler"
+import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 export async function POST(_request: Request, props: RouteContext) {
@@ -16,6 +18,23 @@ export async function POST(_request: Request, props: RouteContext) {
 
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId
+
+  // Refused before the claim, so a refusal never starts the cooldown.
+  const [tracker] = await db
+    .select({ registrySlug: trackers.registrySlug })
+    .from(trackers)
+    .where(eq(trackers.id, trackerId))
+    .limit(1)
+  if (!tracker) {
+    return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
+  }
+  const site = trackerSiteFor(tracker)
+  if (!site) {
+    return NextResponse.json({ error: TRACKER_UNLINKED_ERROR }, { status: 400 })
+  }
+  if (site.entry.defunct) {
+    return NextResponse.json({ error: TRACKER_DEFUNCT_ERROR }, { status: 400 })
+  }
 
   // Atomically claim poll slot. Prevents TOCTOU race with multiple tabs
   const threshold = new Date(Date.now() - POLL_MANUAL_COOLDOWN_MS)

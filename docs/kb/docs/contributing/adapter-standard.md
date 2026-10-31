@@ -271,7 +271,7 @@ scrapers name their transport wrapper `fetchHtml`. Tests use `vi.spyOn(global, "
 | Helpers are module-scope functions | 15 of 16 | `gazelle.ts` puts one helper on the class as a `private async` that never touches `this`, so it cannot be unit-tested directly. |
 | A prefix predicts the failure mode | Mixed | `parse*` throws, `tryParse*` returns `undefined`. Whatever it is called, "not reported" must reach `TrackerStats` as `null`. |
 | Label lookups compare exactly on normalized text | filelist, retrotoon | A bare `.includes(label)` matches any cell containing it, so "Last Access IP" satisfies a "Last Access" lookup. Normalize, then compare exactly, or anchor the regex. |
-| Ignoring the persisted `_apiPath` | 7 adapters | When the path is intrinsic to the platform, ignore `_apiPath` so a stale persisted value self-heals, and say so in one comment naming **your** intrinsic path. |
+| Ignoring `_apiPath` | 7 adapters | When the path is intrinsic to the platform, ignore `_apiPath` so the adapter owns it, and say so in one comment naming **your** intrinsic path. |
 | Date shape | No convention | Emit one shape and say which. The scheduler preserves a bare `YYYY-MM-DD` exactly as printed (`trackerDateStr`). Adapters still emit three shapes. |
 
 **The `Functions:` file header.** 13 of 16 adapters carry one.

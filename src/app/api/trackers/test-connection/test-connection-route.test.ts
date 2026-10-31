@@ -1,15 +1,18 @@
 // src/app/api/trackers/test-connection/test-connection-route.test.ts
 //
 // Tests for POST /api/trackers/test-connection: sanitized error responses,
-// raw-error logging, proxy wiring from appSettings, and both body shapes. A
-// registry slug settles URL, platform and API path; the baseUrl form is what a
-// row without a slug uses.
+// raw-error logging and proxy wiring from appSettings. The body names a registry
+// slug, and the entry settles URL, platform and API path, so a slug the tracker
+// list does not carry, or a defunct one, is refused before anything is sent.
 
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { getTrackerBySlug, TRACKER_REGISTRY } from "@/data/tracker-registry"
+import { ALL_TRACKERS } from "@/data/trackers"
 import { authenticate, decodeKey, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { log } from "@/lib/logger"
+import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import { POST } from "./route"
 
@@ -28,7 +31,6 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
       .mockReturnValue(
         Buffer.from("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "hex")
       ),
-    validateHttpUrl: vi.fn().mockReturnValue(null),
     validateMaxLength: vi.fn().mockReturnValue(null),
   }
 })
@@ -91,9 +93,8 @@ function makeRequest(body: Record<string, unknown>): Request {
 }
 
 const VALID_BODY = {
-  baseUrl: "https://avistaz.to",
+  slug: "aither",
   apiToken: "some-token",
-  platformType: "unit3d",
 }
 
 function mockDbSettings(settings?: Record<string, unknown> | null) {
@@ -152,42 +153,46 @@ describe("POST /api/trackers/test-connection — input validation", () => {
     })
   })
 
-  it("returns 400 when baseUrl is missing", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      apiToken: "some-token",
-      platformType: "unit3d",
-    })
-    const res = await POST(makeRequest({ apiToken: "some-token" }))
-    const body = await res.json()
-    expect(res.status).toBe(400)
-    expect(body.error).toMatch(/baseUrl.*required|required.*baseUrl/i)
-  })
-
   it("returns 400 when apiToken is missing", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      baseUrl: "https://avistaz.to",
-      platformType: "unit3d",
-    })
-    const res = await POST(makeRequest({ baseUrl: "https://avistaz.to" }))
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ slug: "aither" })
+    const res = await POST(makeRequest({ slug: "aither" }))
     const body = await res.json()
     expect(res.status).toBe(400)
-    expect(body.error).toMatch(/required/)
+    expect(body.error).toBe("apiToken is required")
   })
 
-  it("returns 400 when platformType is not in VALID_PLATFORM_TYPES", async () => {
-    // validateHttpUrl and validateMaxLength are vi.fn() returning null (pass-through),
-    // so only the platform check fires here.
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      baseUrl: "https://avistaz.to",
-      apiToken: "tok",
-      platformType: "notaplatform",
-    })
-    const res = await POST(
-      makeRequest({ baseUrl: "https://avistaz.to", apiToken: "tok", platformType: "notaplatform" })
+  // Nothing in the body but the slug can choose where the token goes.
+  it.each([
+    [
+      "no slug, only a stored address",
+      { baseUrl: "https://aither.cc", platformType: "unit3d" },
+      TRACKER_UNLINKED_ERROR,
+    ],
+    ["a slug the tracker list does not carry", { slug: "no-such-tracker" }, TRACKER_UNLINKED_ERROR],
+    [
+      "a draft entry's slug",
+      { slug: ALL_TRACKERS.find((t) => t.draft)?.slug },
+      TRACKER_UNLINKED_ERROR,
+    ],
+    [
+      "a defunct entry's slug",
+      { slug: TRACKER_REGISTRY.find((t) => t.defunct)?.slug },
+      TRACKER_DEFUNCT_ERROR,
+    ],
+  ])("refuses a body with %s before sending anything", async (_form, fields, error) => {
+    expect(Object.values(fields), "the registry has no such entry left to test with").not.toContain(
+      undefined
     )
-    const body = await res.json()
+    const body = { ...fields, apiToken: "some-token" }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    const { getAdapter } = await import("@/lib/tracker-platforms")
+
+    const res = await POST(makeRequest(body))
+
     expect(res.status).toBe(400)
-    expect(body.error).toMatch(/platform/i)
+    await expect(res.json()).resolves.toEqual({ error })
+    expect(getAdapter).not.toHaveBeenCalled()
+    expect(db.select).not.toHaveBeenCalled()
   })
 })
 
@@ -228,7 +233,7 @@ describe("POST /api/trackers/test-connection by registry slug", () => {
     )
   })
 
-  it("passes the slug to buildFetchOptions so the entry's auth options apply", async () => {
+  it("passes the entry to buildFetchOptions so its auth options apply", async () => {
     mockDbSettings()
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       slug: "orpheus",
@@ -239,32 +244,8 @@ describe("POST /api/trackers/test-connection by registry slug", () => {
     await POST(makeRequest({ slug: "orpheus", apiToken: "some-token" }))
 
     expect(buildFetchOptions).toHaveBeenCalledWith(
-      expect.objectContaining({ registrySlug: "orpheus" })
+      expect.objectContaining({ entry: getTrackerBySlug("orpheus") })
     )
-  })
-
-  it("returns 400 for a slug the registry does not carry", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      slug: "no-such-tracker",
-      apiToken: "some-token",
-    })
-
-    const res = await POST(makeRequest({ slug: "no-such-tracker", apiToken: "some-token" }))
-    const body = await res.json()
-
-    expect(res.status).toBe(400)
-    expect(body.error).toBe("Unknown tracker")
-  })
-
-  it("passes no slug for a body carrying only a URL, the shape a row without one uses", async () => {
-    mockDbSettings()
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(VALID_BODY)
-
-    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
-    await POST(makeRequest(VALID_BODY))
-
-    const [opts] = vi.mocked(buildFetchOptions).mock.calls[0]
-    expect(opts?.registrySlug).toBeUndefined()
   })
 })
 
@@ -291,27 +272,6 @@ describe("POST /api/trackers/test-connection — success", () => {
     expect(body.success).toBe(true)
     expect(body.username).toBe("testuser")
     expect(body.group).toBe("Member")
-  })
-
-  it("strips a trailing slash so the adapters do not probe a doubled separator", async () => {
-    mockDbSettings()
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ...VALID_BODY,
-      baseUrl: "https://avistaz.to/",
-    })
-
-    await POST(makeRequest({ ...VALID_BODY, baseUrl: "https://avistaz.to/" }))
-
-    const { getAdapter } = await import("@/lib/tracker-platforms")
-    const resolved = vi.mocked(getAdapter).mock.results[0]?.value as {
-      fetchStats: ReturnType<typeof vi.fn>
-    }
-    expect(resolved.fetchStats).toHaveBeenCalledWith(
-      "https://avistaz.to",
-      expect.anything(),
-      expect.anything(),
-      expect.anything()
-    )
   })
 
   it("does not include encryptedApiToken or raw credentials in success response", async () => {
@@ -449,39 +409,20 @@ describe("POST /api/trackers/test-connection — error log enrichment", () => {
     })
   })
 
-  it("logs platform in the warn payload when adapter throws", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ...VALID_BODY,
-      platformType: "nebulance",
-    })
+  it("logs the entry's platform and address in the warn payload when adapter throws", async () => {
+    const body = { slug: "anthelion", apiToken: "some-token" }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
     mockDbSettings()
     const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       fetchStats: vi.fn().mockRejectedValueOnce(new Error("ECONNREFUSED")),
     })
 
-    await POST(makeRequest({ ...VALID_BODY, platformType: "nebulance" }))
+    await POST(makeRequest(body))
 
     expect(log.warn).toHaveBeenCalledOnce()
     const [payload] = (log.warn as ReturnType<typeof vi.fn>).mock.calls[0]
-    expect(payload).toMatchObject({ platform: "nebulance" })
-  })
-
-  it("logs baseUrl in the warn payload when adapter throws", async () => {
-    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ...VALID_BODY,
-      baseUrl: "https://nebulance.io",
-    })
-    mockDbSettings()
-    const { getAdapter } = await import("@/lib/tracker-platforms")
-    ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-      fetchStats: vi.fn().mockRejectedValueOnce(new Error("ECONNREFUSED")),
-    })
-
-    await POST(makeRequest({ ...VALID_BODY, baseUrl: "https://nebulance.io" }))
-
-    const [payload] = (log.warn as ReturnType<typeof vi.fn>).mock.calls[0]
-    expect(payload).toMatchObject({ baseUrl: "https://nebulance.io" })
+    expect(payload).toMatchObject({ platform: "nebulance", baseUrl: "https://anthelion.me" })
   })
 
   it("logs the raw (unsanitized) error in the warn payload", async () => {

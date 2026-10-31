@@ -525,9 +525,7 @@ describe("BtnAdapter - documented vs observed field names", () => {
         }),
       }) as Response
 
-    // Rows created before the adapter owned the host persisted the absolute URL
-    // into `api_path`. There is no migration path (drizzle-kit push only), so
-    // the adapter must ignore whatever the row carries and self-heal.
+    // The adapter owns the API host, so whatever path it is handed is ignored.
     it.each([
       ["a stale absolute URL", "https://api.broadcasthe.net/"],
       ["a stale URL on a host BTN no longer uses", "https://old-api.broadcasthe.net/rpc"],

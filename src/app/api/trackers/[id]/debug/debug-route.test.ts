@@ -1,12 +1,16 @@
 // src/app/api/trackers/[id]/debug/debug-route.test.ts
 //
-// POST /api/trackers/[id]/debug sends the tracker's token to its stored
-// address, so a row a restore paused for an unknown address must not reach it.
+// POST /api/trackers/[id]/debug sends the tracker's token, so it goes only to the
+// address the row's registry entry gives, and a row with no entry or a defunct
+// one is refused before anything is sent.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { getTrackerBySlug, TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
+import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
+import { getAdapter } from "@/lib/tracker-platforms"
+import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { POST } from "./route"
 
 vi.mock("@/lib/api-helpers", () => ({
@@ -48,16 +52,12 @@ function chain(result: unknown): Record<string, unknown> {
 function mockRow(overrides: Record<string, unknown>) {
   const tracker = {
     id: 7,
-    name: "Custom",
-    baseUrl: "https://custom.example",
-    apiPath: "/api/user",
-    platformType: "unit3d",
-    registrySlug: null,
+    name: "Anthelion",
+    registrySlug: "anthelion",
     encryptedApiToken: "enc",
     isActive: true,
     remoteUserId: null,
     useProxy: false,
-    pausedAt: new Date("2026-10-30T00:00:00Z"),
     ...overrides,
   }
   vi.mocked(db.select).mockImplementation(((cols: Record<string, unknown>) =>
@@ -79,25 +79,34 @@ beforeEach(() => {
 })
 
 describe("POST /api/trackers/[id]/debug", () => {
-  it("refuses a restore-paused tracker without contacting it", async () => {
-    mockRow({ lastError: UNLINKED_RESTORE_ERROR })
+  it.each([
+    ["isn't in the tracker list", null, TRACKER_UNLINKED_ERROR],
+    ["has shut down", TRACKER_REGISTRY.find((t) => t.defunct)?.slug, TRACKER_DEFUNCT_ERROR],
+  ])("refuses a tracker that %s without contacting it", async (_state, registrySlug, error) => {
+    expect(registrySlug, "the registry has no defunct entry left to test with").not.toBeUndefined()
+    mockRow({ registrySlug })
 
     const res = await debug()
 
     expect(res.status).toBe(400)
-    await expect(res.json()).resolves.toEqual({ error: "Resume this tracker before debugging it" })
+    await expect(res.json()).resolves.toEqual({ error })
+    // The refusal comes before the token is decrypted, not only before it is sent.
+    expect(decrypt).not.toHaveBeenCalled()
     expect(fetchRaw).not.toHaveBeenCalled()
     expect(fetchStats).not.toHaveBeenCalled()
   })
 
   // Debugging is how a user looks into a tracker paused after failures.
-  it("still debugs a tracker paused for any other reason", async () => {
-    mockRow({ lastError: "HTTP 503" })
+  it("debugs a paused tracker at its registry address, API path and platform", async () => {
+    const entry = getTrackerBySlug("anthelion")
+    mockRow({ pausedAt: new Date("2026-10-30T00:00:00Z"), lastError: "HTTP 503" })
 
     const res = await debug()
 
     expect(res.status).toBe(200)
-    expect(fetchRaw).toHaveBeenCalledWith("https://custom.example", "token", "/api/user", {})
-    expect(fetchStats).toHaveBeenCalledWith("https://custom.example", "token", "/api/user", {})
+    expect(getAdapter).toHaveBeenCalledWith(entry?.platform)
+    expect(fetchRaw).toHaveBeenCalledWith(entry?.url, "token", entry?.apiPath, {})
+    expect(fetchStats).toHaveBeenCalledWith(entry?.url, "token", entry?.apiPath, {})
+    await expect(res.json()).resolves.toMatchObject({ platform: entry?.platform })
   })
 })

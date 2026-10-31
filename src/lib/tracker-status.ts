@@ -99,21 +99,13 @@ function getPauseState(tracker: {
 }
 
 // The lastError a backup restore pauses a tracker with when the registry cannot
-// place its address. Resume clears it, and until then not even a manual poll runs.
+// place its address. The row has no slug, so it stays paused until it is linked.
 const UNLINKED_RESTORE_ERROR =
   "Restored from a backup, and its address could not be matched to a known tracker. Check it before resuming"
 
-function isRestorePaused(tracker: {
-  pausedAt: Date | string | null
-  registrySlug: string | null
-  lastError: string | null
-}): boolean {
-  return (
-    !!tracker.pausedAt &&
-    tracker.registrySlug === null &&
-    tracker.lastError === UNLINKED_RESTORE_ERROR
-  )
-}
+// The routes that refuse an unlinked or defunct row answer with one of these.
+const TRACKER_UNLINKED_ERROR = "This tracker isn't in the tracker list"
+const TRACKER_DEFUNCT_ERROR = "This tracker has shut down"
 
 // The ratio a tracker actually holds this account to. Live requiredRatio wins
 // over the registry's minimumRatio because sliding-ratio sites (Gazelle) report
@@ -242,7 +234,8 @@ export {
   getHealthLabel,
   getPauseState,
   getTrackerHealth,
-  isRestorePaused,
   resolveRequiredRatio,
+  TRACKER_DEFUNCT_ERROR,
+  TRACKER_UNLINKED_ERROR,
   UNLINKED_RESTORE_ERROR,
 }

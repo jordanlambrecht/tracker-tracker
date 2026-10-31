@@ -9,12 +9,12 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import { authenticate, decodeKey } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { pollTracker } from "@/lib/tracker-scheduler"
-import { isRestorePaused } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 export async function POST() {
@@ -39,17 +39,19 @@ export async function POST() {
     db
       .select({
         id: trackers.id,
-        pausedAt: trackers.pausedAt,
         userPausedAt: trackers.userPausedAt,
         registrySlug: trackers.registrySlug,
-        lastError: trackers.lastError,
       })
       .from(trackers)
       .where(eq(trackers.isActive, true)),
   ])
 
   // Failure-paused trackers stay in so poll all retries them.
-  const trackersToPoll = activeTrackers.filter((t) => !t.userPausedAt && !isRestorePaused(t))
+  const trackersToPoll = activeTrackers.filter((t) => {
+    if (t.userPausedAt) return false
+    const site = trackerSiteFor(t)
+    return site !== null && !site.entry.defunct
+  })
 
   const privacyMode = settings ? !settings.storeUsernames : false
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined

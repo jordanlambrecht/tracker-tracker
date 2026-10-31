@@ -4,6 +4,7 @@
 // Used by both the CI script and the test suite.
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import { isUnsafeNetworkHost } from "@/lib/network"
 import { trackerHostKey } from "@/lib/tracker-matching"
 
 export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
@@ -132,7 +133,8 @@ export function validateAnnounceHosts(tracker: Partial<TrackerRegistryEntry>): s
  * A registry `url` must be exactly its own origin, with no port and no trailing
  * dot on the host. Adapters both concatenate onto it and pass it to `new URL`,
  * and the two forms treat anything past the origin differently. Concatenation
- * doubles a trailing slash, for one.
+ * doubles a trailing slash, for one. Every user's token is sent there, so it is
+ * never a private or local address either.
  */
 export function validateTrackerUrl(url: string): string[] {
   if (!/^https:\/\//.test(url)) return ["URL must use https://"]
@@ -142,6 +144,7 @@ export function validateTrackerUrl(url: string): string[] {
   } catch {
     return ["Invalid URL format"]
   }
+  if (isUnsafeNetworkHost(parsed.hostname)) return ["URL must not be a private or local address"]
   // The hostname, unlike the origin, leaves out the port, and URL keeps a trailing dot.
   const expected = `${parsed.protocol}//${parsed.hostname.replace(/\.$/, "")}`
   return url === expected

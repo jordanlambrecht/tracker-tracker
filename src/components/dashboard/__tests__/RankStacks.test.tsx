@@ -68,8 +68,7 @@ function makeTracker(
   return {
     id,
     name,
-    // One address for every fixture: it is where the row polls, never how the
-    // ladder is found.
+    // One stored copy for every fixture, never how the ladder is found.
     baseUrl: "https://poll-address.example",
     registrySlug,
     platformType: "unit3d",

@@ -375,7 +375,7 @@ describe("tracker registry", () => {
 
   describe("registryEntryFor", () => {
     // A tracker row records which registry entry it is; the URL it stores is
-    // the poll address and never the key. A null slug is a pre-registry custom
+    // only a copy and never the key. A null slug is a pre-registry custom
     // site and resolves to nothing.
     it("resolves a row by its slug", () => {
       expect(registryEntryFor({ registrySlug: "anthelion" })?.nebulanceAuthParam).toBe("apikey")

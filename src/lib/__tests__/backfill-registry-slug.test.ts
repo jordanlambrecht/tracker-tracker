@@ -1,11 +1,11 @@
 // src/lib/__tests__/backfill-registry-slug.test.ts
 //
 // A row created before trackers.registry_slug existed carries no slug, so every
-// registry lookup for it returns undefined and its poll address is whatever
-// spelling happens to be stored. The startup backfill is the one chance to name
-// the entry, and it matches on hostname, the rule the no-two-hostnames test in
-// tracker-registry.test.ts keeps unambiguous. A site the registry does not
-// carry has to survive untouched: that row is a custom tracker, not a mistake.
+// registry lookup for it returns undefined and it is never polled. The startup
+// backfill is the one chance to name the entry, and it matches on hostname, the
+// rule the no-two-hostnames test in tracker-registry.test.ts keeps unambiguous.
+// A site the registry does not carry has to survive untouched: that row is a
+// custom tracker, not a mistake.
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 

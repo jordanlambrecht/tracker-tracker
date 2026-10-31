@@ -82,9 +82,8 @@ async function fetchPersonalStats(
 }
 
 export class AnimeBytesAdapter implements TrackerAdapter {
-  // _apiPath is ignored: /api/stats/personal is intrinsic to the platform, not
-  // a property of a user's row, so a stale persisted api_path value self-heals
-  // instead of breaking the adapter (the btn.ts precedent).
+  // _apiPath is ignored: /api/stats/personal is intrinsic to the platform, so
+  // the adapter owns it (the btn.ts precedent).
   async fetchStats(
     baseUrl: string,
     apiToken: string,

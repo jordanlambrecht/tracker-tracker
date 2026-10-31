@@ -87,7 +87,7 @@ describe("TrackerOverviewGrid ratio label (infinite ratio)", () => {
 
 // ---------------------------------------------------------------------------
 // The card's registry data (here, the shutdown notice) comes from the entry the
-// row's slug names. The stored URL is where the row polls and never the key.
+// row's slug names. The stored URL is only a copy and never the key.
 // ---------------------------------------------------------------------------
 
 describe("TrackerOverviewGrid registry data", () => {

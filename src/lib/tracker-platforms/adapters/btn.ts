@@ -12,8 +12,7 @@ import { pollError } from "../helpers/poll-error"
 
 /**
  * BTN serves one API host for every user, so the adapter owns the URL and
- * ignores the persisted apiPath. Some rows hold an absolute URL in api_path,
- * and ignoring it keeps them working if BTN moves hosts.
+ * ignores the apiPath it is given.
  */
 const BTN_API_URL = "https://api.broadcasthe.net/"
 const BTN_API_HOSTNAME = new URL(BTN_API_URL).hostname

@@ -119,8 +119,8 @@ describe("TrackerSettingsSheet cookie credentials", () => {
 
 // ---------------------------------------------------------------------------
 // The credential re-test before a save. The route derives the address and the
-// platform from the registry entry a slug names, so a row that has one sends
-// the slug alone; a pre-registry row still sends what it stores.
+// platform from the registry entry a slug names, so the sheet sends the slug
+// alone and never what the row stores. A row with no slug is refused there.
 // ---------------------------------------------------------------------------
 
 describe("TrackerSettingsSheet credential re-test", () => {
@@ -134,18 +134,12 @@ describe("TrackerSettingsSheet credential re-test", () => {
     return testConnectionBody() as Record<string, unknown>
   }
 
-  it("names the tracker by slug when the row has one", async () => {
-    const body = await changeCookies({ ...RETROTOON, registrySlug: "retrotoon" })
-    expect(body.slug).toBe("retrotoon")
-    expect(body).not.toHaveProperty("baseUrl")
-    expect(body).not.toHaveProperty("platformType")
-  })
-
-  it("sends the stored address and platform for a row with no slug", async () => {
-    const body = await changeCookies(RETROTOON)
-    expect(body.baseUrl).toBe(RETROTOON.baseUrl)
-    expect(body.platformType).toBe("retrotoon")
-    expect(body).not.toHaveProperty("slug")
+  it.each([
+    ["a row with a slug", "retrotoon"],
+    ["a row with no slug", null],
+  ])("sends only the slug for %s", async (_form, registrySlug) => {
+    const body = await changeCookies({ ...RETROTOON, registrySlug })
+    expect(body).toEqual({ slug: registrySlug, apiToken: expect.any(String) })
   })
 })
 

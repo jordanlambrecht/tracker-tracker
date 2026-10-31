@@ -105,9 +105,8 @@ async function fetchProfile(
 }
 
 export class C411Adapter implements TrackerAdapter {
-  // _apiPath is ignored: /api/user/profile is intrinsic to the platform, not a
-  // property of a user's row, so a stale persisted api_path value self-heals
-  // instead of breaking the adapter (the btn.ts precedent).
+  // _apiPath is ignored: /api/user/profile is intrinsic to the platform, so the
+  // adapter owns it (the btn.ts precedent).
   async fetchStats(
     baseUrl: string,
     apiToken: string,

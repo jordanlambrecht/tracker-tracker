@@ -645,7 +645,7 @@ describe("RetrotoonAdapter.fetchStats", () => {
     )
   })
 
-  it("ignores a stale persisted apiPath", async () => {
+  it("ignores the apiPath it is given", async () => {
     const fetchSpy = vi
       .spyOn(global, "fetch")
       .mockResolvedValueOnce(okPage(BONUS_PAGE))

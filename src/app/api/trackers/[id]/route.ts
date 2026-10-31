@@ -2,8 +2,9 @@
 //
 // Functions: isRowId, GET, PATCH, DELETE
 
-import { and, eq, isNull, ne, or } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import {
   authenticate,
   decodeKey,
@@ -25,7 +26,6 @@ import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
-import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import { isIntegerInRange } from "@/lib/validators"
 
 // A Postgres integer id.
@@ -198,11 +198,15 @@ export async function PATCH(request: Request, props: RouteContext) {
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
     const [tracker] = await db
-      .select({ platformType: trackers.platformType })
+      .select({ platformType: trackers.platformType, registrySlug: trackers.registrySlug })
       .from(trackers)
       .where(eq(trackers.id, trackerId))
       .limit(1)
-    const maxTokenLength = maxTokenLengthFor(tracker?.platformType)
+    // The stored platform only stands in for a row the tracker list does not carry.
+    const platform = tracker
+      ? (trackerSiteFor(tracker)?.platform ?? tracker.platformType)
+      : undefined
+    const maxTokenLength = maxTokenLengthFor(platform)
     const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)
@@ -219,17 +223,19 @@ export async function PATCH(request: Request, props: RouteContext) {
   try {
     await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
     if (body.pollingPaused === false) {
-      // A restore's marker survives the toggle, so that row stays paused until
-      // Resume Polling. A null lastError fails ne(), so isNull() matches it.
-      await db
-        .update(trackers)
-        .set({ pausedAt: null, consecutiveFailures: 0, lastError: null, lastErrorAt: null })
-        .where(
-          and(
-            eq(trackers.id, trackerId),
-            or(isNull(trackers.lastError), ne(trackers.lastError, UNLINKED_RESTORE_ERROR))
-          )
-        )
+      // The auto-pause comes off a linked row only. An unlinked one stays paused
+      // with its reason, since nothing may poll it.
+      const [row] = await db
+        .select({ registrySlug: trackers.registrySlug })
+        .from(trackers)
+        .where(eq(trackers.id, trackerId))
+        .limit(1)
+      if (row && trackerSiteFor(row)) {
+        await db
+          .update(trackers)
+          .set({ pausedAt: null, consecutiveFailures: 0, lastError: null, lastErrorAt: null })
+          .where(eq(trackers.id, trackerId))
+      }
     }
     const updated = await getTrackerForClient(trackerId)
     return NextResponse.json(updated ?? { success: true })

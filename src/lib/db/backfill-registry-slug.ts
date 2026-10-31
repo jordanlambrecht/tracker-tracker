@@ -36,7 +36,7 @@ function registryByHostname(): Map<string, TrackerRegistryEntry> {
  * row's URL to the registry spelling when the two differ.
  *
  * A row on a host the registry does not carry is a custom site, not a mistake:
- * it is left exactly as it is, slug still null, and keeps polling its own URL.
+ * it is left exactly as it is, slug still null, and the poll pauses it.
  *
  * `force` skips the once-per-process latch, for rows written after boot.
  */
@@ -87,7 +87,7 @@ export async function backfillRegistrySlugs(options?: { force?: boolean }): Prom
     )
   } catch (err) {
     // Deliberately left unlatched: a database that was not up yet gets another
-    // attempt on the next boot, and until then a null-slug row polls its stored URL.
+    // attempt on the next boot, and until then a null-slug row is paused, not polled.
     log.warn({ error: errMsg(err) }, "Registry slug backfill failed, rows keep their stored URL")
   }
 }

@@ -212,8 +212,8 @@ The adapter appends `apiPath` to this URL to make API requests.
 `apiPath` is always a relative path beginning with `/`, and this is enforced by
 both the registry test and `scripts/validate-trackers.ts`. If a tracker serves
 its API from a different host, that host belongs in its adapter as a module
-constant, not in the registry; see `btn.ts`. Putting an absolute URL in
-`apiPath` would persist it into every user's row with no migration path back.
+constant, not in the registry; see `btn.ts`. An absolute URL in `apiPath`
+would silently replace `url` wherever an adapter resolves the path against it.
 
 #### `description`
 

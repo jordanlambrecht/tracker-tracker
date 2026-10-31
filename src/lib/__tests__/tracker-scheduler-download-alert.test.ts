@@ -23,9 +23,6 @@ vi.mock("@/lib/notifications/dispatch", () => ({ dispatchNotifications: vi.fn(as
 vi.mock("@/lib/alert-pruning", () => ({ pruneDismissedAlerts: vi.fn(async () => 0) }))
 vi.mock("@/lib/server-data", () => ({ recordDatabaseSize: vi.fn(async () => {}) }))
 vi.mock("@/lib/tunnel", () => ({ buildProxyAgentFromSettings: vi.fn(() => undefined) }))
-vi.mock("@/data/tracker-registry", () => ({
-  registryEntryFor: vi.fn(() => undefined),
-}))
 vi.mock("node-cron", () => ({ default: { schedule: vi.fn() } }))
 
 const fetchStats = vi.fn()
@@ -34,6 +31,7 @@ vi.mock("@/lib/tracker-platforms", () => ({
   buildFetchOptions: vi.fn(() => ({})),
 }))
 
+import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { db } from "@/lib/db"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { pollTracker } from "@/lib/tracker-scheduler"
@@ -71,13 +69,16 @@ const STATS = {
   group: null,
 }
 
-function trackerRow(platformType: string, storedMeta: string) {
+// Each row is linked to a live entry on the platform under test, and its stored
+// platform is a stale copy, so these pass only when the poll reads the entry's.
+function trackerRow(platform: string, storedMeta: string) {
   return {
     id: 42,
     name: "Example",
     isActive: true,
     encryptedApiToken: "enc",
-    platformType,
+    platformType: "gazelle",
+    registrySlug: TRACKER_REGISTRY.find((t) => t.platform === platform && !t.defunct)?.slug,
     baseUrl: "https://tracker.example",
     apiPath: "/api",
     useProxy: false,
@@ -94,10 +95,10 @@ function trackerRow(platformType: string, storedMeta: string) {
   }
 }
 
-function seedTracker(platformType: string, storedMeta = JSON.stringify({ canDownload: true })) {
+function seedTracker(platform: string, storedMeta = JSON.stringify({ canDownload: true })) {
   vi.mocked(db.select).mockImplementation(((cols: Record<string, unknown>) => {
     const keys = Object.keys(cols ?? {})
-    if (keys.includes("encryptedApiToken")) return chain([trackerRow(platformType, storedMeta)])
+    if (keys.includes("encryptedApiToken")) return chain([trackerRow(platform, storedMeta)])
     return chain([])
   }) as never)
 }

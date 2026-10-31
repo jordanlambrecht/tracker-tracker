@@ -1,22 +1,14 @@
 // src/app/api/trackers/test-connection/route.ts
 import { NextResponse } from "next/server"
-import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/data/platform-types"
-import { getTrackerBySlug } from "@/data/tracker-registry"
-import {
-  authenticate,
-  decodeKey,
-  parseJsonBody,
-  validateHttpUrl,
-  validateMaxLength,
-} from "@/lib/api-helpers"
+import { trackerSiteFor } from "@/data/tracker-registry"
+import { authenticate, decodeKey, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
 import { maxTokenLengthFor } from "@/lib/credential-forms"
-import { stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
-import { LONG_STRING_MAX, TRACKER_URL_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
+import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 export async function POST(request: Request) {
@@ -26,51 +18,25 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { slug, baseUrl, apiToken, platformType, apiPath } = body as {
-    slug?: string
-    baseUrl?: string
-    apiToken?: string
-    platformType?: string
-    apiPath?: string
+  const { slug, apiToken } = body as { slug?: string; apiToken?: string }
+
+  // The slug's registry entry settles address, platform and API path, so nothing
+  // else in the body can choose where the token goes.
+  const site = trackerSiteFor({ registrySlug: typeof slug === "string" ? slug.trim() : null })
+  if (!site) {
+    return NextResponse.json({ error: TRACKER_UNLINKED_ERROR }, { status: 400 })
+  }
+  if (site.entry.defunct) {
+    return NextResponse.json({ error: TRACKER_DEFUNCT_ERROR }, { status: 400 })
   }
 
-  // A slug names the registry entry, and address, platform and API path all come
-  // from it. Only a row without a slug sends baseUrl and platformType instead.
-  const trimmedSlug = typeof slug === "string" ? slug.trim() : ""
-  const entry = trimmedSlug ? getTrackerBySlug(trimmedSlug) : undefined
-  if (trimmedSlug && !entry) {
-    return NextResponse.json({ error: "Unknown tracker" }, { status: 400 })
+  if (!apiToken || typeof apiToken !== "string") {
+    return NextResponse.json({ error: "apiToken is required" }, { status: 400 })
   }
 
-  const rawBaseUrl = entry?.url ?? (typeof baseUrl === "string" ? baseUrl : "")
-
-  if (!rawBaseUrl.trim() || !apiToken || typeof apiToken !== "string") {
-    return NextResponse.json(
-      { error: "slug or baseUrl, and apiToken are required" },
-      { status: 400 }
-    )
-  }
-
-  // Adapters concatenate onto this as well as passing it to `new URL`, and the
-  // first form doubles the separator. Registry URLs carry no trailing slash; a
-  // stored URL from a row without a slug can.
-  const trimmedBaseUrl = stripTrailingSlash(rawBaseUrl.trim())
   const trimmedApiToken = apiToken.trim()
-  const platform = entry?.platform ?? (typeof platformType === "string" ? platformType : "unit3d")
-
-  const maxTokenLength = maxTokenLengthFor(platform)
-  const tokenErr = validateMaxLength(trimmedApiToken, maxTokenLength, "API token")
+  const tokenErr = validateMaxLength(trimmedApiToken, maxTokenLengthFor(site.platform), "API token")
   if (tokenErr) return tokenErr
-
-  const urlLenErr = validateMaxLength(trimmedBaseUrl, TRACKER_URL_MAX, "URL")
-  if (urlLenErr) return urlLenErr
-
-  const urlErr = validateHttpUrl(trimmedBaseUrl)
-  if (urlErr) return urlErr
-
-  if (!VALID_PLATFORM_TYPES.includes(platform as (typeof VALID_PLATFORM_TYPES)[number])) {
-    return NextResponse.json({ error: "Invalid platform type" }, { status: 400 })
-  }
 
   try {
     const key = decodeKey(auth)
@@ -88,17 +54,12 @@ export async function POST(request: Request) {
 
     const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
-    const adapter = getAdapter(platform)
-    const defaultPath = DEFAULT_API_PATHS[platform] ?? "/api/user"
-    const bodyPath = typeof apiPath === "string" && apiPath.startsWith("/") ? apiPath : defaultPath
-    const path = entry?.apiPath ?? bodyPath
-    const pathLenErr = validateMaxLength(path, LONG_STRING_MAX, "API path")
-    if (pathLenErr) return pathLenErr
+    const adapter = getAdapter(site.platform)
     const fetchOptions = buildFetchOptions({
-      registrySlug: entry?.slug,
+      entry: site.entry,
       proxyAgent: proxyAgent ?? undefined,
     })
-    const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
+    const stats = await adapter.fetchStats(site.url, trimmedApiToken, site.apiPath, fetchOptions)
 
     const result: Record<string, unknown> = {
       success: true,
@@ -113,8 +74,8 @@ export async function POST(request: Request) {
     log.warn(
       {
         route: "POST /api/trackers/test-connection",
-        platform,
-        baseUrl: trimmedBaseUrl,
+        platform: site.platform,
+        baseUrl: site.url,
         error: raw,
       },
       `tracker test failed: ${safeError}`

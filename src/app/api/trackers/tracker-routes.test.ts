@@ -2,12 +2,17 @@
 import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
+import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers as trackersTable } from "@/lib/db/schema"
 import { pollTracker } from "@/lib/tracker-scheduler"
-import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
+import {
+  TRACKER_DEFUNCT_ERROR,
+  TRACKER_UNLINKED_ERROR,
+  UNLINKED_RESTORE_ERROR,
+} from "@/lib/tracker-status"
 import { POST as PollPOST } from "./[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "./[id]/roles/route"
 import { DELETE, PATCH } from "./[id]/route"
@@ -754,6 +759,30 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(data.error).toMatch(/token/i)
   })
 
+  // A stored platform copy can be stale, so the cap follows the registry entry.
+  // AvistaZ takes a cookie blob, which may run far past Gazelle's token cap.
+  it("caps a new token by the registry entry's platform, not the stored copy", async () => {
+    const token = "t".repeat(501)
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: token })
+
+    const mockLimit = vi
+      .fn()
+      .mockResolvedValue([{ platformType: "gazelle", registrySlug: "avistaz" }])
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
+    const mockUpdateWhere = vi.fn().mockResolvedValue([])
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { apiToken: token }, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(200)
+    expect(mockSet.mock.calls[0]?.[0]).toMatchObject({ encryptedApiToken: "encrypted-token" })
+  })
+
   // A new token can sign in as another account, whose id and avatar the next poll fetches.
   it("clears the cached member id and avatar when the API token is replaced", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: "new-token" })
@@ -993,6 +1022,12 @@ describe("PATCH /api/trackers/[id]", () => {
   /** Runs PATCH and applies its tracker updates to `row` the way Postgres would. */
   async function patchRow(body: Record<string, unknown>, row: Record<string, unknown>) {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    // The un-pause reads the slug to decide whether the auto-pause may come off.
+    const mockLimit = vi.fn().mockResolvedValue([{ registrySlug: row.registrySlug }])
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({ where: mockWhere }),
+    })
     const updates: { values: Record<string, unknown>; where: Condition }[] = []
     ;(db.update as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       set: (values: Record<string, unknown>) => ({
@@ -1013,6 +1048,7 @@ describe("PATCH /api/trackers/[id]", () => {
   it("clears userPausedAt and auto-pause state when pollingPaused is false", async () => {
     const row = {
       id: 1,
+      registrySlug: "aither",
       userPausedAt: new Date(),
       pausedAt: new Date(),
       consecutiveFailures: 4,
@@ -1033,28 +1069,34 @@ describe("PATCH /api/trackers/[id]", () => {
   })
 
   // On a row the user also paused, the banner shows only the user pause, so the
-  // toggle must leave the restore warning and its pause for Resume Polling.
-  it("keeps a restore pause and its marker when pollingPaused is false", async () => {
-    const pausedAt = new Date()
-    const row = {
-      id: 1,
-      userPausedAt: new Date(),
-      pausedAt,
-      consecutiveFailures: 0,
-      lastError: UNLINKED_RESTORE_ERROR,
-      lastErrorAt: pausedAt,
+  // toggle must not send an unlinked row back to polling or drop its reason.
+  it.each([
+    ["a restore's marker", null, UNLINKED_RESTORE_ERROR],
+    [
+      "a slug the list no longer carries",
+      "gone-tracker",
+      "Not in the tracker list, so it isn't polled",
+    ],
+  ])(
+    "keeps the auto-pause of an unlinked row with %s when pollingPaused is false",
+    async (_form, registrySlug, lastError) => {
+      const pausedAt = new Date()
+      const row = {
+        id: 1,
+        registrySlug,
+        userPausedAt: new Date(),
+        pausedAt,
+        consecutiveFailures: 0,
+        lastError,
+        lastErrorAt: pausedAt,
+      }
+
+      const response = await patchRow({ pollingPaused: false }, row)
+
+      expect(response.status).toBe(200)
+      expect(row).toMatchObject({ userPausedAt: null, pausedAt, lastError, lastErrorAt: pausedAt })
     }
-
-    const response = await patchRow({ pollingPaused: false }, row)
-
-    expect(response.status).toBe(200)
-    expect(row).toMatchObject({
-      userPausedAt: null,
-      pausedAt,
-      lastError: UNLINKED_RESTORE_ERROR,
-      lastErrorAt: pausedAt,
-    })
-  })
+  )
 
   it("ignores non-boolean pollingPaused values", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -1317,21 +1359,30 @@ describe("DELETE /api/trackers/[id]", () => {
 })
 
 describe("POST /api/trackers/[id]/poll", () => {
+  let trackerRow: Record<string, unknown> | undefined
+
   beforeEach(() => {
     vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+    trackerRow = { registrySlug: "aither" }
 
     // Poll route:
-    //   1. db.update(trackers).set(...).where(...).returning(...), atomic cooldown claim
-    //   2. db.select({...}).from(appSettings).limit(1), settings query
+    //   1. db.select({ registrySlug }).from(trackers).where(...).limit(1), the tracker
+    //   2. db.update(trackers).set(...).where(...).returning(...), atomic cooldown claim
+    //   3. db.select({...}).from(appSettings).limit(1), settings query
     const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }])
     const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
     const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
     ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set: mockSet })
-    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation((cols: Record<string, unknown>) => {
+      if ("registrySlug" in cols) {
+        const mockTrackerLimit = vi.fn().mockResolvedValue(trackerRow ? [trackerRow] : [])
+        const mockTrackerWhere = vi.fn().mockReturnValue({ limit: mockTrackerLimit })
+        return { from: vi.fn().mockReturnValue({ where: mockTrackerWhere }) }
+      }
       const mockLimit = vi.fn().mockResolvedValue([
         {
           storeUsernames: true,
@@ -1400,6 +1451,40 @@ describe("POST /api/trackers/[id]/poll", () => {
     expect(data.error).toMatch(/Poll cooldown/)
   })
 
+  it("returns 404 without claiming a poll slot when the tracker does not exist", async () => {
+    trackerRow = undefined
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const response = await PollPOST(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(404)
+    await expect(response.json()).resolves.toEqual({ error: "Tracker not found" })
+    expect(db.update).not.toHaveBeenCalled()
+  })
+
+  // The refusal comes before the claim, so it never starts the cooldown.
+  it.each([
+    ["isn't in the tracker list", null, TRACKER_UNLINKED_ERROR],
+    ["has shut down", TRACKER_REGISTRY.find((t) => t.defunct)?.slug, TRACKER_DEFUNCT_ERROR],
+  ])(
+    "refuses a tracker that %s before claiming a poll slot",
+    async (_state, registrySlug, error) => {
+      expect(
+        registrySlug,
+        "the registry has no defunct entry left to test with"
+      ).not.toBeUndefined()
+      trackerRow = { registrySlug }
+
+      const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+      const response = await PollPOST(request, { params: Promise.resolve({ id: "1" }) })
+
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toEqual({ error })
+      expect(db.update).not.toHaveBeenCalled()
+      expect(pollTracker).not.toHaveBeenCalled()
+    }
+  )
+
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -1445,13 +1530,17 @@ describe("POST /api/trackers/poll-all", () => {
       .mockReturnValueOnce({ from: mockFrom })
   }
 
-  it("polls failure-paused and healthy trackers but skips user and restore pauses", async () => {
+  it("polls failure-paused and healthy trackers but skips user pauses, unlinked rows and defunct entries", async () => {
     const pausedAt = new Date()
+    const defunctSlug = TRACKER_REGISTRY.find((t) => t.defunct)?.slug
+    expect(defunctSlug, "the registry has no defunct entry left to test with").toBeDefined()
     mockActiveTrackers([
       { ...healthy, id: 1, userPausedAt: pausedAt },
       { ...healthy, id: 2, pausedAt, registrySlug: null, lastError: UNLINKED_RESTORE_ERROR },
       { ...healthy, id: 3, pausedAt, lastError: "HTTP 503" },
       { ...healthy, id: 4 },
+      { ...healthy, id: 5, registrySlug: null },
+      { ...healthy, id: 6, registrySlug: defunctSlug },
     ])
 
     const response = await PollAllPOST()

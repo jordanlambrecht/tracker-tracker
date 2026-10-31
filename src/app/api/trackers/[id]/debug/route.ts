@@ -6,6 +6,7 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -13,7 +14,7 @@ import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { scrubObject } from "@/lib/scrub-object"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
-import { isRestorePaused } from "@/lib/tracker-status"
+import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type { DebugApiCall, TrackerStats } from "@/types/tracker-stats"
 
@@ -54,16 +55,11 @@ export async function POST(_request: Request, props: RouteContext) {
     .select({
       id: trackers.id,
       name: trackers.name,
-      baseUrl: trackers.baseUrl,
-      apiPath: trackers.apiPath,
-      platformType: trackers.platformType,
       registrySlug: trackers.registrySlug,
       encryptedApiToken: trackers.encryptedApiToken,
       isActive: trackers.isActive,
       remoteUserId: trackers.remoteUserId,
       useProxy: trackers.useProxy,
-      pausedAt: trackers.pausedAt,
-      lastError: trackers.lastError,
     })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
@@ -77,10 +73,13 @@ export async function POST(_request: Request, props: RouteContext) {
     return NextResponse.json({ error: "Tracker is archived" }, { status: 400 })
   }
 
-  // A debug call sends the token to the stored address, which the registry has
-  // not vouched for on a row a restore paused.
-  if (isRestorePaused(tracker)) {
-    return NextResponse.json({ error: "Resume this tracker before debugging it" }, { status: 400 })
+  // A debug call sends the token, so only to an address from the tracker list.
+  const site = trackerSiteFor(tracker)
+  if (!site) {
+    return NextResponse.json({ error: TRACKER_UNLINKED_ERROR }, { status: 400 })
+  }
+  if (site.entry.defunct) {
+    return NextResponse.json({ error: TRACKER_DEFUNCT_ERROR }, { status: 400 })
   }
 
   const [settings] = await db
@@ -124,18 +123,18 @@ export async function POST(_request: Request, props: RouteContext) {
   }
 
   const fetchOptions = buildFetchOptions({
-    registrySlug: tracker.registrySlug,
+    entry: site.entry,
     proxyAgent: tracker.useProxy ? proxyAgent : undefined,
     remoteUserId: tracker.remoteUserId ?? undefined,
   })
 
-  const adapter = getAdapter(tracker.platformType)
+  const adapter = getAdapter(site.platform)
 
   let apiCalls: DebugApiCall[] | null = null
   let rawError: string | null = null
 
   try {
-    const calls = await adapter.fetchRaw(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+    const calls = await adapter.fetchRaw(site.url, apiToken, site.apiPath, fetchOptions)
     apiCalls = calls.map((call) => ({
       ...call,
       data: call.data ? scrubObject(call.data) : null,
@@ -153,7 +152,7 @@ export async function POST(_request: Request, props: RouteContext) {
   let normalizedError: string | null = null
 
   try {
-    const stats = await adapter.fetchStats(tracker.baseUrl, apiToken, tracker.apiPath, fetchOptions)
+    const stats = await adapter.fetchStats(site.url, apiToken, site.apiPath, fetchOptions)
     normalizedResponse = serializeStats(stats)
   } catch (err) {
     normalizedError = err instanceof Error ? err.message : "Normalized fetch failed"
@@ -168,7 +167,7 @@ export async function POST(_request: Request, props: RouteContext) {
     rawError,
     normalized: normalizedResponse,
     normalizedError,
-    platform: tracker.platformType,
+    platform: site.platform,
     trackerName: tracker.name,
   })
 }

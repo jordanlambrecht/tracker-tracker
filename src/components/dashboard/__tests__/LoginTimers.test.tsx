@@ -37,8 +37,8 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
   return {
     id: 1,
     name: "Alpha",
-    // Where the row polls. The same address for both fixtures, so nothing can
-    // read a registry entry off it.
+    // A stored copy, the same for both fixtures, so nothing can read a registry
+    // entry off it.
     baseUrl: "https://poll-address.example",
     registrySlug: "alpha",
     platformType: "unit3d",

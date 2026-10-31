@@ -209,7 +209,7 @@ describe("resolveRequiredRatio", () => {
   })
 
   it("resolves nothing for a row with no slug, whatever its URL", () => {
-    // A pre-registry custom site. Its stored URL is a poll address, not a key,
+    // A pre-registry custom site. Its stored URL is only a copy, not a key,
     // so no registry requirement can be read off it.
     mockRegistryMinimum(0.6)
     expect(resolveRequiredRatio(null, { registrySlug: null })).toBeNull()
