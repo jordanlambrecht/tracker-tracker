@@ -14,6 +14,7 @@ import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { pollTracker } from "@/lib/tracker-scheduler"
+import { isRestorePaused } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
 export async function POST() {
@@ -35,18 +36,34 @@ export async function POST() {
       })
       .from(appSettings)
       .limit(1),
-    db.select({ id: trackers.id }).from(trackers).where(eq(trackers.isActive, true)),
+    db
+      .select({
+        id: trackers.id,
+        pausedAt: trackers.pausedAt,
+        userPausedAt: trackers.userPausedAt,
+        registrySlug: trackers.registrySlug,
+        lastError: trackers.lastError,
+      })
+      .from(trackers)
+      .where(eq(trackers.isActive, true)),
   ])
+
+  // Failure-paused trackers stay in so poll all retries them.
+  const trackersToPoll = activeTrackers.filter((t) => !t.userPausedAt && !isRestorePaused(t))
 
   const privacyMode = settings ? !settings.storeUsernames : false
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
-  if (activeTrackers.length === 0) {
+  if (trackersToPoll.length === 0) {
     return NextResponse.json({ total: 0, done: true, polled: 0, failed: 0 })
   }
 
   log.info(
-    { route: "POST /api/trackers/poll-all", count: activeTrackers.length },
+    {
+      route: "POST /api/trackers/poll-all",
+      count: trackersToPoll.length,
+      skipped: activeTrackers.length - trackersToPoll.length,
+    },
     "poll-all initiated"
   )
 
@@ -55,12 +72,12 @@ export async function POST() {
 
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(encoder.encode(`${JSON.stringify({ total: activeTrackers.length })}\n`))
+      controller.enqueue(encoder.encode(`${JSON.stringify({ total: trackersToPoll.length })}\n`))
 
       let polled = 0
       let failed = 0
 
-      const promises = activeTrackers.map(async (t) => {
+      const promises = trackersToPoll.map(async (t) => {
         try {
           await pollTracker(t.id, key, privacyMode, proxyAgent, batchTimestamp)
           polled++

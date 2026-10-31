@@ -12,6 +12,7 @@ import { POST as PollPOST } from "./[id]/poll/route"
 import { GET as RolesGET, POST as RolesPOST } from "./[id]/roles/route"
 import { DELETE, PATCH } from "./[id]/route"
 import { GET as SnapshotsGET } from "./[id]/snapshots/route"
+import { POST as PollAllPOST } from "./poll-all/route"
 import { GET, POST } from "./route"
 
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
@@ -1419,6 +1420,58 @@ describe("POST /api/trackers/[id]/poll", () => {
     const params = Promise.resolve({ id: "abc" })
     const response = await PollPOST(request, { params })
     expect(response.status).toBe(400)
+  })
+})
+
+describe("POST /api/trackers/poll-all", () => {
+  const healthy = { pausedAt: null, userPausedAt: null, registrySlug: "aither", lastError: null }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: VALID_KEY })
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+  })
+
+  function mockActiveTrackers(rows: Record<string, unknown>[]) {
+    // Call 1: db.select({...}).from(appSettings).limit(1)
+    const mockSettingsLimit = vi.fn().mockResolvedValue([{ storeUsernames: true }])
+    const mockSettingsFrom = vi.fn().mockReturnValue({ limit: mockSettingsLimit })
+    // Call 2: db.select({...}).from(trackers).where(isActive)
+    const mockWhere = vi.fn().mockResolvedValue(rows)
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce({ from: mockSettingsFrom })
+      .mockReturnValueOnce({ from: mockFrom })
+  }
+
+  it("polls failure-paused and healthy trackers but skips user and restore pauses", async () => {
+    const pausedAt = new Date()
+    mockActiveTrackers([
+      { ...healthy, id: 1, userPausedAt: pausedAt },
+      { ...healthy, id: 2, pausedAt, registrySlug: null, lastError: UNLINKED_RESTORE_ERROR },
+      { ...healthy, id: 3, pausedAt, lastError: "HTTP 503" },
+      { ...healthy, id: 4 },
+    ])
+
+    const response = await PollAllPOST()
+    const lines = (await response.text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line))
+
+    expect((pollTracker as ReturnType<typeof vi.fn>).mock.calls.map(([id]) => id)).toEqual([3, 4])
+    expect(lines[0]).toEqual({ total: 2 })
+    expect(lines.at(-1)).toEqual({ done: true, polled: 2, failed: 0 })
+  })
+
+  it("polls nothing when every active tracker is paused by the user", async () => {
+    mockActiveTrackers([{ ...healthy, id: 1, userPausedAt: new Date() }])
+
+    const response = await PollAllPOST()
+
+    expect(pollTracker).not.toHaveBeenCalled()
+    expect(await response.json()).toEqual({ total: 0, done: true, polled: 0, failed: 0 })
   })
 })
 
