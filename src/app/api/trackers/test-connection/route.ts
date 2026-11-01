@@ -14,6 +14,7 @@ import { stripTrailingSlash } from "@/lib/data-transforms"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { sanitizeNetworkError } from "@/lib/error-utils"
+import { flareSolverrFor } from "@/lib/flaresolverr-config"
 import { LONG_STRING_MAX, TRACKER_URL_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
@@ -26,12 +27,13 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { slug, baseUrl, apiToken, platformType, apiPath } = body as {
+  const { slug, baseUrl, apiToken, platformType, apiPath, useFlaresolverr } = body as {
     slug?: string
     baseUrl?: string
     apiToken?: string
     platformType?: string
     apiPath?: string
+    useFlaresolverr?: boolean
   }
 
   // A slug names the registry entry, and address, platform and API path all come
@@ -97,6 +99,7 @@ export async function POST(request: Request) {
     const fetchOptions = buildFetchOptions({
       registrySlug: entry?.slug,
       proxyAgent: proxyAgent ?? undefined,
+      flaresolverr: await flareSolverrFor({ useFlaresolverr: useFlaresolverr === true }),
     })
     const stats = await adapter.fetchStats(trimmedBaseUrl, trimmedApiToken, path, fetchOptions)
 

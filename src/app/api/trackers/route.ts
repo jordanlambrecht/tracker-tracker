@@ -43,7 +43,17 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } = body as {
+  const {
+    name,
+    slug,
+    apiToken,
+    color,
+    qbtTag,
+    mouseholeUrl,
+    mouseholeToken,
+    joinedAt,
+    useFlaresolverr,
+  } = body as {
     name?: string
     slug?: string
     apiToken?: string
@@ -52,6 +62,7 @@ export async function POST(request: Request) {
     mouseholeUrl?: string
     mouseholeToken?: string
     joinedAt?: string
+    useFlaresolverr?: boolean
   }
 
   if (
@@ -138,6 +149,7 @@ export async function POST(request: Request) {
         mouseholeUrl: trimmedMouseholeUrl || null,
         encryptedMouseholeToken: trimmedMouseholeToken ? encrypt(trimmedMouseholeToken, key) : null,
         joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
+        useFlaresolverr: useFlaresolverr === true,
       })
       .returning()
 

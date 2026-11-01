@@ -15,6 +15,7 @@ import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
+import { Toggle } from "@/components/ui/Toggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
@@ -244,6 +245,16 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
   const [testResult, setTestResult] = useState<{ username: string; group: string | null } | null>(
     null
   )
+  const [useFlaresolverr, setUseFlaresolverr] = useState(false)
+  const [flaresolverrAvailable, setFlaresolverrAvailable] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setFlaresolverrAvailable(!!data?.flaresolverrUrl))
+      .catch(() => setFlaresolverrAvailable(false))
+  }, [open])
 
   const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
     setCredentials((prev) => ({ ...prev, [field]: value }))
@@ -261,6 +272,7 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
     setErrors({})
     setLoading(false)
     setTestResult(null)
+    setUseFlaresolverr(false)
   }, [])
 
   const handleDialogClose = useCallback(() => {
@@ -333,6 +345,7 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
         body: JSON.stringify({
           slug: selectedPreset,
           apiToken: effectiveApiToken,
+          useFlaresolverr,
         }),
       })
 
@@ -357,6 +370,7 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
           joinedAt: joinedAt || undefined,
           mouseholeUrl: mouseholeUrl.trim() || undefined,
           mouseholeToken: mouseholeToken.trim() || undefined,
+          useFlaresolverr,
         }),
       })
 
@@ -512,6 +526,18 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
             </div>
           </>
         )}
+
+        <Toggle
+          label="Use FlareSolverr"
+          checked={useFlaresolverr}
+          onChange={setUseFlaresolverr}
+          disabled={!flaresolverrAvailable}
+          description={
+            flaresolverrAvailable
+              ? "Read this tracker's pages through FlareSolverr, which solves Cloudflare challenges."
+              : "For trackers behind a Cloudflare challenge. Set a FlareSolverr URL in Settings to use it."
+          }
+        />
 
         <ColorPicker label="Color" value={color} onChange={setColor} />
 

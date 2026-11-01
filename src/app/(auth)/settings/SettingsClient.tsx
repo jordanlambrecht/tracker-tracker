@@ -16,6 +16,7 @@ import { CredentialVaultSection } from "@/components/settings/CredentialVaultSec
 import { DangerZoneSection } from "@/components/settings/DangerZoneSection"
 import { DataSection } from "@/components/settings/DataSection"
 import { EventsSection } from "@/components/settings/EventsSection"
+import { FlareSolverrSection } from "@/components/settings/FlareSolverrSection"
 import { ImageHostingSection } from "@/components/settings/ImageHostingSection"
 import { PrivacySection } from "@/components/settings/PrivacySection"
 import { ProwlarrSection } from "@/components/settings/ProwlarrSection"
@@ -52,6 +53,8 @@ export interface SettingsData {
   proxyPort: number | null
   proxyUsername: string | null
   hasProxyPassword: boolean
+  flaresolverrUrl: string | null
+  flaresolverrMaxTimeout: number | null
   qbitmanageEnabled: boolean
   qbitmanageTags: QbitmanageTagConfig
   backupScheduleEnabled: boolean
@@ -131,6 +134,11 @@ export function SettingsClient({
               hasPassword: initialSettings.hasProxyPassword,
             }}
             trackers={initialProxyTrackers}
+          />
+
+          <FlareSolverrSection
+            initialUrl={initialSettings.flaresolverrUrl ?? ""}
+            initialMaxTimeout={initialSettings.flaresolverrMaxTimeout}
           />
 
           <ProwlarrSection />

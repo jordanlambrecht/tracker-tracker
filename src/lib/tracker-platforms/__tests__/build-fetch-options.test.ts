@@ -32,4 +32,11 @@ describe("buildFetchOptions registry lookup", () => {
       nebulanceAuthParam: "apikey",
     })
   })
+
+  it("passes FlareSolverr in place of the proxy, which it replaces", () => {
+    const flaresolverr = { url: "http://flaresolverr:8191", maxTimeout: 60000 }
+    const options = buildFetchOptions({ proxyAgent: {} as never, flaresolverr })
+    expect(options.flaresolverr).toEqual(flaresolverr)
+    expect(options.proxyAgent).toBeUndefined()
+  })
 })
