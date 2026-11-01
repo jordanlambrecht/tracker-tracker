@@ -64,6 +64,7 @@ export interface TrackerSummary {
   color: string
   qbtTag: string | null
   mouseholeUrl: string | null
+  mouseholePublicUrl: string | null
   hasMouseholeToken: boolean
   useProxy: boolean
   countCrossSeedUnsatisfied: boolean
@@ -88,6 +89,8 @@ export interface TrackerProwlarrIndexer {
   instanceId: number
   instanceName: string
   instanceUrl: string
+  /** Where the browser opens the instance. Null when links use instanceUrl. */
+  instancePublicUrl: string | null
   /** The instance's last poll error. While set, the fields below are stale. */
   instanceError: string | null
   /** True when the last reading is too old to show (the poller has stopped). */

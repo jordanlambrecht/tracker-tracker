@@ -344,6 +344,59 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).not.toThrow()
   })
 
+  // Older backups carry no public URLs, and a null one means links use the stored URL.
+  it("accepts absent and null public URLs", () => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.prowlarrInstances = [
+      { id: 1, name: "Home", url: "http://prowlarr:9696", publicUrl: null, encryptedApiKey: null },
+      { id: 2, name: "Away", url: "http://prowlarr:9696", encryptedApiKey: null },
+    ]
+    ;(p.trackers as Record<string, unknown>[])[0].mouseholePublicUrl = null
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
+  it.each([
+    [
+      "prowlarrInstances[0].publicUrl",
+      (p: Record<string, unknown>) => {
+        p.prowlarrInstances = [
+          {
+            id: 1,
+            name: "Home",
+            url: "http://prowlarr:9696",
+            publicUrl: "https://u:p@prowlarr.example.com",
+            encryptedApiKey: null,
+          },
+        ]
+      },
+    ],
+    [
+      "trackers[0].mouseholePublicUrl",
+      (p: Record<string, unknown>) => {
+        ;(p.trackers as Record<string, unknown>[])[0].mouseholePublicUrl = "javascript:alert(1)"
+      },
+    ],
+    [
+      "downloadClients[0].publicUrl",
+      (p: Record<string, unknown>) => {
+        p.downloadClients = [
+          {
+            host: "qbittorrent",
+            port: 8080,
+            type: "qbittorrent",
+            encryptedUsername: "",
+            encryptedPassword: "",
+            publicUrl: "qbt.example.com",
+          },
+        ]
+      },
+    ],
+  ])("rejects an invalid %s", (field, mutate) => {
+    const p = validPayload() as unknown as Record<string, unknown>
+    mutate(p)
+    expect(() => validateBackupJson(p)).toThrow(field)
+  })
+
   it("rejects tagGroupMember without groupId", () => {
     const p = validPayload() as unknown as Record<string, unknown>
     p.tagGroupMembers = [{ tag: "test", label: "Test" }]

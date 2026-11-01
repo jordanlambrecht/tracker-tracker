@@ -13,6 +13,7 @@ import {
   validateMaxLength,
   validateMouseholeToken,
   validateMouseholeUrl,
+  validatePublicUrl,
 } from "@/lib/api-helpers"
 import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
@@ -21,6 +22,7 @@ import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { normalizePublicUrl } from "@/lib/public-url"
 import { getTrackerListForDashboard } from "@/lib/server-data"
 
 export async function GET() {
@@ -43,13 +45,24 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } = body as {
+  const {
+    name,
+    slug,
+    apiToken,
+    color,
+    qbtTag,
+    mouseholeUrl,
+    mouseholePublicUrl,
+    mouseholeToken,
+    joinedAt,
+  } = body as {
     name?: string
     slug?: string
     apiToken?: string
     color?: string
     qbtTag?: string
     mouseholeUrl?: string
+    mouseholePublicUrl?: string
     mouseholeToken?: string
     joinedAt?: string
   }
@@ -103,6 +116,19 @@ export async function POST(request: Request) {
     if (mouseUrlErr) return mouseUrlErr
   }
 
+  const publicMouseholeUrl =
+    typeof mouseholePublicUrl === "string" ? normalizePublicUrl(mouseholePublicUrl) : null
+  if (publicMouseholeUrl) {
+    const publicUrlErr = validatePublicUrl(publicMouseholeUrl)
+    if (publicUrlErr) return publicUrlErr
+    if (!trimmedMouseholeUrl) {
+      return NextResponse.json(
+        { error: "Mousehole public URL needs a Mousehole URL" },
+        { status: 400 }
+      )
+    }
+  }
+
   const trimmedMouseholeToken = typeof mouseholeToken === "string" ? mouseholeToken.trim() : ""
   if (trimmedMouseholeToken) {
     const mouseholeTokenErr = validateMouseholeToken(trimmedMouseholeToken)
@@ -136,6 +162,7 @@ export async function POST(request: Request) {
         color: color || entry.color,
         qbtTag: typeof qbtTag === "string" ? qbtTag.trim() : null,
         mouseholeUrl: trimmedMouseholeUrl || null,
+        mouseholePublicUrl: publicMouseholeUrl,
         encryptedMouseholeToken: trimmedMouseholeToken ? encrypt(trimmedMouseholeToken, key) : null,
         joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
       })

@@ -127,6 +127,7 @@ function mockTrackerRow(overrides: Record<string, unknown> = {}) {
   const row = {
     platformType: "mam",
     mouseholeUrl: BASE,
+    mouseholePublicUrl: null,
     encryptedMouseholeToken: encrypt(TOKEN, KEY),
     ...overrides,
   }

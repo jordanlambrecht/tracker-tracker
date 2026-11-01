@@ -34,6 +34,7 @@ const RETROTOON: TrackerSummary = {
   color: "#01d4ff",
   qbtTag: "retrotoon",
   mouseholeUrl: null,
+  mouseholePublicUrl: null,
   hasMouseholeToken: false,
   useProxy: false,
   countCrossSeedUnsatisfied: false,

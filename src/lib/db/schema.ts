@@ -137,6 +137,9 @@ export const trackers = pgTable("trackers", {
   remoteUserId: integer("remote_user_id"),
   platformMeta: text("platform_meta"),
   mouseholeUrl: text("mousehole_url"),
+  // Where the browser opens Mousehole, when mouseholeUrl is only reachable from
+  // the server. NULL means links use mouseholeUrl.
+  mouseholePublicUrl: text("mousehole_public_url"),
   // Mousehole's MOUSEHOLE_AUTH_TOKEN, sealed under the master key. Same
   // invariant and the same five lifecycle sites as encryptedCredentials above,
   // so NULL or ciphertext, never "" or a marker.
@@ -228,6 +231,8 @@ export const downloadClients = pgTable("download_clients", {
   // Encrypted URL path prefix. Empty string when there is none. The path can
   // carry a proxy key, so it is handled like the other credentials.
   encryptedUrlPath: text("encrypted_url_path").default("").notNull(),
+  // Where the browser opens the client's web UI. NULL shows no link.
+  publicUrl: text("public_url"),
   pollIntervalSeconds: integer("poll_interval_seconds").default(300).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   crossSeedTags: text("cross_seed_tags").array().default([]).notNull(),
@@ -567,6 +572,9 @@ export const prowlarrInstances = pgTable("prowlarr_instances", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
   url: text("url").notNull(),
+  // Where the browser opens Prowlarr, when url is only reachable from the
+  // server. NULL means links use url.
+  publicUrl: text("public_url"),
   // Prowlarr's API key, sealed under the master key. Same NULL-or-ciphertext
   // invariant and the same five lifecycle sites as trackers.encryptedCredentials.
   encryptedApiKey: text("encrypted_api_key"),

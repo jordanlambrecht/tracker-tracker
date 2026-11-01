@@ -16,6 +16,7 @@ import {
   validateMaxLength,
   validateMouseholeToken,
   validateMouseholeUrl,
+  validatePublicUrl,
 } from "@/lib/api-helpers"
 import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
@@ -24,6 +25,7 @@ import { prowlarrInstances, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { normalizePublicUrl } from "@/lib/public-url"
 import { getTrackerForClient } from "@/lib/server-data"
 import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import { isIntegerInRange } from "@/lib/validators"
@@ -31,6 +33,17 @@ import { isIntegerInRange } from "@/lib/validators"
 // A Postgres integer id.
 function isRowId(value: unknown): value is number {
   return typeof value === "number" && isIntegerInRange(value, 1, 2_147_483_647)
+}
+
+/** Whether the tracker has a Mousehole URL once this edit is applied. */
+async function hasMouseholeUrl(body: Record<string, unknown>, trackerId: number) {
+  if (typeof body.mouseholeUrl === "string") return body.mouseholeUrl.trim() !== ""
+  const [row] = await db
+    .select({ mouseholeUrl: trackers.mouseholeUrl })
+    .from(trackers)
+    .where(eq(trackers.id, trackerId))
+    .limit(1)
+  return Boolean(row?.mouseholeUrl)
 }
 
 export async function GET(_request: Request, props: RouteContext) {
@@ -85,7 +98,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
-  // Clearing the URL clears the token with it, so no token outlives its URL.
+  // Clearing the URL clears the token and public URL with it, so neither outlives it.
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
@@ -95,7 +108,26 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (mouseUrlErr) return mouseUrlErr
     }
     updates.mouseholeUrl = trimmed || null
-    if (!trimmed) updates.encryptedMouseholeToken = null
+    if (!trimmed) {
+      updates.encryptedMouseholeToken = null
+      updates.mouseholePublicUrl = null
+    }
+  }
+
+  // An empty string clears the public URL; a body without the key leaves it alone.
+  if (typeof body.mouseholePublicUrl === "string" && updates.mouseholeUrl !== null) {
+    const publicUrl = normalizePublicUrl(body.mouseholePublicUrl)
+    if (publicUrl) {
+      const publicUrlErr = validatePublicUrl(publicUrl)
+      if (publicUrlErr) return publicUrlErr
+      if (!(await hasMouseholeUrl(body, trackerId))) {
+        return NextResponse.json(
+          { error: "Mousehole public URL needs a Mousehole URL" },
+          { status: 400 }
+        )
+      }
+    }
+    updates.mouseholePublicUrl = publicUrl
   }
 
   // An empty string clears the token; a body without the key leaves it alone.
@@ -105,16 +137,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       const mouseholeTokenErr = validateMouseholeToken(trimmedMouseholeToken)
       if (mouseholeTokenErr) return mouseholeTokenErr
       // A token is only sent to the saved URL, so a token without one is refused.
-      let mouseholeUrl = typeof body.mouseholeUrl === "string" ? body.mouseholeUrl.trim() : null
-      if (mouseholeUrl === null) {
-        const [row] = await db
-          .select({ mouseholeUrl: trackers.mouseholeUrl })
-          .from(trackers)
-          .where(eq(trackers.id, trackerId))
-          .limit(1)
-        mouseholeUrl = row?.mouseholeUrl ?? ""
-      }
-      if (!mouseholeUrl) {
+      if (!(await hasMouseholeUrl(body, trackerId))) {
         return NextResponse.json(
           { error: "Mousehole API token needs a Mousehole URL" },
           { status: 400 }

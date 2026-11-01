@@ -450,6 +450,7 @@ export async function POST(request: Request) {
           .values({
             name: fields.name as string,
             url: fields.url as string,
+            publicUrl: (fields.publicUrl as string | null | undefined) ?? null,
             encryptedApiKey: apiKey,
             // Anything but a boolean true restores the instance disabled.
             enabled: !keyCleared && fields.enabled === true,
@@ -577,6 +578,9 @@ export async function POST(request: Request) {
             // A plain file can be edited, and no registry vouches for a Mousehole
             // address, so only an authenticated file may pair it with the token.
             mouseholeUrl: isEncrypted ? ((fields.mouseholeUrl as string | null) ?? null) : null,
+            mouseholePublicUrl: isEncrypted
+              ? ((fields.mouseholePublicUrl as string | null | undefined) ?? null)
+              : null,
             encryptedMouseholeToken: isEncrypted ? mouseholeToken : null,
             avatarData: (fields.avatarData as string | null) ?? null,
             avatarMimeType: (fields.avatarMimeType as string | null) ?? null,
@@ -680,6 +684,7 @@ export async function POST(request: Request) {
             encryptedPassword: encPassword,
             encryptedApiKey: encApiKey,
             encryptedUrlPath: encUrlPath,
+            publicUrl: (fields.publicUrl as string | null | undefined) ?? null,
             pollIntervalSeconds: fields.pollIntervalSeconds as number,
             isDefault: fields.isDefault as boolean,
             crossSeedTags: Array.isArray(fields.crossSeedTags)

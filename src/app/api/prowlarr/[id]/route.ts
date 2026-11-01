@@ -10,6 +10,7 @@ import {
   parseJsonBody,
   parseRouteId,
   type RouteContext,
+  readPublicUrl,
 } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
@@ -55,6 +56,9 @@ export async function PATCH(request: Request, props: RouteContext) {
     if (urlErr) return urlErr
     updates.url = normalizeProwlarrUrl(body.url)
   }
+  const publicUrl = readPublicUrl(body.publicUrl)
+  if (publicUrl instanceof NextResponse) return publicUrl
+  if (publicUrl !== undefined) updates.publicUrl = publicUrl
   // Without a key in the body the stored key is unchanged; there is no way to clear it.
   if (typeof body.apiKey === "string") {
     const apiKeyErr = validateProwlarrApiKey(body.apiKey)

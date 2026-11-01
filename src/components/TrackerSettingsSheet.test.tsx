@@ -45,6 +45,7 @@ const TRACKER: TrackerSummary = {
   color: "#01d4ff",
   qbtTag: "aither",
   mouseholeUrl: null,
+  mouseholePublicUrl: null,
   hasMouseholeToken: false,
   useProxy: false,
   countCrossSeedUnsatisfied: false,
@@ -177,6 +178,7 @@ describe("TrackerSettingsSheet Mousehole API token", () => {
     ...TRACKER,
     platformType: "mam",
     mouseholeUrl: "http://mousehole-test:5010",
+    mouseholePublicUrl: null,
     hasMouseholeToken: true,
   }
 

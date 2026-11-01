@@ -50,6 +50,8 @@ export async function scrubAndDeleteAll(): Promise<void> {
       encryptedMouseholeToken: null,
       name: randomHex(8),
       baseUrl: randomHex(16),
+      mouseholeUrl: randomHex(16),
+      mouseholePublicUrl: randomHex(16),
       lastError: null,
       qbtTag: null,
     })
@@ -77,6 +79,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
       encryptedUrlPath: randomHex(64),
       name: randomHex(8),
       host: randomHex(16),
+      publicUrl: randomHex(16),
       lastError: null,
     })
 
@@ -91,6 +94,7 @@ export async function scrubAndDeleteAll(): Promise<void> {
       encryptedApiKey: null,
       name: randomHex(8),
       url: randomHex(16),
+      publicUrl: randomHex(16),
       lastError: null,
     })
 

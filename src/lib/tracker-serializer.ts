@@ -56,6 +56,7 @@ export function serializeTrackerResponse(
     color: tracker.color ?? DEFAULT_TRACKER_COLOR,
     qbtTag: tracker.qbtTag,
     mouseholeUrl: tracker.mouseholeUrl ?? null,
+    mouseholePublicUrl: tracker.mouseholePublicUrl ?? null,
     hasMouseholeToken: tracker.hasMouseholeToken,
     useProxy: tracker.useProxy,
     countCrossSeedUnsatisfied: tracker.countCrossSeedUnsatisfied,
