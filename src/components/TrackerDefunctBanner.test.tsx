@@ -5,7 +5,7 @@
 // 1. It renders on `defunct: true` and on nothing else. A banner announcing a shutdown that
 //    hasn't happened is worse than no banner at all, so "renders nothing" is asserted for the
 //    ordinary tracker and for a tracker with no registry entry at all.
-// 2. "Archive Now?" archives through the same contract as TrackerSettingsSheet.handleArchive,
+// 2. "Archive Now?" archives through useTrackerArchiveDelete, as the settings sheet does,
 //    PATCH {isActive: false}, then write the returned row through the shared ["trackers"] cache
 //    and invalidate it. Skipping that write-through is exactly the staleness bug the sheet was
 //    fixed for, so the cache assertions here are a regression guard, not decoration.
@@ -53,9 +53,19 @@ const DEFUNCT_ENTRY: TrackerRegistryEntry = {
 const TRACKER = { id: 42, name: "FearNoPeer", isActive: true }
 
 /** The row the shared cache holds before the archive, as /api/trackers returned it. */
-const CACHED_ROW = { id: 42, name: "FearNoPeer", isActive: true } as unknown as TrackerSummary
+const CACHED_ROW = {
+  id: 42,
+  name: "FearNoPeer",
+  isActive: true,
+  linked: true,
+} as unknown as TrackerSummary
 /** A second row, so the tests can prove only the archived tracker is rewritten. */
-const OTHER_ROW = { id: 7, name: "Orpheus", isActive: true } as unknown as TrackerSummary
+const OTHER_ROW = {
+  id: 7,
+  name: "Orpheus",
+  isActive: true,
+  linked: true,
+} as unknown as TrackerSummary
 /** What PATCH returns: the freshly-read row, which is what lets callers skip a follow-up GET. */
 const ARCHIVED_ROW = { ...CACHED_ROW, isActive: false }
 
@@ -152,7 +162,7 @@ describe("TrackerDefunctBanner archive action", () => {
 
     await waitFor(() => expect(onArchived).toHaveBeenCalledWith(ARCHIVED_ROW))
 
-    // Same endpoint and payload as TrackerSettingsSheet.handleArchive. Not a toggle:
+    // Same endpoint and payload as the settings sheet's archive. Not a toggle:
     // the button only exists while the tracker is active, so the target state is literal.
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]

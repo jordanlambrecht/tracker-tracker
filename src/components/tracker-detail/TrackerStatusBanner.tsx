@@ -1,7 +1,12 @@
 // src/components/tracker-detail/TrackerStatusBanner.tsx
+"use client"
 
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
+import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
+import { Notice } from "@/components/ui/Notice"
+import { registryHostname } from "@/data/tracker-registry"
+import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
 import { DOCS } from "@/lib/constants"
 import { formatDateTime } from "@/lib/formatters"
 import { getPauseState } from "@/lib/tracker-status"
@@ -12,6 +17,9 @@ interface TrackerStatusBannerProps {
   pollError: string | null
   onDismissPollError: () => void
   onResume: () => void
+  /** Receives the PATCH response from the unlinked card's Archive. */
+  onArchived: (updated: TrackerSummary) => void
+  onDeleted: () => void
 }
 
 export function TrackerStatusBanner({
@@ -19,6 +27,8 @@ export function TrackerStatusBanner({
   pollError,
   onDismissPollError,
   onResume,
+  onArchived,
+  onDeleted,
 }: TrackerStatusBannerProps) {
   const pause = getPauseState(tracker)
 
@@ -38,8 +48,13 @@ export function TrackerStatusBanner({
   const isArchived = !tracker.isActive
 
   const showPollError = !!pollError
-  const showUserPaused = !pollError && !isArchived && pause.isPaused && pause.reason === "user"
-  const showAutoPaused = !pollError && !isArchived && pause.isPaused && pause.reason === "failure"
+  // An unlinked row can't be polled or resumed, so its card replaces both pause
+  // cards. That includes a user pause, which isn't why the row sits idle.
+  const showUnlinked = !pollError && !isArchived && !tracker.linked
+  const showUserPaused =
+    !pollError && !isArchived && tracker.linked && pause.isPaused && pause.reason === "user"
+  const showAutoPaused =
+    !pollError && !isArchived && tracker.linked && pause.isPaused && pause.reason === "failure"
   // Gated on the pause banners rather than on `pause.isPaused` directly. For an
   // active tracker the two are identical, but an archived tracker that was
   // auto-paused before archiving carries both a pausedAt and a lastError, and
@@ -47,9 +62,14 @@ export function TrackerStatusBanner({
   // error with it. The error is a timestamped record of what the last poll
   // returned, not a claim about a poll that is still scheduled, so archiving
   // does not retire it.
-  const showLastError = !pollError && !showUserPaused && !showAutoPaused && !!tracker.lastError
+  // The unlinked card carries no error line. Its reason is the whole story, and
+  // the poll log still shows the last error.
+  const showLastError =
+    !pollError && !showUnlinked && !showUserPaused && !showAutoPaused && !!tracker.lastError
 
-  if (!showPollError && !showUserPaused && !showAutoPaused && !showLastError) return null
+  if (!showPollError && !showUnlinked && !showUserPaused && !showAutoPaused && !showLastError) {
+    return null
+  }
 
   return (
     <>
@@ -67,6 +87,9 @@ export function TrackerStatusBanner({
             </button>
           </div>
         </Card>
+      )}
+      {showUnlinked && (
+        <UnlinkedCard tracker={tracker} onArchived={onArchived} onDeleted={onDeleted} />
       )}
       {showUserPaused && pause.isPaused && pause.reason === "user" && (
         <Card glow glowColor="var(--color-warn-dim)" elevation="elevated">
@@ -121,5 +144,57 @@ export function TrackerStatusBanner({
         </Card>
       )}
     </>
+  )
+}
+
+// Its own component so the QueryClient the hook needs is only a requirement
+// where the card renders.
+function UnlinkedCard({
+  tracker,
+  onArchived,
+  onDeleted,
+}: Pick<TrackerStatusBannerProps, "tracker" | "onArchived" | "onDeleted">) {
+  const { archiving, deleting, error, setActive, remove } = useTrackerArchiveDelete(tracker.id)
+  // The stored address is the only one an unlinked row has. The sentence drops
+  // when it won't parse, as in the poll's pause message.
+  const host = registryHostname(tracker.baseUrl)
+
+  async function handleArchive() {
+    const updated = await setActive(false)
+    if (updated) onArchived(updated)
+  }
+
+  async function handleDelete() {
+    if (await remove()) onDeleted()
+  }
+
+  return (
+    <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
+      <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider mb-2">
+        Not in the tracker list
+      </p>
+      <p className="text-sm font-mono text-secondary mb-3">
+        This tracker isn't in the tracker list, so it isn't polled.
+        {host && ` It was set up for ${host}.`} Archive it to keep its history, or delete it.
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleArchive}
+          loading={archiving}
+          disabled={deleting}
+          text="Archive"
+        />
+        <ConfirmRemove
+          label="Delete"
+          confirmLabel="Confirm Delete"
+          busyLabel="Deleting..."
+          busy={deleting}
+          onConfirm={handleDelete}
+        />
+      </div>
+      {error && <Notice variant="danger" message={error} className="mt-3" />}
+    </Card>
   )
 }

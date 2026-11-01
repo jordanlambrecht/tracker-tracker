@@ -16,7 +16,15 @@ import type { TrackerSummary } from "@/types/api"
 // separate: a thin ratio and zero active seeds are unrelated and need different
 // fixes.
 type TrackerHealth =
-  "healthy" | "warning" | "no-seeds" | "critical" | "error" | "paused" | "paused-user" | "offline"
+  | "healthy"
+  | "warning"
+  | "no-seeds"
+  | "critical"
+  | "error"
+  | "paused"
+  | "paused-user"
+  | "offline"
+  | "unlinked"
 
 interface HealthMeta {
   label: string
@@ -82,6 +90,12 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     dot: { tone: "muted", glow: false },
     badge: "default",
   },
+  unlinked: {
+    label: "Not in list",
+    description: "Not in the tracker list, so it isn't polled",
+    dot: { tone: "danger", glow: false },
+    badge: "danger",
+  },
 }
 
 type PauseState = { isPaused: false } | { isPaused: true; reason: "user" | "failure"; since: Date }
@@ -99,7 +113,8 @@ function getPauseState(tracker: {
 }
 
 // The lastError a backup restore pauses a tracker with when the registry cannot
-// place its address. The row has no slug, so it stays paused until it is linked.
+// place its address. The restore lifts it from each row its backfill links. On
+// the rest it stays, since nothing polls or resumes a row with no slug.
 const UNLINKED_RESTORE_ERROR =
   "Restored from a backup, and its address could not be matched to a known tracker. Check it before resuming"
 
@@ -138,6 +153,9 @@ function resolveRequiredRatio(
 }
 
 function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
+  // First, because nothing else can tell. An old error or a user pause can sit
+  // on an unlinked row, and a stats reset clears the message the poll left.
+  if (!tracker.linked) return "unlinked"
   const pause = getPauseState(tracker)
   if (pause.isPaused) return pause.reason === "failure" ? "paused" : "paused-user"
   if (tracker.lastError) return "error"

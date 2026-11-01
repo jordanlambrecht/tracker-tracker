@@ -130,6 +130,7 @@ describe("tracker health", () => {
   it("is unchanged by a failing indexer", () => {
     const base = {
       isActive: true,
+      linked: true,
       lastError: null,
       pausedAt: null,
       userPausedAt: null,

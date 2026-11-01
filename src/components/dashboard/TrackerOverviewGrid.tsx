@@ -19,7 +19,7 @@ import { registryEntryFor, type TrackerRegistryEntry } from "@/data/tracker-regi
 import { ALL_TRACKERS } from "@/data/trackers"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { formatAccountAge, formatJoinedDate, formatRatioDisplay } from "@/lib/formatters"
-import { getHealthDot, getTrackerHealth } from "@/lib/tracker-status"
+import { getHealthDot, getHealthLabel, getTrackerHealth } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 const FILTER_THRESHOLD = 6
@@ -215,8 +215,9 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                 onClick={() => router.push(`/trackers/${t.id}`)}
                 className="flex flex-col gap-2 px-4 py-3 cursor-pointer text-left flex-1 bg-transparent border-none"
               >
-                {/* Row 1: Status + name + ratio + external link */}
-                <div className="flex items-center gap-2.5 w-full">
+                {/* Row 1: Status + name + ratio + external link. The min height keeps
+                    the link's row height on a card that has no link. */}
+                <div className="flex items-center gap-2.5 w-full min-h-7">
                   {showHealthIndicators && (
                     <StatusDot
                       {...getHealthDot(health)}
@@ -236,27 +237,31 @@ function TrackerOverviewGrid({ trackers, showHealthIndicators = true }: TrackerO
                       formatRatioDisplay(t.latestStats?.ratio)
                     )}
                   </span>
-                  <a
-                    href={t.baseUrl.startsWith("http") ? t.baseUrl : `https://${t.baseUrl}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="nm-inset-sm bg-control-bg w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors duration-150 shrink-0 rounded-nm-sm"
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={`Open ${t.name}`}
-                  >
-                    <ExternalLinkIcon width="12" height="12" />
-                  </a>
+                  {/* A linked row's address is its registry entry's. An unlinked row's
+                      is only the copy stored when it was added. */}
+                  {t.linked && (
+                    <a
+                      href={t.baseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="nm-inset-sm bg-control-bg w-7 h-7 flex items-center justify-center text-muted hover:text-accent transition-colors duration-150 shrink-0 rounded-nm-sm"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Open ${t.name}`}
+                    >
+                      <ExternalLinkIcon width="12" height="12" />
+                    </a>
+                  )}
                 </div>
 
-                {/* Row 2: Class/rank or paused indicator */}
-                {health === "paused" || health === "paused-user" ? (
+                {/* Row 2: Class/rank, or why the tracker isn't polled */}
+                {health === "paused" || health === "paused-user" || health === "unlinked" ? (
                   <span
                     className={clsx(
                       "font-mono text-3xs uppercase tracking-wider ml-4.5",
                       health === "paused-user" ? "text-warn" : "text-danger"
                     )}
                   >
-                    ⏸ Polling paused
+                    {health === "unlinked" ? getHealthLabel(health) : "⏸ Polling paused"}
                   </span>
                 ) : (
                   <RedactedText

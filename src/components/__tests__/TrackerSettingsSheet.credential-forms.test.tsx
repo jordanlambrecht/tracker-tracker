@@ -24,6 +24,7 @@ const RETROTOON: TrackerSummary = {
   baseUrl: "https://retrotoon.world",
   registrySlug: null,
   platformType: "retrotoon",
+  linked: true,
   isActive: true,
   lastPolledAt: null,
   lastError: null,

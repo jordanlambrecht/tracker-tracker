@@ -117,6 +117,17 @@ export function TrackerDetailClient({
     }
   }, [scrollbarColor])
 
+  // `updated` is a PATCH response already written through the shared ["trackers"]
+  // cache, so this needs no follow-up GET. An archived tracker leaves the active
+  // list, and the page goes home with it.
+  function handleTrackerUpdated(updated: TrackerSummary) {
+    if (!updated.isActive) {
+      router.push("/")
+      return
+    }
+    setTracker(updated)
+  }
+
   async function handleResume() {
     setPollError(null)
     try {
@@ -295,16 +306,7 @@ export function TrackerDetailClient({
       <TrackerDefunctBanner
         registryEntry={registryEntry}
         tracker={tracker}
-        onArchived={(updated) => {
-          // The row is already written through the shared cache, so there is
-          // nothing to re-fetch. An archived tracker just leaves the active
-          // dashboard.
-          if (!updated.isActive) {
-            router.push("/")
-            return
-          }
-          setTracker(updated)
-        }}
+        onArchived={handleTrackerUpdated}
       />
 
       {/* Error / pause banners */}
@@ -313,6 +315,8 @@ export function TrackerDetailClient({
         pollError={pollError}
         onDismissPollError={() => setPollError(null)}
         onResume={handleResume}
+        onArchived={handleTrackerUpdated}
+        onDeleted={() => router.push("/")}
       />
 
       {/* Tabs */}
@@ -388,14 +392,8 @@ export function TrackerDetailClient({
         tracker={tracker}
         onClose={() => setShowSettings(false)}
         onUpdated={(updated) => {
-          // `updated` is the PATCH response, and the sheet has already written
-          // it into the shared ["trackers"] cache, so no re-GET is needed.
-          if (!updated.isActive) {
-            router.push("/")
-            return
-          }
-          setTracker(updated)
-          setSettingsSaves((n) => n + 1)
+          handleTrackerUpdated(updated)
+          if (updated.isActive) setSettingsSaves((n) => n + 1)
         }}
       />
 

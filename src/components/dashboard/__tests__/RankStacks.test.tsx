@@ -72,6 +72,7 @@ function makeTracker(
     baseUrl: "https://poll-address.example",
     registrySlug,
     platformType: "unit3d",
+    linked: true,
     isActive: true,
     lastPolledAt: null,
     lastError: null,

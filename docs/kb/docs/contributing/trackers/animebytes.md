@@ -16,9 +16,9 @@ AnimeBytes is not a stock Gazelle site: `/ajax.php` redirects to an HTML page. I
 
 ### Migrating an AnimeBytes tracker added before this change
 
-`platformType` is stored per row when a tracker is added, so an existing AnimeBytes entry keeps running the Gazelle adapter against `/ajax.php` after this update, and keeps failing the way it did before.
+An existing AnimeBytes entry is polled with the AnimeBytes adapter, but its saved credential is a Gazelle token with no username, so its polls fail until the credential is replaced. Nothing migrates it automatically, because the username was never stored.
 
-**Existing AnimeBytes users must delete and re-add the tracker.** There is no automatic migration: the Gazelle token and the new credential differ, and the username the new credential carries was never stored. Changing the credential from the tracker's settings does not work either. That row still gets the Gazelle token field, and the connection test, which now runs the AnimeBytes adapter, rejects a key sent without a username.
+Open the tracker's settings, click **Change** under Credentials, and enter your username and API token. The new credential is tested before it saves. Saving doesn't resume polling, so if the tracker was paused, click **Resume Polling** on its page.
 
 ## Slots
 

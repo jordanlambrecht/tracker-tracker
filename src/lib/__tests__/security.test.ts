@@ -226,9 +226,11 @@ vi.mock("@/lib/prowlarr/sync", () => ({
 
 // The create route takes the address, platform and API path from the registry
 // entry the posted slug names, so these validation tests need a slug that
-// resolves before they can reach the field each one is about.
+// resolves before they can reach the field each one is about. The serializer
+// asks for the row's site, and a row with none serializes from its stored copies.
 vi.mock("@/data/tracker-registry", () => ({
   registryEntryFor: vi.fn(),
+  trackerSiteFor: vi.fn(() => null),
   getTrackerBySlug: vi.fn(() => ({
     slug: "example-tracker",
     name: "Example",

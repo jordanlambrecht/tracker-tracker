@@ -94,16 +94,19 @@ export function TrackerDetailHeader({
             )}
             <H1 className="text-3xl font-bold tracking-tight">{tracker.name}</H1>
             <StatusDot {...getHealthDot(health)} size="md" />
-            <Tooltip content={`Open ${tracker.name}`}>
-              <a
-                href={tracker.baseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted hover:text-accent transition-colors duration-150 shrink-0"
-              >
-                <ExternalLinkSmallIcon width="16" height="16" />
-              </a>
-            </Tooltip>
+            {/* An unlinked row's address is only the copy stored when it was added */}
+            {tracker.linked && (
+              <Tooltip content={`Open ${tracker.name}`}>
+                <a
+                  href={tracker.baseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted hover:text-accent transition-colors duration-150 shrink-0"
+                >
+                  <ExternalLinkSmallIcon width="16" height="16" />
+                </a>
+              </Tooltip>
+            )}
           </div>
 
           {/* Meta badges */}
@@ -119,46 +122,54 @@ export function TrackerDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:shrink-0">
-          <Tooltip content="Fetch raw API response">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDebugPoll}
-              disabled={debugLoading || polling}
-              aria-label="Debug: fetch raw API response"
-              className="px-2"
-            >
-              <BugIcon width="16" height="16" />
-            </Button>
-          </Tooltip>
-          <Tooltip
-            content={tracker.userPausedAt ? "Resume automated polling" : "Pause automated polling"}
-          >
-            <Button
-              variant={tracker.userPausedAt ? "secondary" : "ghost"}
-              size="sm"
-              onClick={onTogglePause}
-              disabled={pauseLoading || polling}
-              aria-label={
-                tracker.userPausedAt ? "Resume automated polling" : "Pause automated polling"
-              }
-              aria-pressed={!!tracker.userPausedAt}
-              className={clsx("px-2", tracker.userPausedAt && "border-warn text-warn")}
-            >
-              {tracker.userPausedAt ? (
-                <PlayIcon width="16" height="16" />
-              ) : (
-                <PauseIcon width="16" height="16" />
-              )}
-            </Button>
-          </Tooltip>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onPollNow}
-            disabled={polling}
-            text={polling ? "Polling..." : "Poll Now"}
-          />
+          {/* Nothing polls an unlinked row. Debug and Poll Now are refused, and a
+              pause would have nothing to pause. */}
+          {tracker.linked && (
+            <>
+              <Tooltip content="Fetch raw API response">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDebugPoll}
+                  disabled={debugLoading || polling}
+                  aria-label="Debug: fetch raw API response"
+                  className="px-2"
+                >
+                  <BugIcon width="16" height="16" />
+                </Button>
+              </Tooltip>
+              <Tooltip
+                content={
+                  tracker.userPausedAt ? "Resume automated polling" : "Pause automated polling"
+                }
+              >
+                <Button
+                  variant={tracker.userPausedAt ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={onTogglePause}
+                  disabled={pauseLoading || polling}
+                  aria-label={
+                    tracker.userPausedAt ? "Resume automated polling" : "Pause automated polling"
+                  }
+                  aria-pressed={!!tracker.userPausedAt}
+                  className={clsx("px-2", tracker.userPausedAt && "border-warn text-warn")}
+                >
+                  {tracker.userPausedAt ? (
+                    <PlayIcon width="16" height="16" />
+                  ) : (
+                    <PauseIcon width="16" height="16" />
+                  )}
+                </Button>
+              </Tooltip>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onPollNow}
+                disabled={polling}
+                text={polling ? "Polling..." : "Poll Now"}
+              />
+            </>
+          )}
           <Button
             variant="secondary"
             size="sm"

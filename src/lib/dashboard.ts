@@ -166,7 +166,20 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
       tracker.pausedAt,
       tracker.userPausedAt
     )
-    if (paused && !pausedByUser) {
+    // An unlinked row takes the pause alert's slot, a user-paused one too. Like
+    // a pause it can't be dismissed, since archiving or deleting is the fix.
+    if (!tracker.linked) {
+      alerts.push({
+        key: `poll-paused-${tracker.id}`,
+        type: "poll-paused",
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        trackerColor: tracker.color,
+        message: "Not in the tracker list, so it isn't polled. Archive or delete it",
+        timestamp: tracker.pausedAt ?? tracker.userPausedAt ?? undefined,
+        dismissible: false,
+      })
+    } else if (paused && !pausedByUser) {
       alerts.push({
         key: `poll-paused-${tracker.id}`,
         type: "poll-paused",
@@ -191,12 +204,15 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
       })
     }
 
+    // An unlinked row isn't polled, so the ratio, stale, seeding and warning
+    // alerts below would only repeat its last snapshot. They skip it.
+
     // --- Ratio danger ---
     // Same resolution the health tiers use: live requiredRatio first, registry
     // minimumRatio second. Keeps the alert from contradicting the health badge.
     const minimumRatio =
       resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker) ?? undefined
-    if (checkRatioBelowMinimum(tracker.latestStats?.ratio, minimumRatio)) {
+    if (tracker.linked && checkRatioBelowMinimum(tracker.latestStats?.ratio, minimumRatio)) {
       alerts.push({
         key: `ratio-danger-${tracker.id}`,
         type: "ratio-danger",
@@ -210,7 +226,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Stale data (skip if paused: staleness is expected) ---
-    if (!tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
+    if (tracker.linked && !tracker.pausedAt && !tracker.userPausedAt && tracker.lastPolledAt) {
       const lastPolled = new Date(tracker.lastPolledAt)
       const thresholdMs = 2 * 60 * 60 * 1000
       const ageMs = Date.now() - lastPolled.getTime()
@@ -229,7 +245,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Zero seeding ---
-    if (checkZeroSeeding(tracker.latestStats?.seedingCount, tracker.isActive)) {
+    if (tracker.linked && checkZeroSeeding(tracker.latestStats?.seedingCount, tracker.isActive)) {
       alerts.push({
         key: `zero-seeding-${tracker.id}`,
         type: "zero-seeding",
@@ -243,7 +259,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
     }
 
     // --- Warned by tracker ---
-    if (tracker.latestStats?.warned === true) {
+    if (tracker.linked && tracker.latestStats?.warned === true) {
       alerts.push({
         key: `warned-${tracker.id}`,
         type: "warned",

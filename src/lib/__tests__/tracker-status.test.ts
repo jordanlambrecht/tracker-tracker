@@ -15,6 +15,7 @@ import {
   getHealthLabel,
   getTrackerHealth,
   resolveRequiredRatio,
+  UNLINKED_RESTORE_ERROR,
 } from "@/lib/tracker-status"
 import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
 
@@ -61,6 +62,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     baseUrl: "https://aither.cc",
     registrySlug: "aither",
     platformType: "unit3d",
+    linked: true,
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
@@ -149,6 +151,41 @@ describe("getTrackerHealth — precedence above 'no-seeds'", () => {
       latestStats: makeStats({ seedingCount: 0 }),
     })
     expect(getTrackerHealth(tracker)).toBe("paused")
+  })
+})
+
+// A pause or an error can't say a row is unlinked. An old error outlives the
+// change, a stats reset clears the message, and a row the user paused never got
+// one. So the wire field decides, ahead of everything else.
+describe("getTrackerHealth on a row the tracker list doesn't carry", () => {
+  const PAUSED_AT = "2026-10-30T09:00:00.000Z"
+
+  it.each<[string, Partial<TrackerSummary>]>([
+    [
+      "paused by the poll",
+      {
+        pausedAt: PAUSED_AT,
+        lastError:
+          "Not in the tracker list, so it isn't polled. It was set up for old-host.example",
+      },
+    ],
+    ["paused by a restore", { pausedAt: PAUSED_AT, lastError: UNLINKED_RESTORE_ERROR }],
+    ["paused for failures before it was unlinked", { pausedAt: PAUSED_AT, lastError: "HTTP 301" }],
+    ["paused by the user", { userPausedAt: PAUSED_AT }],
+    ["carrying an old error, not paused", { lastError: "HTTP 301" }],
+    ["on a healthy last snapshot", {}],
+  ])("reads 'unlinked' when %s", (_, state) => {
+    expect(getTrackerHealth(makeTracker({ ...state, linked: false }))).toBe("unlinked")
+  })
+
+  it("gives it the label and description the list's other surfaces read", () => {
+    expect(getHealthLabel("unlinked")).toBe("Not in list")
+    expect(getHealthDescription("unlinked")).toBe("Not in the tracker list, so it isn't polled")
+    expect(getHealthDescription("unlinked", makeTracker({ linked: false }))).toBe(
+      "Not in the tracker list, so it isn't polled"
+    )
+    expect(getHealthBadgeVariant("unlinked")).toBe("danger")
+    expect(getHealthDot("unlinked")).toEqual({ tone: "danger", glow: false, label: "Not in list" })
   })
 })
 

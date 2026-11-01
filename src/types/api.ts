@@ -54,6 +54,12 @@ export interface TrackerSummary {
   baseUrl: string
   registrySlug: string | null
   platformType: PlatformType
+  /**
+   * False when the tracker list has no entry for the slug. Such a row isn't
+   * polled, and its baseUrl and platformType are the copies stored when it was
+   * added. A linked row's come from its entry.
+   */
+  linked: boolean
   isActive: boolean
   lastPolledAt: string | null
   lastError: string | null

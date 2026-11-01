@@ -1,7 +1,7 @@
 // src/components/TrackerSettingsSheet.tsx
 "use client"
 
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { H2, Subtext } from "@typography"
 import clsx from "clsx"
 import { useRouter } from "next/navigation"
@@ -22,6 +22,7 @@ import {
 import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { registryEntryFor } from "@/data/tracker-registry"
+import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
 import {
   buildCredentialBlob,
   type CredentialValues,
@@ -32,7 +33,7 @@ import {
 import { localDateStr } from "@/lib/formatters"
 import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
 import { matchTrackerIndexers } from "@/lib/prowlarr/matching"
-import { prowlarrIndexerQueryOptions, trackerQueryOptions } from "@/lib/query-options"
+import { prowlarrIndexerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerSettingsSheetProps {
@@ -99,25 +100,15 @@ function formStateFromTracker(t: TrackerSummary): FormState {
 
 function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSettingsSheetProps) {
   const router = useRouter()
-  const queryClient = useQueryClient()
-
-  // Every write mutates a row in the shared ["trackers"] cache. It survives
-  // `router.push("/")` and only refetches on the poll interval, so without
-  // write-through and invalidate an archived tracker keeps rendering as active.
-  const syncTrackerCache = useCallback(
-    (next: TrackerSummary | null) => {
-      queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) => {
-        if (!prev) return prev
-        if (!next) return prev.filter((t) => t.id !== tracker.id)
-        return prev.map((t) => (t.id === next.id ? next : t))
-      })
-      // Not awaited: the refetch is a background confirmation of the row just
-      // written. Awaiting adds a round trip before closing the sheet or
-      // navigating.
-      queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
-    },
-    [queryClient, tracker.id]
-  )
+  const {
+    archiving,
+    deleting,
+    error: archiveDeleteError,
+    clearError: clearArchiveDeleteError,
+    setActive,
+    remove,
+    syncTrackerCache,
+  } = useTrackerArchiveDelete(tracker.id)
 
   const [form, setForm] = useState<FormState>(() => formStateFromTracker(tracker))
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -186,7 +177,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const busy = saving || archiving || deleting
 
   const resetTransientState = useCallback(() => {
     setChangingKey(false)
@@ -194,9 +185,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
     setMouseholeToken("")
     setCredentials(EMPTY_CREDENTIAL_VALUES)
     setErrors({})
+    clearArchiveDeleteError()
     setSaving(false)
-    setDeleting(false)
-  }, [])
+  }, [clearArchiveDeleteError])
 
   function handleClose() {
     resetTransientState()
@@ -214,6 +205,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       if (credentialError) validationErrors.apiToken = credentialError
     }
 
+    clearArchiveDeleteError()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
       return
@@ -317,60 +309,22 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
   }
 
   async function handleArchive() {
-    setSaving(true)
     setErrors({})
-    try {
-      const res = await fetch(`/api/trackers/${tracker.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !tracker.isActive }),
-      })
-
-      // A failed archive must say so, or the click looks like nothing happened.
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setErrors({
-          form: (data as { error?: string }).error ?? "Failed to update archive status",
-        })
-        return
-      }
-
-      const updated = (await res.json()) as TrackerSummary
-      syncTrackerCache(updated)
-      onUpdated(updated)
-      onClose()
-    } catch {
-      setErrors({ form: "Failed to update archive status" })
-    } finally {
-      setSaving(false)
-    }
+    const updated = await setActive(!tracker.isActive)
+    if (!updated) return
+    onUpdated(updated)
+    onClose()
   }
 
   async function handleDelete() {
-    setDeleting(true)
-    try {
-      const res = await fetch(`/api/trackers/${tracker.id}`, {
-        method: "DELETE",
-      })
-
-      if (res.ok) {
-        // Same shared cache as archive. Without this, the deleted row renders
-        // in the sidebar after router.push("/").
-        syncTrackerCache(null)
-        onClose()
-        router.push("/")
-      } else {
-        setErrors({ form: "Failed to delete tracker" })
-        setDeleting(false)
-      }
-    } catch {
-      setErrors({ form: "Network error during delete" })
-      setDeleting(false)
-    }
+    setErrors({})
+    if (!(await remove())) return
+    onClose()
+    router.push("/")
   }
 
   return (
-    <Sheet open={open} onClose={handleClose} title="Tracker Settings" busy={saving || deleting}>
+    <Sheet open={open} onClose={handleClose} title="Tracker Settings" busy={busy}>
       <div className="flex flex-col p-6 pb-8 gap-5">
         {/* Form */}
         <form onSubmit={handleSave} className="flex flex-col gap-4">
@@ -521,7 +475,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                 variant="secondary"
                 size="sm"
                 onClick={() => updateField("lastAccessAt", localDateStr())}
-                disabled={saving || deleting}
+                disabled={busy}
                 text="Today"
               />
             </div>
@@ -595,12 +549,16 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             </div>
           )}
 
-          <Notice message={errors.form} />
+          <Notice message={errors.form ?? archiveDeleteError} />
 
           {/* Save / Cancel */}
           <div className="flex gap-3 pt-1 justify-end">
             <Button variant="ghost" onClick={handleClose} text="Cancel" />
-            <Button type="submit" disabled={saving} text={saving ? "Saving..." : "Save Changes"} />
+            <Button
+              type="submit"
+              disabled={saving || archiving}
+              text={saving ? "Saving..." : "Save Changes"}
+            />
           </div>
         </form>
 
@@ -615,7 +573,8 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               variant="secondary"
               size="sm"
               onClick={handleArchive}
-              disabled={saving}
+              loading={archiving}
+              disabled={saving || archiving}
               text={tracker.isActive ? "Archive" : "Reactivate"}
             />
 

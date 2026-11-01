@@ -23,6 +23,7 @@ const base: TrackerSummary = {
   baseUrl: "https://alpha.example.com",
   registrySlug: null,
   platformType: "unit3d",
+  linked: true,
   isActive: true,
   lastPolledAt: null,
   lastError: null,

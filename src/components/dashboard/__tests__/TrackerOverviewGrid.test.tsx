@@ -39,6 +39,7 @@ const baseTracker: TrackerSummary = {
   baseUrl: "https://example.com",
   registrySlug: null,
   platformType: "unit3d",
+  linked: true,
   isActive: true,
   lastPolledAt: null,
   lastError: null,
@@ -112,5 +113,31 @@ describe("TrackerOverviewGrid registry data", () => {
   it("takes no registry data from the URL of a row with no slug", () => {
     renderGrid({ ...shutDown, registrySlug: null, baseUrl: "https://fearnopeer.com" })
     expect(screen.queryByText(/Defunct/)).toBeNull()
+  })
+})
+
+describe("TrackerOverviewGrid on a row the tracker list doesn't carry", () => {
+  const moved: TrackerSummary = {
+    ...baseTracker,
+    id: 4,
+    name: "Moved",
+    baseUrl: "https://old-host.example",
+    latestStats: { ...baseStats, ratio: 2 },
+  }
+
+  it("links a linked card to its site and shows its class", () => {
+    render(<TrackerOverviewGrid trackers={[moved]} />)
+    expect(screen.getByRole("link", { name: "Open Moved" })).toHaveAttribute(
+      "href",
+      "https://old-host.example"
+    )
+    expect(screen.getByText("Power User")).toBeInTheDocument()
+  })
+
+  it("drops the site link and says it isn't in the list instead of its frozen class", () => {
+    render(<TrackerOverviewGrid trackers={[{ ...moved, linked: false }]} />)
+    expect(screen.queryByRole("link", { name: "Open Moved" })).toBeNull()
+    expect(screen.getByText("Not in list")).toBeInTheDocument()
+    expect(screen.queryByText("Power User")).toBeNull()
   })
 })

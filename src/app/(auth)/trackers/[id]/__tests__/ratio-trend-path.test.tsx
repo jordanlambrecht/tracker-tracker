@@ -107,6 +107,7 @@ const tracker = {
   color: "#336699",
   isActive: true,
   platformType: "unit3d",
+  linked: true,
   platformMeta: null,
   registrySlug: null,
   qbtTag: null,

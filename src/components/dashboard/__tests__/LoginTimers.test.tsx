@@ -42,6 +42,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     baseUrl: "https://poll-address.example",
     registrySlug: "alpha",
     platformType: "unit3d",
+    linked: true,
     isActive: true,
     lastPolledAt: null,
     lastError: null,

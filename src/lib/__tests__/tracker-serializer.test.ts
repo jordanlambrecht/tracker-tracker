@@ -1,5 +1,6 @@
 // src/lib/__tests__/tracker-serializer.test.ts
 import { describe, expect, it } from "vitest"
+import { ALL_TRACKERS } from "@/data/trackers"
 import { parsePlatformMeta, serializeTrackerResponse } from "@/lib/tracker-serializer"
 
 const mockTracker = {
@@ -162,5 +163,113 @@ describe("serializeTrackerResponse userPausedAt", () => {
   it("serializes null userPausedAt as null", () => {
     const result = serializeTrackerResponse(mockTracker, null, (v) => v ?? null)
     expect(result.userPausedAt).toBeNull()
+  })
+})
+
+describe("serializeTrackerResponse tracker list fields", () => {
+  const keep = (v: string | null | undefined) => v ?? null
+
+  it("serializes a linked row whose stored copies match its entry unchanged, plus linked", () => {
+    const row = { ...mockTracker, registrySlug: "aither", baseUrl: "https://aither.cc" }
+    expect(serializeTrackerResponse(row, mockSnapshot, keep)).toEqual({
+      id: 1,
+      name: "Test Tracker",
+      baseUrl: "https://aither.cc",
+      registrySlug: "aither",
+      platformType: "unit3d",
+      linked: true,
+      isActive: true,
+      lastPolledAt: "2026-01-01T00:00:00.000Z",
+      lastError: null,
+      lastErrorAt: null,
+      consecutiveFailures: 0,
+      pausedAt: null,
+      userPausedAt: null,
+      color: "#00d4ff",
+      qbtTag: null,
+      mouseholeUrl: null,
+      hasMouseholeToken: false,
+      useProxy: false,
+      countCrossSeedUnsatisfied: false,
+      hideUnreadBadges: false,
+      isFavorite: false,
+      sortOrder: null,
+      joinedAt: null,
+      lastAccessAt: null,
+      remoteUserId: null,
+      platformMeta: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      prowlarrPin: null,
+      prowlarrOptOut: false,
+      prowlarr: null,
+      latestStats: {
+        ratioIsInfinite: false,
+        ratio: 2.5,
+        uploadedBytes: "1000",
+        downloadedBytes: "500",
+        seedingCount: 10,
+        leechingCount: 2,
+        requiredRatio: null,
+        warned: false,
+        freeleechTokens: null,
+        bufferBytes: "500",
+        hitAndRuns: null,
+        seedbonus: null,
+        shareScore: null,
+        username: "testuser",
+        group: "Elite",
+      },
+    })
+  })
+
+  it.each([
+    ["orpheus", "https://orpheus.network", "gazelle"],
+    ["myanonamouse", "https://www.myanonamouse.net", "mam"],
+    // A shut-down entry is still in the list, so its row stays linked
+    ["fearnopeer", "https://fearnopeer.com", "unit3d"],
+  ])("keeps the address and platform of a linked %s row", (slug, url, platform) => {
+    const row = { ...mockTracker, registrySlug: slug, baseUrl: url, platformType: platform }
+    expect(serializeTrackerResponse(row, null, keep)).toMatchObject({
+      baseUrl: url,
+      platformType: platform,
+      linked: true,
+    })
+  })
+
+  it("sends a linked row's address and platform from its entry, not its stale copies", () => {
+    const row = {
+      ...mockTracker,
+      registrySlug: "animebytes",
+      baseUrl: "https://old-host.example",
+      platformType: "gazelle",
+    }
+    expect(serializeTrackerResponse(row, null, keep)).toMatchObject({
+      baseUrl: "https://animebytes.tv",
+      platformType: "animebytes",
+      registrySlug: "animebytes",
+      linked: true,
+    })
+  })
+
+  const draftSlug = ALL_TRACKERS.find((t) => t.draft)?.slug
+
+  it.each([
+    ["no slug", null],
+    ["a slug the list no longer has", "gone-tracker"],
+    ["a draft entry's slug", draftSlug],
+  ])("keeps the stored copies of a row with %s and marks it unlinked", (_, slug) => {
+    expect(slug, "the registry has no draft entry left to test with").not.toBeUndefined()
+    const row = {
+      ...mockTracker,
+      registrySlug: slug ?? null,
+      baseUrl: "https://old-host.example",
+      platformType: "gazelle",
+    }
+    expect(serializeTrackerResponse(row, null, keep)).toMatchObject({
+      baseUrl: "https://old-host.example",
+      platformType: "gazelle",
+      registrySlug: slug ?? null,
+      linked: false,
+    })
   })
 })

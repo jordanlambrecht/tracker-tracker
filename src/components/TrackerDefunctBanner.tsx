@@ -2,12 +2,10 @@
 "use client"
 
 import { ExternalLinkSmallIcon, TriangleWarningIcon } from "@icons"
-import { useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
 import { Button, Card, Notice } from "@/components/ui"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
 import { formatJoinedDate } from "@/lib/formatters"
-import { trackerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
 /**
@@ -16,9 +14,9 @@ import type { TrackerSummary } from "@/types/api"
  * entry and not in `platformMeta`. Adapter metadata is fetched live from the
  * tracker's API, and a dead tracker has no API left to answer.
  *
- * The one component serves both render sites so the archive mutation exists
- * once: `variant="full"` on the tracker detail page (below the header, above
- * pause/error banners), `variant="compact"` in the dashboard's card grid.
+ * The one component serves both render sites, `variant="full"` on the tracker
+ * detail page (below the header, above pause/error banners) and
+ * `variant="compact"` in the dashboard's card grid.
  */
 interface TrackerDefunctBannerProps {
   /** Registry row for this tracker; `undefined` for a tracker with no registry match. */
@@ -47,56 +45,13 @@ function DefunctBannerBody({
   variant = "full",
   onArchived,
 }: TrackerDefunctBannerProps & { registryEntry: TrackerRegistryEntry }) {
-  const queryClient = useQueryClient()
-  const [archiving, setArchiving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { archiving, error, setActive } = useTrackerArchiveDelete(tracker.id)
 
-  /**
-   * Deliberately the same contract as TrackerSettingsSheet.handleArchive:
-   * PATCH the tracker with an `isActive` boolean, then write the returned row
-   * through the shared ["trackers"] cache and invalidate it. That cache backs
-   * the sidebar and the dashboard, neither remounted by navigating. Its only
-   * automatic repair is a poll interval in tens of minutes. Skipping the
-   * write-through reproduces the staleness bug the sheet was just fixed for.
-   *
-   * Unlike the sheet this sends `isActive: false` rather than a toggle: the
-   * button is only offered on a tracker that is still active, so there is no
-   * un-archive case to express and no stale-prop race to lose.
-   *
-   * Worth knowing: the sheet and this banner are now the two callers of the same
-   * archive contract, so a shared mutation hook would be the natural next step.
-   * It is deliberately not extracted here, because doing so would mean rewriting
-   * the sheet's archive path while its own fix is still landing.
-   */
+  // Sends `isActive: false` rather than the sheet's toggle. The button is only
+  // offered on an active tracker, so there is no un-archive case to express.
   async function handleArchiveNow() {
-    setArchiving(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/trackers/${tracker.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: false }),
-      })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        setError((body as { error?: string }).error ?? "Failed to archive tracker")
-        return
-      }
-
-      const updated = (await res.json()) as TrackerSummary
-      queryClient.setQueryData<TrackerSummary[]>(trackerQueryOptions.queryKey, (prev) =>
-        prev ? prev.map((t) => (t.id === updated.id ? updated : t)) : prev
-      )
-      // Not awaited: the refetch confirms the row already written through above,
-      // and awaiting it would delay the caller's redirect for a full round trip.
-      queryClient.invalidateQueries({ queryKey: trackerQueryOptions.queryKey })
-      onArchived?.(updated)
-    } catch {
-      setError("Network error while archiving")
-    } finally {
-      setArchiving(false)
-    }
+    const updated = await setActive(false)
+    if (updated) onArchived?.(updated)
   }
 
   // Authored as "YYYY-MM-DD" precisely so this renders as "May 11, 2026" with no

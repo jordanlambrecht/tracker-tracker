@@ -35,6 +35,7 @@ const TRACKER: TrackerSummary = {
   baseUrl: "https://aither.cc",
   registrySlug: null,
   platformType: "unit3d",
+  linked: true,
   isActive: true,
   lastPolledAt: null,
   lastError: null,
@@ -311,6 +312,20 @@ describe("TrackerSettingsSheet shared tracker cache", () => {
     expect(onClose).not.toHaveBeenCalled()
     expect(cachedTrackers(queryClient)).toEqual([TRACKER, OTHER])
     expect(queryClient.getQueryState(trackerQueryOptions.queryKey)?.isInvalidated).toBe(false)
+  })
+
+  it("reactivates an archived tracker, sending the opposite of its current state", async () => {
+    const user = userEvent.setup()
+    patchResult = jsonResponse(TRACKER)
+    const { queryClient, onUpdated } = renderSheet({ tracker: ARCHIVED })
+
+    await user.click(screen.getByRole("button", { name: "Reactivate" }))
+
+    await waitFor(() => expect(onUpdated).toHaveBeenCalledWith(TRACKER))
+    const [url, init] = trackerRequests()[0]
+    expect(url).toBe("/api/trackers/42")
+    expect(JSON.parse(init.body)).toEqual({ isActive: true })
+    expect(queryClient.getQueryState(trackerQueryOptions.queryKey)?.isInvalidated).toBe(true)
   })
 
   it("invalidates the shared cache after an ordinary save too", async () => {

@@ -37,6 +37,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     baseUrl: "https://aither.cc",
     registrySlug: null,
     platformType: "unit3d",
+    linked: true,
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
@@ -912,6 +913,59 @@ describe("computeAlerts", () => {
     ]
     const alerts = computeAlerts(trackers)
     expect(alerts.find((a) => a.type === "stale-data")).toBeUndefined()
+  })
+})
+
+describe("computeAlerts on a row the tracker list doesn't carry", () => {
+  const PAUSED_AT = "2026-10-30T09:00:00.000Z"
+  const UNLINKED_MESSAGE = "Not in the tracker list, so it isn't polled. Archive or delete it"
+
+  beforeEach(() => {
+    mockRegistryEntryFor.mockReset()
+  })
+
+  it.each<[string, Partial<TrackerSummary>, string | undefined]>([
+    [
+      "paused by the poll",
+      {
+        pausedAt: PAUSED_AT,
+        lastError:
+          "Not in the tracker list, so it isn't polled. It was set up for old-host.example",
+      },
+      PAUSED_AT,
+    ],
+    ["paused for failures first", { pausedAt: PAUSED_AT, lastError: "HTTP 301" }, PAUSED_AT],
+    ["paused by the user", { userPausedAt: PAUSED_AT }, PAUSED_AT],
+    ["not paused yet, with an old error", { lastError: "HTTP 301" }, undefined],
+  ])("raises the one unlinked alert when %s", (_, state, timestamp) => {
+    const alerts = computeAlerts([makeTracker({ ...state, linked: false })])
+    expect(alerts).toEqual([
+      {
+        key: "poll-paused-1",
+        type: "poll-paused",
+        trackerId: 1,
+        trackerName: "Aither",
+        trackerColor: "#00d4ff",
+        message: UNLINKED_MESSAGE,
+        timestamp,
+        dismissible: false,
+      },
+    ])
+  })
+
+  it("quiets the alerts its frozen last snapshot would raise", () => {
+    mockRegistryEntryFor.mockReturnValue(makeRegistryEntry())
+    const { latestStats } = makeTracker()
+    const frozen = makeTracker({
+      registrySlug: "aither",
+      lastPolledAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      latestStats: latestStats && { ...latestStats, ratio: 0.3, seedingCount: 0, warned: true },
+    })
+    const types = (row: TrackerSummary) => computeAlerts([row]).map((a) => a.type)
+
+    // The same snapshot on a linked row raises each of them
+    expect(types(frozen)).toEqual(["ratio-danger", "stale-data", "zero-seeding", "warned"])
+    expect(types({ ...frozen, linked: false })).toEqual(["poll-paused"])
   })
 })
 

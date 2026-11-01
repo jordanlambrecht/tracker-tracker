@@ -2,6 +2,7 @@
 import "server-only"
 
 import type { PlatformType } from "@/data/platform-types"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import type { TrackerRow as FullTrackerRow, TrackerSnapshotRow } from "@/lib/db/schema"
 import type { TrackerProwlarrState, TrackerSummary } from "@/types/api"
@@ -40,12 +41,14 @@ export function serializeTrackerResponse(
   mask: (val: string | null | undefined) => string | null,
   prowlarr: TrackerProwlarrState | null = null
 ): TrackerSummary {
+  const site = trackerSiteFor(tracker)
   return {
     id: tracker.id,
     name: tracker.name,
-    baseUrl: tracker.baseUrl,
+    baseUrl: site?.url ?? tracker.baseUrl,
     registrySlug: tracker.registrySlug ?? null,
-    platformType: tracker.platformType as PlatformType,
+    platformType: site?.platform ?? (tracker.platformType as PlatformType),
+    linked: site !== null,
     isActive: tracker.isActive,
     lastPolledAt: tracker.lastPolledAt?.toISOString() ?? null,
     lastError: tracker.lastError,

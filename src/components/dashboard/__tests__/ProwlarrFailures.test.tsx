@@ -33,6 +33,7 @@ function tracker(id: number, name: string, indexers: TrackerProwlarrIndexer[], i
     id,
     name,
     isActive,
+    linked: true,
     prowlarr: indexers.length > 0 ? { matchedBy: "auto", indexers } : null,
   } as unknown as TrackerSummary
 }

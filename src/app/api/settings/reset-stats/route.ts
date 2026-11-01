@@ -46,8 +46,8 @@ export async function POST(request: Request) {
       await tx.delete(trackerSnapshots)
       await tx.delete(clientSnapshots)
       await tx.update(trackers).set({ lastPolledAt: null })
-      // The restore's marker is what keeps an unlinked tracker unpolled until it
-      // is resumed. A null lastError fails ne() but has nothing to clear.
+      // The restore's marker is the only record of why a restored row came back
+      // unlinked, so it stays. A null lastError fails ne() but has nothing to clear.
       await tx
         .update(trackers)
         .set({ lastError: null })
