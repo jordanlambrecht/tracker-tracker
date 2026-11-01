@@ -47,6 +47,7 @@ export {
   GitHubIcon,
   GridIcon,
   HamburgerIcon,
+  HeartIcon,
   InfoIcon,
   LeechingIcon,
   PauseIcon,

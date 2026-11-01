@@ -1,5 +1,7 @@
 // src/components/settings/__tests__/AboutSection.test.tsx
 
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import { AboutSection } from "@/components/settings/AboutSection"
@@ -31,17 +33,24 @@ describe("AboutSection sponsor links", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer")
   })
 
-  it("presents both destinations as plain inline text links, not buttons", () => {
+  it("draws the GitHub Sponsors button in code, with a decorative heart", () => {
     render(<AboutSection />)
 
-    for (const name of ["GitHub Sponsors", "Buy Me a Coffee"]) {
-      const link = screen.getByRole("link", { name })
-      // A CTA-styled button would fail the brief: this must read as a link
-      // among links, matching the Repository/Documentation/License links above it.
-      expect(link.tagName).toBe("A")
-      expect(link.querySelector("svg")).toBeNull()
-      expect(link.className).toBe("text-accent hover:underline")
-    }
+    const link = screen.getByRole("link", { name: "GitHub Sponsors" })
+    expect(link).toHaveTextContent("Sponsor")
+    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+    expect(link.querySelector("img")).toBeNull()
+  })
+
+  it("shows the Buy Me a Coffee button from a file in public, named by its alt text", () => {
+    render(<AboutSection />)
+
+    const link = screen.getByRole("link", { name: "Buy Me a Coffee" })
+    const img = link.querySelector("img")
+    expect(img).toHaveAttribute("src", "/img/sponsor/bmc-button.png")
+    expect(img).toHaveAttribute("alt", "Buy Me a Coffee")
+    // A typo here ships a broken image, and the alt text would still pass.
+    expect(existsSync(join(process.cwd(), "public", "img", "sponsor", "bmc-button.png"))).toBe(true)
   })
 
   it("orders GitHub Sponsors ahead of Buy Me a Coffee", () => {
@@ -59,9 +68,7 @@ describe("AboutSection sponsor links", () => {
     const { container } = render(<AboutSection />)
 
     const sentence = container.querySelector("p")?.textContent
-    expect(sentence).toBe(
-      "Tracker Tracker is free and independently maintained. GitHub Sponsors for recurring support, Buy Me a Coffee for a one-off."
-    )
+    expect(sentence).toBe("Tracker Tracker is free and independently maintained.")
     // Guards the tone, which is the actual requirement here: no "if you find
     // this useful", no "please consider", no urgency, no gratitude-in-advance.
     for (const beg of ["please", "consider", "if you", "help keep", "support us", "donate"]) {
@@ -74,7 +81,10 @@ describe("AboutSection sponsor links", () => {
 
     expect(container.querySelector("script")).toBeNull()
     expect(container.querySelector("iframe")).toBeNull()
-    expect(container.querySelector("img")).toBeNull()
+    // Local images are fine. One whose src names a host is a request on every visit.
+    for (const img of Array.from(container.querySelectorAll("img"))) {
+      expect(img.getAttribute("src")).toMatch(/^\/(?!\/)/)
+    }
   })
 })
 
