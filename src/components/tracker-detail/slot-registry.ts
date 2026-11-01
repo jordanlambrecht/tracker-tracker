@@ -272,19 +272,30 @@ const snatchedGazelleSlot: SlotDefinition<StatCardBasicProps> = {
   },
 }
 
+/**
+ * Torrents uploaded, from whichever platform's meta carries the count. metaFor
+ * only answers for the tracker's own platform, so at most one branch is set.
+ */
+function uploadedTorrentCount(ctx: SlotContext): number | undefined {
+  return (
+    metaFor(ctx, "gazelle")?.community?.uploaded ??
+    metaFor(ctx, "animebytes")?.torrentsUploaded ??
+    metaFor(ctx, "retrotoon")?.uploadedTorrents
+  )
+}
+
 const torrentsUploadedSlot: SlotDefinition<StatCardBasicProps> = {
   id: "torrents-uploaded",
   category: "stat-card",
   component: StatCard as ComponentType<StatCardBasicProps>,
   priority: 24,
   resolve(ctx) {
-    const gazMeta = metaFor(ctx, "gazelle")
-    if (!gazMeta) return null
-    if (gazMeta.community?.uploaded == null) return null
-    if (gazMeta.community.uploaded <= 0) return null
+    const uploaded = uploadedTorrentCount(ctx)
+    if (uploaded == null) return null
+    if (uploaded <= 0) return null
     return {
       label: "Torrents Uploaded",
-      value: gazMeta.community.uploaded,
+      value: uploaded,
       accentColor: ctx.accentColor,
       icon: icon16(UploadArrowIcon),
     }

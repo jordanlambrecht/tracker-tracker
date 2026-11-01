@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
+import type { PlatformType } from "@/data/platform-types"
 import { anthelion } from "@/data/trackers/anthelion"
 import { torrentleech } from "@/data/trackers/torrentleech"
 import type { Snapshot, TrackerSummary } from "@/types/api"
@@ -14,6 +15,7 @@ import type {
   GGnPlatformMeta,
   HawkePlatformMeta,
   NebulancePlatformMeta,
+  RetrotoonPlatformMeta,
   Unit3dPlatformMeta,
 } from "@/types/tracker-stats"
 
@@ -1191,6 +1193,129 @@ describe("AnimeBytes context", () => {
     const rows = yenCard?.props.rows as { label: string; value: string | number }[]
     expect(rows[1].value).toBe("+¥0")
     expect(rows[2].value).toBe("—")
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Torrents Uploaded card
+//
+// One card reads the upload count from whichever platform's meta carries it:
+// Gazelle's community.uploaded, AnimeBytes' torrentsUploaded and RetroToon's
+// uploadedTorrents. A null or non-positive count hides it, as it always has.
+// ---------------------------------------------------------------------------
+
+describe("torrents-uploaded card", () => {
+  function gazelleCommunity(uploaded: number | null): GazellePlatformMeta {
+    return {
+      community: {
+        posts: 0,
+        torrentComments: 0,
+        collagesStarted: 0,
+        collagesContrib: 0,
+        requestsFilled: 0,
+        requestsVoted: 0,
+        perfectFlacs: 0,
+        // The type says number, the stored JSON can hold null.
+        uploaded: uploaded as number,
+        groups: 0,
+        snatched: 0,
+        invited: 0,
+        bountyEarned: null,
+        bountySpent: null,
+      },
+    }
+  }
+
+  function uploadedCard(platformType: PlatformType, meta: SlotContext["meta"]) {
+    const ctx: SlotContext = {
+      tracker: makeTracker({ platformType }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+    return resolveSlots(ctx)
+      .get("stat-card")
+      ?.find((s) => s.id === "torrents-uploaded")
+  }
+
+  const platforms: {
+    name: string
+    platformType: PlatformType
+    withCount: (n: number | null) => SlotContext["meta"]
+    withoutCount: SlotContext["meta"]
+  }[] = [
+    {
+      name: "Gazelle",
+      platformType: "gazelle",
+      withCount: gazelleCommunity,
+      withoutCount: { donor: true } satisfies GazellePlatformMeta,
+    },
+    {
+      name: "AnimeBytes",
+      platformType: "animebytes",
+      withCount: (n) => ({ torrentsUploaded: n ?? undefined }) satisfies AnimeBytesPlatformMeta,
+      withoutCount: { yenPerHour: 1 } satisfies AnimeBytesPlatformMeta,
+    },
+    {
+      name: "RetroToon World",
+      platformType: "retrotoon",
+      withCount: (n) => ({ uploadedTorrents: n ?? undefined }) satisfies RetrotoonPlatformMeta,
+      withoutCount: { snatched: 4 } satisfies RetrotoonPlatformMeta,
+    },
+  ]
+
+  for (const p of platforms) {
+    describe(p.name, () => {
+      it("shows the count", () => {
+        const card = uploadedCard(p.platformType, p.withCount(37))
+        expect(card?.props.label).toBe("Torrents Uploaded")
+        expect(card?.props.value).toBe(37)
+      })
+
+      it("is hidden when the count is 0", () => {
+        expect(uploadedCard(p.platformType, p.withCount(0))).toBeUndefined()
+      })
+
+      it("is hidden when the count is negative", () => {
+        expect(uploadedCard(p.platformType, p.withCount(-1))).toBeUndefined()
+      })
+
+      it("is hidden when the count is null or the platform did not report one", () => {
+        expect(uploadedCard(p.platformType, p.withCount(null))).toBeUndefined()
+        expect(uploadedCard(p.platformType, p.withoutCount)).toBeUndefined()
+      })
+
+      it("is hidden when there is no meta at all", () => {
+        expect(uploadedCard(p.platformType, null)).toBeUndefined()
+      })
+    })
+  }
+
+  it("reads only the field of the tracker's own platform", () => {
+    // AnimeBytes' and RetroToon's keys on a Gazelle tracker, and Gazelle's
+    // community on the other two, must not leak into the card.
+    const abOnGazelle = uploadedCard("gazelle", { torrentsUploaded: 9 })
+    const rtOnGazelle = uploadedCard("gazelle", { uploadedTorrents: 9 })
+    const gazOnAnimeBytes = uploadedCard("animebytes", gazelleCommunity(9))
+    const gazOnRetroToon = uploadedCard("retrotoon", gazelleCommunity(9))
+    const abOnRetroToon = uploadedCard("retrotoon", { torrentsUploaded: 9 })
+    const rtOnAnimeBytes = uploadedCard("animebytes", { uploadedTorrents: 9 })
+
+    for (const card of [
+      abOnGazelle,
+      rtOnGazelle,
+      gazOnAnimeBytes,
+      gazOnRetroToon,
+      abOnRetroToon,
+      rtOnAnimeBytes,
+    ]) {
+      expect(card).toBeUndefined()
+    }
+  })
+
+  it("stays off a GGn page, which stores no upload count", () => {
+    expect(uploadedCard("ggn", { hourlyGold: 5 })).toBeUndefined()
   })
 })
 
