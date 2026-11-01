@@ -3,7 +3,8 @@
 // Shared constants and predicates for tracker registry validation.
 // Used by both the CI script and the test suite.
 
-import type { TrackerRegistryEntry } from "@/data/tracker-registry"
+import { isIP } from "node:net"
+import { registryHostname, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { trackerHostKey } from "@/lib/tracker-matching"
 
@@ -112,21 +113,82 @@ export function validateDefunct(tracker: Partial<TrackerRegistryEntry>): {
 }
 
 /**
- * Every `announceHosts` entry must already be its own registrable domain. The
- * matcher reduces a host to that, so a pasted announce URL or a passkey
- * subdomain would still work and nothing else would catch the passkey. The
- * message names the index, not the value, so CI output never repeats one. An
- * empty list fails too, since a present field says someone checked.
+ * A host list entry must already be its own registrable domain. The matcher
+ * reduces a host to that, so a pasted announce URL or a passkey subdomain would
+ * still work and nothing else would catch the passkey. The matcher keeps an IP
+ * address or a local name whole, so those are refused here.
+ */
+function isRegistrableDomain(host: string): boolean {
+  return (
+    ANNOUNCE_HOST_RE.test(host) &&
+    trackerHostKey(host) === host &&
+    isIP(host) === 0 &&
+    !isUnsafeNetworkHost(host)
+  )
+}
+
+/**
+ * Every `announceHosts` entry must be a registrable domain. The message names
+ * the index, not the value, so CI output never repeats a passkey. An empty list
+ * fails too, since a present field says someone checked.
  */
 export function validateAnnounceHosts(tracker: Partial<TrackerRegistryEntry>): string[] {
   if (tracker.announceHosts !== undefined && tracker.announceHosts.length === 0) {
     return ["announceHosts is empty, so leave it out until someone checks where torrents announce"]
   }
   return (tracker.announceHosts ?? []).flatMap((host, i) =>
-    ANNOUNCE_HOST_RE.test(host) && trackerHostKey(host) === host
+    isRegistrableDomain(host)
       ? []
       : [`announceHosts[${i}] must be a lowercase registrable domain, never a URL or subdomain`]
   )
+}
+
+/**
+ * `previousHosts` follows the announceHosts rule, since attribution reads it
+ * too. The entry's own url host isn't a previous one.
+ */
+export function validatePreviousHosts(tracker: Partial<TrackerRegistryEntry>): string[] {
+  if (tracker.previousHosts !== undefined && tracker.previousHosts.length === 0) {
+    return ["previousHosts is empty, so leave it out"]
+  }
+  const ownHost = tracker.url ? registryHostname(tracker.url) : undefined
+  return (tracker.previousHosts ?? []).flatMap((host, i) => {
+    if (!isRegistrableDomain(host)) {
+      return [
+        `previousHosts[${i}] must be a lowercase registrable domain, never a URL or subdomain`,
+      ]
+    }
+    return host === ownHost ? [`previousHosts[${i}] is the host of this entry's own url`] : []
+  })
+}
+
+/**
+ * Host keys claimed by more than one entry through an announce or previous host.
+ * resolveTorrentTracker takes the first tracker whose keys hold a torrent's host
+ * and fleet aggregation takes the last, and the startup backfill links a row to
+ * the first entry on its host, so a shared host hands one tracker's torrents or
+ * rows to whichever wins. An entry may repeat its own hosts.
+ */
+export function findSharedHosts(
+  entries: readonly TrackerRegistryEntry[]
+): { host: string; slugs: string[] }[] {
+  const owners = new Map<string, Set<string>>()
+  const aliases = new Set<string>()
+  const claim = (host: string, slug: string, alias: boolean) => {
+    const key = trackerHostKey(host)
+    if (!key) return
+    owners.set(key, (owners.get(key) ?? new Set()).add(slug))
+    if (alias) aliases.add(key)
+  }
+  for (const entry of entries) {
+    claim(entry.url, entry.slug, false)
+    for (const host of [...(entry.announceHosts ?? []), ...(entry.previousHosts ?? [])]) {
+      claim(host, entry.slug, true)
+    }
+  }
+  return [...owners]
+    .filter(([key, slugs]) => aliases.has(key) && slugs.size > 1)
+    .map(([host, slugs]) => ({ host, slugs: [...slugs] }))
 }
 
 /**

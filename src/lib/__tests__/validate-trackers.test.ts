@@ -5,13 +5,17 @@
 //   - describe("user class ladder validation")
 //   - describe("defunct validation")
 //   - describe("announce hosts validation")
+//   - describe("previous hosts validation")
+//   - describe("shared hosts")
 //   - describe("url validation")
 
 import { describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
+  findSharedHosts,
   validateAnnounceHosts,
   validateDefunct,
+  validatePreviousHosts,
   validateTrackerUrl,
 } from "@/data/tracker-validation-rules"
 
@@ -338,6 +342,89 @@ describe("announce hosts validation", () => {
     expect(validateAnnounceHosts({ announceHosts: ["flacsfor.me", host] })).toEqual([
       "announceHosts[1] must be a lowercase registrable domain, never a URL or subdomain",
     ])
+  })
+
+  // The matcher keeps both whole, so only this rule turns them away.
+  it.each([
+    ["an IP address", "203.0.113.5"],
+    ["a local name", "seedbox.local"],
+  ])("%s produces an error that names its index", (_form, host) => {
+    expect(validateAnnounceHosts({ announceHosts: ["flacsfor.me", host] })).toEqual([
+      "announceHosts[1] must be a lowercase registrable domain, never a URL or subdomain",
+    ])
+  })
+})
+
+describe("previous hosts validation", () => {
+  const moved: Partial<TrackerRegistryEntry> = { url: "https://www.new-home.example" }
+
+  it("registrable domains other than the url's produce no errors", () => {
+    expect(
+      validatePreviousHosts({ ...moved, previousHosts: ["old-home.example", "older.co.uk"] })
+    ).toEqual([])
+  })
+
+  it("an absent field produces no errors", () => {
+    expect(validatePreviousHosts(moved)).toEqual([])
+  })
+
+  it("an empty list produces an error", () => {
+    expect(validatePreviousHosts({ ...moved, previousHosts: [] })).toEqual([
+      "previousHosts is empty, so leave it out",
+    ])
+  })
+
+  // Attribution reduces these to registrable domains too, so the announceHosts
+  // rule applies, passkey subdomain included.
+  it.each([
+    ["a URL", "https://old-home.example"],
+    ["a subdomain", "tracker.old-home.example"],
+    ["an uppercase domain", "Old-Home.example"],
+    ["an IP address", "203.0.113.5"],
+    ["a local name", "seedbox.local"],
+  ])("%s produces an error that names its index, not its value", (_form, host) => {
+    expect(validatePreviousHosts({ ...moved, previousHosts: ["old-home.example", host] })).toEqual([
+      "previousHosts[1] must be a lowercase registrable domain, never a URL or subdomain",
+    ])
+  })
+
+  // Compared without the url's www., the way the backfill reads a stored address.
+  it("the host of the entry's own url produces an error", () => {
+    expect(validatePreviousHosts({ ...moved, previousHosts: ["new-home.example"] })).toEqual([
+      "previousHosts[0] is the host of this entry's own url",
+    ])
+  })
+})
+
+describe("shared hosts", () => {
+  const entry = (slug: string, url: string, hosts: Partial<TrackerRegistryEntry> = {}) =>
+    ({ slug, url, ...hosts }) as TrackerRegistryEntry
+  const home = entry("home", "https://home.example", { announceHosts: ["home-cdn.example"] })
+
+  it.each([
+    ["the url host of another entry", "home.example"],
+    ["an announce host of another entry", "home-cdn.example"],
+  ])("reports a previous host that is %s", (_where, host) => {
+    const moved = entry("moved", "https://moved.example", { previousHosts: [host] })
+
+    expect(findSharedHosts([home, moved])).toEqual([{ host, slugs: ["home", "moved"] }])
+  })
+
+  it("reports an announce host that is the url host of another entry", () => {
+    const other = entry("other", "https://other.example", { announceHosts: ["home.example"] })
+
+    expect(findSharedHosts([home, other])).toEqual([
+      { host: "home.example", slugs: ["home", "other"] },
+    ])
+  })
+
+  it("lets an entry list one of its own announce hosts as a previous host", () => {
+    const moved = entry("moved", "https://moved.example", {
+      announceHosts: ["old-moved.example"],
+      previousHosts: ["old-moved.example"],
+    })
+
+    expect(findSharedHosts([home, moved])).toEqual([])
   })
 })
 

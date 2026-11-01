@@ -48,7 +48,10 @@ export interface TrackerTag {
   color: string
   /** The stored URL. Torrents match on its host only when the row has no registry entry. */
   baseUrl?: string
-  /** Registry entry whose url and `announceHosts` match torrents by announce host (issue #152). */
+  /**
+   * Registry entry whose url, `announceHosts` and `previousHosts` match torrents by announce
+   * host (issue #152).
+   */
   registrySlug: string | null
 }
 

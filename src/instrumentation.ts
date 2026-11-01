@@ -1,8 +1,8 @@
 // src/instrumentation.ts
 //
-// Next.js server boot hook. Names the registry entry of any tracker row that
-// predates the registry_slug column, then recovers the scheduler from a
-// persisted encryption key so polling survives container restarts without login.
+// Next.js server boot hook. Links tracker rows with no registry slug to the
+// tracker list by host, then recovers the scheduler from a persisted encryption
+// key so polling survives container restarts without login.
 
 export async function register() {
   // Only run on Node.js runtime (not Edge)
@@ -21,9 +21,9 @@ export async function register() {
     )
   }
 
-  // Before the key check below, which returns early: a row that predates
-  // trackers.registry_slug has to be named whether or not polling starts on
-  // this boot. The call swallows its own failures and never throws.
+  // Before the key check below, which returns early. A row with no slug has to
+  // be linked whether or not polling starts on this boot. The call swallows its
+  // own failures and never throws.
   await backfillRegistrySlugs()
 
   try {

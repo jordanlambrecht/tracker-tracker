@@ -105,6 +105,12 @@ export interface TrackerRegistryEntry {
    * since either can carry the passkey.
    */
   announceHosts?: string[]
+  /**
+   * Domains the site used before its `url`, written like `announceHosts`. A row
+   * stored on one is linked to this entry at startup, and torrents still
+   * announcing there stay matched.
+   */
+  previousHosts?: string[]
   draft?: boolean
   warning?: boolean
   warningNote?: string
@@ -195,10 +201,10 @@ export function registryBonusName(entry: TrackerRegistryEntry | undefined): stri
  * a restored backup can carry because it never passed the create route's
  * validateHttpUrl.
  *
- * The startup backfill is the only lookup by URL: it is how a row that predates
- * `registrySlug` is matched to an entry once. Nothing else may reach the
- * registry by URL. The poll also uses it, but only to name the host an unlinked
- * row was set up for.
+ * The startup backfill is the only lookup by URL. It is how a row with no
+ * `registrySlug` is matched to an entry, by its url or `previousHosts`. Nothing
+ * else may reach the registry by URL. The poll also uses it, but only to name
+ * the host an unlinked row was set up for.
  */
 export function registryHostname(url: string): string | undefined {
   try {

@@ -38,17 +38,7 @@ vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(),
     transaction: vi.fn(),
-    update: vi.fn(),
   },
-}))
-
-// The post-backfill release is one UPDATE, so its WHERE is the only record a
-// mocked db keeps of which rows it touches.
-vi.mock("drizzle-orm", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("drizzle-orm")>()),
-  and: (...conditions: unknown[]) => ({ and: conditions }),
-  eq: (column: unknown, value: unknown) => ({ eq: [column, value] }),
-  isNotNull: (column: unknown) => ({ isNotNull: column }),
 }))
 
 // Sentinel objects so an insert/delete can be traced back to its table.
@@ -429,26 +419,6 @@ function onlyInsert(recorder: TxRecorder, tableName: string): Record<string, unk
   return rows[0].values
 }
 
-interface DbUpdateCall {
-  table: unknown
-  values: Record<string, unknown>
-  where: unknown
-}
-
-/** Records every update the route makes through the global db, after the commit. */
-function mockDbUpdate(): DbUpdateCall[] {
-  const calls: DbUpdateCall[] = []
-  vi.mocked(db.update).mockImplementation(((table: unknown) => ({
-    set: (values: Record<string, unknown>) => ({
-      where: (where: unknown) => {
-        calls.push({ table, values, where })
-        return Promise.resolve([])
-      },
-    }),
-  })) as never)
-  return calls
-}
-
 function registryEntry(slug: string): TrackerRegistryEntry {
   const entry = getTrackerBySlug(slug)
   if (!entry) throw new Error(`no registry entry for ${slug}`)
@@ -462,7 +432,6 @@ const RED = registryEntry("redacted")
 
 describe("POST /api/settings/backup/restore — credential re-encryption", () => {
   let recorder: TxRecorder
-  let dbUpdates: DbUpdateCall[]
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -477,7 +446,6 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) => fn(created.tx)
     )
-    dbUpdates = mockDbUpdate()
   })
 
   // ─── 0. Notify toggles survive the trip ──────────────────────────────────
@@ -1217,8 +1185,8 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
       }
     )
 
-    // The release after the backfill finds rows by this marker, so a file must
-    // not be able to plant it on a row the restore leaves polling.
+    // Planted on a linked row, the marker would mislabel a tracker that polls,
+    // and reset-stats never clears it.
     it("writes no lastError for a linked tracker whose file row carries the marker", async () => {
       const res = await restoreTrackers([
         { registrySlug: RED.slug, lastError: UNLINKED_RESTORE_ERROR },
@@ -1311,44 +1279,6 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
       expect(linked.registrySlug).toBe(RED.slug)
       expect(linked).not.toHaveProperty("pausedAt")
       expect(linked).not.toHaveProperty("lastError")
-    })
-
-    // The backfill links a slugless row by its host after the commit, and that
-    // row then polls the registry's address.
-    it("resumes only the paused rows the backfill linked, before polling restarts", async () => {
-      const res = await restoreTrackers([{ registrySlug: null }])
-      expect(res.status).toBe(200)
-
-      expect(dbUpdates).toEqual([
-        {
-          table: expect.objectContaining({ __table: "trackers" }),
-          values: { pausedAt: null, lastError: null, lastErrorAt: null },
-          where: {
-            and: [
-              { isNotNull: "trackers.registry_slug" },
-              { eq: ["trackers.last_error", UNLINKED_RESTORE_ERROR] },
-            ],
-          },
-        },
-      ])
-      const [linked] = vi.mocked(backfillRegistrySlugs).mock.invocationCallOrder
-      const [released] = vi.mocked(db.update).mock.invocationCallOrder
-      const [restarted] = vi.mocked(ensureSchedulerRunning).mock.invocationCallOrder
-      expect(linked).toBeLessThan(released)
-      expect(released).toBeLessThan(restarted)
-    })
-
-    // The restore has committed by then, so a throw would answer 500 for it and
-    // leave polling stopped.
-    it("keeps the rows paused and still restarts polling when the release fails", async () => {
-      vi.mocked(db.update).mockImplementation(() => {
-        throw new Error("connection reset")
-      })
-      const res = await restoreTrackers([{ registrySlug: null }])
-      expect(res.status).toBe(200)
-
-      expect(onlyInsert(recorder, "trackers").pausedAt).toBeInstanceOf(Date)
-      expect(ensureSchedulerRunning).toHaveBeenCalledTimes(1)
     })
   })
 

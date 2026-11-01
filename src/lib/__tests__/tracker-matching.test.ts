@@ -3,7 +3,25 @@
 // Issue #152: torrents were matched to trackers only by qBittorrent tag, so
 // users without per-tracker tags saw empty dashboards.
 
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+
+// An entry whose old domain is only in previousHosts. ReelFliX lists its old
+// domain in announceHosts too, so it would match without previousHosts.
+const MOVED = vi.hoisted(() => ({
+  slug: "moved-tracker",
+  url: "https://new-home.example",
+  previousHosts: ["old-home.example"],
+}))
+
+vi.mock("@/data/tracker-registry", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/data/tracker-registry")>()
+  return {
+    ...actual,
+    registryEntryFor: (tracker: { registrySlug: string | null }) =>
+      tracker.registrySlug === MOVED.slug ? MOVED : actual.registryEntryFor(tracker),
+  }
+})
+
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { ALL_TRACKERS } from "@/data/trackers"
 import {
@@ -122,6 +140,16 @@ describe("registry announceHosts", () => {
         site(null),
       ])
     ).toEqual(new Set(["redacted.sh", "flacsfor.me", "aither.cc"]))
+  })
+
+  it("matches a linked tracker on a domain its entry used before", () => {
+    expect(trackerAnnounceKeys(site(MOVED.url, MOVED.slug))).toEqual([
+      "new-home.example",
+      "old-home.example",
+    ])
+    expect(
+      announceMatchesTracker("https://tracker.old-home.example/announce", site(null, MOVED.slug))
+    ).toBe(true)
   })
 })
 

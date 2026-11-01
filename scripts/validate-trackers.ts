@@ -13,6 +13,7 @@ import path from "node:path"
 import { DEFAULT_API_PATHS, VALID_PLATFORM_TYPES } from "@/data/platform-types"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
+  findSharedHosts,
   isEmpty,
   LOGO_NAME_RE,
   normalizeTrackerUrl,
@@ -21,6 +22,7 @@ import {
   VALID_CONTENT_CATEGORIES,
   validateAnnounceHosts,
   validateDefunct,
+  validatePreviousHosts,
   validateTrackerUrl,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
@@ -44,6 +46,7 @@ function validate(slugFilter?: string[]): TrackerResult[] {
   const dupeSlugs = allSlugs.filter((s: string, i: number) => allSlugs.indexOf(s) !== i)
   const allUrls = ALL_TRACKERS.map((t: TrackerRegistryEntry) => normalizeTrackerUrl(t.url))
   const dupeUrls = allUrls.filter((u: string, i: number) => allUrls.indexOf(u) !== i)
+  const sharedHosts = findSharedHosts(ALL_TRACKERS)
 
   const nonDraft = ALL_TRACKERS.filter((t: TrackerRegistryEntry) => !t.draft)
   const trackers = slugFilter
@@ -57,6 +60,12 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     // ── Global duplication checks ─────────────────────────────────────
     if (dupeSlugs.includes(tracker.slug)) errors.push("Duplicate slug")
     if (dupeUrls.includes(normalizeTrackerUrl(tracker.url))) errors.push("Duplicate URL")
+    for (const { host, slugs } of sharedHosts) {
+      if (slugs.includes(tracker.slug)) {
+        const others = slugs.filter((s) => s !== tracker.slug).join(", ")
+        errors.push(`Host "${host}" is also claimed by ${others}`)
+      }
+    }
 
     // ── Required fields (errors) ──────────────────────────────────────
     if (!SLUG_RE.test(tracker.slug)) errors.push("Invalid slug format")
@@ -236,8 +245,9 @@ function validate(slugFilter?: string[]): TrackerResult[] {
     errors.push(...defunct.errors)
     warnings.push(...defunct.warnings)
 
-    // ── Announce hosts ────────────────────────────────────────────────
+    // ── Announce and previous hosts ───────────────────────────────────
     errors.push(...validateAnnounceHosts(tracker))
+    errors.push(...validatePreviousHosts(tracker))
 
     // ── Warn-level fields ─────────────────────────────────────────────
     if (isEmpty(tracker.abbreviation)) warnings.push("Missing abbreviation")

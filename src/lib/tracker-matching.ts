@@ -90,8 +90,8 @@ export interface AnnounceSource {
 const announceKeyCache = new Map<string, readonly string[]>()
 
 /**
- * The host keys of the registry entry's url and `announceHosts`. A row the
- * registry does not carry has only its stored URL's.
+ * The host keys of the registry entry's url, `announceHosts` and
+ * `previousHosts`. A row the registry does not carry has only its stored URL's.
  */
 export function trackerAnnounceKeys(tracker: AnnounceSource): readonly string[] {
   const baseUrl = tracker.baseUrl ?? ""
@@ -102,7 +102,7 @@ export function trackerAnnounceKeys(tracker: AnnounceSource): readonly string[] 
 
   const entry = registryEntryFor({ registrySlug })
   const own = trackerHostKey(entry?.url ?? baseUrl)
-  const extra = entry?.announceHosts ?? []
+  const extra = [...(entry?.announceHosts ?? []), ...(entry?.previousHosts ?? [])]
   const keys = [
     ...new Set(
       [own, ...extra.map((h) => trackerHostKey(h))].filter((k): k is string => k !== null)

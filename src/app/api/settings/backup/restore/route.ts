@@ -4,7 +4,7 @@
 // reencryptField, prowlarrPinFields, restoredApiPath
 
 import { createHash } from "node:crypto"
-import { and, eq, isNotNull } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { DEFAULT_API_PATHS } from "@/data/platform-types"
 import { registryEntryFor } from "@/data/tracker-registry"
@@ -404,7 +404,6 @@ export async function POST(request: Request) {
   let clientCredentialsCleared = 0
   let totpDisabledOnRestore = false
   let orphanedRecordsSkipped = 0
-  let trackersPausedOnRestore = 0
   let mouseholeCleared = 0
 
   try {
@@ -538,7 +537,6 @@ export async function POST(request: Request) {
               ),
               platformType: fields.platformType as string | undefined,
             }
-        if (!entry) trackersPausedOnRestore++
         if (!isEncrypted && (fields.mouseholeUrl || fields.encryptedMouseholeToken)) {
           mouseholeCleared++
         }
@@ -1149,26 +1147,9 @@ export async function POST(request: Request) {
   }
 
   // The boot-time backfill ran long before these rows existed, so a tracker from
-  // a backup older than registry_slug would stay unlinked and never poll.
+  // a backup older than registry_slug would stay unlinked and never poll. Each
+  // row it links also loses the pause and marker the insert gave it.
   await backfillRegistrySlugs({ force: true })
-
-  // A row the backfill linked now polls the registry's address, so the restore's
-  // pause comes off it. On failure every unlinked row simply stays paused.
-  if (trackersPausedOnRestore > 0) {
-    try {
-      await db
-        .update(trackers)
-        .set({ pausedAt: null, lastError: null, lastErrorAt: null })
-        .where(
-          and(isNotNull(trackers.registrySlug), eq(trackers.lastError, UNLINKED_RESTORE_ERROR))
-        )
-    } catch (err) {
-      log.warn(
-        { error: errMsg(err) },
-        "Could not resume the restored trackers the backfill linked, so they stay paused"
-      )
-    }
-  }
 
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
   // Restarting here means a direct API caller does not depend on a page load to

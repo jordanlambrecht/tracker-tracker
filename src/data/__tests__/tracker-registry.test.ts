@@ -20,6 +20,7 @@ import {
   type TrackerRegistryEntry,
 } from "@/data/tracker-registry"
 import {
+  findSharedHosts,
   isEmpty,
   LOGO_NAME_RE,
   normalizeTrackerUrl,
@@ -28,10 +29,10 @@ import {
   VALID_CONTENT_CATEGORIES,
   validateAnnounceHosts,
   validateDefunct,
+  validatePreviousHosts,
   validateTrackerUrl,
 } from "@/data/tracker-validation-rules"
 import { ALL_TRACKERS } from "@/data/trackers"
-import { trackerHostKey } from "@/lib/tracker-matching"
 import { isValidHex } from "@/lib/validators"
 
 const VALID_PLATFORMS = VALID_PLATFORM_TYPES
@@ -82,25 +83,9 @@ describe("tracker registry", () => {
     expect(dupes, `Shared hostnames: ${dupes.join(", ")}`).toEqual([])
   })
 
-  it("has no announce host shared with another entry", () => {
-    // resolveTorrentTracker takes the first tracker whose keys hold a torrent's
-    // host and fleet aggregation takes the last, so a shared alias hands one
-    // tracker's torrents to whichever wins.
-    const owners = new Map<string, Set<string>>()
-    const claim = (key: string | null, slug: string) => {
-      if (key) owners.set(key, (owners.get(key) ?? new Set()).add(slug))
-    }
-    for (const t of ALL_TRACKERS) {
-      claim(trackerHostKey(t.url), t.slug)
-      for (const host of t.announceHosts ?? []) claim(trackerHostKey(host), t.slug)
-    }
-    const aliasKeys = new Set(
-      ALL_TRACKERS.flatMap((t) => (t.announceHosts ?? []).map((h) => trackerHostKey(h)))
-    )
-    const shared = [...owners]
-      .filter(([key, slugs]) => aliasKeys.has(key) && slugs.size > 1)
-      .map(([key, slugs]) => `${key} (${[...slugs].join(", ")})`)
-    expect(shared, `Shared announce hosts: ${shared.join("; ")}`).toEqual([])
+  // findSharedHosts says what a shared announce or previous host breaks.
+  it("has no announce or previous host shared with another entry", () => {
+    expect(findSharedHosts(ALL_TRACKERS)).toEqual([])
   })
 
   it("every tracker has an explicit draft field (true or false)", () => {
@@ -145,6 +130,10 @@ describe("tracker registry", () => {
         // Drafts are committed too, so a passkey here would reach git as well.
         it("has valid announceHosts", () => {
           expect(validateAnnounceHosts(tracker)).toEqual([])
+        })
+
+        it("has valid previousHosts", () => {
+          expect(validatePreviousHosts(tracker)).toEqual([])
         })
       })
     }
@@ -316,6 +305,10 @@ describe("tracker registry", () => {
 
         it("has valid announceHosts", () => {
           expect(validateAnnounceHosts(tracker)).toEqual([])
+        })
+
+        it("has valid previousHosts", () => {
+          expect(validatePreviousHosts(tracker)).toEqual([])
         })
 
         // ── Warn-level fields (collected, not asserted) ──────────────

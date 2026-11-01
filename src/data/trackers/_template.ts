@@ -64,6 +64,7 @@ export const mytracker: TrackerRegistryEntry = {
   trackerHubSlug: "", // slug on trackerhub.xyz, if listed. "" if none
   statusPageUrl: "", // external status page URL. "" if none
   // announceHosts: ["flacsfor.me"], // optional. Domains torrents announce on, checked in your client. Omit if unchecked. Registrable domains only, never a URL or subdomain
+  // previousHosts: ["reelflix.xyz"], // optional. Domains the site used before its url. Registrable domains only, never the current one
 
   // ── Community ───────────────────────────────────────────────────────
   // Lowest to highest. Flag staff/donor classes outsideLadder: "above" and

@@ -112,6 +112,7 @@ export const mytracker: TrackerRegistryEntry = {
   trackerHubSlug: "", // slug on trackerhub.xyz, if listed, "" if none
   statusPageUrl: "", // external status page URL, "" if none
   // announceHosts: ["flacsfor.me"], // optional, domains torrents announce on as checked in your client, registrable domains only, never a URL or subdomain, omit if unchecked
+  // previousHosts: ["reelflix.xyz"], // optional, domains the site used before its url, registrable domains only, never the current one
 
   // ── Community ───────────────────────────────────────────────────────
   userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
@@ -431,6 +432,20 @@ Write each one as its registrable domain, `flacsfor.me` rather than `tracker.fla
 
 ```typescript
 announceHosts: ["flacsfor.me"]
+```
+
+#### `previousHosts`
+
+Type: `string[]`
+
+Optional. The domains the site used before its `url`. When a tracker moves, set `url` to the new domain and list the old one here. A tracker someone added on the old domain is linked to this entry the next time the app starts, and torrents that still announce on the old domain keep matching. Leave the field out if the tracker never moved.
+
+Once linked, those trackers send their API keys to `url`, so a `previousHosts` change is merged only with a link to the tracker's own announcement of the move, never on a contributor's word. Put that link in the PR.
+
+Write each one as its registrable domain, as for `announceHosts`. The registry test and `scripts/validate-trackers.ts` reject a URL, a subdomain, the domain in `url`, an empty list, and a domain another tracker already lists.
+
+```typescript
+previousHosts: ["reelflix.xyz"]
 ```
 
 ---

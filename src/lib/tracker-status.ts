@@ -113,8 +113,8 @@ function getPauseState(tracker: {
 }
 
 // The lastError a backup restore pauses a tracker with when the registry cannot
-// place its address. The restore lifts it from each row its backfill links. On
-// the rest it stays, since nothing polls or resumes a row with no slug.
+// place its address. The backfill lifts it from each row it links. On the rest
+// it stays, since nothing polls or resumes a row with no slug.
 const UNLINKED_RESTORE_ERROR =
   "Restored from a backup, and its address could not be matched to a known tracker. Check it before resuming"
 
