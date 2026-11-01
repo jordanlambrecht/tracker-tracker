@@ -367,11 +367,23 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ### HTTP 429: Too many failed login attempts
 
-**Cause:** Auto-lockout triggered after too many failed attempts.
+**Cause:** Auto-lockout triggered after too many failed attempts. By default, 5 failed attempts lock the login for 15 minutes.
 
 !!! success "Solution"
 
-    Wait for the lockout to expire (time shown on login page). If you can't wait, connect to the database and clear `lockedUntil` in the `appSettings` table.
+    Set `DISABLE_LOGIN_LOCKOUT=true` to get back in. The in-app lockout setting sits behind the login, so you cannot reach it.
+
+    1. In `docker-compose.yml`, uncomment the `DISABLE_LOGIN_LOCKOUT: "true"` line in the app service's `environment` block.
+    2. Run `docker compose up -d` to recreate the container.
+    3. Log in. A successful login clears the failed attempts and the lockout.
+    4. Comment the line out again and run `docker compose up -d`. While it is set, lockouts are not enforced and the app logs a warning.
+
+    If you would rather leave the compose file alone, wait for the lockout to expire (the login page does not show the time) or clear it in the database:
+
+    ```bash
+    docker exec tracker-tracker-db sh -c \
+      'psql -U "$POSTGRES_USER" tracker_tracker -c "UPDATE app_settings SET failed_login_attempts = 0, locked_until = NULL;"'
+    ```
 
 ---
 

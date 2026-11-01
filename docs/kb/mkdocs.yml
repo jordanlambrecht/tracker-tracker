@@ -60,6 +60,7 @@ nav:
       - Platform Differences: reference/platform-differences.md
   - Troubleshooting: troubleshooting.md
   - Contributing:
+      - Local Development: contributing/local-development.md
       - Adding a Tracker: contributing/adding-a-tracker.md
       - Bento Grid Slot System: contributing/slot-system.md
       - Tracker API Responses:

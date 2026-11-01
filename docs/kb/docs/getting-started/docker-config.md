@@ -15,7 +15,7 @@ Customize Tracker Tracker via environment variables, volumes, ports, reverse pro
 
 | Variable            | Description                                                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `SESSION_SECRET`    | Protects your session cookies. Minimum 32 characters. Generate with `openssl rand -base64 48`.                            |
+| `SESSION_SECRET`    | Signs your session cookies and also wraps your encryption key. Minimum 32 characters. Generate with `openssl rand -base64 48`. Never change it after setup, because [password recovery](../reference/password-recovery.md) needs the original value. |
 | `POSTGRES_PASSWORD` | Password for the PostgreSQL container. Generate with `openssl rand -base64 24`. Skip this if you're using `DATABASE_URL`. |
 
 ### Optional
@@ -33,6 +33,7 @@ Customize Tracker Tracker via environment variables, volumes, ports, reverse pro
 | `TZ`             | `UTC`                | Timezone for scheduled tasks and log timestamps (e.g. `America/Chicago`, `Europe/London`).                                                                      |
 | `LOG_LEVEL`      | `info`               | Log verbosity. Options: `error`, `warn`, `info`, `debug`.                                                                                                       |
 | `LOG_FILE`       | _(none)_             | Write logs to disk at this container path (e.g. `/data/logs/tracker-tracker.log`).                                                                              |
+| `DISABLE_LOGIN_LOCKOUT` | _(unset)_     | Set `true` to stop failed-attempt lockouts being enforced, for when you have locked yourself out, because the in-app toggle sits behind the login you cannot reach. Also suppresses enforcement on the backup-restore password check. Failed attempts are still counted, and a successful login clears them. Unset it once you are back in. See [HTTP 429](../troubleshooting.md#http-429-too-many-failed-login-attempts). |
 
 !!! info "Settings vs environment variables"
     Day-to-day options (polling interval, privacy mode, proxy config, backup schedule, lockout policy) live in the app under **Settings**. Environment variables control infrastructure: database, ports, logging.

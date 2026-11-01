@@ -1,11 +1,12 @@
 ![CI](https://github.com/jordanlambrecht/tracker-tracker/actions/workflows/ci.yml/badge.svg)
 ![Version](https://img.shields.io/github/package-json/v/jordanlambrecht/tracker-tracker)
 ![Self-Hosted](https://img.shields.io/badge/self--hosted-Docker-2496ed)
+![Docker Pulls](https://img.shields.io/docker/pulls/jordyjordy/tracker-tracker)
 
 [![Documentation](https://img.shields.io/badge/Documentation-→-00d4ff)](https://jordanlambrecht.github.io/tracker-tracker/)
 
 <p align="center">
-  <img src="public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="400" />
+  <img src="https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/public/img/trackerTracker_logo.svg" alt="Tracker Tracker" width="400" />
 </p>
 
 Self-hosted dashboard for monitoring private tracker stats over time. Track upload, download, ratio, buffer, seedbonus, and rank across all your trackers from one place.
@@ -14,98 +15,31 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 
 - Per-tracker and fleet-wide stats with 30+ charts
 - UNIT3D, Gazelle, GGn, Nebulance, MAM, and AvistaZ network support out of the box
-- qBittorrent and Transmission integration - cross-seed tracking, activity heatmaps, speed history, etc
-- Prowlarr integration - shows each tracker's indexer status and stats from one or more Prowlarr instances
+- qBittorrent and Transmission integration, with cross-seed tracking, activity heatmaps, and speed history ([download clients](https://jordanlambrecht.github.io/tracker-tracker/features/download-clients/))
+- Prowlarr integration that shows each tracker's indexer status and stats from one or more Prowlarr instances
 - Everything stays on your machine. No telemetry, no phoning home.
 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/trackerTracker_screenshot_dashboard.png" alt="Tracker Tracker Dashboard" width="1080" />
+  <img src="https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/docs/trackerTracker_screenshot_dashboard.png" alt="Tracker Tracker Dashboard" width="1080" />
 </p>
 
 <p align="center">
-  <img src="docs/trackerTracker_screenshot_trackerPage_v2.png" alt="Tracker Tracker Dashboard" width="1080" />
+  <img src="https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/docs/trackerTracker_screenshot_trackerPage_v2.png" alt="Tracker Tracker tracker page" width="1080" />
 </p>
 
-You can check out a few other, longer, screenshots in the docs folder.
+More screenshots are in the [docs folder](https://github.com/jordanlambrecht/tracker-tracker/tree/main/docs).
 
-## Supported Trackers
+## Supported trackers
 
-| Tracker               | Platform  | Status                 | Note                                              |
-| --------------------- | --------- | ---------------------- | ------------------------------------------------- |
-| Aither                | UNIT3D    | ✅ Verified            |                                                   |
-| Anthelion             | Nebulance | ✅ Verified            |                                                   |
-| Blutopia              | UNIT3D    | ✅ Verified            |                                                   |
-| Concertos             | UNIT3D    | ✅ Verified            |                                                   |
-| FearNoPeer            | UNIT3D    | ✅ Verified            |                                                   |
-| GazelleGames (GGn)    | GGn       | ✅ Verified            |                                                   |
-| LST                   | UNIT3D    | ✅ Verified            |                                                   |
-| Nebulance             | Nebulance | ✅ Verified            |                                                   |
-| OldToons              | UNIT3D    | ✅ Verified            |                                                   |
-| OnlyEncodes           | UNIT3D    | ✅ Verified            |                                                   |
-| Orpheus (OPS)         | Gazelle   | ✅ Verified            |                                                   |
-| Phoenix Project (PP)  | Gazelle   | ✅ Verified            |                                                   |
-| Racing4Everyone       | UNIT3D    | ✅ Verified            |                                                   |
-| Redacted (RED)        | Gazelle   | ✅ Verified            |                                                   |
-| ReelFlix              | UNIT3D    | ✅ Verified            |                                                   |
-| SkipTheCommercials    | UNIT3D    | ✅ Verified            |                                                   |
-| Seedpool              | UNIT3D    | ✅ Verified            |                                                   |
-| Upload.cx             | UNIT3D    | ✅ Verified            |                                                   |
-| Yu-Scene              | UNIT3D    | ✅ Verified            |                                                   |
-| Zenith                | UNIT3D    | 🟡 Unverified          |                                                   |
-| IPTorrents            | IPTorrents| 🟡 Unverified          | Session-cookie scraper, no public API              |
-| TorrentLeech          | TorrentLeech | 🟡 Unverified       | Username/password login, no public API             |
-| Portugas              | UNIT3D    | 📋 Draft               | API endpoint unavailable on this custom build     |
-| AlphaRatio            | Gazelle   | 🟡 Unverified ⛔ Stuck |                                                   |
-| AnimeBytes            | AnimeBytes | 🟡 Unverified         | Own API (/api/stats/personal), not Gazelle        |
-| BroadcastheNet (BTN)  | BTN       | 🟡 Unverified          | JSON-RPC adapter; needs an account holder to verify |
-| Empornium             | Gazelle   | 🟡 Unverified ⛔ Stuck | XXX trackers aren't really my jam, so PRs welcome |
-| GreatPosterWall (GPW) | Gazelle   | 🟡 Unverified          |                                                   |
-| MoreThanTV (MTV)      | Gazelle   | 🟡 Unverified          |                                                   |
-| PassThePopcorn (PTP)  | Gazelle   | 🟡 Unverified          |                                                   |
-| 720pier               | Custom    | 📋 Needs adapter       |                                                   |
-| ABTorrents            | Custom    | 📋 Needs adapter       |                                                   |
-| AvistaZ               | AvistaZ   | ✅ Verified            | Cookie auth + HTML scraping                       |
-| AnimeZ                | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
-| CinemaZ               | AvistaZ   | ✅ Verified            | Same adapter as AvistaZ                           |
-| ExoticaZ              | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
-| PrivateHD             | AvistaZ   | 🟡 Unverified          | Same adapter as AvistaZ                           |
-| MyAnonamouse (MAM)    | MAM       | ✅ Verified            | Cookie auth via mam_id                            |
-| DarkPeers             | UNIT3D    | ✅ Verified            |                                                   |
-| Luminarr              | UNIT3D    | 🟡 Unverified          |                                                   |
-| CathodeRayTube (CRT)  | Luminance | 🟡 Unverified          | Username/password login, no stats API             |
-| DigitalCore           | Custom    | ✅ Verified            |                                                   |
-| HDBits                | Custom    | 📋 Needs adapter       |                                                   |
-| SecretCinema          | Custom    | 📋 Needs adapter       |                                                   |
-| SportsCult            | Custom    | 📋 Needs adapter       |                                                   |
-| BeyondHD              | Custom    | ⛔ Stuck               |                                                   |
-| Cinemageddon          | Custom    | ⛔ Stuck               |                                                   |
-| FileList              | Custom    | ⛔ Stuck               |                                                   |
-| HD-Torrents           | Custom    | ⛔ Stuck               |                                                   |
-| TVVault               | Custom    | ⛔ Stuck               |                                                   |
-| HawkeUno              | Hawke     | ✅ Verified            |                                                   |
+Verified (tested against a live account): Aither, AnimeZ, Anthelion, AvistaZ, Blutopia, C411, CinemaZ, Concertos, DarkPeers, DigitalCore.Club, FearNoPeer, FileList, GazelleGames, HAWKE-UNO, IPTorrents, LST, MyAnonaMouse, Nebulance, OldToons, OnlyEncodes, Orpheus, Phoenix Project, Racing4Everyone, REDacted, ReelFliX, RetroToon World, seedpool, SkipTheCommercials, TorrentLeech, Upload.cx, Yu-Scene.
 
-**Legend:**
+Unverified (the adapter exists but has not been tested against a live account): AlphaRatio, AnimeBytes, BroadcasTheNet, Cathode-Ray.Tube, DreadVault, Empornium, ExoticaZ, Great Poster Wall, InfinityHD, Luminarr, MoreThanTV, PassThePopcorn, PrivateHD, Retro Movies Club, RocketHD, SeedCore, TR4KER, Zenith.
 
-- ✅ **Verified**: tested against a live tracker
-- 🟡 **Unverified**: platform adapter exists and _should_ work, but not yet tested.
-- 📋 **Needs adapter**: registry entry exists, but the platform requires a custom adapter that I haven't gotten around to yet
-- ⛔ **Stuck**: trackers I'm not a member of and have no way of implementing
-- ❌ **Broken**: known issue prevents polling (i.e API blocks required endpoints, etc)
-
-## Download Clients
-
-| Client       | Status       | Notes                                                                |
-| ------------ | ------------ | -------------------------------------------------------------------- |
-| qBittorrent  | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history |
-| Transmission | ✅ Supported | Torrent stats, cross-seed tracking, activity heatmaps, speed history |
-| Deluge       | 📋 Planned   |                                                                      |
-| rTorrent     | 📋 Planned   |                                                                      |
+Not supported yet: 720pier, AB Torrents, AsianCinema, BeyondHD, Bibliotik, Cinemageddon, HDBits, HD-Torrents, Portugas, Secret Cinema, Sportscult, TV-Vault, UHDBits.
 
 ## Quick Start
-
-### Docker (recommended)
 
 ```bash
 mkdir tracker-tracker && cd tracker-tracker
@@ -126,6 +60,8 @@ mkdir tracker-tracker && cd tracker-tracker
    openssl rand -base64 48   # → SESSION_SECRET
    ```
 
+   Keep `SESSION_SECRET` safe and never change it, because it wraps your encryption key.
+
 3. Start the stack:
 
    ```bash
@@ -134,7 +70,7 @@ mkdir tracker-tracker && cd tracker-tracker
 
 4. Visit `http://localhost:3000` to set your master password and start adding trackers.
 
-### Updating
+To update:
 
 ```bash
 docker compose pull && docker compose up -d
@@ -142,116 +78,45 @@ docker compose pull && docker compose up -d
 
 The database schema is synced automatically on startup.
 
-### Using an external database
+Environment variables, volumes, ports, and reverse proxy examples are in [Docker Configuration](https://jordanlambrecht.github.io/tracker-tracker/getting-started/docker-config/). To use an existing Postgres, see [Using an external database](https://jordanlambrecht.github.io/tracker-tracker/getting-started/installation/#using-an-external-database).
 
-If you already run Postgres, remove the `tracker-tracker-db` service and `depends_on` block from `docker-compose.yml`. Set `DATABASE_URL` in your `.env` and remove `POSTGRES_PASSWORD` and `POSTGRES_USER`.
+## Locked out?
 
-### Local Development
-
-Requires Node.js 24+, pnpm, and PostgreSQL.
-
-```bash
-pnpm install
-cp .env.example .env.local
-# In .env.local, set DATABASE_URL to your local Postgres and SESSION_SECRET
-pnpm db:push
-pnpm dev
-```
-
-Unit tests run with `pnpm test:run`. The browser smoke suite runs with `pnpm test:e2e` against a production build (`pnpm build` first) and a throwaway `tracker_tracker_e2e` database on the same Postgres server, which it wipes on every run; create that database once with `createdb tracker_tracker_e2e` and sync it with `POSTGRES_DB=tracker_tracker_e2e pnpm db:push`.
-
-## Configuration
-
-| Variable            | Required | Default           | Description                                         |
-| ------------------- | -------- | ----------------- | --------------------------------------------------- |
-| `POSTGRES_PASSWORD` | Yes\*    | —                 | Database password                                   |
-| `SESSION_SECRET`    | Yes      | —                 | Signs session cookies **and** wraps your encryption key (min 32 characters). Never rotate it after setup. See [Locked Out?](#locked-out-recovering-a-lost-master-password) |
-| `TZ`                | No       | `UTC`             | Timezone for cron schedules and log timestamps      |
-| `PORT`              | No       | `3000`            | Port the app listens on                             |
-| `LOG_LEVEL`         | No       | `info`            | Log verbosity: `error`, `warn`, `info`, `debug`     |
-| `POSTGRES_USER`     | No       | `postgres`        | Database user                                       |
-| `POSTGRES_DB`       | No       | `tracker_tracker` | Database name                                       |
-| `DATABASE_URL`      | No\*     | _(auto-built)_    | Override to use an external Postgres instance       |
-| `SECURE_COOKIES`    | No       | _(auto)_          | Set `true` for HTTPS. Auto-enabled by `BASE_URL`.   |
-| `DISABLE_LOGIN_LOCKOUT` | No   | _(unset)_         | Set `true` to stop failed-attempt lockouts being enforced, for when you have locked yourself out, because the in-app toggle sits behind the login you cannot reach. Also suppresses enforcement on the backup-restore password check. Failed attempts are still counted, and a successful login clears them. Unset it once you are back in. |
-
-\* Set either `POSTGRES_PASSWORD` (bundled DB) or `DATABASE_URL` (external DB).
-
-You configure everything else (polling interval, privacy mode, proxy, backups) in the app's Settings page after login.
-
-## Data & Volumes
-
-| Host path        | Container path  | Contents                                |
-| ---------------- | --------------- | --------------------------------------- |
-| `./data/backups` | `/data/backups` | Scheduled backup files                  |
-| `./data/logs`    | `/data/logs`    | Application log files                   |
-| `pgdata` (named) | PG data dir     | PostgreSQL database (managed by Docker) |
-
-## Locked Out? Recovering a Lost Master Password
-
-There is no "forgot password" email. This is a single-user app with no mail server. Instead, the app container ships a recovery command:
+There is no "forgot password" email. The app container ships a recovery command instead:
 
 ```bash
 docker exec -it tracker-tracker-app tt-recover --check    # can I recover? writes nothing
-docker exec -it tracker-tracker-app tt-recover            # dry run, prompts for the new password
-docker exec -it tracker-tracker-app tt-recover --apply    # commit
 ```
 
-**Take a database dump first.** It costs seconds and it is the one step you cannot add later:
-
-```bash
-docker exec tracker-tracker-db sh -c \
-  'pg_dump -U "$POSTGRES_USER" tracker_tracker' > tracker-tracker-backup.sql
-```
-
-**Do not edit `password_hash` by hand.** Every secret in the database (tracker API tokens, download client credentials, notification configs, your TOTP secret) is encrypted with a key derived from your master password. `UPDATE app_settings SET password_hash = ...` lets you log in with a key that decrypts nothing, and orphans all of it permanently with no error message. `tt-recover` recovers the real encryption key, re-encrypts every secret under the new password, clears the lockout counter, and rewrites the hash in a single transaction.
-
-Two things it needs, and one thing it refuses:
-
-- `SESSION_SECRET` must be byte-identical to what the instance has been running with. It is the only thing that can unwrap the stored encryption key.
-- `-it` on `docker exec`, so the password can be typed at a hidden prompt instead of landing in your shell history. (`--password '<pw>'` exists for scripting, but it is visible in `ps`.)
-- If `app_settings.encrypted_scheduler_key` is NULL (cleared by an emergency lockdown, a nuke, or a failed restore), recovery is impossible and the tool aborts rather than orphaning your data. Restore a dump from before that point.
-
-Lost your authenticator too? Add `--disable-totp` to clear 2FA in the same transaction.
-
-Full walkthrough, including running against an external database: **[Lost Master Password](https://jordanlambrecht.github.io/tracker-tracker/reference/password-recovery/)**.
-
-## Adding a Tracker
-
-1. Click **+ Add Tracker** in the sidebar
-2. Select from the registry or enter details manually
-3. Paste your API token (found in your tracker's security/API settings)
-4. The app validates the connection and starts polling automatically
+Do not edit `password_hash` by hand. Every stored secret is encrypted with a key derived from your master password, so a hand edit orphans all of them permanently. The full walkthrough is in [Lost Master Password](https://jordanlambrecht.github.io/tracker-tracker/reference/password-recovery/).
 
 ## Documentation
 
-Full documentation is available at **[jordanlambrecht.github.io/tracker-tracker](https://jordanlambrecht.github.io/tracker-tracker/)**.
+Full documentation is at **[jordanlambrecht.github.io/tracker-tracker](https://jordanlambrecht.github.io/tracker-tracker/)**.
 
-Covers installation, tracker setup (UNIT3D, Gazelle, GGn, MAM, AvistaZ), features (proxies, TOTP, backups, download clients, notifications), and troubleshooting.
+- [Installation](https://jordanlambrecht.github.io/tracker-tracker/getting-started/installation/)
+- [Adding a tracker](https://jordanlambrecht.github.io/tracker-tracker/trackers/adding-a-tracker/)
+- [Troubleshooting](https://jordanlambrecht.github.io/tracker-tracker/troubleshooting/)
 
 ## Contributing
 
-PRs welcome. Areas where help matters most:
+PRs welcome. To run the app from source, see [Local Development](https://jordanlambrecht.github.io/tracker-tracker/contributing/local-development/). [Adding a tracker](https://jordanlambrecht.github.io/tracker-tracker/contributing/adding-a-tracker/) has the full guide for new trackers. Start from [`_template.ts`](https://github.com/jordanlambrecht/tracker-tracker/blob/main/src/data/trackers/_template.ts). Partial entries are fine if you set `draft: true`.
 
-- **New trackers & missing data**: copy [`src/data/trackers/_template.ts`](src/data/trackers/_template.ts), fill in what you know, and submit a PR. Partial entries are fine. Set `draft: true` and CI will accept it. Filling in user classes, rules, release groups, and banned groups on existing trackers is just as valuable. [Adding a Tracker](https://jordanlambrecht.github.io/tracker-tracker/contributing/adding-a-tracker/) has the full guide, including when to include a redacted API response.
-- **Download client adapters**: qBittorrent and Transmission are supported. Deluge and rTorrent still need adapters. See `src/lib/download-clients/` for the pattern: an adapter under `adapters/`, its transport in a sibling folder, and one `case` in `factory.ts`.
-- **Tracker verification**: if you belong to a tracker marked 🟡 above, testing and confirming it works helps greatly.
-- **Security auditing**: check out SECURITY.md for threat surfice info.
-- **Responsiveness** - I only have my 16" MBP to work off of, so feedback of different screen experiences is much appreciated
-- **Data Visualization** - I ain't no math wizard, so any contributions for data viz, charts/graphs, etc.
-- **Custom platform adapters**: trackers marked "Custom" need bespoke adapters since they don't run a supported platform.
+Other places help is useful:
+
+- Download client adapters for Deluge and rTorrent. See [`src/lib/download-clients/`](https://github.com/jordanlambrecht/tracker-tracker/tree/main/src/lib/download-clients) for the pattern: an adapter under `adapters/`, its transport in a sibling folder, and one `case` in `factory.ts`.
+- Adapters for trackers that do not run a supported platform (see the [adapter standard](https://jordanlambrecht.github.io/tracker-tracker/contributing/adapter-standard/))
+- Verifying a tracker from the unverified list above against a live account
+- Security review (see [SECURITY.md](https://github.com/jordanlambrecht/tracker-tracker/blob/main/SECURITY.md))
+- Feedback on other screen sizes, since I only have a 16" MBP to test on
+- Charts and data visualization
 
 Tracker Tracker is free and independently maintained. [GitHub Sponsors](https://github.com/sponsors/jordanlambrecht) for recurring support, [Buy Me a Coffee](https://buymeacoffee.com/jordyjordy) for a one-off.
 
-## Architecture
+## Built with
 
-- **Next.js 16** (App Router)
-- **PostgreSQL** + **Drizzle ORM**
-- **ECharts**
-- **node-cron**
-- **Argon2**
-- **jose**
+Next.js 16 (App Router), PostgreSQL with Drizzle ORM, ECharts, node-cron, Argon2, and jose.
 
 ## License
 
-[GPL-3.0](LICENSE)
+[GPL-3.0](https://github.com/jordanlambrecht/tracker-tracker/blob/main/LICENSE)
