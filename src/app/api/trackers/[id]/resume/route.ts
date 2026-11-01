@@ -6,7 +6,7 @@ import { authenticate, parseTrackerId, type RouteContext } from "@/lib/api-helpe
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
-import { TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
+import { PAUSE_RESET, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -62,13 +62,7 @@ export async function POST(_request: Request, props: RouteContext) {
   try {
     await db
       .update(trackers)
-      .set({
-        pausedAt: null,
-        lastError: null,
-        lastErrorAt: null,
-        consecutiveFailures: 0,
-        updatedAt: new Date(),
-      })
+      .set({ ...PAUSE_RESET, updatedAt: new Date() })
       .where(eq(trackers.id, trackerId))
   } catch (error) {
     log.error(error, `Failed to resume tracker ${trackerId}`)

@@ -55,4 +55,24 @@ describe("useHeldTrackerSlugs", () => {
       vi.unstubAllGlobals()
     }
   })
+
+  // The unlinked card mounts with its Link dialog closed. A read there would add a
+  // list fetch to every visit and a refetch after its Archive or Delete.
+  it.each([
+    ["enabled", true, 1],
+    ["disabled", false, 0],
+  ])("fetches the list only while %s", (_state, enabled, fetching) => {
+    vi.stubGlobal("fetch", () => new Promise(() => {}))
+    try {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      )
+      renderHook(() => useHeldTrackerSlugs({ enabled }), { wrapper })
+
+      expect(queryClient.isFetching({ queryKey: trackerQueryOptions.queryKey })).toBe(fetching)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

@@ -20,6 +20,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     registrySlug: null,
     platformType: "unit3d",
     linked: true,
+    duplicateOf: null,
     isActive: true,
     lastPolledAt: "2026-10-30T09:00:00.000Z",
     lastError: null,

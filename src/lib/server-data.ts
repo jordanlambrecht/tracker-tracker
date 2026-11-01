@@ -28,8 +28,10 @@
 import "server-only"
 
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm"
+import { trackerSiteFor } from "@/data/tracker-registry"
 import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import { db } from "@/lib/db"
+import { registryEntryForStoredUrl } from "@/lib/db/backfill-registry-slug"
 import {
   appSettings,
   dbSizeHistory,
@@ -370,14 +372,26 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
   const prowlarrByTracker = await loadTrackerProwlarrStates(allTrackers)
+  const held = new Set(allTrackers.flatMap((t) => (t.registrySlug ? [t.registrySlug] : [])))
 
   // SECURITY: Never include encryptedApiToken in response
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
   return allTrackers.map((tracker) => {
     const latest = snapshotByTracker.get(tracker.id) ?? null
     const prowlarr = prowlarrByTracker.get(tracker.id) ?? null
-    return serializeTrackerResponse(tracker, latest, mask, prowlarr)
+    const entry = storedAddressEntry(tracker)
+    const duplicateOf = entry && held.has(entry.slug) ? entry.name : null
+    return serializeTrackerResponse(tracker, latest, mask, prowlarr, duplicateOf)
   })
+}
+
+/**
+ * The tracker an unlinked row's stored address belongs to. The startup backfill
+ * links a row to it unless another row holds its slug, so an unlinked row with
+ * one is a duplicate.
+ */
+function storedAddressEntry(row: { baseUrl: string; registrySlug: string | null }) {
+  return trackerSiteFor(row) ? undefined : registryEntryForStoredUrl(row.baseUrl)
 }
 
 /**
@@ -420,9 +434,11 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
   // behavior when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
   const prowlarr = (await loadTrackerProwlarrStates([tracker])).get(tracker.id) ?? null
+  const entry = storedAddressEntry(tracker)
+  const duplicateOf = entry && (await isRegistrySlugHeld(entry.slug)) ? entry.name : null
 
   // security-audit-ignore: serializeTrackerResponse omits encryptedApiToken by design
-  return serializeTrackerResponse(tracker, latest ?? null, mask, prowlarr)
+  return serializeTrackerResponse(tracker, latest ?? null, mask, prowlarr, duplicateOf)
 }
 
 // ---------------------------------------------------------------------------

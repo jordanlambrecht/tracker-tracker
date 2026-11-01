@@ -11,7 +11,7 @@ import {
   checkTrackerError,
   checkZeroSeeding,
 } from "@/lib/tracker-events"
-import { resolveRequiredRatio } from "@/lib/tracker-status"
+import { canLink, resolveRequiredRatio } from "@/lib/tracker-status"
 import { compareVersions } from "@/lib/version"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
@@ -167,7 +167,7 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
       tracker.userPausedAt
     )
     // An unlinked row takes the pause alert's slot, a user-paused one too. Like
-    // a pause it can't be dismissed, since archiving or deleting is the fix.
+    // a pause it can't be dismissed, since linking, archiving or deleting is the fix.
     if (!tracker.linked) {
       alerts.push({
         key: `poll-paused-${tracker.id}`,
@@ -175,7 +175,11 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: "Not in the tracker list, so it isn't polled. Archive or delete it",
+        message: tracker.duplicateOf
+          ? `Another of your trackers already uses ${tracker.duplicateOf}. Archive or delete this one`
+          : canLink(tracker)
+            ? "Not in the tracker list, so it isn't polled. Link, archive or delete it"
+            : "Not in the tracker list, so it isn't polled. Archive or delete it",
         timestamp: tracker.pausedAt ?? tracker.userPausedAt ?? undefined,
         dismissible: false,
       })

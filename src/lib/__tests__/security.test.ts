@@ -228,8 +228,10 @@ vi.mock("@/lib/prowlarr/sync", () => ({
 // entry the posted slug names, so these validation tests need a slug that
 // resolves before they can reach the field each one is about. The serializer
 // asks for the row's site, and a row with none serializes from its stored copies.
+// No stored host is one the list carries, so no row reads as a duplicate.
 vi.mock("@/data/tracker-registry", () => ({
   registryEntryFor: vi.fn(),
+  registryHostname: vi.fn(() => undefined),
   trackerSiteFor: vi.fn(() => null),
   getTrackerBySlug: vi.fn(() => ({
     slug: "example-tracker",

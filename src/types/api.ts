@@ -60,6 +60,11 @@ export interface TrackerSummary {
    * added. A linked row's come from its entry.
    */
   linked: boolean
+  /**
+   * For an unlinked row, the name of the tracker its address belongs to when
+   * another row already uses that tracker. Null for every other row.
+   */
+  duplicateOf: string | null
   isActive: boolean
   lastPolledAt: string | null
   lastError: string | null

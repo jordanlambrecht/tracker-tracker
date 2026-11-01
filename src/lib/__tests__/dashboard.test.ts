@@ -38,6 +38,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     registrySlug: null,
     platformType: "unit3d",
     linked: true,
+    duplicateOf: null,
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
@@ -918,7 +919,7 @@ describe("computeAlerts", () => {
 
 describe("computeAlerts on a row the tracker list doesn't carry", () => {
   const PAUSED_AT = "2026-10-30T09:00:00.000Z"
-  const UNLINKED_MESSAGE = "Not in the tracker list, so it isn't polled. Archive or delete it"
+  const UNLINKED_MESSAGE = "Not in the tracker list, so it isn't polled. Link, archive or delete it"
 
   beforeEach(() => {
     mockRegistryEntryFor.mockReset()
@@ -966,6 +967,26 @@ describe("computeAlerts on a row the tracker list doesn't carry", () => {
     // The same snapshot on a linked row raises each of them
     expect(types(frozen)).toEqual(["ratio-danger", "stale-data", "zero-seeding", "warned"])
     expect(types({ ...frozen, linked: false })).toEqual(["poll-paused"])
+  })
+
+  // Linking can't fix a duplicate, so its alert names the tracker it repeats.
+  it("tells a duplicate row which tracker another row already uses", () => {
+    const alerts = computeAlerts([
+      makeTracker({ linked: false, duplicateOf: "ReelFliX", pausedAt: PAUSED_AT }),
+    ])
+    expect(alerts.map((a) => a.message)).toEqual([
+      "Another of your trackers already uses ReelFliX. Archive or delete this one",
+    ])
+  })
+
+  // The link route takes only a row with no slug.
+  it("doesn't offer Link to a row holding a slug the list no longer carries", () => {
+    const alerts = computeAlerts([
+      makeTracker({ linked: false, registrySlug: "gone-tracker", pausedAt: PAUSED_AT }),
+    ])
+    expect(alerts.map((a) => a.message)).toEqual([
+      "Not in the tracker list, so it isn't polled. Archive or delete it",
+    ])
   })
 })
 

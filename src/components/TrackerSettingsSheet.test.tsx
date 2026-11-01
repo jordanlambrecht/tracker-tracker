@@ -36,6 +36,7 @@ const TRACKER: TrackerSummary = {
   registrySlug: null,
   platformType: "unit3d",
   linked: true,
+  duplicateOf: null,
   isActive: true,
   lastPolledAt: null,
   lastError: null,
@@ -467,6 +468,20 @@ describe("TrackerSettingsSheet registry data", () => {
   it("offers no registry rules to a row with no slug", () => {
     renderSheet({ tracker: { ...TRACKER, registrySlug: null, baseUrl: "https://aither.cc" } })
     expect(loginHint()).toBeInTheDocument()
+  })
+})
+
+describe("TrackerSettingsSheet key on a row the tracker list doesn't carry", () => {
+  // test-connection refuses a row with no tracker, so a new key could never pass
+  // its test here. Linking is how such a row gets one.
+  it.each([
+    ["an unlinked row", false, { linked: false, registrySlug: null }],
+    ["a linked row", true, {}],
+  ])("shows the saved key on %s, offering Change: %s", (_row, offered, overrides) => {
+    renderSheet({ tracker: { ...TRACKER, ...overrides } })
+
+    expect(screen.getByText("••••••••••••••••")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Change" }) !== null).toBe(offered)
   })
 })
 

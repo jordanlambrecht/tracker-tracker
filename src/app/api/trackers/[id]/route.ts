@@ -26,6 +26,7 @@ import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerForClient } from "@/lib/server-data"
+import { NEW_KEY_RESET, PAUSE_RESET, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { isIntegerInRange } from "@/lib/validators"
 
 // A Postgres integer id.
@@ -198,26 +199,22 @@ export async function PATCH(request: Request, props: RouteContext) {
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
     const [tracker] = await db
-      .select({ platformType: trackers.platformType, registrySlug: trackers.registrySlug })
+      .select({ registrySlug: trackers.registrySlug })
       .from(trackers)
       .where(eq(trackers.id, trackerId))
       .limit(1)
-    // The stored platform only stands in for a row the tracker list does not carry.
-    const platform = tracker
-      ? (trackerSiteFor(tracker)?.platform ?? tracker.platformType)
-      : undefined
-    const maxTokenLength = maxTokenLengthFor(platform)
+    const site = tracker ? trackerSiteFor(tracker) : null
+    // A key reaches an unlinked row only by linking it, which tests the key on
+    // the tracker picked. Saved here, it would belong to no tracker.
+    if (tracker && !site) {
+      return NextResponse.json({ error: TRACKER_UNLINKED_ERROR }, { status: 400 })
+    }
+    const maxTokenLength = maxTokenLengthFor(site?.platform)
     const tokenErr = validateMaxLength(trimmedToken, maxTokenLength, "API token")
     if (tokenErr) return tokenErr
     const key = decodeKey(auth)
     updates.encryptedApiToken = encrypt(trimmedToken, key)
-    // A new token can belong to another account, so the old account's cached id
-    // and avatar are cleared. The next poll fetches them again.
-    updates.remoteUserId = null
-    updates.avatarData = null
-    updates.avatarMimeType = null
-    updates.avatarCachedAt = null
-    updates.avatarRemoteUrl = null
+    Object.assign(updates, NEW_KEY_RESET)
   }
 
   try {
@@ -231,10 +228,7 @@ export async function PATCH(request: Request, props: RouteContext) {
         .where(eq(trackers.id, trackerId))
         .limit(1)
       if (row && trackerSiteFor(row)) {
-        await db
-          .update(trackers)
-          .set({ pausedAt: null, consecutiveFailures: 0, lastError: null, lastErrorAt: null })
-          .where(eq(trackers.id, trackerId))
+        await db.update(trackers).set(PAUSE_RESET).where(eq(trackers.id, trackerId))
       }
     }
     const updated = await getTrackerForClient(trackerId)

@@ -15,7 +15,8 @@
 //    archived + auto-paused + lastError tracker would have left the page with no copy of the
 //    error at all. That regression is the reason the gate now reads off the pause banners.
 // 4. A row the tracker list doesn't carry can't be polled or resumed, whatever paused it, so
-//    one card says why and offers Archive and Delete in place of Resume.
+//    one card says why and offers Link, Archive and Delete in place of Resume. A duplicate,
+//    whose tracker another row already uses, gets its own card with no Link.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
@@ -33,6 +34,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     name: "Orpheus",
     baseUrl: "https://orpheus.network",
     linked: true,
+    duplicateOf: null,
     isActive: true,
     lastPolledAt: "2026-08-14T12:00:00.000Z",
     lastError: null,
@@ -50,8 +52,12 @@ function renderBanner(tracker: TrackerSummary, pollError: string | null = null) 
   const onResume = vi.fn()
   const onDismissPollError = vi.fn()
   const onArchived = vi.fn()
+  const onLinked = vi.fn()
   const onDeleted = vi.fn()
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  // Never stale, so the held-slug query reads these rows without fetching.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+  })
   queryClient.setQueryData(trackerQueryOptions.queryKey, [tracker, OTHER])
   const view = render(
     <QueryClientProvider client={queryClient}>
@@ -61,11 +67,12 @@ function renderBanner(tracker: TrackerSummary, pollError: string | null = null) 
         onDismissPollError={onDismissPollError}
         onResume={onResume}
         onArchived={onArchived}
+        onLinked={onLinked}
         onDeleted={onDeleted}
       />
     </QueryClientProvider>
   )
-  return { ...view, onResume, onDismissPollError, onArchived, onDeleted, queryClient }
+  return { ...view, onResume, onDismissPollError, onArchived, onLinked, onDeleted, queryClient }
 }
 
 function resumeButton() {
@@ -145,7 +152,7 @@ describe("TrackerStatusBanner on an archived tracker", () => {
 })
 
 describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
-  const UNLINKED = { linked: false, baseUrl: "https://www.old-host.example" }
+  const UNLINKED = { linked: false, registrySlug: null, baseUrl: "https://www.old-host.example" }
   const fetchMock = vi.fn()
 
   function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
@@ -179,15 +186,16 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     // The user's own pause isn't why it sits idle, so it doesn't hide the reason
     ["paused by the user", USER_PAUSED],
     ["not paused yet", {}],
-  ])("explains a row %s and offers Archive and Delete, not Resume", (_, state) => {
+  ])("explains a row %s and offers Link, Archive and Delete, not Resume", (_, state) => {
     renderBanner(makeTracker({ ...UNLINKED, ...state }))
 
     expect(unlinkedHeading()).toBeInTheDocument()
     expect(
       screen.getByText(
-        "This tracker isn't in the tracker list, so it isn't polled. It was set up for old-host.example. Archive it to keep its history, or delete it."
+        "This tracker isn't in the tracker list, so it isn't polled. It was set up for old-host.example. Link it to a tracker in the list, archive it to keep its history, or delete it."
       )
     ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Link to a tracker" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument()
     expect(resumeButton()).not.toBeInTheDocument()
@@ -200,7 +208,7 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
 
     expect(
       screen.getByText(
-        "This tracker isn't in the tracker list, so it isn't polled. Archive it to keep its history, or delete it."
+        "This tracker isn't in the tracker list, so it isn't polled. Link it to a tracker in the list, archive it to keep its history, or delete it."
       )
     ).toBeInTheDocument()
   })
@@ -258,5 +266,67 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     expect(await screen.findByText(stale)).toBeInTheDocument()
     expect(onDeleted).not.toHaveBeenCalled()
     expect(cachedTrackers(queryClient)).toEqual([row, OTHER])
+  })
+
+  it("says a duplicate is already tracked and offers Archive and Delete, not Link", () => {
+    renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, duplicateOf: "ReelFliX" }))
+
+    expect(screen.getByText("Already tracked")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Another of your trackers already uses ReelFliX. Archive this one to keep its history, or delete it."
+      )
+    ).toBeInTheDocument()
+    expect(unlinkedHeading()).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Link to a tracker" })).toBeNull()
+  })
+
+  it("links through the dialog, then writes the shared cache and hands the row back", async () => {
+    const user = userEvent.setup()
+    const row = makeTracker({ ...UNLINKED, ...AUTO_PAUSED })
+    const linked = { ...row, linked: true, registrySlug: "aither", pausedAt: null }
+    const responses: Record<string, unknown> = {
+      "/api/trackers/test-connection": { username: "someone", group: "User" },
+      "/api/trackers/42/link": linked,
+    }
+    // The open dialog reads the list, so the write's invalidation refetches it.
+    // That refetch never answers, so only the card's own write can fill the cache.
+    fetchMock.mockImplementation((url: string) =>
+      url === "/api/trackers"
+        ? new Promise(() => {})
+        : Promise.resolve(jsonResponse(responses[url]))
+    )
+    const { queryClient, onLinked } = renderBanner(row)
+
+    await user.click(screen.getByRole("button", { name: "Link to a tracker" }))
+    await user.type(screen.getByPlaceholderText("Search trackers..."), "Aither")
+    await user.keyboard("{Enter}")
+    await user.type(screen.getByLabelText("API Token"), "fresh-token")
+    await user.click(screen.getByRole("button", { name: "Link" }))
+
+    await waitFor(() => expect(onLinked).toHaveBeenCalledWith(linked))
+    expect(fetchMock.mock.calls.map(([url]) => url).slice(0, 2)).toEqual([
+      "/api/trackers/test-connection",
+      "/api/trackers/42/link",
+    ])
+    expect(cachedTrackers(queryClient)).toEqual([linked, OTHER])
+    expect(queryClient.getQueryState(trackerQueryOptions.queryKey)?.isInvalidated).toBe(true)
+  })
+
+  // The link route takes only a row with no slug, so a slug the list no longer
+  // carries gets the archive or delete card it had before Link existed.
+  it("offers no Link for a row holding a slug the list no longer carries", () => {
+    renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, registrySlug: "gone-tracker" }))
+
+    expect(unlinkedHeading()).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "This tracker isn't in the tracker list, so it isn't polled. It was set up for old-host.example. Archive it to keep its history, or delete it."
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Link to a tracker" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument()
   })
 })

@@ -178,6 +178,7 @@ describe("serializeTrackerResponse tracker list fields", () => {
       registrySlug: "aither",
       platformType: "unit3d",
       linked: true,
+      duplicateOf: null,
       isActive: true,
       lastPolledAt: "2026-01-01T00:00:00.000Z",
       lastError: null,

@@ -843,8 +843,8 @@ describe("PATCH /api/trackers/[id]", () => {
       apiToken: "t".repeat(501),
     })
 
-    // Mock the platformType lookup: select → from → where → limit
-    const mockLimit = vi.fn().mockResolvedValue([{ platformType: "unit3d" }])
+    // Mock the slug lookup: select → from → where → limit
+    const mockLimit = vi.fn().mockResolvedValue([{ registrySlug: "aither" }])
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
@@ -890,7 +890,7 @@ describe("PATCH /api/trackers/[id]", () => {
   it("clears the cached member id and avatar when the API token is replaced", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: "new-token" })
 
-    const mockLimit = vi.fn().mockResolvedValue([{ platformType: "unit3d" }])
+    const mockLimit = vi.fn().mockResolvedValue([{ registrySlug: "aither" }])
     const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
     const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
@@ -916,6 +916,31 @@ describe("PATCH /api/trackers/[id]", () => {
       avatarCachedAt: null,
       avatarRemoteUrl: null,
     })
+  })
+
+  // A key reaches an unlinked row only by linking it, which tests the key on the
+  // tracker picked. The settings sheet hides Change key there, and this refuses it.
+  it.each([
+    ["no slug", null],
+    ["a slug the list no longer carries", "gone-tracker"],
+  ])("refuses a new API token for a row with %s", async (_row, registrySlug) => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: "new-token" })
+    const mockLimit = vi.fn().mockResolvedValue([{ registrySlug }])
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit })
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({ from: mockFrom })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { apiToken: "new-token" },
+      "PATCH"
+    )
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: TRACKER_UNLINKED_ERROR })
+    expect(encrypt).not.toHaveBeenCalled()
+    expect(db.update).not.toHaveBeenCalled()
   })
 
   it("keeps the cached member id and avatar when the body has no API token", async () => {

@@ -14,7 +14,7 @@ process.env.LOG_FILE = ""
 // naive stub took the file from 19s/4-passing to 90s/3-failing purely on timeouts.
 // Guarding on the current state ends the cycle after one pass.
 // jsdom does not implement scrollIntoView. Any listbox that keeps its highlighted
-// option in view calls it from an effect (see the combobox in AddTrackerDialog),
+// option in view calls it from an effect (see TrackerCombobox),
 // which throws and fails the render rather than the assertion.
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {}

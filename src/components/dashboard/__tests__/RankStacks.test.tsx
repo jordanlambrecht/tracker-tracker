@@ -73,6 +73,7 @@ function makeTracker(
     registrySlug,
     platformType: "unit3d",
     linked: true,
+    duplicateOf: null,
     isActive: true,
     lastPolledAt: null,
     lastError: null,

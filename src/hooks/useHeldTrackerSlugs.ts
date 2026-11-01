@@ -19,9 +19,16 @@ function selectHeldSlugs(trackers: TrackerSummary[]): ReadonlyMap<string, boolea
   return held
 }
 
-/** The trackers Add Tracker shows as already added, from the shared tracker list. */
-function useHeldTrackerSlugs(): ReadonlyMap<string, boolean> {
-  const { data } = useQuery({ ...trackerQueryOptions, select: selectHeldSlugs })
+/**
+ * The trackers Add Tracker shows as already added, from the shared tracker list.
+ * With `enabled` false it reads only what is cached, so a closed dialog adds no
+ * fetch and no refetch after a write.
+ */
+function useHeldTrackerSlugs({ enabled = true }: { enabled?: boolean } = {}): ReadonlyMap<
+  string,
+  boolean
+> {
+  const { data } = useQuery({ ...trackerQueryOptions, select: selectHeldSlugs, enabled })
   return data ?? NONE_HELD
 }
 

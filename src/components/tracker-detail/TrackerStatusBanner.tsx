@@ -1,15 +1,18 @@
 // src/components/tracker-detail/TrackerStatusBanner.tsx
 "use client"
 
+import { useState } from "react"
+import { LinkTrackerDialog } from "@/components/tracker-detail/LinkTrackerDialog"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Notice } from "@/components/ui/Notice"
 import { registryHostname } from "@/data/tracker-registry"
+import { useHeldTrackerSlugs } from "@/hooks/useHeldTrackerSlugs"
 import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
 import { DOCS } from "@/lib/constants"
 import { formatDateTime } from "@/lib/formatters"
-import { getPauseState } from "@/lib/tracker-status"
+import { canLink, getPauseState } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerStatusBannerProps {
@@ -19,6 +22,8 @@ interface TrackerStatusBannerProps {
   onResume: () => void
   /** Receives the PATCH response from the unlinked card's Archive. */
   onArchived: (updated: TrackerSummary) => void
+  /** Receives the linked row from the unlinked card's Link. */
+  onLinked: (updated: TrackerSummary) => void
   onDeleted: () => void
 }
 
@@ -28,6 +33,7 @@ export function TrackerStatusBanner({
   onDismissPollError,
   onResume,
   onArchived,
+  onLinked,
   onDeleted,
 }: TrackerStatusBannerProps) {
   const pause = getPauseState(tracker)
@@ -89,7 +95,12 @@ export function TrackerStatusBanner({
         </Card>
       )}
       {showUnlinked && (
-        <UnlinkedCard tracker={tracker} onArchived={onArchived} onDeleted={onDeleted} />
+        <UnlinkedCard
+          tracker={tracker}
+          onArchived={onArchived}
+          onLinked={onLinked}
+          onDeleted={onDeleted}
+        />
       )}
       {showUserPaused && pause.isPaused && pause.reason === "user" && (
         <Card glow glowColor="var(--color-warn-dim)" elevation="elevated">
@@ -147,17 +158,25 @@ export function TrackerStatusBanner({
   )
 }
 
-// Its own component so the QueryClient the hook needs is only a requirement
+// Its own component so the QueryClient its hooks need is only a requirement
 // where the card renders.
 function UnlinkedCard({
   tracker,
   onArchived,
+  onLinked,
   onDeleted,
-}: Pick<TrackerStatusBannerProps, "tracker" | "onArchived" | "onDeleted">) {
-  const { archiving, deleting, error, setActive, remove } = useTrackerArchiveDelete(tracker.id)
+}: Pick<TrackerStatusBannerProps, "tracker" | "onArchived" | "onLinked" | "onDeleted">) {
+  const { archiving, deleting, error, setActive, remove, syncTrackerCache } =
+    useTrackerArchiveDelete(tracker.id)
+  const [linking, setLinking] = useState(false)
+  const heldSlugs = useHeldTrackerSlugs({ enabled: linking })
   // The stored address is the only one an unlinked row has. The sentence drops
   // when it won't parse, as in the poll's pause message.
   const host = registryHostname(tracker.baseUrl)
+  // A duplicate belongs to a tracker another row already uses, so it can't be
+  // linked, only archived or deleted.
+  const duplicateOf = tracker.duplicateOf
+  const linkable = canLink(tracker)
 
   async function handleArchive() {
     const updated = await setActive(false)
@@ -168,16 +187,39 @@ function UnlinkedCard({
     if (await remove()) onDeleted()
   }
 
+  function handleLinked(updated: TrackerSummary) {
+    syncTrackerCache(updated)
+    setLinking(false)
+    onLinked(updated)
+  }
+
   return (
     <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
       <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider mb-2">
-        Not in the tracker list
+        {duplicateOf ? "Already tracked" : "Not in the tracker list"}
       </p>
       <p className="text-sm font-mono text-secondary mb-3">
-        This tracker isn't in the tracker list, so it isn't polled.
-        {host && ` It was set up for ${host}.`} Archive it to keep its history, or delete it.
+        {duplicateOf ? (
+          `Another of your trackers already uses ${duplicateOf}. Archive this one to keep its history, or delete it.`
+        ) : (
+          <>
+            This tracker isn't in the tracker list, so it isn't polled.
+            {host && ` It was set up for ${host}.`}{" "}
+            {linkable
+              ? "Link it to a tracker in the list, archive it to keep its history, or delete it."
+              : "Archive it to keep its history, or delete it."}
+          </>
+        )}
       </p>
       <div className="flex flex-wrap items-center gap-3">
+        {linkable && (
+          <Button
+            size="sm"
+            onClick={() => setLinking(true)}
+            disabled={archiving || deleting}
+            text="Link to a tracker"
+          />
+        )}
         <Button
           variant="secondary"
           size="sm"
@@ -195,6 +237,15 @@ function UnlinkedCard({
         />
       </div>
       {error && <Notice variant="danger" message={error} className="mt-3" />}
+      {linkable && (
+        <LinkTrackerDialog
+          open={linking}
+          onClose={() => setLinking(false)}
+          trackerId={tracker.id}
+          heldSlugs={heldSlugs}
+          onLinked={handleLinked}
+        />
+      )}
     </Card>
   )
 }

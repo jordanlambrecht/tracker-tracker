@@ -361,7 +361,11 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                 />
               </div>
             ) : (
-              <MaskedSecret onChangeClick={() => setChangingKey(true)} />
+              // test-connection and the save both refuse a key for a row with no
+              // tracker. An unlinked row gets a new key by being linked.
+              <MaskedSecret
+                onChangeClick={tracker.linked ? () => setChangingKey(true) : undefined}
+              />
             )}
           </div>
 

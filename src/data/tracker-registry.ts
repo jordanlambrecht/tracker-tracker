@@ -201,10 +201,11 @@ export function registryBonusName(entry: TrackerRegistryEntry | undefined): stri
  * a restored backup can carry because it never passed the create route's
  * validateHttpUrl.
  *
- * The startup backfill is the only lookup by URL. It is how a row with no
- * `registrySlug` is matched to an entry, by its url or `previousHosts`. Nothing
- * else may reach the registry by URL. The poll also uses it, but only to name
- * the host an unlinked row was set up for.
+ * The startup backfill's lookup (registryEntryForStoredUrl) is the only one by
+ * URL. It is how a row with no `registrySlug` is matched to an entry, by its url
+ * or `previousHosts`, and the tracker list reuses it only to label a duplicate
+ * card. The poll and the unlinked card use this alone, to name the host a row
+ * was set up for. Nothing sends a key or polls on a lookup by URL.
  */
 export function registryHostname(url: string): string | undefined {
   try {

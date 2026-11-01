@@ -16,18 +16,9 @@ import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
+import { PAUSE_RESET } from "@/lib/tracker-status"
 
 const g = globalThis as typeof globalThis & { __registrySlugBackfilled?: boolean }
-
-// What Resume and a successful poll clear. A linked row is polled at its entry's
-// address, so a pause or failures from before no longer apply. The user's own
-// pause, userPausedAt, stays.
-const LINK_RESET = {
-  pausedAt: null,
-  lastError: null,
-  lastErrorAt: null,
-  consecutiveFailures: 0,
-}
 
 interface LinkRow {
   id: number
@@ -56,6 +47,16 @@ function registryByHostname(): Map<string, TrackerRegistryEntry> {
   return byHost
 }
 
+/**
+ * The entry a stored address belongs to, by its url host or a previous host.
+ * The backfill links by it. The tracker list uses it only to name the tracker a
+ * duplicate row would have been, and nothing sends a key or polls on it.
+ */
+export function registryEntryForStoredUrl(baseUrl: string): TrackerRegistryEntry | undefined {
+  const host = registryHostname(baseUrl)
+  return host ? registryByHostname().get(host) : undefined
+}
+
 // Active first, then the most recently polled, then the oldest.
 function keeperOrder(a: LinkRow, b: LinkRow): number {
   return (
@@ -72,12 +73,10 @@ function keeperOrder(a: LinkRow, b: LinkRow): number {
  */
 export function planRegistryLinks(rows: readonly LinkRow[]): LinkPlan {
   const held = new Set(rows.flatMap((row) => (row.registrySlug ? [row.registrySlug] : [])))
-  const byHost = registryByHostname()
   const candidates = rows
     .flatMap((row) => {
       if (row.registrySlug) return []
-      const host = registryHostname(row.baseUrl)
-      const entry = host ? byHost.get(host) : undefined
+      const entry = registryEntryForStoredUrl(row.baseUrl)
       return entry ? [{ row, entry }] : []
     })
     .sort((a, b) => keeperOrder(a.row, b.row))
@@ -125,6 +124,8 @@ export async function backfillRegistrySlugs(options?: { force?: boolean }): Prom
     let linked = 0
     for (const { id, entry } of links) {
       // Only while the slug is still null, so a link made since the select stands.
+      // The row is now polled at its entry's address, so a pause or failures
+      // from before no longer apply.
       const [written] = await db
         .update(trackers)
         .set({
@@ -132,7 +133,7 @@ export async function backfillRegistrySlugs(options?: { force?: boolean }): Prom
           baseUrl: entry.url,
           apiPath: entry.apiPath,
           platformType: entry.platform,
-          ...LINK_RESET,
+          ...PAUSE_RESET,
           updatedAt: now,
         })
         .where(and(eq(trackers.id, id), isNull(trackers.registrySlug)))

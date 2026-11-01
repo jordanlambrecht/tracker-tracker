@@ -63,6 +63,7 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
     registrySlug: "aither",
     platformType: "unit3d",
     linked: true,
+    duplicateOf: null,
     isActive: true,
     lastPolledAt: new Date().toISOString(),
     lastError: null,
@@ -186,6 +187,14 @@ describe("getTrackerHealth on a row the tracker list doesn't carry", () => {
     )
     expect(getHealthBadgeVariant("unlinked")).toBe("danger")
     expect(getHealthDot("unlinked")).toEqual({ tone: "danger", glow: false, label: "Not in list" })
+  })
+
+  it("says which tracker a duplicate repeats, under the same label", () => {
+    const duplicate = makeTracker({ linked: false, duplicateOf: "ReelFliX" })
+    expect(getTrackerHealth(duplicate)).toBe("unlinked")
+    expect(getHealthDescription("unlinked", duplicate)).toBe(
+      "Another of your trackers already uses ReelFliX"
+    )
   })
 })
 

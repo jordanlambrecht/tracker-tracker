@@ -22,7 +22,11 @@ import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTrackerListForDashboard, isRegistrySlugHeld } from "@/lib/server-data"
-import { TRACKER_DEFUNCT_ERROR } from "@/lib/tracker-status"
+import {
+  TRACKER_DEFUNCT_ERROR,
+  TRACKER_UNKNOWN_ERROR,
+  trackerHeldError,
+} from "@/lib/tracker-status"
 
 export async function GET() {
   const auth = await authenticate()
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
   // body cannot point a new row at a site its slug does not own.
   const entry = getTrackerBySlug(slug.trim())
   if (!entry) {
-    return NextResponse.json({ error: "Unknown tracker" }, { status: 400 })
+    return NextResponse.json({ error: TRACKER_UNKNOWN_ERROR }, { status: 400 })
   }
   if (entry.defunct) {
     return NextResponse.json({ error: TRACKER_DEFUNCT_ERROR }, { status: 400 })
@@ -127,7 +131,7 @@ export async function POST(request: Request) {
   try {
     // Two adds at once can both pass this until registry_slug has a unique index.
     if (await isRegistrySlugHeld(entry.slug)) {
-      return NextResponse.json({ error: `You already track ${entry.name}` }, { status: 409 })
+      return NextResponse.json({ error: trackerHeldError(entry.name) }, { status: 409 })
     }
 
     const key = decodeKey(auth)

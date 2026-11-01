@@ -39,7 +39,8 @@ export function serializeTrackerResponse(
   tracker: TrackerRow,
   latest: TrackerSnapshotRow | null,
   mask: (val: string | null | undefined) => string | null,
-  prowlarr: TrackerProwlarrState | null = null
+  prowlarr: TrackerProwlarrState | null = null,
+  duplicateOf: string | null = null
 ): TrackerSummary {
   const site = trackerSiteFor(tracker)
   return {
@@ -49,6 +50,7 @@ export function serializeTrackerResponse(
     registrySlug: tracker.registrySlug ?? null,
     platformType: site?.platform ?? (tracker.platformType as PlatformType),
     linked: site !== null,
+    duplicateOf,
     isActive: tracker.isActive,
     lastPolledAt: tracker.lastPolledAt?.toISOString() ?? null,
     lastError: tracker.lastError,

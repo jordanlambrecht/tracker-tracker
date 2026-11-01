@@ -118,9 +118,37 @@ function getPauseState(tracker: {
 const UNLINKED_RESTORE_ERROR =
   "Restored from a backup, and its address could not be matched to a known tracker. Check it before resuming"
 
-// The routes that refuse an unlinked or defunct row answer with one of these.
+// What Resume, a user's un-pause, a successful link and the startup backfill
+// clear. The user's own pause, userPausedAt, is never in it.
+const PAUSE_RESET = {
+  pausedAt: null,
+  lastError: null,
+  lastErrorAt: null,
+  consecutiveFailures: 0,
+}
+
+// What a new key clears. It can belong to another account, so that account's
+// cached id and avatar go, and the next poll fetches them again.
+const NEW_KEY_RESET = {
+  remoteUserId: null,
+  avatarData: null,
+  avatarMimeType: null,
+  avatarCachedAt: null,
+  avatarRemoteUrl: null,
+}
+
+// The lines the tracker routes refuse with. Add and Link share the slug ones.
 const TRACKER_UNLINKED_ERROR = "This tracker isn't in the tracker list"
 const TRACKER_DEFUNCT_ERROR = "This tracker has shut down"
+const TRACKER_ALREADY_LINKED_ERROR = "This tracker is already linked"
+const TRACKER_UNKNOWN_ERROR = "Unknown tracker"
+const trackerHeldError = (name: string) => `You already track ${name}`
+
+// What the link route takes: a row with no slug that isn't a duplicate. A row
+// holding a slug the list no longer carries can only be archived or deleted.
+function canLink(tracker: Pick<TrackerSummary, "registrySlug" | "duplicateOf">): boolean {
+  return tracker.registrySlug === null && !tracker.duplicateOf
+}
 
 // The ratio a tracker actually holds this account to. Live requiredRatio wins
 // over the registry's minimumRatio because sliding-ratio sites (Gazelle) report
@@ -219,6 +247,9 @@ function formatRequirement(value: number): string {
 // applies. The warned check comes first: a warned account is "critical"
 // whatever its ratio, and a band description would explain the wrong thing.
 function getHealthDescription(status: TrackerHealth, tracker?: TrackerSummary): string {
+  if (status === "unlinked" && tracker?.duplicateOf) {
+    return `Another of your trackers already uses ${tracker.duplicateOf}`
+  }
   if (!tracker || (status !== "healthy" && status !== "warning" && status !== "critical")) {
     return HEALTH_META[status].description
   }
@@ -246,14 +277,20 @@ function getHealthDot(status: TrackerHealth): Pick<StatusDotProps, "tone" | "glo
 
 export type { PauseState, TrackerHealth }
 export {
+  canLink,
   getHealthBadgeVariant,
   getHealthDescription,
   getHealthDot,
   getHealthLabel,
   getPauseState,
   getTrackerHealth,
+  NEW_KEY_RESET,
+  PAUSE_RESET,
   resolveRequiredRatio,
+  TRACKER_ALREADY_LINKED_ERROR,
   TRACKER_DEFUNCT_ERROR,
+  TRACKER_UNKNOWN_ERROR,
   TRACKER_UNLINKED_ERROR,
+  trackerHeldError,
   UNLINKED_RESTORE_ERROR,
 }

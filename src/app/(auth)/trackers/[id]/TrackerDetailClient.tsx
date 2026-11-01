@@ -21,6 +21,7 @@ import { registryBonusName, registryEntryFor } from "@/data/tracker-registry"
 import { useTrackerTorrents } from "@/hooks/useTrackerTorrents"
 import { hexToRgba } from "@/lib/color-utils"
 import { computeDelta, ratioTrend24h } from "@/lib/data-transforms"
+import { PAUSE_RESET } from "@/lib/tracker-status"
 import type {
   DayRange,
   GazellePlatformMeta,
@@ -117,9 +118,9 @@ export function TrackerDetailClient({
     }
   }, [scrollbarColor])
 
-  // `updated` is a PATCH response already written through the shared ["trackers"]
-  // cache, so this needs no follow-up GET. An archived tracker leaves the active
-  // list, and the page goes home with it.
+  // `updated` is a PATCH or link response already written through the shared
+  // ["trackers"] cache, so this needs no follow-up GET. An archived tracker
+  // leaves the active list, and the page goes home with it.
   function handleTrackerUpdated(updated: TrackerSummary) {
     if (!updated.isActive) {
       router.push("/")
@@ -152,9 +153,7 @@ export function TrackerDetailClient({
     setTracker((prev) => ({
       ...prev,
       userPausedAt: wasPaused ? null : new Date().toISOString(),
-      ...(wasPaused
-        ? { pausedAt: null, consecutiveFailures: 0, lastError: null, lastErrorAt: null }
-        : {}),
+      ...(wasPaused ? PAUSE_RESET : {}),
     }))
 
     try {
@@ -316,6 +315,7 @@ export function TrackerDetailClient({
         onDismissPollError={() => setPollError(null)}
         onResume={handleResume}
         onArchived={handleTrackerUpdated}
+        onLinked={handleTrackerUpdated}
         onDeleted={() => router.push("/")}
       />
 

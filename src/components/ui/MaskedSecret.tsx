@@ -4,7 +4,8 @@
 import { Button } from "@/components/ui/Button"
 
 interface MaskedSecretProps {
-  onChangeClick: () => void
+  /** Leave it out to show the secret with no way to change it here. */
+  onChangeClick?: () => void
   label?: string
 }
 
@@ -14,7 +15,7 @@ function MaskedSecret({ onChangeClick, label = "Change" }: MaskedSecretProps) {
       <span className="text-sm font-mono text-tertiary nm-inset bg-control-bg px-4 py-3 flex-1 rounded-nm-md">
         ••••••••••••••••
       </span>
-      <Button variant="ghost" size="sm" onClick={onChangeClick} text={label} />
+      {onChangeClick && <Button variant="ghost" size="sm" onClick={onChangeClick} text={label} />}
     </div>
   )
 }
