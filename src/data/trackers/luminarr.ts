@@ -127,7 +127,7 @@ export const luminarr: TrackerRegistryEntry = {
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: true,
-  warningNote: "Unverified! Not tested against a live account.",
+  warningNote: "Unverified. Not tested against a live account.",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,

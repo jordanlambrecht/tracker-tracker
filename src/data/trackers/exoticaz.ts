@@ -97,7 +97,7 @@ export const exoticaz: TrackerRegistryEntry = {
   // ── Status ──────────────────────────────────────────────────────────
   warning: true,
   warningNote:
-    "Unverified! HTML structure assumed identical to AvistaZ but not tested against a live account.",
+    "Unverified. HTML structure assumed identical to AvistaZ but not tested against a live account.",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,

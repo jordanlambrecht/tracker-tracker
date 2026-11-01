@@ -89,7 +89,7 @@ export const retromoviesclub: TrackerRegistryEntry = {
     { name: "Producer", requirements: "Staff assigned", outsideLadder: "above" },
     {
       name: "ViP",
-      requirements: "Very Important Person. Donors and honored members of the community",
+      requirements: "Donors and honored members of the community",
       outsideLadder: "above",
     },
     { name: "Film Editor", requirements: "Staff assigned", outsideLadder: "above" },
@@ -173,7 +173,7 @@ export const retromoviesclub: TrackerRegistryEntry = {
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: true,
-  warningNote: "Unverified! Not tested against a live account.",
+  warningNote: "Unverified. Not tested against a live account.",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,

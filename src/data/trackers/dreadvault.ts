@@ -70,7 +70,7 @@ export const dreadvault: TrackerRegistryEntry = {
     {
       name: "VIP",
       requirements:
-        "A supporter of DreadVault who has chosen to fuel the darkness. VIP status grants exclusive benefits for the selected duration",
+        "A supporter of DreadVault. VIP status grants benefits for the selected duration",
       outsideLadder: "above",
     },
     {
@@ -100,7 +100,7 @@ export const dreadvault: TrackerRegistryEntry = {
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: true,
-  warningNote: "Unverified! Not tested against a live account.",
+  warningNote: "Unverified. Not tested against a live account.",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
