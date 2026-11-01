@@ -127,6 +127,11 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/Luminance login refused: the account uses two-factor login/i.test(raw)) {
     return "Two-factor login is on for this account. Add a session cookie from a browser login to the tracker's credentials"
   }
+  // FunFile's rejected login, which pauses the tracker. Matched before the IP ban
+  // rule, since the message mentions the ban it avoids.
+  if (/FunFile login failed/i.test(raw)) {
+    return "FunFile login failed with the stored username and password. Polling was paused to avoid an IP ban"
+  }
   // A tracker answer the adapter could not use, such as a 2xx body it could
   // not read or a scraper's redirect with no readable Location. "Unexpected
   // response from <host>: ..." is the wording the adapters and the shared fetch

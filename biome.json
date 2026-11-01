@@ -67,10 +67,22 @@
               "level": "error",
               "options": {
                 "paths": {
-                  "@/lib/tunnel": "Adapters reach the network through adapterFetch, adapterRequest, fetchTrackerHtml or loginRequest in ../helpers, which apply the shared timeout, the default User-Agent and the proxy in one place. Importing @/lib/tunnel directly reimplements the proxy branch and skips all three."
+                  "@/lib/tunnel": "Adapters reach the network through adapterFetch, adapterRequest, fetchTrackerHtml or loginRequest in ../helpers, which apply the shared timeout, the default User-Agent and the proxy in one place. Importing @/lib/tunnel directly reimplements the proxy branch and skips all three. funfile.ts is the exception, declared in its own override below, because its login POST reads Set-Cookie through the proxy."
                 }
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/lib/tracker-platforms/adapters/funfile.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
           }
         }
       }

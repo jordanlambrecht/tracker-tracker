@@ -144,6 +144,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | ---------------- | ------------ |
     | Cathode-Ray.Tube | CRT          |
 
+=== "FunFile"
+
+    | Name    | Abbreviation |
+    | ------- | ------------ |
+    | FunFile | FF           |
+
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
 
@@ -245,6 +251,13 @@ Location varies by platform:
 
     !!! warning "Re-entering credentials"
         Changing the stored credentials later replaces all of them at once. A 2FA account needs the token typed again alongside the username and password.
+
+=== "FunFile"
+
+    FunFile has no API, so Tracker Tracker logs in with your **username and password** and reads your profile page. The password is encrypted at rest with the same key as every other tracker credential, and the login session is kept between polls, so the password is sent again only when the session expires.
+
+    !!! warning "A rejected login pauses the tracker"
+        FunFile bans an IP address after six failed logins in a row. When a login fails with the stored username and password, the tracker is paused at once instead of retrying. Correct the credentials, then resume polling on the tracker page.
 
 === "RetroToon World"
 

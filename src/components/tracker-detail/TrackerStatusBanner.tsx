@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { DOCS } from "@/lib/constants"
 import { formatDateTime } from "@/lib/formatters"
+import { POLL_FAILURE_THRESHOLD } from "@/lib/limits"
 import { getPauseState } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
@@ -90,8 +91,9 @@ export function TrackerStatusBanner({
             <span className="timestamp shrink-0">{formatDateTime(pause.since)}</span>
           </div>
           <p className="text-sm font-mono text-warn mb-2">
-            Polling was paused after repeated failures. Verify your API key is correct before
-            resuming.{" "}
+            {tracker.consecutiveFailures < POLL_FAILURE_THRESHOLD
+              ? "Polling was paused after a failed login, so that the login is not repeated. Check the username and password before resuming."
+              : "Polling was paused after repeated failures. Verify your API key is correct before resuming."}{" "}
             <a
               href={DOCS.TRACKER_OFFLINE.href}
               target="_blank"

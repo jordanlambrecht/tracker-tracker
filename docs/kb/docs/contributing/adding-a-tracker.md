@@ -68,7 +68,7 @@ Full template:
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
-//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"
+//   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "funfile" | "custom"
 //   - apiPath must match platform default:
 //       unit3d     → "/api/user"
 //       gazelle    → "/ajax.php"
@@ -91,7 +91,7 @@ export const mytracker: TrackerRegistryEntry = {
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"
+  platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "funfile" | "custom"
   // Platform-specific fields (uncomment for your platform):
   //   gazelleAuthStyle: "token",   // gazelle only, "token" | "raw"
   //   gazelleEnrich: true,         // gazelle only, enables enrichment call
@@ -225,7 +225,7 @@ description: "The largest general music tracker (also has some software). Has an
 
 #### `platform`
 
-Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"`
+Type: `"unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "funfile" | "custom"`
 
 Which adapter handles API requests. This tells the scheduler how to fetch stats. Pick the one that matches the tracker's software.
 
@@ -248,6 +248,7 @@ Which adapter handles API requests. This tells the scheduler how to fetch stats.
 | `"c411"`         | C411, Bearer API key against `/api/user/profile`            |
 | `"animebytes"`   | AnimeBytes, key and username against `/api/stats/personal`  |
 | `"luminance"`    | Luminance, username/password login + profile scraping       |
+| `"funfile"`      | FunFile, username/password login + profile scraping         |
 | `"custom"`       | Placeholder, not implemented yet                            |
 
 #### `gazelleAuthStyle`

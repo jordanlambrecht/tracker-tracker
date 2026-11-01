@@ -10,6 +10,7 @@ import type {
   AnimeBytesPlatformMeta,
   C411PlatformMeta,
   DigitalCorePlatformMeta,
+  FunFilePlatformMeta,
   GazellePlatformMeta,
   GGnPlatformMeta,
   HawkePlatformMeta,
@@ -1219,5 +1220,30 @@ describe("bonus name", () => {
     for (const registry of [undefined, { ...torrentleech, bonusName: "" }]) {
       expect(seedbonusCard(ctx(registry))?.props).toMatchObject({ label: "Seedbonus", unit: "BON" })
     }
+  })
+})
+describe("FunFile context", () => {
+  function funfileCtx(meta: FunFilePlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "funfile" }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("shows the upload needed for the next class and the freeleech download", () => {
+    const ids = slotIds(
+      funfileCtx({ nextClassUploadBytes: 2 ** 30, freeleechDownloadedBytes: 2 ** 40 }),
+      "stat-card"
+    )
+    expect(ids).toEqual(expect.arrayContaining(["funfile-next-class", "funfile-freeleech"]))
+  })
+
+  it("shows neither card without the figures", () => {
+    const ids = slotIds(funfileCtx({}), "stat-card")
+    expect(ids).not.toContain("funfile-next-class")
+    expect(ids).not.toContain("funfile-freeleech")
   })
 })
