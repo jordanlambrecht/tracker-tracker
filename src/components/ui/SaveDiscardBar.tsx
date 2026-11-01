@@ -26,7 +26,7 @@ function SaveDiscardBar({
   error,
   success,
   saveLabel = "Save Changes",
-  savingLabel = "Saving...",
+  savingLabel = "Saving…",
   className,
   justify = "start",
   showDivider = true,

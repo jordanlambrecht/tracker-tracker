@@ -56,7 +56,7 @@ export function CredentialVaultSection({ initialEnabled }: CredentialVaultSectio
   return (
     <SettingsSection
       id={CREDENTIAL_VAULT_SECTION_ID}
-      title="Tracker Credentials"
+      title="Vault"
       tooltip="Store the API keys, passkeys, IRC logins and announce URLs each tracker issues you, encrypted with your master password."
       cardClassName="flex flex-col gap-5"
     >
@@ -65,7 +65,7 @@ export function CredentialVaultSection({ initialEnabled }: CredentialVaultSectio
         checked={enabled}
         onChange={handleToggle}
         disabled={saving}
-        description="Adds a Credentials panel to every tracker where you can keep API keys, passkeys, IRC logins and announce URLs. Values are encrypted with your master password and shown only when you ask for them."
+        description="Adds a Credentials Vault to every tracker where you can keep API keys, passkeys, IRC logins and announce URLs, or whatever."
       />
 
       {enabled ? (
@@ -78,7 +78,7 @@ export function CredentialVaultSection({ initialEnabled }: CredentialVaultSectio
           variant="info"
           // Says out loud that turning this off is not a delete, because otherwise the
           // only way to find out is to toggle it and hope.
-          message="Turning this off hides the Credentials panel and blocks the API that reads it. Anything you have already stored is kept, stays encrypted, and reappears if you turn this back on."
+          message="Turning this off hides the Credentials Vault and blocks the API that reads it. Anything you have already stored is kept, stays encrypted, and reappears if you turn this back on."
         />
       )}
 

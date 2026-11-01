@@ -345,35 +345,35 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
         />
 
         <Toggle
-          label="Bonus Points Capped"
+          label="Bonus points capped"
           checked={draft.notifyBonusCap}
           onChange={(v) => updateDraft({ notifyBonusCap: v })}
           description="Alert when bonus points hit the 99,999 cap (MAM)"
         />
 
         <Toggle
-          label="VIP Expiring Soon"
+          label="VIP expiring soon"
           checked={draft.notifyVipExpiring}
           onChange={(v) => updateDraft({ notifyVipExpiring: v })}
           description="Alert when VIP status is about to expire (MAM, AvistaZ network)"
         />
 
         <Toggle
-          label="Unsatisfied Limit Warning"
+          label="Unsatisfied limit warning"
           checked={draft.notifyUnsatisfiedLimit}
           onChange={(v) => updateDraft({ notifyUnsatisfiedLimit: v })}
           description="Alert when approaching the unsatisfied torrent limit"
         />
 
         <Toggle
-          label="Active Hit & Runs"
+          label="Inactive hit-and-runs"
           checked={draft.notifyActiveHnrs}
           onChange={(v) => updateDraft({ notifyActiveHnrs: v })}
-          description="Alert when inactive Hit & Runs are detected"
+          description="Alert when inactive hit-and-runs are detected"
         />
 
         <Toggle
-          label="Download Privileges Revoked"
+          label="Download privileges revoked"
           checked={draft.notifyDownloadDisabled}
           onChange={(v) => updateDraft({ notifyDownloadDisabled: v })}
           description="Alert when a tracker revokes download access (AvistaZ network, DigitalCore.Club, HAWKE-UNO, C411)"
@@ -414,7 +414,7 @@ function NotificationCard({ target, onSaved, onRemove }: NotificationCardProps) 
           disabled={webhookStatus === "pending" || !target.hasConfig}
         >
           {webhookStatus === "pending"
-            ? "Sending..."
+            ? "Sending…"
             : webhookStatus === "success"
               ? "Sent"
               : webhookStatus === "failed"
@@ -518,7 +518,7 @@ function AddNotificationForm({
           size="sm"
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
-          text={saving ? "Creating..." : "Create Target"}
+          text={saving ? "Creating…" : "Create Target"}
         />
         <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>

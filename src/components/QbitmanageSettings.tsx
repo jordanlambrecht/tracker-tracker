@@ -96,8 +96,6 @@ function QbitmanageSettings({ initialEnabled, initialTags }: QbitmanageSettingsP
       docs={DOCS.QBITMANAGE}
       cardClassName="flex flex-col gap-4"
     >
-      <Subtext>Categorize torrents by status tags written by qbitmanage.</Subtext>
-
       <Toggle
         label="Enable qbitmanage Tag Tracking"
         checked={enabled}

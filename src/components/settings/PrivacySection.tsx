@@ -84,12 +84,12 @@ export function PrivacySection({ initialStoreUsernames }: PrivacySectionProps) {
       )}
 
       {scrubState === "scrubbing" && (
-        <Notice variant="warn" message="Scrubbing historical data..." />
+        <Notice variant="warn" message="Scrubbing historical data…" />
       )}
 
       <Notice
         variant="info"
-        message="This does not provide strong anonymization. Character count and other data points may still allow correlation. For full protection, deploy on an encrypted filesystem."
+        message="This does not provide strong anonymization. Character count and other data points may still allow correlation."
       />
 
       <Notice message={error} />

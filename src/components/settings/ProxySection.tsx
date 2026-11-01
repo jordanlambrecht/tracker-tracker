@@ -149,7 +149,7 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
           setProxyEnabled(v)
           clearProxySuccess()
         }}
-        description="When enabled, all API polling requests to trackers are routed through the configured proxy server instead of your direct IP."
+        description="When enabled, polling requests for trackers that have Use Proxy turned on go through the configured proxy instead of your direct IP."
       />
 
       {proxyEnabled && (
@@ -251,7 +251,7 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
               onClick={handleTestProxy}
             >
               {proxyTestStatus === "pending"
-                ? "Testing..."
+                ? "Testing…"
                 : proxyTestStatus === "success"
                   ? "Connected"
                   : proxyTestStatus === "failed"
@@ -293,10 +293,6 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
             dialog.
           </Paragraph>
         )}
-        <Subtext>
-          Toggle proxy usage for individual trackers via their settings dialog on the tracker detail
-          page.
-        </Subtext>
       </div>
     </SettingsSection>
   )

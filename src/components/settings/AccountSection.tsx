@@ -99,7 +99,7 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
         body: JSON.stringify({ currentPassword, newPassword }),
       })
       if (!res.ok) {
-        throw new Error(await extractApiError(res, "Failed"))
+        throw new Error(await extractApiError(res, "Password change failed"))
       }
       router.push("/login")
     } catch (err) {
@@ -175,7 +175,7 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
           disabled={savingPassword}
         />
         <Paragraph>
-          Re-encrypts all stored API tokens. Every signed-in device is logged out, this one too.
+          Re-encrypts all stored API tokens. Every signed-in device is logged out, including this one.
         </Paragraph>
         <SaveDiscardBar
           dirty

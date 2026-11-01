@@ -56,7 +56,7 @@ const API_KEY_HINT =
 
 const TRANSMISSION_CREDENTIALS_HINT =
   'Leave both blank if Transmission has "rpc-authentication-required" set to false. Transmission ' +
-  "has no API-key authentication, so username and password is the only method offered here."
+  "has no API-key login, so the username and password are the only option."
 
 const URL_PATH_HINTS: Record<ClientType, string> = {
   qbittorrent:
@@ -543,7 +543,7 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
                 variant="primary"
                 onClick={() => saveUrlPath(newUrlPath.trim())}
                 disabled={!newUrlPath.trim() || savingUrlPath}
-                text={savingUrlPath ? "Saving..." : "Save Path"}
+                text={savingUrlPath ? "Saving…" : "Save Path"}
               />
               <button
                 type="button"
@@ -568,7 +568,7 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
                   onConfirm={() => saveUrlPath("")}
                   variant="ghost"
                   busy={savingUrlPath}
-                  busyLabel="Removing..."
+                  busyLabel="Removing…"
                 />
               </div>
             ) : (
@@ -696,7 +696,7 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
           disabled={connectionStatus === "pending"}
         >
           {connectionStatus === "pending"
-            ? "Testing..."
+            ? "Testing…"
             : connectionStatus === "success"
               ? "Connected"
               : connectionStatus === "failed"
@@ -851,7 +851,7 @@ function AddClientForm({
           size="sm"
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
-          text={saving ? "Creating..." : "Create Client"}
+          text={saving ? "Creating…" : "Create Client"}
         />
         <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>

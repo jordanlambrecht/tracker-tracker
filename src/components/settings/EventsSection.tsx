@@ -182,7 +182,7 @@ export function EventsSection() {
         <DownloadButton
           url="/api/settings/logs/download"
           fallbackFilename={`tracker-tracker-${localDateStr()}.log`}
-          notFoundMessage="Log file not available (file logging is only active in Docker)"
+          notFoundMessage="Log file not found."
           onError={setDownloadError}
         />
         <Button
@@ -249,7 +249,7 @@ export function EventsSection() {
       {/* ── Clear confirmation ───────────────────────────────────── */}
       {clearConfirm && (
         <ConfirmAction
-          message="Truncate log file? DB events are not affected."
+          message="Clear the log file? Events stored in the database are not affected."
           confirmLabel="Confirm"
           confirmingLabel="Clearing…"
           confirming={clearLoading}

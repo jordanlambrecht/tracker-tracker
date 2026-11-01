@@ -76,7 +76,7 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
       notice={{
         label: "Coming Soon",
         message:
-          "Image hosting is being set up independently. It will be integrated with Transit Papers and tracker screenshot uploads in a future update. For now, you can configure your API keys here so they're ready when the feature launches.",
+          "Image hosting is not connected to anything yet. It will be integrated with Transit Papers and tracker screenshot uploads in a future update. You can save your API keys now so they're ready.",
       }}
       cardClassName="flex flex-col gap-6"
     >

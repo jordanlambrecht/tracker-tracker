@@ -42,9 +42,8 @@ export function DangerZoneSection() {
         <div className="flex flex-col gap-1">
           <H3>Reset All Tracker Stats</H3>
           <Paragraph>
-            Deletes all tracker snapshots and client snapshots from the database. Trackers and their
-            settings are preserved, and only historical data is removed. Trackers will re-poll on
-            their next scheduled interval.
+            Deletes all snapshots and historical data from the database. Trackers and their settings
+            are kept. Trackers re-poll on their next scheduled interval.
           </Paragraph>
         </div>
 

@@ -436,8 +436,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     <>
       {totpWasDisabled && (
         <Notice variant="warn" className="mb-4" header="Two-factor authentication disabled">
-          This happened during restore because the backup predated your TOTP setup. Re-enable it in
-          the Security tab to restore 2FA protection.
+          This happened during restore because the backup predates your TOTP setup. Re-enable it
+          under Two-Factor Authentication on the General tab.
         </Notice>
       )}
 
@@ -555,14 +555,11 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               header="Restoring will replace all current data. This action cannot be undone."
             >
               <ul className="space-y-1 ml-4 list-disc">
-                <li>Tracker API tokens will be cleared (must re-enter)</li>
-                <li>Download client credentials will be cleared (must re-enter)</li>
+                <li>Tracker API tokens that can&apos;t be decrypted will be cleared</li>
+                <li>Download client credentials that can&apos;t be decrypted will be cleared</li>
                 <li>TOTP/2FA will be disabled (can re-enable after restore)</li>
-                <li>Proxy password will be cleared (must re-enter)</li>
+                <li>Proxy password will be cleared if it can&apos;t be decrypted</li>
               </ul>
-              <p className="text-xs opacity-70 mt-1">
-                Encrypted secrets stored in your current instance cannot be restored from backups.
-              </p>
             </Notice>
             <p className="text-sm text-secondary font-mono">File: {restoreFile?.name}</p>
             <Input

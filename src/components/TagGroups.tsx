@@ -112,7 +112,7 @@ function AddTagGroupForm({ onCreated, onCancel }: AddTagGroupFormProps) {
               setError(null)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="i.e Cross-Seed, Tracker Upload"
+            placeholder="i.e Cross-Seed, Tracker Upload, etc."
             disabled={saving}
             error={error ?? undefined}
             autoFocus

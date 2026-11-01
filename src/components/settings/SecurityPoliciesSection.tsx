@@ -214,8 +214,8 @@ export function SecurityPoliciesSection({
           minutes
         </Checkbox>
         <Paragraph className="ml-8">
-          Temporarily locks the login page after consecutive failed attempts. Protects against
-          brute-force attacks. The lockout resets on successful login.
+          Locks the login page for a while after consecutive failed attempts. A successful login
+          resets the count.
         </Paragraph>
         <SaveDiscardBar
           dirty={lockoutDirty}
@@ -256,8 +256,7 @@ export function SecurityPoliciesSection({
           days
         </Checkbox>
         <Paragraph className="ml-8">
-          Automatically prunes historical snapshot data older than the configured period. Reduces
-          what&apos;s stored on disk.
+          Deletes snapshot history older than this period.
         </Paragraph>
         {databaseSize && (
           <p className="text-xs font-mono text-tertiary ml-8">

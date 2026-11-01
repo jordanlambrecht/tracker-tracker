@@ -238,7 +238,7 @@ function InstanceCard({
           disabled={testStatus === "pending"}
           text={
             testStatus === "pending"
-              ? "Testing..."
+              ? "Testing…"
               : testStatus === "failed"
                 ? "Failed. Retry"
                 : "Test Connection"
@@ -250,7 +250,7 @@ function InstanceCard({
           </Badge>
         )}
         <div className="flex-1" />
-        <ConfirmRemove onConfirm={handleRemove} busy={removing} busyLabel="Removing..." />
+        <ConfirmRemove onConfirm={handleRemove} busy={removing} busyLabel="Removing…" />
       </div>
       {testStatus === "failed" && testError && <Notice message={testError} />}
       <Notice message={removeError} />
@@ -329,7 +329,7 @@ function AddInstanceForm({ onCreated, onCancel }: { onCreated: () => void; onCan
           size="sm"
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
-          text={saving ? "Adding..." : "Add Prowlarr"}
+          text={saving ? "Adding…" : "Add Prowlarr"}
         />
         <Button size="sm" variant="ghost" onClick={onCancel} text="Cancel" />
       </div>
@@ -399,7 +399,7 @@ function ProwlarrSection() {
           />
         </H2>
         <Paragraph>
-          Indexers are matched to trackers by hostname, or pinned in each tracker&apos;s settings.
+          Indexers are matched to trackers by hostname, or you pick one in each tracker&apos;s settings.
           The indexer list is read when an instance is saved and every six hours.
         </Paragraph>
       </div>
