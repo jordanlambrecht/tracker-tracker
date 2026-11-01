@@ -41,8 +41,8 @@ export const zenith: TrackerRegistryEntry = {
   },
 
   // ── Status ──────────────────────────────────────────────────────────
-  warning: false,
-  warningNote: "",
+  warning: true,
+  warningNote: "Unverified! Not tested against a live account.",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,
