@@ -107,7 +107,7 @@ export function SetupForm() {
               label="Username"
               type="text"
               autoComplete="username"
-              placeholder="Min. 3 characters"
+              placeholder="At least 3 characters"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -119,7 +119,7 @@ export function SetupForm() {
               label="Master Password"
               type="password"
               autoComplete="new-password"
-              placeholder="Min. 8 characters"
+              placeholder="At least 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               error={errors.password}

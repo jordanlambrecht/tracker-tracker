@@ -116,11 +116,6 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
       size="sm"
     >
       <div className="flex flex-col gap-4">
-        <Subtext>
-          This account signs in with a password only. Adding a username gives the login form a
-          second field to match.
-        </Subtext>
-
         <Input
           label="Username"
           autoComplete="username"
@@ -134,9 +129,7 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
         />
 
         <Subtext>
-          Letters, numbers, underscores, hyphens, dots and spaces. Once set, this username is
-          <strong> required at your next sign-in</strong>, but capitalisation is not, since the
-          login check is case-insensitive.
+          Once set, this username is <strong>required at your next sign-in</strong>.
         </Subtext>
 
         <Notice message={error ?? undefined} />
