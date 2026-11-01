@@ -255,9 +255,7 @@ export function SecurityPoliciesSection({
           />{" "}
           days
         </Checkbox>
-        <Paragraph className="ml-8">
-          Deletes snapshot history older than this period.
-        </Paragraph>
+        <Paragraph className="ml-8">Deletes snapshot history older than this period.</Paragraph>
         {databaseSize && (
           <p className="text-xs font-mono text-tertiary ml-8">
             Current database size: {databaseSize}

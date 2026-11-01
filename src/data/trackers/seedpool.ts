@@ -8,8 +8,7 @@ export const seedpool: TrackerRegistryEntry = {
   name: "seedpool",
   abbreviation: "SP",
   url: "https://seedpool.org",
-  description:
-    "General private tracker focused on long-term seeding, with an active IRC.",
+  description: "General private tracker focused on long-term seeding, with an active IRC.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

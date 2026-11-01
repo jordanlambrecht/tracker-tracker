@@ -83,9 +83,7 @@ export function PrivacySection({ initialStoreUsernames }: PrivacySectionProps) {
         </ConfirmAction>
       )}
 
-      {scrubState === "scrubbing" && (
-        <Notice variant="warn" message="Scrubbing historical data…" />
-      )}
+      {scrubState === "scrubbing" && <Notice variant="warn" message="Scrubbing historical data…" />}
 
       <Notice
         variant="info"

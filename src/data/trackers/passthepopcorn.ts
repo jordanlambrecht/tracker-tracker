@@ -8,8 +8,7 @@ export const passthepopcorn: TrackerRegistryEntry = {
   name: "PassThePopcorn",
   abbreviation: "PTP",
   url: "https://passthepopcorn.me",
-  description:
-    "Movie tracker with a large selection of popular and niche content.",
+  description: "Movie tracker with a large selection of popular and niche content.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "gazelle",

@@ -8,8 +8,7 @@ export const hawkeuno: TrackerRegistryEntry = {
   name: "HAWKE-UNO",
   abbreviation: "HU",
   url: "https://hawke.uno",
-  description:
-    "General private tracker running its own platform (not UNIT3D).",
+  description: "General private tracker running its own platform (not UNIT3D).",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "hawke",

@@ -399,8 +399,8 @@ function ProwlarrSection() {
           />
         </H2>
         <Paragraph>
-          Indexers are matched to trackers by hostname, or you pick one in each tracker&apos;s settings.
-          The indexer list is read when an instance is saved and every six hours.
+          Indexers are matched to trackers by hostname, or you pick one in each tracker&apos;s
+          settings. The indexer list is read when an instance is saved and every six hours.
         </Paragraph>
       </div>
       {instances.map((instance) => (

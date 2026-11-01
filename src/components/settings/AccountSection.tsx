@@ -175,7 +175,8 @@ export function AccountSection({ initialUsername }: AccountSectionProps) {
           disabled={savingPassword}
         />
         <Paragraph>
-          Re-encrypts all stored API tokens. Every signed-in device is logged out, including this one.
+          Re-encrypts all stored API tokens. Every signed-in device is logged out, including this
+          one.
         </Paragraph>
         <SaveDiscardBar
           dirty
