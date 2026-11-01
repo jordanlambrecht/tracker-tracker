@@ -16,12 +16,13 @@ import {
 import clsx from "clsx"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 import { ChangelogDialog } from "@/components/layout/ChangelogDialog"
 import { DownloadClientStatusWidget } from "@/components/layout/DownloadClientStatusWidget"
 import { SortableTrackerItem } from "@/components/layout/SortableTrackerItem"
 import { Button, ChevronToggle, PillTag, Select, Shimmer, Tooltip } from "@/components/ui"
+import { useHeldTrackerSlugs } from "@/hooks/useHeldTrackerSlugs"
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences"
 import { useTrackerList } from "@/hooks/useTrackerList"
 import { useUpdateCheck } from "@/hooks/useUpdateCheck"
@@ -68,10 +69,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
     onSortModeChange: prefs.setSortMode,
   })
 
-  const existingSlugs = useMemo(
-    () => trackers.flatMap((t) => (t.registrySlug ? [t.registrySlug] : [])),
-    [trackers]
-  )
+  const heldSlugs = useHeldTrackerSlugs()
 
   // Reordering a stat-sorted list is meaningless (the next render just
   // re-sorts it by value), so drag is suppressed the same way `unlocked:
@@ -387,7 +385,7 @@ function Sidebar({ collapsed, onToggle, isMobile = false }: SidebarProps) {
           refresh()
           router.push(`/trackers/${id}`)
         }}
-        existingSlugs={existingSlugs}
+        heldSlugs={heldSlugs}
       />
 
       <ChangelogDialog open={changelogOpen} onClose={() => setChangelogOpen(false)} />

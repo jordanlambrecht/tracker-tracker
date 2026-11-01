@@ -1,7 +1,7 @@
 // src/lib/server-data.ts
 //
 // Functions: fetchSettings, serializeSettingsResponse, getSettingsForClient,
-// getTrackerListForDashboard, getTrackerForClient, getSnapshotBucket,
+// getTrackerListForDashboard, isRegistrySlugHeld, getTrackerForClient, getSnapshotBucket,
 // getSnapshotsForTracker, getFleetSnapshots, getTagGroupsWithMembers,
 // getProxyTrackers, getDatabaseSize, getDatabaseSizeBytes, recordDatabaseSize,
 // getDbSizeHistory, fetchDownloadClients, serializeDownloadClientResponse,
@@ -378,6 +378,19 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
     const prowlarr = prowlarrByTracker.get(tracker.id) ?? null
     return serializeTrackerResponse(tracker, latest, mask, prowlarr)
   })
+}
+
+/**
+ * Whether a tracker row, archived or not, already uses `slug`. Add refuses a
+ * held slug, as the startup backfill never hands one out.
+ */
+export async function isRegistrySlugHeld(slug: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: trackers.id })
+    .from(trackers)
+    .where(eq(trackers.registrySlug, slug))
+    .limit(1)
+  return row !== undefined
 }
 
 // ---------------------------------------------------------------------------

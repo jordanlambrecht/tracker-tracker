@@ -4,7 +4,7 @@
 import { H2, Subtext } from "@typography"
 import clsx from "clsx"
 import Image from "next/image"
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react"
 import { CredentialFields } from "@/components/CredentialFields"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { Button } from "@/components/ui/Button"
@@ -30,6 +30,9 @@ import {
 import { localDateStr } from "@/lib/formatters"
 import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
 
+// A defunct tracker can't be added, so the picker leaves it out entirely.
+const ADDABLE_TRACKERS = TRACKER_REGISTRY.filter((t) => !t.defunct)
+
 // ---------------------------------------------------------------------------
 // Fuzzy match
 // ---------------------------------------------------------------------------
@@ -50,11 +53,13 @@ function fuzzyMatch(query: string, target: string): boolean {
 
 interface TrackerComboboxProps {
   presets: TrackerRegistryEntry[]
+  /** Slugs already added, listed but not selectable. True when the holder is active. */
+  held: ReadonlyMap<string, boolean>
   value: string
   onChange: (slug: string) => void
 }
 
-function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
+function TrackerCombobox({ presets, held, value, onChange }: TrackerComboboxProps) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(0)
@@ -81,6 +86,7 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
   }, [highlightIndex, open])
 
   function handleSelect(slug: string) {
+    if (held.has(slug)) return
     onChange(slug)
     setQuery("")
     setOpen(false)
@@ -173,45 +179,58 @@ function TrackerCombobox({ presets, value, onChange }: TrackerComboboxProps) {
           {filtered.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted font-mono">No matches</div>
           ) : (
-            filtered.map((entry, i) => (
-              <button
-                key={entry.slug}
-                type="button"
-                role="option"
-                aria-selected={entry.slug === value}
-                onClick={() => handleSelect(entry.slug)}
-                onMouseEnter={() => setHighlightIndex(i)}
-                className={clsx(
-                  "w-full text-left font-mono text-sm px-4 py-2.5 transition-colors duration-100 flex items-center gap-3",
-                  entry.slug === value
-                    ? "text-accent bg-accent-dim cursor-pointer"
-                    : i === highlightIndex
-                      ? "text-primary bg-overlay cursor-pointer"
-                      : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer"
-                )}
-              >
-                {entry.logo && (
-                  <Image
-                    src={entry.logo}
-                    alt=""
-                    width={18}
-                    height={18}
-                    className="shrink-0 rounded-sm"
-                  />
-                )}
-                <span className="flex-1 truncate">{entry.name}</span>
-                {entry.warning && (
-                  <Tooltip content={entry.warningNote ?? "Warning"}>
-                    <span className="shrink-0">
-                      <TriangleWarningIcon width="13" height="13" className="text-warn" />
+            filtered.map((entry, i) => {
+              const holderActive = held.get(entry.slug)
+              const isHeld = holderActive !== undefined
+              return (
+                <button
+                  key={entry.slug}
+                  type="button"
+                  role="option"
+                  aria-selected={entry.slug === value}
+                  aria-disabled={isHeld || undefined}
+                  disabled={isHeld}
+                  onClick={() => handleSelect(entry.slug)}
+                  onMouseEnter={() => setHighlightIndex(i)}
+                  className={clsx(
+                    "w-full text-left font-mono text-sm px-4 py-2.5 transition-colors duration-100 flex items-center gap-3",
+                    isHeld
+                      ? "text-muted cursor-not-allowed opacity-50"
+                      : entry.slug === value
+                        ? "text-accent bg-accent-dim cursor-pointer"
+                        : i === highlightIndex
+                          ? "text-primary bg-overlay cursor-pointer"
+                          : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer"
+                  )}
+                >
+                  {entry.logo && (
+                    <Image
+                      src={entry.logo}
+                      alt=""
+                      width={18}
+                      height={18}
+                      className="shrink-0 rounded-sm"
+                    />
+                  )}
+                  <span className="flex-1 truncate">{entry.name}</span>
+                  {isHeld && (
+                    <span className="text-xs shrink-0">
+                      {holderActive ? "Already added" : "Already added (archived)"}
                     </span>
-                  </Tooltip>
-                )}
-                {entry.abbreviation && (
-                  <span className="text-xs text-muted shrink-0">{entry.abbreviation}</span>
-                )}
-              </button>
-            ))
+                  )}
+                  {entry.warning && (
+                    <Tooltip content={entry.warningNote ?? "Warning"}>
+                      <span className="shrink-0">
+                        <TriangleWarningIcon width="13" height="13" className="text-warn" />
+                      </span>
+                    </Tooltip>
+                  )}
+                  {entry.abbreviation && (
+                    <span className="text-xs text-muted shrink-0">{entry.abbreviation}</span>
+                  )}
+                </button>
+              )
+            })
           )}
         </div>
       )}
@@ -227,10 +246,11 @@ interface AddTrackerDialogProps {
   open: boolean
   onClose: () => void
   onAdded: (trackerId: number) => void
-  existingSlugs?: string[]
+  /** From useHeldTrackerSlugs. Required, so no caller can offer a tracker twice. */
+  heldSlugs: ReadonlyMap<string, boolean>
 }
 
-function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTrackerDialogProps) {
+function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialogProps) {
   const [selectedPreset, setSelectedPreset] = useState("")
   const [nickname, setNickname] = useState("")
   const [credentials, setCredentials] = useState<CredentialValues>(EMPTY_CREDENTIAL_VALUES)
@@ -284,11 +304,6 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
     setMouseholeUrl("")
     setMouseholeToken("")
   }
-
-  const availablePresets = useMemo(() => {
-    const taken = new Set(existingSlugs)
-    return TRACKER_REGISTRY.filter((t) => !taken.has(t.slug))
-  }, [existingSlugs])
 
   const selectedEntry = TRACKER_REGISTRY.find((t) => t.slug === selectedPreset)
   const trackerName = nickname.trim() || selectedEntry?.name || ""
@@ -405,7 +420,8 @@ function AddTrackerDialog({ open, onClose, onAdded, existingSlugs = [] }: AddTra
         <div className="flex flex-col gap-1">
           <H2 className="uppercase tracking-wider">Tracker</H2>
           <TrackerCombobox
-            presets={availablePresets}
+            presets={ADDABLE_TRACKERS}
+            held={heldSlugs}
             value={selectedPreset}
             onChange={handlePresetChange}
           />

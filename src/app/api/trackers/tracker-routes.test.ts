@@ -1,6 +1,6 @@
 // src/app/api/trackers/tracker-routes.test.ts
 import { NextResponse } from "next/server"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { authenticate, parseJsonBody, parseTrackerId } from "@/lib/api-helpers"
@@ -124,6 +124,37 @@ function makeRequest(url: string, body?: Record<string, unknown>, method = "GET"
     headers: { "Content-Type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
+}
+
+type Condition =
+  | { and: Condition[] }
+  | { or: Condition[] }
+  | { eq: [unknown, unknown] }
+  | { ne: [unknown, unknown] }
+  | { isNull: unknown }
+
+/** The trackers key a column object belongs to. */
+function columnKey(column: unknown): string {
+  const entry = Object.entries(trackersTable).find(([, c]) => c === column)
+  if (!entry) throw new Error("not a trackers column")
+  return entry[0]
+}
+
+/** SQL three-valued logic: null is unknown, and only true matches a row. */
+function holds(cond: Condition, row: Record<string, unknown>): boolean | null {
+  if ("and" in cond) {
+    const results = cond.and.map((c) => holds(c, row))
+    return results.includes(false) ? false : results.includes(null) ? null : true
+  }
+  if ("or" in cond) {
+    const results = cond.or.map((c) => holds(c, row))
+    return results.includes(true) ? true : results.includes(null) ? null : false
+  }
+  if ("isNull" in cond) return row[columnKey(cond.isNull)] === null
+  const [column, value] = "eq" in cond ? cond.eq : cond.ne
+  const stored = row[columnKey(column)]
+  if (stored === null) return null
+  return "eq" in cond ? stored === value : stored !== value
 }
 
 describe("GET /api/trackers", () => {
@@ -262,11 +293,30 @@ describe("GET /api/trackers", () => {
 })
 
 describe("POST /api/trackers", () => {
+  // The rows the held-slug check reads, matched by its WHERE.
+  let table: Record<string, unknown>[] = []
+
   beforeEach(() => {
     vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
+    table = []
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      from: () => ({
+        where: (where: Condition) => ({
+          limit: async (n: number) =>
+            table
+              .filter((row) => holds(where, row) === true)
+              .slice(0, n)
+              .map(({ id }) => ({ id })),
+        }),
+      }),
+    }))
+  })
+
+  afterEach(() => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReset()
   })
 
   it("returns 201 with id and name on happy path", async () => {
@@ -582,6 +632,59 @@ describe("POST /api/trackers", () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe("Mousehole API token needs a Mousehole URL")
+    expect(db.insert).not.toHaveBeenCalled()
+  })
+
+  // An archived row still holds its slug. Reactivating it brings that tracker
+  // back, and a second row would split its history.
+  it.each([
+    ["an active", true],
+    ["an archived", false],
+  ])(
+    "refuses a tracker %s row already uses, before encrypting anything",
+    async (_holder, isActive) => {
+      table = [{ id: 3, registrySlug: "aither", isActive }]
+      const body = { name: "Aither", slug: "aither", apiToken: "mytoken" }
+      ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+      const response = await POST(makeRequest("http://localhost/api/trackers", body, "POST"))
+
+      expect(response.status).toBe(409)
+      expect(await response.json()).toEqual({ error: "You already track Aither" })
+      expect(encrypt).not.toHaveBeenCalled()
+      expect(db.insert).not.toHaveBeenCalled()
+    }
+  )
+
+  it("adds a tracker while other rows hold other slugs", async () => {
+    table = [
+      { id: 3, registrySlug: "orpheus", isActive: true },
+      { id: 4, registrySlug: null, isActive: false },
+    ]
+    const body = { name: "Aither", slug: "aither", apiToken: "mytoken" }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 42, name: "Aither" }])
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({
+      values: vi.fn().mockReturnValue({ returning: mockReturning }),
+    })
+
+    const response = await POST(makeRequest("http://localhost/api/trackers", body, "POST"))
+
+    expect(response.status).toBe(201)
+  })
+
+  it("refuses a tracker that has shut down, before reading or encrypting anything", async () => {
+    const defunct = TRACKER_REGISTRY.find((t) => t.defunct)
+    if (!defunct) throw new Error("the registry has no defunct entry left to test with")
+    const body = { name: defunct.name, slug: defunct.slug, apiToken: "mytoken" }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+    const response = await POST(makeRequest("http://localhost/api/trackers", body, "POST"))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: TRACKER_DEFUNCT_ERROR })
+    expect(db.select).not.toHaveBeenCalled()
+    expect(encrypt).not.toHaveBeenCalled()
     expect(db.insert).not.toHaveBeenCalled()
   })
 })
@@ -987,37 +1090,6 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(updates.userPausedAt).toBeInstanceOf(Date)
     expect(updates.pausedAt).toBeUndefined()
   })
-
-  type Condition =
-    | { and: Condition[] }
-    | { or: Condition[] }
-    | { eq: [unknown, unknown] }
-    | { ne: [unknown, unknown] }
-    | { isNull: unknown }
-
-  /** The trackers key a column object belongs to. */
-  function columnKey(column: unknown): string {
-    const entry = Object.entries(trackersTable).find(([, c]) => c === column)
-    if (!entry) throw new Error("not a trackers column")
-    return entry[0]
-  }
-
-  /** SQL three-valued logic: null is unknown, and only true matches a row. */
-  function holds(cond: Condition, row: Record<string, unknown>): boolean | null {
-    if ("and" in cond) {
-      const results = cond.and.map((c) => holds(c, row))
-      return results.includes(false) ? false : results.includes(null) ? null : true
-    }
-    if ("or" in cond) {
-      const results = cond.or.map((c) => holds(c, row))
-      return results.includes(true) ? true : results.includes(null) ? null : false
-    }
-    if ("isNull" in cond) return row[columnKey(cond.isNull)] === null
-    const [column, value] = "eq" in cond ? cond.eq : cond.ne
-    const stored = row[columnKey(column)]
-    if (stored === null) return null
-    return "eq" in cond ? stored === value : stored !== value
-  }
 
   /** Runs PATCH and applies its tracker updates to `row` the way Postgres would. */
   async function patchRow(body: Record<string, unknown>, row: Record<string, unknown>) {

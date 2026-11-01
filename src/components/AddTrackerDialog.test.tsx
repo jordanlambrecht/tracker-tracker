@@ -15,6 +15,9 @@ import { AddTrackerDialog } from "./AddTrackerDialog"
 
 const fetchMock = vi.fn()
 
+/** Nothing added yet, so every live tracker can be picked. */
+const NONE_HELD: ReadonlyMap<string, boolean> = new Map()
+
 function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
   return { ok, status, json: async () => body }
 }
@@ -52,7 +55,7 @@ describe("AddTrackerDialog digitalcore credentials", () => {
   it("stores the browser User-Agent alongside the session cookies", async () => {
     const user = userEvent.setup()
     const onAdded = vi.fn()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={onAdded} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={onAdded} />)
 
     await pickDigitalCore(user)
     await user.type(screen.getByLabelText("Session Cookies"), "uid=56954; pass=abc123def456")
@@ -68,7 +71,7 @@ describe("AddTrackerDialog digitalcore credentials", () => {
 
   it("sends the same blob to test-connection before saving", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickDigitalCore(user)
     await user.type(screen.getByLabelText("Session Cookies"), "uid=56954; pass=abc123def456")
@@ -90,7 +93,7 @@ async function pickTorrentLeech(user: ReturnType<typeof userEvent.setup>) {
 describe("AddTrackerDialog torrentleech credentials", () => {
   it("includes the Alt 2FA Token in the blob only when one is entered", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickTorrentLeech(user)
     await user.type(screen.getByLabelText("TorrentLeech Username"), "bob")
@@ -108,7 +111,7 @@ describe("AddTrackerDialog torrentleech credentials", () => {
     // The stored blob must stay byte-compatible with what non-2FA accounts
     // have always had, so the key is absent, not empty.
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickTorrentLeech(user)
     await user.type(screen.getByLabelText("TorrentLeech Username"), "bob")
@@ -123,14 +126,16 @@ describe("AddTrackerDialog torrentleech credentials", () => {
   it("clears the typed credentials when the dialog is cancelled", async () => {
     // Cancelling must clear both secrets, or a reopened dialog shows them again.
     const user = userEvent.setup()
-    const { rerender } = render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    const { rerender } = render(
+      <AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />
+    )
 
     await pickTorrentLeech(user)
     await user.type(screen.getByLabelText("TorrentLeech Password"), "hunter2")
     await user.type(screen.getByLabelText("Alt 2FA Token (optional)"), "tok123")
     await user.click(screen.getByRole("button", { name: "Cancel" }))
 
-    rerender(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    rerender(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
     await pickTorrentLeech(user)
     expect(screen.getByLabelText("TorrentLeech Password")).toHaveValue("")
     expect(screen.getByLabelText("Alt 2FA Token (optional)")).toHaveValue("")
@@ -138,7 +143,7 @@ describe("AddTrackerDialog torrentleech credentials", () => {
 
   it("shows no session cookie field, which TorrentLeech would ignore", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickTorrentLeech(user)
     expect(screen.queryByLabelText("Session Cookie (2FA accounts)")).toBeNull()
@@ -150,7 +155,7 @@ describe("AddTrackerDialog luminance credentials", () => {
   // the password and carries the browser it was issued to.
   it("stores a pasted session cookie with this browser's User-Agent instead of a password", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText("Search trackers..."), "Cathode")
     await user.keyboard("{Enter}")
@@ -164,7 +169,7 @@ describe("AddTrackerDialog luminance credentials", () => {
 
   it("shows a refused session cookie's error under the cookie field, not the password", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText("Search trackers..."), "Cathode")
     await user.keyboard("{Enter}")
@@ -197,7 +202,7 @@ describe("AddTrackerDialog retrotoon credentials", () => {
     // RetroToon fingerprints the session against the UA that minted the
     // cookies, so the blob must carry this browser's UA, not a server default.
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickRetroToon(user)
     await user.type(screen.getByLabelText("Browser Cookies"), "PHPSESSID=abc123")
@@ -209,7 +214,7 @@ describe("AddTrackerDialog retrotoon credentials", () => {
 
   it("strips a copied 'Cookie: ' prefix before storing", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickRetroToon(user)
     await user.type(screen.getByLabelText("Browser Cookies"), "Cookie: PHPSESSID=abc123")
@@ -223,13 +228,15 @@ describe("AddTrackerDialog retrotoon credentials", () => {
     // Cancelling must clear the pasted cookie, or a reopened dialog shows the
     // session cookie again.
     const user = userEvent.setup()
-    const { rerender } = render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    const { rerender } = render(
+      <AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />
+    )
 
     await pickRetroToon(user)
     await user.type(screen.getByLabelText("Browser Cookies"), "PHPSESSID=abc123")
     await user.click(screen.getByRole("button", { name: "Cancel" }))
 
-    rerender(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    rerender(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
     await pickRetroToon(user)
     expect(screen.getByLabelText("Browser Cookies")).toHaveValue("")
   })
@@ -252,7 +259,7 @@ async function pickPreset(user: ReturnType<typeof userEvent.setup>, name: string
 describe("AddTrackerDialog Mousehole fields", () => {
   it("clears the Mousehole URL and token when the tracker is switched", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickPreset(user, "MyAnonaMouse")
     await paste(user, screen.getByLabelText("Mousehole URL (optional)"), "http://mh:5010")
@@ -267,7 +274,7 @@ describe("AddTrackerDialog Mousehole fields", () => {
 
   it("sends the Mousehole URL and token when adding MAM", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickPreset(user, "MyAnonaMouse")
     await paste(user, screen.getByLabelText("API Token"), "not-a-real-mam-cookie")
@@ -289,7 +296,7 @@ describe("AddTrackerDialog request bodies", () => {
     // The address is registry data keyed by the slug, so a URL in either body
     // would be a second opinion about where the tracker lives.
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pickTorrentLeech(user)
     await user.type(screen.getByLabelText("TorrentLeech Username"), "bob")

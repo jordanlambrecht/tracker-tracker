@@ -21,7 +21,8 @@ import { trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { getTrackerListForDashboard } from "@/lib/server-data"
+import { getTrackerListForDashboard, isRegistrySlugHeld } from "@/lib/server-data"
+import { TRACKER_DEFUNCT_ERROR } from "@/lib/tracker-status"
 
 export async function GET() {
   const auth = await authenticate()
@@ -74,6 +75,9 @@ export async function POST(request: Request) {
   if (!entry) {
     return NextResponse.json({ error: "Unknown tracker" }, { status: 400 })
   }
+  if (entry.defunct) {
+    return NextResponse.json({ error: TRACKER_DEFUNCT_ERROR }, { status: 400 })
+  }
 
   const trimmedName = name.trim()
   const trimmedApiToken = apiToken.trim()
@@ -121,6 +125,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Two adds at once can both pass this until registry_slug has a unique index.
+    if (await isRegistrySlugHeld(entry.slug)) {
+      return NextResponse.json({ error: `You already track ${entry.name}` }, { status: 409 })
+    }
+
     const key = decodeKey(auth)
     const encryptedApiToken = encrypt(trimmedApiToken, key)
 

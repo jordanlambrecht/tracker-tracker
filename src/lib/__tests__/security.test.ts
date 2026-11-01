@@ -10,7 +10,7 @@
 // @vitest-environment node
 
 import { NextResponse } from "next/server"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getTrackerBySlug } from "@/data/tracker-registry"
 
 // ---------------------------------------------------------------------------
@@ -1170,6 +1170,14 @@ describe("Input validation: POST /api/trackers", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     mockAuthSuccess()
+    // No row holds the slug yet, so a valid body reaches the insert.
+    vi.mocked(db.select).mockReturnValue({
+      from: () => ({ where: () => ({ limit: async () => [] }) }),
+    } as unknown as ReturnType<typeof db.select>)
+  })
+
+  afterEach(() => {
+    vi.mocked(db.select).mockReset()
   })
 
   // "rejects missing required fields", "rejects oversized name", and

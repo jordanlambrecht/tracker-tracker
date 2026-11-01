@@ -11,6 +11,9 @@ import { AddTrackerDialog } from "@/components/AddTrackerDialog"
 
 const fetchMock = vi.fn()
 
+/** Nothing added yet, so every live tracker can be picked. */
+const NONE_HELD: ReadonlyMap<string, boolean> = new Map()
+
 function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
   return { ok, status, json: async () => body }
 }
@@ -45,7 +48,7 @@ const JOIN_DATE = "Join Date (optional)"
 describe("AddTrackerDialog preset switch", () => {
   it("drops a pasted API token when the preset changes so it never reaches another host", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, "Aither")
     await user.type(screen.getByLabelText("API Token"), "tok123")
@@ -57,7 +60,7 @@ describe("AddTrackerDialog preset switch", () => {
 
   it("drops pasted cookies when the preset changes", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, "FileList")
     await user.type(screen.getByLabelText("Browser Cookies"), "uid=1; pass=abc")
@@ -83,7 +86,7 @@ describe("AddTrackerDialog join date visibility", () => {
 
   it.each(HIDDEN)("hides it for %s", async (_platform, trackerName) => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, trackerName)
 
@@ -94,7 +97,7 @@ describe("AddTrackerDialog join date visibility", () => {
 
   it.each(SHOWN)("shows it for %s", async (_platform, trackerName) => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, trackerName)
 
@@ -102,7 +105,7 @@ describe("AddTrackerDialog join date visibility", () => {
   })
 
   it("offers no join date before a tracker is chosen", () => {
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
     expect(screen.queryByLabelText(JOIN_DATE)).not.toBeInTheDocument()
   })
 })
@@ -110,7 +113,7 @@ describe("AddTrackerDialog join date visibility", () => {
 describe("AddTrackerDialog cookie paste errors", () => {
   it("says a bare cookie name is a name, not a malformed cookie string", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, "RetroToon World")
     await user.type(screen.getByLabelText("Browser Cookies"), "PHPSESSID")
@@ -122,7 +125,7 @@ describe("AddTrackerDialog cookie paste errors", () => {
 
   it("quotes the tracker's own cookie example when there is no key=value pair", async () => {
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, "RetroToon World")
     await user.type(screen.getByLabelText("Browser Cookies"), "justastring")
@@ -135,7 +138,7 @@ describe("AddTrackerDialog cookie paste errors", () => {
     // One platform, several sites. The label has to say which site's account
     // the username belongs to.
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, "CinemaZ")
 
@@ -153,7 +156,7 @@ describe("AddTrackerDialog AnimeBytes credentials", () => {
   it("asks for the username beside the API token and sends both as one blob", async () => {
     // The adapter reads the username from the blob, since the API never reports it.
     const user = userEvent.setup()
-    render(<AddTrackerDialog open onClose={vi.fn()} onAdded={vi.fn()} />)
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
     await pick(user, "AnimeBytes")
     await user.type(screen.getByLabelText("AnimeBytes Username"), "someone")
