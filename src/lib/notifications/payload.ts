@@ -139,7 +139,7 @@ function buildDescription(
     case "bonus_cap": {
       const current = formatCount(Number(data.currentBonus ?? 0))
       const cap = formatCount(Number(data.capLimit ?? 0))
-      return `${source} bonus points at **${current}** (cap: ${cap}). Spend them before they're wasted!`
+      return `${source} bonus points at **${current}** (cap: ${cap}). CAPPED`
     }
     case "vip_expiring": {
       const expiry = data.vipUntil ? new Date(String(data.vipUntil)) : null
@@ -150,14 +150,14 @@ function buildDescription(
       const count = Number(data.count ?? 0)
       const limit = Number(data.limit ?? 0)
       const pct = limit > 0 ? Math.round((count / limit) * 100) : 0
-      return `${source} unsatisfied torrents at **${count}/${limit}** (${formatPercent(pct, { decimals: 0 })}). Download capacity running low.`
+      return `${source} unsatisfied torrents at **${count}/${limit}** (${formatPercent(pct, { decimals: 0 })})`
     }
     case "active_hnrs": {
       const count = Number(data.count ?? 0)
       return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
     case "download_disabled":
-      return `${source} has lost download privileges; the ratio may have dropped, or the account was restricted`
+      return `${source} lost download privileges. The ratio may have dropped, or the account was restricted.`
     default:
       return `${source} triggered a notification`
   }
