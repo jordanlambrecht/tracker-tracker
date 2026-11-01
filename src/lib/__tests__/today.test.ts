@@ -535,6 +535,33 @@ describe("computeTodayAtAGlance — torrent movers tag filtering", () => {
     expect(result.movers.topUploaders[0].qbtTag).toBe("aither")
   })
 
+  it("includes a cross-seeded torrent on a linked tracker's registry host, not its stored URL", async () => {
+    const tracker = {
+      ...makeTracker(1),
+      baseUrl: "https://old-host.example",
+      registrySlug: "anthelion",
+    }
+    const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")
+    const snap2 = makeSnapshot(1, new Date(), "2000000000", "1000000000")
+    // Only a tagged torrent gets a checkpoint, and the cache keeps only its announce host.
+    const torrents = [
+      {
+        ...makeTorrent("hash1", "Registry Movie", "cross-seed", 5000000000, 3000000000),
+        tracker: "anthelion.me",
+      },
+      {
+        ...makeTorrent("hash2", "Stored Movie", "cross-seed", 5000000000, 3000000000),
+        tracker: "old-host.example",
+      },
+    ]
+    const cps = torrents.map((t) => makeTorrentCheckpoint(1, t.hash, "0", "0"))
+    const client = { id: 1, name: "qBit", cachedTorrents: JSON.stringify(torrents) }
+    seedStore([tracker], [snap1, snap2], [], [], cps, [client])
+
+    const result = await computeTodayAtAGlance()
+    expect(result.movers.topUploaders.map((m) => m.hash)).toEqual(["hash1"])
+  })
+
   it("excludes torrents with zero upload delta from topUploaders", async () => {
     const tracker = makeTracker(1, { qbtTag: "aither" })
     const snap1 = makeSnapshot(1, new Date(Date.now() - 3600000), "1000000000", "500000000")

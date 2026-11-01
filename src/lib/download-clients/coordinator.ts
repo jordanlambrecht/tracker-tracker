@@ -252,7 +252,7 @@ export async function fetchFleetAggregation(
     .map((r) => r.qbtTag)
     .filter((t): t is string => Boolean(t))
 
-  // Untagged trackers are still included, keyed by their announce host, so
+  // Untagged trackers are still included, keyed by their stored host, so
   // their torrents can be attributed without any tagging setup (issue #152).
   const trackerTagsWithMeta = trackerTagRows
     .map((r) => {

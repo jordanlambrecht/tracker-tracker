@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
+import { ALL_TRACKERS } from "@/data/trackers"
 import {
   announceHostKeySet,
   announceMatchesTracker,
@@ -71,9 +72,31 @@ describe("announceMatchesTracker", () => {
 })
 
 describe("registry announceHosts", () => {
+  const draftSlug = ALL_TRACKERS.find((t) => t.draft)?.slug
+
   it("leaves trackers without a registry entry on their own host", () => {
     expect(trackerAnnounceKeys(site("https://example.org"))).toEqual(["example.org"])
     expect(trackerAnnounceKeys(site(null))).toEqual([])
+  })
+
+  it.each([
+    ["a slug the registry no longer carries", "gone-tracker"],
+    ["a draft entry's slug", draftSlug],
+  ])("leaves a tracker with %s on its own host", (_form, slug) => {
+    expect(slug, "the registry has no draft entry left to test with").not.toBeUndefined()
+    expect(trackerAnnounceKeys(site("https://example.org", slug))).toEqual(["example.org"])
+  })
+
+  it("matches a linked tracker on its registry entry's host, never its stored URL", () => {
+    expect(trackerAnnounceKeys(site("https://old-host.example", "anthelion"))).toEqual([
+      "anthelion.me",
+    ])
+  })
+
+  it("keeps a linked and an unlinked tracker on one stored URL apart", () => {
+    const linked = trackerAnnounceKeys(site("https://old-host.example", "anthelion"))
+    const unlinked = trackerAnnounceKeys(site("https://old-host.example"))
+    expect([linked, unlinked]).toEqual([["anthelion.me"], ["old-host.example"]])
   })
 
   it("matches every registry alias to its own entry and no other", () => {

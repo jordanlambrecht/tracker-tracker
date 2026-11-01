@@ -76,7 +76,7 @@ export function trackerHostKey(input: string | null | undefined): string | null 
 /**
  * A tracker row as far as announce matching is concerned. `registrySlug` is
  * required so a select that leaves the column out fails to compile instead of
- * dropping the entry's `announceHosts`.
+ * matching the row on its stored URL alone.
  */
 export interface AnnounceSource {
   baseUrl?: string | null
@@ -84,11 +84,15 @@ export interface AnnounceSource {
 }
 
 // resolveTorrentTracker asks for every tracker's keys on every torrent. The
-// registry is static, so they are memoised on slug and URL; without the memo a
+// registry is static, so they are memoised on slug and URL. A linked row's keys
+// come from its slug, an unlinked row's from its URL. Without the memo a
 // 10k-torrent resolve takes about twice as long.
 const announceKeyCache = new Map<string, readonly string[]>()
 
-/** The tracker's own host key plus those of its registry entry's `announceHosts`. */
+/**
+ * The host keys of the registry entry's url and `announceHosts`. A row the
+ * registry does not carry has only its stored URL's.
+ */
 export function trackerAnnounceKeys(tracker: AnnounceSource): readonly string[] {
   const baseUrl = tracker.baseUrl ?? ""
   const registrySlug = tracker.registrySlug
@@ -96,8 +100,9 @@ export function trackerAnnounceKeys(tracker: AnnounceSource): readonly string[] 
   const cached = announceKeyCache.get(cacheKey)
   if (cached) return cached
 
-  const own = trackerHostKey(baseUrl)
-  const extra = registryEntryFor({ registrySlug })?.announceHosts ?? []
+  const entry = registryEntryFor({ registrySlug })
+  const own = trackerHostKey(entry?.url ?? baseUrl)
+  const extra = entry?.announceHosts ?? []
   const keys = [
     ...new Set(
       [own, ...extra.map((h) => trackerHostKey(h))].filter((k): k is string => k !== null)

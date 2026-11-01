@@ -38,7 +38,7 @@ export function slimTorrentForCache(t: TorrentRecord) {
     // do not "simplify" this back to `t.tracker`.
     //
     // Attribution only ever needs the host: announceMatchesTracker reduces both the
-    // torrent's announce URL and the tracker's baseUrl to a host key before comparing,
+    // torrent's announce URL and the tracker's URL to a host key before comparing,
     // so the full URL is data this pipeline never reads. Storing the host is storing
     // what the code actually uses.
     //

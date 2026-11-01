@@ -676,6 +676,30 @@ describe("fetchTrackerTorrents", () => {
     )
   })
 
+  it("should match a linked tracker's torrents on its registry host, not its stored URL", async () => {
+    setupDbReturns([
+      [
+        makeTracker({
+          id: 5,
+          qbtTag: null,
+          baseUrl: "https://old-host.example",
+          registrySlug: "anthelion",
+        }),
+      ],
+      [makeFetchClient()],
+    ])
+
+    await fetchTrackerTorrents(5, makeKey())
+    const matches = capturedMatcher()
+
+    expect(matches(makeTorrent("h1", { tags: "", tracker: "https://anthelion.me/announce" }))).toBe(
+      true
+    )
+    expect(
+      matches(makeTorrent("h2", { tags: "", tracker: "https://old-host.example/announce" }))
+    ).toBe(false)
+  })
+
   it("should still match by tag when the tracker has one", async () => {
     setupDbReturns([
       [makeTracker({ id: 1, qbtTag: "Aither", baseUrl: "https://aither.cc" })],
@@ -1125,6 +1149,35 @@ describe("fetchFleetAggregation", () => {
     const mergeCall = vi.mocked(mergeTorrentLists).mock.calls[0]
     const hashes = (mergeCall[0] as { hash: string }[][]).flat().map((t) => t.hash)
     expect(hashes).toEqual(["alias"])
+  })
+
+  it("keeps an untagged torrent on a linked tracker's registry host, not its stored URL", async () => {
+    vi.mocked(isStoreFresh).mockReturnValue(true)
+    vi.mocked(getFilteredTorrents).mockImplementation(
+      (_url: string, pred: (t: TorrentRecord) => boolean) =>
+        [
+          makeTorrent("registry", { tags: "", tracker: "https://anthelion.me/announce" }),
+          makeTorrent("stored", { tags: "", tracker: "https://old-host.example/announce" }),
+        ].filter(pred)
+    )
+
+    setupDbReturns([
+      [makeCachedClient()],
+      [
+        makeTracker({
+          qbtTag: null,
+          name: "Anthelion",
+          baseUrl: "https://old-host.example",
+          registrySlug: "anthelion",
+        }),
+      ],
+    ])
+
+    await fetchFleetAggregation(makeKey())
+
+    const mergeCall = vi.mocked(mergeTorrentLists).mock.calls[0]
+    const hashes = (mergeCall[0] as { hash: string }[][]).flat().map((t) => t.hash)
+    expect(hashes).toEqual(["registry"])
   })
 
   // The scheduler keys the sync store by the adapter's baseUrl, path included.

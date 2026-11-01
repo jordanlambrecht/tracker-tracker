@@ -46,9 +46,9 @@ export interface TrackerTag {
   tag: string
   name: string
   color: string
-  /** Tracker web URL, used to match torrents by announce host (issue #152). */
+  /** The stored URL. Torrents match on its host only when the row has no registry entry. */
   baseUrl?: string
-  /** Registry entry whose `announceHosts` also match. */
+  /** Registry entry whose url and `announceHosts` match torrents by announce host (issue #152). */
   registrySlug: string | null
 }
 
