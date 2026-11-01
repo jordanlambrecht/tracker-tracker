@@ -9,7 +9,7 @@ export const retromoviesclub: TrackerRegistryEntry = {
   abbreviation: "RMC",
   url: "https://retro-movies.club",
   description:
-    "Private movie tracker for films released in 2000 or earlier. Aims to be the definitive archive of classic films.",
+    "Private movie tracker for films released in 2000 or earlier. Aims to archive classic films.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

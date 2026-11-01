@@ -8,7 +8,7 @@ export const zenith: TrackerRegistryEntry = {
   name: "Zenith",
   abbreviation: "ZN",
   url: "https://znth.cx",
-  description: "Private general tracker with a clean UNIT3D interface.",
+  description: "Private general tracker running UNIT3D.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

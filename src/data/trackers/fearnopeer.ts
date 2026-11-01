@@ -9,7 +9,7 @@ export const fearnopeer: TrackerRegistryEntry = {
   abbreviation: "FNP",
   url: "https://fearnopeer.com",
   description:
-    "Community-built Movie/TV/FANRES database with a strong focus on HD content. Experienced staff, proactive userbase, and a security-focused codebase. No donation pestering.",
+    "Community-built Movie/TV/FANRES database with a strong focus on HD content. Experienced staff and a proactive userbase. No donation pestering.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

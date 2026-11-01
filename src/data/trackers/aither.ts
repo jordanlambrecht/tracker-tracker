@@ -9,7 +9,7 @@ export const aither: TrackerRegistryEntry = {
   abbreviation: "ATH",
   url: "https://aither.cc",
   description:
-    "General private tracker with a focus on high-quality encodes and a welcoming community. It has active forums and a generous bonus system.",
+    "General private tracker focused on high-quality encodes. It has active forums and a bonus system.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

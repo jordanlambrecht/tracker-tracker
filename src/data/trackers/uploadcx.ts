@@ -9,7 +9,7 @@ export const uploadcx: TrackerRegistryEntry = {
   abbreviation: "UCX",
   url: "https://upload.cx",
   description:
-    "Community-built Movie/TV/FANRES database with a strong HD focus, a proactive userbase, and one of the best FANRES selections available. Experienced staff, security-focused codebase, and no donation pestering.",
+    "Community-built Movie/TV/FANRES database with a strong HD focus and a proactive userbase. Experienced staff and no donation pestering.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

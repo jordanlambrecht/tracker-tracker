@@ -8,7 +8,7 @@ export const yuscene: TrackerRegistryEntry = {
   abbreviation: "yus",
   url: "https://yu-scene.net",
   description:
-    "Private tracker for Movies, TV, and more, with additional support for Console, PC, Audio, and Books. English-language community with a focus on quality releases and an active membership.",
+    "Private tracker for Movies, TV, and more, with additional support for Console, PC, Audio, and Books. English-language community.",
   platform: "unit3d",
   unit3dAuthStyle: "bearer",
   apiPath: "/api/user",

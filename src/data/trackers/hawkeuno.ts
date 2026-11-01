@@ -9,7 +9,7 @@ export const hawkeuno: TrackerRegistryEntry = {
   abbreviation: "HU",
   url: "https://hawke.uno",
   description:
-    "General private tracker running its own platform (not UNIT3D). Stats come from /api/profile with a Bearer API key.",
+    "General private tracker running its own platform (not UNIT3D).",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "hawke",

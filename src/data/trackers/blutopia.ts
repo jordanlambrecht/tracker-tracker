@@ -9,7 +9,7 @@ export const blutopia: TrackerRegistryEntry = {
   abbreviation: "BLU",
   url: "https://blutopia.cc",
   description:
-    "Community-built Movie/TV/FANRES database with a strong focus on HD content. Has one of the best FANRES selections available, an experienced staff team, and a security-focused codebase. No donation pestering.",
+    "Community-built Movie/TV/FANRES database with a strong focus on HD content and an experienced staff team. No donation pestering.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",

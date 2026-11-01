@@ -9,7 +9,7 @@ export const onlyencodes: TrackerRegistryEntry = {
   abbreviation: "OE",
   url: "https://onlyencodes.cc",
   description:
-    "Specializes exclusively in high-quality video encodes. Curated library focused on the best possible encode for each title. Strict quality standards.",
+    "Video encodes only. Curated library focused on the best encode for each title, with strict quality standards.",
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d",
