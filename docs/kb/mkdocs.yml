@@ -62,6 +62,7 @@ nav:
   - Contributing:
       - Local Development: contributing/local-development.md
       - Adding a Tracker: contributing/adding-a-tracker.md
+      - Adapter Standard: contributing/adapter-standard.md
       - Bento Grid Slot System: contributing/slot-system.md
       - Tracker API Responses:
           - Overview: contributing/tracker-responses.md

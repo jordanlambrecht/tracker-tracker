@@ -172,12 +172,16 @@ Location varies by platform:
 === "Gazelle"
 
     - **RED / OPS**: **Settings → Access Settings → API Keys**. Create a new key (read-only is fine).
-    - **BTN / PTP / others**: check **Settings → Security**, **Settings → API**, or your profile.
+    - **PTP / others**: check **Settings → Security**, **Settings → API**, or your profile.
 
     Gazelle shows keys only once when created, so copy it right away.
 
     !!! tip "Scoped keys"
         Some Gazelle forks support limited-permission keys. Since Tracker Tracker only reads your stats, read-only access is enough.
+
+=== "BTN"
+
+    BTN is not a Gazelle fork. It uses its own API key. See [BroadcasTheNet](../contributing/trackers/broadcasthenet.md).
 
 === "GGn"
 

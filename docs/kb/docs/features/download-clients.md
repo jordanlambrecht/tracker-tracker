@@ -9,12 +9,12 @@ Tracker Tracker connects to qBittorrent's Web API or Transmission's RPC to pull 
 
 ## Supported Clients
 
-| Client       | Status      |
-| ------------ | ----------- |
-| qBittorrent  | Supported   |
-| Transmission | Supported   |
-| Deluge       | Coming soon |
-| rTorrent     | Coming soon |
+| Client       | Status                                   |
+| ------------ | ---------------------------------------- |
+| qBittorrent  | Supported                                |
+| Transmission | Supported                                |
+| Deluge       | Not supported yet. Contributions welcome |
+| rTorrent     | Not supported yet. Contributions welcome |
 
 ## Adding a Client
 

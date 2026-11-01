@@ -39,7 +39,7 @@ The minimum ratio you must maintain. A requirement of `0.60` means you must uplo
 
 Some trackers give new members grace, with no requirement for the first few GiB.
 
-**Availability:** Not on UNIT3D. Available on Gazelle and GGn.
+**Availability:** Not on UNIT3D. Available on Gazelle, GGn, and Luminance.
 
 ---
 
@@ -50,7 +50,8 @@ How far below the required minimum you could fall. A bigger buffer means you can
 Calculation varies:
 
 - UNIT3D: server-side calculation. Most accurate.
-- Gazelle and GGn: upload minus download (net surplus). Doesn't account for your required ratio.
+- HAWKE-UNO: reported by the tracker, and it can be negative.
+- Gazelle, GGn, AnimeBytes, C411, DigitalCore, FileList, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, and TR4KER: upload minus download (net surplus). Doesn't account for your required ratio.
 
 A negative buffer means you're already in deficit.
 
@@ -62,13 +63,13 @@ A negative buffer means you're already in deficit.
 
 How many torrents you're currently uploading. Seeding builds upload credit. Some trackers require minimum seeding, i.e. seed each download for a set period.
 
-**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API.
+**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API. Also on AnimeBytes, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, Nebulance, RetroToon World, and TorrentLeech. Not on C411 or TR4KER.
 
 ### Leeching Count
 
 How many torrents you're currently downloading. Usually zero when you're not grabbing.
 
-**Availability:** Same as seeding.
+**Availability:** Same as seeding, except FileList, Luminance, Nebulance, and RetroToon World, which do not report it.
 
 ---
 
@@ -81,6 +82,11 @@ A site currency earned by seeding. Earn rate depends on seed time, torrent size,
 - UNIT3D: called "seedbonus" or "Bonus Points".
 - Gazelle: called "Bonus Points" or "BP".
 - GGn: uses a separate `gold` currency, spent in GGn's economy (achievements, buffs, store).
+- HAWKE-UNO: called "hunos".
+- Nebulance and Anthelion: called "orbs". Anthelion sends them. Nebulance may not.
+- FileList: called "FLCoins".
+- Luminance: called "credits".
+- TorrentLeech: called "TL Points".
 
 ---
 
@@ -95,6 +101,10 @@ Too many H&Rs lead to warnings or download loss.
 - UNIT3D: available. Shows 0 when you have none.
 - Gazelle: not available.
 - GGn: available, but may be `null` if the tracker doesn't expose it.
+- AnimeBytes, DigitalCore, HAWKE-UNO, and TorrentLeech: available.
+- RetroToon World: partial (0 when none are pending; a count isn't read).
+- Nebulance: available. Anthelion does not send it.
+- C411, FileList, IPTorrents, Luminance, and TR4KER: not available.
 
 ---
 
@@ -109,6 +119,9 @@ Whether you're under a staff warning. Warnings come from H&Rs, ratio drops, or c
 - UNIT3D: not exposed via API.
 - Gazelle: available on sites that support the extended user profile call. Otherwise defaults to no warning.
 - GGn: available from your profile.
+- DigitalCore: available.
+- HAWKE-UNO: reports a warning count, not a yes or no flag, so the flag stays unknown.
+- AnimeBytes, C411, FileList, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, and TR4KER: not available.
 
 ### Username
 
@@ -131,6 +144,7 @@ Apply these to torrents so downloads don't count against ratio.
 - UNIT3D: not available.
 - Gazelle: available on some forks. Not all expose it.
 - GGn: not available. Uses the gold economy instead.
+- FileList, Luminance, and RetroToon World: available.
 
 ---
 
