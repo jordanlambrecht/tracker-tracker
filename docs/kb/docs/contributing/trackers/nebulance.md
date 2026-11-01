@@ -15,7 +15,7 @@ Nebulance is a Gazelle fork that uses `api.php` instead of `ajax.php` and authen
 
 ## Slots
 
-**Profile Card:** username · group · join date (Nebulance gives us joinedDate)
+**Profile Card:** username · group · join date (Nebulance provides joinedDate)
 
 **Badges:** none (the API sends no warned flag, so `warned` stays null)
 

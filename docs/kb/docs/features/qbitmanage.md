@@ -5,7 +5,7 @@ description: Automatically categorize and visualize torrents using qbitmanage st
 
 # qbitmanage Integration
 
-[qbitmanage](https://github.com/StuffAnThings/qbit_manage) automatically manages qBittorrent torrents: tags, categories, cleanup, share limits, and more. If you're already running it, Tracker Tracker can read those tags and build charts from them.
+[qbitmanage](https://github.com/StuffAnThings/qbit_manage) automatically manages qBittorrent torrents: tags, categories, cleanup, and share limits. If you're already running it, Tracker Tracker can read those tags and build charts from them.
 
 For general tag group setup, see [Tag Groups](tag-groups.md).
 
@@ -19,18 +19,18 @@ Tracker Tracker has built-in support for qbitmanage's status tags. Turn it on in
 
 ![qbitmanage tag tracking settings](../assets/images/qbitmanage-settings.png)
 
-Map each status to the tag name from your qbitmanage config. Here are qbitmanage's **out-of-the-box defaults**:
+Map each status to the tag name from your qbitmanage config. These are qbitmanage's out-of-the-box defaults:
 
 | Status                        | Default tag                 | Config key                          | What it means                                                 |
 | ----------------------------- | --------------------------- | ----------------------------------- | ------------------------------------------------------------- |
-| Issue                         | `issue`                     | `tracker_error_tag`                 | Torrent has a tracker error (unregistered, dead, etc.)        |
+| Issue                         | `issue`                     | `tracker_error_tag`                 | Torrent has a tracker error (such as unregistered or dead)      |
 | Min Time Not Reached          | `MinTimeNotReached`         | `share_limits_min_seeding_time_tag` | Hasn't hit the minimum seeding time for its share limit group |
 | No Hardlinks                  | `noHL`                      | `nohardlinks_tag`                   | No hardlinks found outside the root directory                 |
 | Min Seeds Not Met             | `MinSeedsNotMet`            | `share_limits_min_num_seeds_tag`    | Not enough other seeders to safely remove yet                 |
 | Last Active Limit Not Reached | `LastActiveLimitNotReached` | `share_limits_last_active_tag`      | Hasn't been inactive long enough for removal                  |
 | Last Active Not Reached       | `LastActiveNotReached`      | `share_limits_last_active_tag`      | Last activity hasn't crossed the threshold                    |
 
-Many people customize them with emoji (i.e., `⚠️ Issue`). If you've changed them in your qbitmanage `config.yml`, use your actual tag names here.
+Your config may add emoji to them (for example, `⚠️ Issue`). If you've changed them in your qbitmanage `config.yml`, use your actual tag names here.
 
 Here's what the qbitmanage status breakdown looks like on a tracker's Torrents tab:
 
@@ -41,7 +41,7 @@ Here's what the qbitmanage status breakdown looks like on a tracker's Torrents t
 
 ## Tag Group Examples
 
-Here are some tag groups that work well alongside qbitmanage.
+Some tag groups to use alongside qbitmanage.
 
 ### Priority Breakdown
 
@@ -135,10 +135,10 @@ Create a tag group with just the `⛓️‍💥 noHL` tag and enable **Count unm
 
 ## Tips
 
-- **qbitmanage runs independently.** Tags take a few minutes to appear, and Tracker Tracker polls every 5 minutes by default, so there's some lag.
-- **Emoji in tags work fine**, just match the exact sequence.
-- **Priority tags come from the `tracker:` section**, not share limits. Share limits use them for filtering, but the tags come from tracker keyword matching.
-- **You don't need qbitmanage for tag groups.** Any qBittorrent tags work; qbitmanage is just popular in the homelab community.
+- qbitmanage runs independently. Tags take a few minutes to appear, and Tracker Tracker polls every 5 minutes by default, so there's some lag.
+- Emoji in tags work fine. Match the exact sequence.
+- Priority tags come from the `tracker:` section, not share limits. Share limits use them for filtering, but the tags come from tracker keyword matching.
+- You don't need qbitmanage for tag groups. Any qBittorrent tags work.
 
 ## Resources
 

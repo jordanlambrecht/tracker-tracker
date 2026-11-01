@@ -13,7 +13,7 @@
 
 REDacted uses `gazelleAuthStyle: "token"`, so it takes the raw token string in the `Authorization` header, not the `token TOKEN` format most Gazelle sites expect.
 
-Enrichment is on, so we make a second `?action=user&id=X` call after the first one to grab `warned` status, join date, last access, and better seeding/leeching numbers.
+Enrichment is on, so a second `?action=user&id=X` call follows the first one to grab `warned` status, join date, last access, and better seeding/leeching numbers.
 
 ## Slots
 

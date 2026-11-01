@@ -1,6 +1,6 @@
 # Bento Grid Slot System
 
-The tracker detail page's Data & Analytics tab uses a slot-based bento grid to render platform-specific stat cards alongside universal core stats. Learn how it works and how to add a new card.
+The tracker detail page's Data & Analytics tab uses a slot-based bento grid to render platform-specific stat cards alongside universal core stats. This page covers how it works and how to add a new card.
 
 ---
 
@@ -25,7 +25,7 @@ export type SlotCategory = "badge" | "stat-card" | "progress"
 | Category    | What it renders                                                        | Where it appears                                                  |
 | ----------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `stat-card` | A `StatCard` component (basic, stacked, or ring variant)               | Inside the bento grid                                             |
-| `badge`     | A `SlotBadge` pill (Warned, Donor, Parked, etc.)                       | Collected and displayed as a badge row above the grid             |
+| `badge`     | A `SlotBadge` pill (such as Warned, Donor, or Parked)                       | Collected and displayed as a badge row above the grid             |
 | `progress`  | An arbitrary component (achievement progress bars, share score, buffs) | Rendered as a flex column above the bento grid via `SlotRenderer` |
 
 This document focuses on **`stat-card`** slots, as they are the most common thing to add.
@@ -56,7 +56,7 @@ export interface SlotContext {
   snapshots: Snapshot[]
   meta: GGnPlatformMeta | GazellePlatformMeta | NebulancePlatformMeta | null
   registry: TrackerRegistryEntry | undefined
-  accentColor: string // hex, e.g. "#00d4ff"
+  accentColor: string // hex, such as "#00d4ff"
 }
 ```
 
@@ -109,7 +109,7 @@ interface StatCardBasicProps {
   type?: "basic"
   label: string
   value: string | number
-  unit?: string // "BON", "GiB", etc.
+  unit?: string // such as "BON" or "GiB"
   subtitle?: string
   subValue?: string
   trend?: "up" | "down" | "flat"
@@ -123,7 +123,7 @@ interface StatCardBasicProps {
 
 ### `stacked`
 
-Multiple label/value rows. Use when a concept has two or three related figures (e.g. Freeleech tokens + Merit tokens).
+Multiple label/value rows. Use when a concept has two or three related figures (for example, Freeleech tokens and Merit tokens).
 
 ```ts
 interface StatCardStackedProps {
@@ -134,7 +134,7 @@ interface StatCardStackedProps {
     value: string | number
     prefix?: string // prepended to value display
     unit?: string
-    colorClass?: string // Tailwind class, e.g. "text-success"
+    colorClass?: string // Tailwind class, such as "text-success"
   }>
   total?: {
     label: string // displayed below a divider

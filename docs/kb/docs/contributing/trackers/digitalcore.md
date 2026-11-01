@@ -66,7 +66,7 @@ response before writing a coercion.
 **Profile Card:** username · class · avatar · join date (from enrichment)
 
 **Badges:** `warned` · `dc-unconnectable` (rendered when `connectable !== false`
-is falsy; note this badge id is our own label, not a field name in DigitalCore's
+is falsy; note this badge id is Tracker Tracker's own label, not a field name in DigitalCore's
 response)
 
 **Stat Cards:** bonus points (`bonuspoang`) · hit-and-runs · seeding count ·

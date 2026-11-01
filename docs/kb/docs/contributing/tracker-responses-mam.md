@@ -82,18 +82,18 @@ Auth fails silently, and you get HTML instead of JSON. That HTML fails the JSON 
 | `remoteUserId` | `uid` | `number` | Cached for future use |
 | `uploadedBytes` | `uploaded_bytes` | `number` | `BigInt()`, raw bytes, no parsing needed |
 | `downloadedBytes` | `downloaded_bytes` | `number` | `BigInt()`, raw bytes, no parsing needed |
-| `ratio` | — | — | Calculated: `uploadedBytes / downloadedBytes`. MAM's own `ratio` is a display value, not a number (an account that has downloaded nothing reports `"∞"`), so it is not read |
-| `bufferBytes` | — | — | Calculated: `uploadedBytes - downloadedBytes`, signed, negative on a deficit account |
+| `ratio` | n/a | n/a | Calculated: `uploadedBytes / downloadedBytes`. MAM's own `ratio` is a display value, not a number (an account that has downloaded nothing reports `"∞"`), so it is not read |
+| `bufferBytes` | n/a | n/a | Calculated: `uploadedBytes - downloadedBytes`, signed, negative on a deficit account |
 | `seedingCount` | `snatch_summary.{sSat,seedHnr,seedUnsat,upAct}.count` | `number \| null` | Sum of the seeding categories; `null` when none of them arrived |
 | `leechingCount` | `snatch_summary.leeching.count` | `number \| null` | Direct; `null` when absent |
 | `seedbonus` | `seedbonus` | `number` | Direct; MAM caps at 99,999 |
 | `hitAndRuns` | `snatch_summary.inactHnr.count` | `number \| null` | Only inactive (not seeding) HnR torrents; `null` when absent |
-| `requiredRatio` | — | — | Always `null`, MAM uses class-based ratio thresholds |
-| `warned` | — | — | Always `null`, not exposed in API |
+| `requiredRatio` | n/a | n/a | Always `null`, MAM uses class-based ratio thresholds |
+| `warned` | n/a | n/a | Always `null`, not exposed in API |
 | `freeleechTokens` | `wedges` | `number` | MAM calls them "FL Wedges" |
-| `joinedDate` | — | — | Not available from this endpoint |
-| `lastAccessDate` | — | — | Not available from this endpoint |
-| `platformMeta` | Multiple fields | — | `MamPlatformMeta` object (see below) |
+| `joinedDate` | n/a | n/a | Not available from this endpoint |
+| `lastAccessDate` | n/a | n/a | Not available from this endpoint |
+| `platformMeta` | Multiple fields | n/a | `MamPlatformMeta` object (see below) |
 
 ## Platform Meta (MamPlatformMeta)
 
@@ -131,7 +131,7 @@ Each object: `name`, `count`, `size` (bytes or null). The 2026-03 capture also c
 
 **The summary moved under `snatch_summary` on 2026-09-23.** Since then the snatch categories, `connectable`, `created`, `created_at` (new), `ipv6_mac`, `partial`, `recently_deleted` and `v6_connectable` arrive nested under `snatch_summary`; before, they sat at the top level. The adapter reads `{ ...data, ...data.snatch_summary }`, so both shapes parse.
 
-**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. We use raw bytes with `BigInt()`, so no parsing is needed.
+**Dual byte representation.** Both formatted strings (`"5.125 TiB"`) and raw bytes. The adapter uses raw bytes with `BigInt()`, so no parsing is needed.
 
 **Bonus points cap at 99,999.** Hard ceiling. Anything above is lost.
 

@@ -5,7 +5,7 @@ description: Plain-language explanations of every stat Tracker Tracker collects 
 
 # Stats Explained
 
-We save a snapshot on every poll. Here's what each stat means.
+Tracker Tracker saves a snapshot on every poll. Here's what each stat means.
 
 ---
 
@@ -49,8 +49,8 @@ How far below the required minimum you could fall. A bigger buffer means you can
 
 Calculation varies:
 
-- **UNIT3D**: server-side calculation. Most accurate.
-- **Gazelle and GGn**: upload minus download (net surplus). Doesn't account for your required ratio.
+- UNIT3D: server-side calculation. Most accurate.
+- Gazelle and GGn: upload minus download (net surplus). Doesn't account for your required ratio.
 
 A negative buffer means you're already in deficit.
 
@@ -78,9 +78,9 @@ A site currency earned by seeding. Earn rate depends on seed time, torrent size,
 
 **Platform notes:**
 
-- **UNIT3D**: called "seedbonus" or "Bonus Points".
-- **Gazelle**: called "Bonus Points" or "BP".
-- **GGn**: uses a separate `gold` currency, spent in GGn's economy (achievements, buffs, store).
+- UNIT3D: called "seedbonus" or "Bonus Points".
+- Gazelle: called "Bonus Points" or "BP".
+- GGn: uses a separate `gold` currency, spent in GGn's economy (achievements, buffs, store).
 
 ---
 
@@ -92,9 +92,9 @@ Too many H&Rs lead to warnings or download loss.
 
 **Availability:**
 
-- **UNIT3D**: available. Shows 0 when you have none.
-- **Gazelle**: not available.
-- **GGn**: available, but may be `null` if the tracker doesn't expose it.
+- UNIT3D: available. Shows 0 when you have none.
+- Gazelle: not available.
+- GGn: available, but may be `null` if the tracker doesn't expose it.
 
 ---
 
@@ -106,9 +106,9 @@ Whether you're under a staff warning. Warnings come from H&Rs, ratio drops, or c
 
 **Availability:**
 
-- **UNIT3D**: not exposed via API.
-- **Gazelle**: available on sites that support the extended user profile call. Otherwise defaults to no warning.
-- **GGn**: available from your profile.
+- UNIT3D: not exposed via API.
+- Gazelle: available on sites that support the extended user profile call. Otherwise defaults to no warning.
+- GGn: available from your profile.
 
 ### Username
 
@@ -116,21 +116,21 @@ Your tracker username. Visibility depends on the "Store Tracker Usernames" setti
 
 ### Class / Rank
 
-Your member class: "Member", "Power User", "Elite", "VIP", "Donor", etc. Promotion is based on ratio, upload, seedbonus, age, and contributions.
+Your member class, such as "Member", "Power User", "Elite", "VIP", or "Donor". Promotion is based on ratio, upload, seedbonus, age, and contributions.
 
-We record what the tracker returns. No cross-tracker comparison.
+Tracker Tracker records what the tracker returns and does not compare classes across trackers.
 
 ---
 
 ## Freeleech Tokens
 
-Apply these to torrents so downloads don't count against ratio. Grab content without penalty.
+Apply these to torrents so downloads don't count against ratio.
 
 **Availability:**
 
-- **UNIT3D**: not available.
-- **Gazelle**: available on some forks. Not all expose it.
-- **GGn**: not available. Uses gold economy instead.
+- UNIT3D: not available.
+- Gazelle: available on some forks. Not all expose it.
+- GGn: not available. Uses the gold economy instead.
 
 ---
 

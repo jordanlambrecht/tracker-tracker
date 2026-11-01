@@ -5,7 +5,7 @@ description: Environment variables, volumes, ports, reverse proxy examples, and 
 
 # Docker Configuration
 
-Customize Tracker Tracker via environment variables, volumes, ports, reverse proxies, and update strategies.
+Environment variables, volumes, ports, reverse proxies, and updates.
 
 ---
 
@@ -28,11 +28,11 @@ Customize Tracker Tracker via environment variables, volumes, ports, reverse pro
 | `POSTGRES_PORT`  | `5432`               | PostgreSQL port. If you change it, uncomment the matching lines in `docker-compose.yml`.                                                                        |
 | `DATABASE_URL`   | _(auto-built)_       | Full connection string. Use this instead of `POSTGRES_*` variables when pointing to an external Postgres. Format: `postgresql://user:password@host:5432/dbname` |
 | `PORT`           | `3000`               | Container port. The host mapping in `docker-compose.yml` follows this.                                                                                          |
-| `BASE_URL`       | _(empty)_            | Your public app URL (e.g. `https://trackertracker.example.com`). Used for backup metadata and notification links.                                               |
+| `BASE_URL`       | _(empty)_            | Your public app URL (such as `https://trackertracker.example.com`). Used for backup metadata and notification links.                                               |
 | `SECURE_COOKIES` | _(auto)_             | Set to `true` to mark session cookies as `Secure`. Auto-enabled when `BASE_URL` is HTTPS. Only set this if you serve HTTPS without `BASE_URL`.                  |
-| `TZ`             | `UTC`                | Timezone for scheduled tasks and log timestamps (e.g. `America/Chicago`, `Europe/London`).                                                                      |
+| `TZ`             | `UTC`                | Timezone for scheduled tasks and log timestamps (such as `America/Chicago` or `Europe/London`).                                                                      |
 | `LOG_LEVEL`      | `info`               | Log verbosity. Options: `error`, `warn`, `info`, `debug`.                                                                                                       |
-| `LOG_FILE`       | _(none)_             | Write logs to disk at this container path (e.g. `/data/logs/tracker-tracker.log`).                                                                              |
+| `LOG_FILE`       | _(none)_             | Write logs to disk at this container path (such as `/data/logs/tracker-tracker.log`).                                                                              |
 | `DISABLE_LOGIN_LOCKOUT` | _(unset)_     | Set `true` to stop failed-attempt lockouts being enforced, for when you have locked yourself out, because the in-app toggle sits behind the login you cannot reach. Also suppresses enforcement on the backup-restore password check. Failed attempts are still counted, and a successful login clears them. Unset it once you are back in. See [HTTP 429](../troubleshooting.md#http-429-too-many-failed-login-attempts). |
 
 !!! info "Settings vs environment variables"
@@ -79,65 +79,71 @@ PORT=8080
 
 === "Nginx"
 
-```nginx title="/etc/nginx/sites-available/tracker-tracker"
-server {
-    listen 80;
-    server_name trackertracker.example.com;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name trackertracker.example.com;
-
-    ssl_certificate     /etc/letsencrypt/live/trackertracker.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/trackertracker.example.com/privkey.pem;
-
-    # Required for live polling status updates
-    proxy_buffering off;
-    proxy_cache off;
-
-    location / {
-        proxy_pass         http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
+    ```nginx title="/etc/nginx/sites-available/tracker-tracker"
+    server {
+        listen 80;
+        server_name trackertracker.example.com;
+        return 301 https://$host$request_uri;
     }
-}
-```
+
+    server {
+        listen 443 ssl http2;
+        server_name trackertracker.example.com;
+
+        ssl_certificate     /etc/letsencrypt/live/trackertracker.example.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/trackertracker.example.com/privkey.pem;
+
+        # Required for live polling status updates
+        proxy_buffering off;
+        proxy_cache off;
+
+        location / {
+            proxy_pass         http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header   Upgrade $http_upgrade;
+            proxy_set_header   Connection "upgrade";
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto $scheme;
+        }
+    }
+    ```
 
 === "Caddy"
 
+    ```
+    trackertracker.example.com {
+        reverse_proxy 127.0.0.1:3000
+    }
+    ```
+
 === "Traefik"
 
-Add labels to the app service in `docker-compose.yml`:
+    Add labels to the app service in `docker-compose.yml`:
 
-```yaml title="docker-compose.yml (app service labels)"
-services:
-    tracker-tracker-app:
-    image: ghcr.io/jordanlambrecht/tracker-tracker:latest
-    restart: unless-stopped
-    container_name: tracker-tracker-app
-    labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.tracker-tracker.rule=Host(`trackertracker.example.com`)"
-        - "traefik.http.routers.tracker-tracker.entrypoints=websecure"
-        - "traefik.http.routers.tracker-tracker.tls.certresolver=letsencrypt"
-        - "traefik.http.services.tracker-tracker.loadbalancer.server.port=3000"
-    # Remove the ports: block when using Traefik
-    networks:
-        - traefik_proxy
-        - default
-```
+    ```yaml title="docker-compose.yml (app service labels)"
+    services:
+      tracker-tracker-app:
+        image: ghcr.io/jordanlambrecht/tracker-tracker:latest
+        restart: unless-stopped
+        container_name: tracker-tracker-app
+        labels:
+          - "traefik.enable=true"
+          - "traefik.http.routers.tracker-tracker.rule=Host(`trackertracker.example.com`)"
+          - "traefik.http.routers.tracker-tracker.entrypoints=websecure"
+          - "traefik.http.routers.tracker-tracker.tls.certresolver=letsencrypt"
+          - "traefik.http.services.tracker-tracker.loadbalancer.server.port=3000"
+        # Remove the ports: block when using Traefik
+        networks:
+          - traefik_proxy
+          - default
+    ```
 
-Assumes Traefik is already running with a `websecure` entrypoint and `letsencrypt` resolver.
+    Assumes Traefik is already running with a `websecure` entrypoint and `letsencrypt` resolver.
 
 !!! info "Set BASE_URL with a reverse proxy"
-    Add `BASE_URL=https://trackertracker.example.com` in `.env`. This auto-enables secure cookies and ensures backups and notifications use your public URL.
+    Add `BASE_URL=https://trackertracker.example.com` in `.env`. This turns on secure cookies and makes backups and notifications use your public URL.
 
 ---
 
@@ -160,18 +166,18 @@ The `/api/health` endpoint returns `200 OK` when both the app and database are h
 docker compose pull && docker compose up -d
 ```
 
-The database schema updates automatically. No manual steps needed.
+The database schema updates automatically.
 
 !!! tip "Read the changelog first"
     Check the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before upgrading, especially major versions, which may break backups or environment variables.
 
-Pin a version by editing `docker-compose.yml`:
+To stay on one version, edit `docker-compose.yml`:
 
 ```bash
 # Change:
 image: ghcr.io/jordanlambrecht/tracker-tracker:latest
 # To:
-image: ghcr.io/jordanlambrecht/tracker-tracker:2.1.1
+image: ghcr.io/jordanlambrecht/tracker-tracker:2.15.1
 ```
 
 Then run `docker compose pull && docker compose up -d`.

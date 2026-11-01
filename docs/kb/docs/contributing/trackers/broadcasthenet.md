@@ -42,7 +42,7 @@ persisted `https://api.broadcasthe.net/` into `api_path`, and the project uses
 `drizzle-kit push` only, and raw SQL migrations are a CI-blocking security-audit
 failure, so there is no sanctioned way to rewrite existing rows. Because the
 adapter never reads the column, those rows self-heal on deploy and would keep
-working even if BTN moved hosts. `btn.test.ts` pins this with cases that feed
+working even if BTN moved hosts. `btn.test.ts` covers this with cases that feed
 the adapter a stale, empty, and outright wrong path.
 
 ### Migrating a BTN tracker added before this change

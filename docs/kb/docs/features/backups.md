@@ -5,7 +5,7 @@ description: Export, schedule, encrypt, and restore Tracker Tracker backups.
 
 # Backups
 
-Tracker Tracker backs up your configuration and history. Download backups manually whenever you want, or set up automatic scheduled backups that save to disk on the server.
+Tracker Tracker backs up your configuration and history. Back up manually whenever you want, or set up automatic scheduled backups. Both save to the server's storage path. A manual backup downloads to your browser only if that write fails.
 
 ## What Gets Backed Up
 
@@ -37,7 +37,7 @@ This is useful if you store backups in cloud storage, send them offsite, or anyw
 
 ## Exporting a Backup Manually
 
-Go to **Settings → Backups** and click **Export Now**. Manual exports download to your browser and don't save to the server.
+Go to **Settings → Backups** and click **Export Now**. Manual exports are saved to the storage path on the server and appear in Recent Backups. Your browser downloads the file only if the write to disk fails.
 
 ![Backup export and restore UI](../assets/images/backups-exportAndRestore.png)
 
@@ -55,7 +55,7 @@ They save to the storage path you set in **Settings → Backups** and show up in
 
 ### Retention
 
-Set a retention count (1-365, default 14). Once exceeded, the oldest backups delete automatically.
+Set a retention count from 1 to 365 (default 14). Once exceeded, the oldest backups are deleted.
 
 ## Restoring a Backup
 
@@ -78,7 +78,7 @@ Set a retention count (1-365, default 14). Once exceeded, the oldest backups del
 Restoring from a different Tracker Tracker instance with a different password? The app re-encrypts sensitive fields automatically. If a field can't be re-encrypted (i.e., the backup was encrypted with an unknown password), it's cleared. For TOTP, the restore screen tells you if 2FA is disabled, so re-enable it after restoring.
 
 !!! warning "TOTP after a cross-instance restore"
-    If 2FA was active but can't be carried over, it'll be disabled. Re-enroll in **Settings → Security** after the restore.
+    If 2FA was active but can't be carried over, it'll be disabled. Re-enroll in **Settings → General** after the restore.
 
 ![Backup configuration: encryption, scheduling, and storage path](../assets/images/backups-configuration.png)
 
@@ -88,6 +88,6 @@ Restoring from a different Tracker Tracker instance with a different password? T
 | ----------------- | ------- | ----------------------------------------------------------- |
 | Scheduled backups | Off     | Enable automatic backups on a schedule                      |
 | Frequency         | Daily   | How often to run: daily, weekly, or monthly                 |
-| Retention count   | 14      | How many backups to keep (1-365)                            |
-| Encrypt backups   | Off     | Add an extra encryption layer to scheduled backups (.ttbak) |
-| Storage path      | —       | Server directory where scheduled backups are saved          |
+| Retention count   | 14      | How many backups to keep (1 to 365)                         |
+| Encrypt backups   | Off     | Add an extra encryption layer to manual and scheduled backups (.ttbak) |
+| Storage path      | n/a     | Server directory where manual and scheduled backups are saved |

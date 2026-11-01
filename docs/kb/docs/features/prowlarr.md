@@ -25,7 +25,7 @@ Each enabled instance's indexer status is read every five minutes and its 24-hou
 
 Trackers are matched to indexers by hostname: the tracker's URL and its registry URL are compared with each indexer's base URL, alternate URLs and legacy URLs, ignoring a leading `www.`. When no hostname matches exactly, the registrable domain is compared, so `example.org` still matches `tracker.example.org`.
 
-When the hosts differ, open the tracker's settings and pick the indexer under **Prowlarr Indexer**. Pick **None** to keep a tracker out of it. Removing an instance returns trackers pinned to it to hostname matching.
+When the hosts differ, open the tracker's settings and pick the indexer under **Prowlarr Indexer**. Pick **None** to keep a tracker out of it. Removing an instance sends the trackers you assigned to it back to hostname matching.
 
 ## What Is Shown
 

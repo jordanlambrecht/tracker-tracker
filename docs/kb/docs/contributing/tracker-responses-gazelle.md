@@ -61,13 +61,13 @@ Byte values are raw integers (bytes), not formatted strings. The `id` field is t
 | `uploadedBytes`    | `response.userstats.uploaded`                                 | `number`  | `BigInt(Math.floor(...))`                                      |
 | `downloadedBytes`  | `response.userstats.downloaded`                               | `number`  | `BigInt(Math.floor(...))`                                      |
 | `ratio`            | `response.userstats.ratio`                                    | `number`  | Defaults to `0` if not a number                                |
-| `bufferBytes`      | —                                                             | —         | Calculated: `uploadedBytes - downloadedBytes`, signed          |
+| `bufferBytes`      | n/a                                                           | n/a       | Calculated: `uploadedBytes - downloadedBytes`, signed          |
 | `seedingCount`     | `response.userstats.seedingcount`                             | `number?` | Defaults to `0`, many forks omit this                          |
 | `leechingCount`    | `response.userstats.leechingcount`                            | `number?` | Defaults to `0`, many forks omit this                          |
 | `seedbonus`        | `response.userstats.bonusPoints` or `.bonuspoints`            | `number?` | Checks both casing variants                                    |
-| `hitAndRuns`       | —                                                             | —         | Always `null`, not in Gazelle index response                   |
+| `hitAndRuns`       | n/a                                                           | n/a       | Always `null`, not in Gazelle index response                   |
 | `requiredRatio`    | `response.userstats.requiredratio`                            | `number?` | `null` if absent                                               |
-| `warned`           | —                                                             | —         | Defaults to `false` from index; overridden if enrichment runs  |
+| `warned`           | n/a                                                           | n/a       | Defaults to `false` from index; overridden if enrichment runs  |
 | `freeleechTokens`  | `response.userstats.freeleechTokens` or `response.giftTokens` | `number?` | Checks `userstats` first, falls back to top-level `giftTokens` |
 | `remoteUserId`     | `response.id`                                                 | `number`  | Cached to skip re-parsing on future polls                      |
 
@@ -153,7 +153,7 @@ GET {baseUrl}/ajax.php?action=user&id={USER_ID}
 | `avatarUrl`      | `avatar`                         | Index has none               |
 | `platformMeta`   | `personal`, `ranks`, `community` | Full object                  |
 
-If enrichment fails, we keep the index stats. No problem.
+If enrichment fails, the adapter keeps the index stats.
 
 ---
 
@@ -163,15 +163,13 @@ If enrichment fails, we keep the index stats. No problem.
 | -------------------- | ----------------- | --------------- | --------------------- |
 | Redacted (RED)       | `bonusPoints`     | Sometimes       | No                    |
 | Orpheus (OPS)        | `bonusPoints`     | Sometimes       | No                    |
-| BroadcasTheNet (BTN) | Varies            | No              | No                    |
 | PassThePopcorn (PTP) | Varies            | No              | No                    |
 
-GGn uses a separate adapter. See the [GGn page](tracker-responses-ggn.md).
+GGn uses a separate adapter. See the [GGn page](tracker-responses-ggn.md). BTN is not Gazelle either. See [BroadcasTheNet](trackers/broadcasthenet.md).
 
 ## Supported Trackers
 
 - [AlphaRatio](trackers/alpharatio.md)
-- [BroadcasTheNet](trackers/broadcasthenet.md)
 - [Empornium](trackers/empornium.md)
 - [Great Poster Wall](trackers/greatposterwall.md)
 - [MoreThanTV](trackers/morethantv.md)

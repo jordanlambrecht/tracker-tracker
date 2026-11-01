@@ -51,9 +51,9 @@ Stock UNIT3D returns byte values as formatted strings (`"500.25 GiB"`), and `rat
 | `leechingCount`    | `leeching`     | `number` | Direct copy                                                           |
 | `seedbonus`        | `seedbonus`    | `string` | `parseFloat()`, defaults to `0`                                       |
 | `hitAndRuns`       | `hit_and_runs` | `number` | Direct copy                                                           |
-| `requiredRatio`    | —              | —        | Always `null`, not in UNIT3D API                                      |
-| `warned`           | —              | —        | Always `null`, not in UNIT3D API                                      |
-| `freeleechTokens`  | —              | —        | Always `null`, not in UNIT3D API                                      |
+| `requiredRatio`    | n/a            | n/a      | Always `null`, not in UNIT3D API                                      |
+| `warned`           | n/a            | n/a      | Always `null`, not in UNIT3D API                                      |
+| `freeleechTokens`  | n/a            | n/a      | Always `null`, not in UNIT3D API                                      |
 
 One API call per poll, no enrichment step.
 

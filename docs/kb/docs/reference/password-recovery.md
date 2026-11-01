@@ -23,7 +23,7 @@ Every secret in your instance (tracker API tokens, download client
 credentials, notification webhook configs, your TOTP secret) is encrypted with
 a key derived from your master password and `app_settings.encryption_salt`.
 
-So this, which is the first thing everyone tries, is destructive:
+Editing the password hash by hand is destructive:
 
 ```sql
 -- ✗ NEVER DO THIS
@@ -134,7 +134,7 @@ docker compose restart tracker-tracker-app
 
 !!! warning "`--password` is visible to other processes"
 
-    A password passed on the command line lands in your shell history, and for the
+    A password passed on the command line ends up in your shell history, and for the
     lifetime of the process it is readable in `ps` and `/proc/<pid>/cmdline` by
     anything else running in that container. Use the interactive prompt unless you
     are scripting this.
@@ -148,7 +148,7 @@ be stopped at the TOTP prompt. If your authenticator is gone as well:
 docker exec -it tracker-tracker-app tt-recover --apply --disable-totp
 ```
 
-Set 2FA up again from **Settings → Security** once you are back in.
+Set 2FA up again from **Settings → General** once you are back in.
 
 ---
 
@@ -173,8 +173,8 @@ key was cleared, or start fresh and re-enter your secrets.
 ### `SESSION_SECRET` is missing, short, or was rotated
 
 `SESSION_SECRET` is the only thing that can unwrap the master key. Check the
-value in your compose file and any `.env` it reads. If the old value is genuinely
-gone, so is the recovery path.
+value in your compose file and any `.env` it reads. If the old value is gone, so
+is the recovery path.
 
 ### The key unwraps but decrypts nothing
 
@@ -197,8 +197,8 @@ so the tool stops.
   byte-identically, so the evidence that a lockdown happened is not quietly
   erased.
 - **Blank-by-design credentials.** A qBittorrent client configured with
-  "bypass authentication for clients on localhost" has genuinely empty
-  credentials stored as real ciphertext. Those are re-keyed like any other value,
+  "bypass authentication for clients on localhost" has empty credentials stored
+  as real ciphertext. Those are re-keyed like any other value,
   not collapsed to empty strings.
 
 ---

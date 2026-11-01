@@ -34,7 +34,7 @@ interface TrackerStats {
 }
 ```
 
-Fields marked `null` indicate the tracker doesn't expose that data. We return `null` explicitly, not `undefined` or `0`.
+Fields marked `null` indicate the tracker doesn't expose that data. Adapters return `null` explicitly, not `undefined` or `0`.
 
 ## Platform Reference
 
@@ -57,7 +57,7 @@ For a brand new platform (not just a new tracker on an existing one):
 6. Add tracker entries in `src/data/trackers/`
 7. Document the response shape here, redacted as [Sharing a Response Sample](#sharing-a-response-sample) describes
 
-For a new tracker on an existing platform (i.e., a new UNIT3D site), just add an entry in `src/data/trackers/`.
+For a new tracker on an existing platform (for example, a new UNIT3D site), just add an entry in `src/data/trackers/`.
 
 ---
 
@@ -84,7 +84,7 @@ For an HTML page, include only the elements the adapter reads. Page headers and 
 
 ### Capturing the Response
 
-If the tracker runs on a JSON platform we already support, add it in the app, open its tracker page and click the bug icon. The **Raw Response** tab shows the body the tracker returned, with `passkey`, `authkey`, `ip`, `email`, `irckey`, `torrent_pass` and API key fields already replaced by `[redacted]`. That match is on exact key names, so it leaves your username, user ID and avatar URL alone and misses a secret stored under any other name or inside a URL. Scrub those by hand before you copy it.
+If the tracker runs on a JSON platform Tracker Tracker already supports, add it in the app, open its tracker page and click the bug icon. The **Raw Response** tab shows the body the tracker returned, with `passkey`, `authkey`, `ip`, `email`, `irckey`, `torrent_pass` and API key fields already replaced by `[redacted]`. That match is on exact key names, so it leaves your username, user ID and avatar URL alone and misses a secret stored under any other name or inside a URL. Scrub those by hand before you copy it.
 
 For the HTML-scrape platforms the tab shows the parsed stats, not the page. Save the page from your browser instead, and trim it as described above.
 

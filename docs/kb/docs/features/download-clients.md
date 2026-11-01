@@ -67,7 +67,7 @@ Both loops reuse the same session. qBittorrent logs in again only after a 403, a
 
 ## Cross-Seed Detection
 
-Use [cross-seed](https://cross-seed.org/) to find matching torrents across trackers? Configure cross-seed tags on the download client. Any torrent with one of those tags is counted separately in the cross-seed stats, so you can see how many torrents are cross-seeded vs. original grabs.
+If you use [cross-seed](https://cross-seed.org/) to find matching torrents across trackers, configure cross-seed tags on the download client. Any torrent with one of those tags is counted separately in the cross-seed stats, so you can see how many torrents are cross-seeded vs. original grabs.
 
 Set cross-seed tags in the client settings after adding it. Common tags are `cross-seed` (the default) or category-based like `cs-link-movies`, `cs-link-tv`.
 

@@ -5,19 +5,19 @@ description: Creating your account and getting oriented after your first login.
 
 # First Setup
 
-Once your stack is up, there are a few one-time things to do before you add trackers.
+Once the stack is running, create your account before you add trackers.
 
 ## Creating your account
 
-Go to [http://localhost:3000](http://localhost:3000). Since this is single-user, you'll land on `/setup` on first visit.
+Go to [http://localhost:3000](http://localhost:3000). Tracker Tracker is single-user, so your first visit goes to `/setup`.
 
 Fill in a username and password on the **Create an account** form. Your password does two things:
 
-1. **Logs you in.** You'll need it every time you access the app.
-2. **Encrypts your API tokens.** All tracker tokens are encrypted at rest using your password. Lose the password? You can't recover the tokens, but you can re-enter them manually.
+1. It logs you in. You need it every time you open the app.
+2. It encrypts your API tokens. Your password encrypts all tracker tokens at rest. If you lose it, you can reset it with `tt-recover` without losing the tokens. See [Lost Master Password](../reference/password-recovery.md).
 
 !!! warning "Use a strong password"
-    There's no recovery if you forget it. You'll have to reset the database. Use a password manager.
+    There is no "forgot password" email. Recovery needs your original `SESSION_SECRET`, so keep that safe too. Use a password manager.
 
 !!! info "Your password never leaves your machine"
     It's hashed on the server before storage. The raw password is never written to disk.

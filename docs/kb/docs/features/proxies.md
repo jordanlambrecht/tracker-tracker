@@ -18,7 +18,7 @@ Route tracker API requests through a proxy. Set up one global proxy, then enable
 | `http`   | Standard HTTP CONNECT proxies                   |
 | `https`  | TLS-wrapped HTTP CONNECT proxies                |
 
-The proxy type controls how traffic reaches the proxy server. SOCKS5 uses tunnel-level proxying, HTTP/HTTPS uses CONNECT-based proxying. Either way, tracker requests stay HTTPS, keeping your API token encrypted. When enabled, the tracker sees the proxy's IP instead of yours.
+The proxy type controls how traffic reaches the proxy server. SOCKS5 uses tunnel-level proxying, HTTP/HTTPS uses CONNECT-based proxying. Either way, tracker requests stay HTTPS, so your API token stays encrypted. When enabled, the tracker sees the proxy's IP instead of yours.
 
 !!! warning "Some trackers ban proxy and VPN traffic"
     Many private trackers prohibit access from VPNs, proxies, or shared IPs. Using a proxy for API polling may trigger security flags or get you disabled. Check your tracker's rules first. If a tracker allows API access from a different IP than your browsing IP, you're probably fine, but not all make that distinction.

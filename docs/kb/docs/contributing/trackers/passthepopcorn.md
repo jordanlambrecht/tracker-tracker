@@ -1,7 +1,7 @@
 # PassThePopcorn (PTP)
 
 !!! Warning
-    This tracker is marked **Unvalidated** and has not been tested it against a real account yet. The `bonusPoints` field might be named differently than we expect.
+    This tracker is marked **Unvalidated** and has not been tested against a real account yet. The `bonusPoints` field might be named differently than expected.
 
 | Field        | Value                                     |
 | ------------ | ----------------------------------------- |

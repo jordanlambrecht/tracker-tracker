@@ -27,7 +27,7 @@ API token as query parameter: `?key=TOKEN`. No authorization header.
 }
 ```
 
-Gets your numeric ID. After caching as `remoteUserId`, we skip this and go straight to `request=user` on subsequent polls.
+Gets your numeric ID. Once it's cached as `remoteUserId`, later polls skip this and go straight to `request=user`.
 
 ## Example user Response
 
@@ -136,18 +136,18 @@ Gets your numeric ID. After caching as `remoteUserId`, we skip this and go strai
 | `uploadedBytes`    | `response.stats.uploaded`                                                            | `number`           | `BigInt(Math.floor(...))`                               |
 | `downloadedBytes`  | `response.stats.downloaded`                                                          | `number`           | `BigInt(Math.floor(...))`                               |
 | `ratio`            | `response.stats.ratio`                                                               | `string \| number` | Parsed via `parseFloat()` if string                     |
-| `bufferBytes`      | —                                                                                    | —                  | Calculated: `uploadedBytes - downloadedBytes`, signed  |
+| `bufferBytes`      | n/a                                                                                  | n/a                | Calculated: `uploadedBytes - downloadedBytes`, signed  |
 | `seedingCount`     | `response.community.seeding`                                                         | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
 | `leechingCount`    | `response.community.leeching`                                                        | `number \| null`   | Defaults to `0`; null when paranoia hides it            |
 | `seedbonus`        | `response.stats.gold`                                                                | `number`           | GGn uses "gold" as its currency, not "bonus points"     |
 | `hitAndRuns`       | `response.personal.hnrs`                                                             | `number \| null`   | `null` when not tracked or hidden                       |
 | `requiredRatio`    | `response.stats.requiredRatio`                                                       | `number`           | Available directly in the user call                     |
 | `warned`           | `response.personal.warned`                                                           | `boolean`          | Available directly, no second call needed              |
-| `freeleechTokens`  | —                                                                                    | —                  | Always `null`, GGn does not expose FL tokens           |
+| `freeleechTokens`  | n/a                                                                                  | n/a                | Always `null`, GGn does not expose FL tokens           |
 | `joinedDate`       | `response.stats.joinedDate`                                                          | `string \| null`   | ISO-style datetime string                               |
 | `lastAccessDate`   | `response.stats.lastAccess`                                                          | `string \| null`   | ISO-style datetime string                               |
 | `shareScore`       | `response.stats.shareScore`                                                          | `number \| null`   | GGn-specific metric                                     |
-| `platformMeta`     | `response.personal`, `response.community`, `response.buffs`, `response.achievements` | —                  | `GGnPlatformMeta` object                                |
+| `platformMeta`     | `response.personal`, `response.community`, `response.buffs`, `response.achievements` | n/a                | `GGnPlatformMeta` object                                |
 
 ## Quirks
 
@@ -157,15 +157,15 @@ Gets your numeric ID. After caching as `remoteUserId`, we skip this and go strai
 const ratio = typeof resp.stats.ratio === "number" ? resp.stats.ratio : parseFloat(resp.stats.ratio) || 0
 ```
 
-**Seedbonus is called `gold`.** We map `stats.gold` → `seedbonus` so dashboards are consistent.
+**Seedbonus is called `gold`.** The adapter maps `stats.gold` → `seedbonus` so dashboards are consistent.
 
-**Seeding/leeching are paranoia-dependent.** Users with paranoia enabled return `null`. We default to `0`.
+**Seeding/leeching are paranoia-dependent.** Users with paranoia enabled return `null`. The adapter defaults to `0`.
 
 **`hnrs` can be `null`.** Stored in `personal.hnrs`, null if hidden. Passed through as-is.
 
-**Two-step fetch, first poll only.** Afterward, we cache `remoteUserId` and hit `request=user&id=X` directly.
+**Two-step fetch, first poll only.** Afterward, the adapter caches `remoteUserId` and hits `request=user&id=X` directly.
 
-**Buffs are multipliers.** Stored in `GGnPlatformMeta.buffs` (e.g., `Upload: 2` = 2x credit). Not displayed yet, but reserved for buffer projections.
+**Buffs are multipliers.** Stored in `GGnPlatformMeta.buffs` (such as `Upload: 2` for 2x credit). Not displayed yet, but reserved for buffer projections.
 
 ## Supported Trackers
 

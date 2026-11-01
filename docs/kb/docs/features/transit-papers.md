@@ -22,13 +22,13 @@ Transit Papers generate tamper-resistant PNG images of your tracker stats to sha
 
 Go to a tracker's detail page and generate a report. Tracker Tracker renders your most recent snapshot server-side and returns a 1200x630 PNG with:
 
-- **Tracker name and platform**: which tracker and its software
-- **Your identity**: username, class/rank, join date (when available)
-- **Your stats**: upload, download, ratio, buffer, seeding count, seedbonus, hit & runs (what's available varies by platform)
-- **Fractal Seal**: a unique fractal derived from your stats. Different stats = different fractal. Serves as the encryption key for the data strip.
-- **Spirograph**: a decorative hypotrochoid pattern from the generation timestamp
-- **Data Strip**: a colored barcode near the bottom. Stats are serialized, encrypted with the fractal key, and encoded as colored bands.
-- **Footer**: generation timestamp, report version, and full SHA-256 seed hash
+- Tracker name and platform: which tracker and its software
+- Your identity: username, class/rank, join date (when available)
+- Your stats: upload, download, ratio, buffer, seeding count, seedbonus, hit & runs (what's available varies by platform)
+- Fractal Seal: a unique fractal derived from your stats. Different stats = different fractal. It serves as the encryption key for the data strip.
+- Spirograph: a decorative hypotrochoid pattern from the generation timestamp
+- Data Strip: a colored barcode near the bottom. Stats are serialized, encrypted with the fractal key, and encoded as colored bands.
+- Footer: generation timestamp, report version, and full SHA-256 seed hash
 
 ---
 
@@ -105,7 +105,7 @@ The verifier uses fuzzy recovery: it tries nearby perceptual hash keys until it 
 
 ## For Tracker Mods: Verifying a Report
 
-The verification tool is a standalone static page, completely separate from Tracker Tracker. It runs entirely in your browser with no account, server, or data leaving your machine. Just upload or drag-and-drop the PNG onto the verification page.
+The verification tool is a standalone static page, separate from Tracker Tracker. It runs entirely in your browser with no account, server, or data leaving your machine. Just upload or drag-and-drop the PNG onto the verification page.
 
 ### What the verification page shows
 
@@ -168,7 +168,7 @@ The verification tool is a standalone static page, completely separate from Trac
 
 !!! note "Honest positioning"
 
-    This makes forgery impractical, not impossible. A skilled attacker with instance control could theoretically fake a report. The real threat, someone bluffing their way into a tracker invite, is effectively blocked.
+    This makes forgery impractical, not impossible. A skilled attacker with instance control could theoretically fake a report.
 
 ---
 

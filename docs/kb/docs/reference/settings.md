@@ -15,13 +15,13 @@ Controls polling frequency and data retention. All trackers poll together at the
 
 | Setting                | Default   | Notes                                                                 |
 | ---------------------- | --------- | --------------------------------------------------------------------- |
-| **Snapshot Retention** | Unlimited | Set 7–3650 days to auto-delete old snapshots; leave blank for forever |
+| **Snapshot Retention** | Unlimited | Set 7 to 3650 days to auto-delete old snapshots; leave blank for forever |
 
 ---
 
 ## Security
 
-Manages login security, lockouts, and two-factor authentication. **Session Timeout** defaults to infinite (never logged out by idle). **Lockout** protects against brute force, and it auto-clears after the duration expires.
+Manages login security, lockouts, and two-factor authentication. **Session Timeout** defaults to infinite (never logged out by idle). **Lockout** protects against brute force and clears itself after the duration expires.
 
 | Setting             | Default | Notes                                                                          |
 | ------------------- | ------- | ------------------------------------------------------------------------------ |
@@ -29,11 +29,11 @@ Manages login security, lockouts, and two-factor authentication. **Session Timeo
 
 ### Two-Factor Authentication
 
-Enable TOTP (time-based one-time password) with any standard authenticator app (Google Authenticator, Aegis, 1Password, Bitwarden, Authy, etc).
+Enable TOTP (time-based one-time password) with any standard authenticator app, such as Google Authenticator, Aegis, 1Password, Bitwarden, or Authy.
 
 **Setup:**
 
-1. Go to **Settings → Security**
+1. Go to **Settings → General**
 2. Click **Enable Two-Factor Authentication**
 3. Scan the QR code with your authenticator app
 4. Enter the 6-digit code from your app to confirm
@@ -42,7 +42,7 @@ Enable TOTP (time-based one-time password) with any standard authenticator app (
 
 On login, enter either the current 6-digit code from your app or one of your backup codes. Each backup code works once, then expires.
 
-**Disabling:** Go to **Settings → Security** and click **Disable Two-Factor Authentication**. You'll need to enter your password and a valid TOTP or backup code.
+**Disabling:** Go to **Settings → General** and click **Disable Two-Factor Authentication**. You'll need to enter your password and a valid TOTP or backup code.
 
 !!! warning "No authenticator app and no backup codes means no login. There is no account recovery."
 
@@ -54,7 +54,7 @@ On login, enter either the current 6-digit code from your app or one of your bac
 
 Configures a single outbound proxy for tracker requests. Individual trackers can opt in per their own settings.
 
-All settings are self-explanatory; **Proxy Password** is stored encrypted.
+**Proxy Password** is stored encrypted. The other fields are described in [Proxies](../features/proxies.md).
 
 ---
 
@@ -75,13 +75,13 @@ Controls automatic backup scheduling, encryption, and retention. Backups always 
 
 | Setting                    | Default | Notes                                                           |
 | -------------------------- | ------- | --------------------------------------------------------------- |
-| **Backup Retention Count** | 14      | Number of backups to keep (1–365); oldest deletes when exceeded |
+| **Backup Retention Count** | 14      | Number of backups to keep (1 to 365); oldest deletes when exceeded |
 
 ---
 
 ## Notes
 
-- **Encrypted storage**: proxy password, backup password, API tokens, and credentials are encrypted at rest. Changing your master password re-encrypts everything.
-- **Restoring a backup**: your master password and encryption salt are never backed up and never overwritten on restore. Sessions stay valid.
-- **Lockout and restores**: backup restore always clears active lockout.
-- **Secure cookies**: session cookies are marked `Secure` when `BASE_URL` starts with `https://` or `SECURE_COOKIES=true`. Plain HTTP doesn't mark them secure.
+- Encrypted storage: proxy password, backup password, API tokens, and credentials are encrypted at rest. Changing your master password re-encrypts everything.
+- Restoring a backup: your master password and encryption salt are never backed up and never overwritten on restore. Sessions stay valid.
+- Lockout and restores: backup restore always clears active lockout.
+- Secure cookies: session cookies are marked `Secure` when `BASE_URL` starts with `https://` or `SECURE_COOKIES=true`. Plain HTTP doesn't mark them secure.

@@ -36,7 +36,7 @@ Stats only change when Tracker Tracker captures a new snapshot. If your ratio, u
 
 ### Step 1. Check the poll interval
 
-Go to **Settings → General** and check **Tracker Poll Interval** (15–1440 minutes).
+Go to **Settings → General** and check **Tracker Poll Interval** (15 to 1440 minutes).
 
 If it's 240, stats update every 4 hours. That's normal.
 
@@ -83,7 +83,7 @@ After **4 consecutive failed polls**, the tracker automatically pauses to preven
 - The **Poll Error Banner** appears at the top of the tracker detail page with:
   - Red "Polling Paused" heading
   - Pause timestamp
-  - Last error (e.g., `Authentication failed`, `Host not found`)
+  - Last error (such as `Authentication failed` or `Host not found`)
   - **Resume Polling** button
 
 !!! warning "Verify the cause before resuming"
@@ -201,11 +201,11 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 ### `Proxy connection failed`
 
-**Cause:** **Use Proxy** is enabled and the proxy is unreachable or erroring. We don't bypass required proxies.
+**Cause:** **Use Proxy** is enabled and the proxy is unreachable or erroring. Tracker Tracker doesn't bypass required proxies.
 
 !!! success "Solution"
 
-    1. Check **Settings → Proxy** and verify host, port, type, username, and password.
+    1. Check **Settings → General → Proxy** and verify host, port, type, username, and password.
     2. Confirm the proxy is running and reachable.
     3. Or disable **Use Proxy** in tracker settings.
 
@@ -281,7 +281,7 @@ If you see a **Last Error** banner without "Polling Paused", a recent poll faile
 
 ### `API returned <status code>`
 
-**Cause:** API returned an unexpected status. E.g., 429 = rate limit, 500/503 = server error.
+**Cause:** API returned an unexpected status. For example, 429 = rate limit, 500/503 = server error.
 
 !!! success "Solution"
 
@@ -321,7 +321,7 @@ These appear on individual client cards in **Settings → Download Clients**.
 
 ### `Session expired` (qBittorrent, auto-handled)
 
-**Cause:** Session expired (HTTP 403). We re-authenticate automatically on next request.
+**Cause:** Session expired (HTTP 403). Tracker Tracker re-authenticates on the next request.
 
 !!! info "No action needed"
     Handled transparently. Persistent errors are more likely wrong credentials.
@@ -451,7 +451,7 @@ Firefox and some Chromium browsers truncate long header values in their DevTools
 
 ### `baseUrl must use https:// or http://`
 
-**Cause:** URL uses unsupported scheme (e.g. `ftp://`) or missing scheme.
+**Cause:** URL uses unsupported scheme (such as `ftp://`) or missing scheme.
 
 !!! success "Solution"
 
@@ -461,7 +461,7 @@ Firefox and some Chromium browsers truncate long header values in their DevTools
 
 ### `baseUrl must not target localhost or a private network address`
 
-**Cause:** URL resolves to a private IP or localhost. We block these for security.
+**Cause:** URL resolves to a private IP or localhost. Tracker Tracker blocks these for security.
 
 !!! info "By design"
 

@@ -5,17 +5,17 @@ description: How to install Tracker Tracker using Docker Compose or Docker Run.
 
 # Installation
 
-Tracker Tracker runs in Docker. Use Docker Compose to get it up and running.
+Tracker Tracker runs in Docker. Use Docker Compose to run it.
 
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) 24+
 - [Docker Compose v2](https://docs.docker.com/compose/install/) (the `docker compose` plugin, not the legacy `docker-compose` binary)
 
-That's it. Nothing else to install.
+Nothing else to install.
 
 !!! info "Architecture support"
-    We build for **linux/amd64** and **linux/arm64**, so you're covered on x86-64 servers, Raspberry Pi 4/5, and Apple Silicon in Linux VMs. Docker grabs the right one automatically.
+    The image supports **linux/amd64** and **linux/arm64**. That covers x86-64 servers, Raspberry Pi 4/5, and Apple Silicon in Linux VMs. Docker picks the right one.
 
 ---
 
@@ -31,8 +31,6 @@ mkdir tracker-tracker && cd tracker-tracker
 curl -LO https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/docker-compose.yml
 curl -L https://raw.githubusercontent.com/jordanlambrecht/tracker-tracker/main/.env.example -o .env
 ```
-
-Or create them manually by copying the examples below.
 
 ## Step 3. Generate secrets
 
@@ -53,39 +51,39 @@ TZ=America/Chicago
 ```
 
 !!! warning "Fresh secrets every time"
-    Generate new ones each time. `SESSION_SECRET` protects your cookies, `POSTGRES_PASSWORD` protects your database. Don't copy the `.env.example` placeholder.
+    Generate new secrets for every install. `SESSION_SECRET` protects your cookies and `POSTGRES_PASSWORD` protects your database. Don't copy the `.env.example` placeholder.
 
 ## Step 4. Start the stack
 
 === "Docker Compose (recommended)"
 
-```bash
-docker compose up -d
-```
+    ```bash
+    docker compose up -d
+    ```
 
-The app waits for the database to be ready, then sets up the schema automatically. First boot takes about 15-20 seconds. Peek at the logs if you want to watch:
+    The app waits for the database, then sets up the schema. First boot takes about 15 to 20 seconds. To watch the logs:
 
-```bash
-docker compose logs -f tracker-tracker-app
-```
+    ```bash
+    docker compose logs -f tracker-tracker-app
+    ```
 
 === "Docker Run (standalone)"
 
-Running Postgres elsewhere? Start the app container:
+    Running Postgres elsewhere? Start the app container:
 
-```bash
-docker run -d \
-    --name tracker-tracker-app \
-    --restart unless-stopped \
-    -p 3000:3000 \
-    -v ./data:/data \
-    -e DATABASE_URL="postgresql://postgres:yourpassword@your-postgres-host:5432/tracker_tracker" \
-    -e SESSION_SECRET="your-session-secret-minimum-32-chars" \
-    -e TZ="America/Chicago" \
-    ghcr.io/jordanlambrecht/tracker-tracker:latest
-```
+    ```bash
+    docker run -d \
+        --name tracker-tracker-app \
+        --restart unless-stopped \
+        -p 3000:3000 \
+        -v ./data:/data \
+        -e DATABASE_URL="postgresql://postgres:yourpassword@your-postgres-host:5432/tracker_tracker" \
+        -e SESSION_SECRET="your-session-secret-minimum-32-chars" \
+        -e TZ="America/Chicago" \
+        ghcr.io/jordanlambrecht/tracker-tracker:latest
+    ```
 
-Point `DATABASE_URL` to your Postgres instance. The app will create its schema on startup if needed.
+    Set `DATABASE_URL` to your Postgres instance. The app creates its schema on startup.
 
 ## Step 5. Verify it's running
 
@@ -113,7 +111,7 @@ A `200 OK` means the app is up and talking to the database.
 
 Go to [http://localhost:3000](http://localhost:3000).
 
-On first visit you'll be redirected to `/setup` to create your account. See [First Setup](first-setup.md) for what to do next.
+On first visit you're sent to `/setup` to create your account. [First Setup](first-setup.md) covers it.
 
 ---
 
@@ -126,10 +124,10 @@ Both registries have the same image. Use whichever you prefer:
 | GitHub Container Registry | `ghcr.io/jordanlambrecht/tracker-tracker:latest` |
 | Docker Hub                | `jordyjordy/tracker-tracker:latest`              |
 
-Pin a specific version if you want predictable updates:
+To stay on one version, use its tag:
 
 ```bash
-ghcr.io/jordanlambrecht/tracker-tracker:2.1.1
+ghcr.io/jordanlambrecht/tracker-tracker:2.15.1
 ```
 
 Check the [CHANGELOG](https://github.com/jordanlambrecht/tracker-tracker/blob/main/CHANGELOG.md) before upgrading.
@@ -147,4 +145,4 @@ TZ=America/Chicago
 ```
 
 !!! tip
-    Create the database name ahead of time. The app handles the rest on startup, with no SQL scripts needed.
+    Create the database ahead of time. The app handles the rest on startup, so you don't need to run any SQL.

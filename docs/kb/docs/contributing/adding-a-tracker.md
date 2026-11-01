@@ -52,7 +52,7 @@ Full template:
 //
 // Copy this file to add a new tracker to the registry.
 //
-// 1. Duplicate this file and rename it to your tracker's slug (e.g. mytracker.ts)
+// 1. Duplicate this file and rename it to your tracker's slug (mytracker.ts)
 // 2. Fill in all fields below. Every field must be present (use "" / [] / false
 //    rather than omitting). See inline comments for guidance.
 // 3. Export from src/data/trackers/index.ts (add to the barrel + ALL_TRACKERS array)
@@ -64,87 +64,105 @@ Full template:
 // Allowed content categories:
 //   Movies, TV, Music, Games, Apps, Sports, Books, Audiobooks, Comics,
 //   Manga, Anime, XXX, Documentaries, Education, Tutorials, Fanres,
-//   iOS Apps, Graphics, Audio
 //
 // Validator checks:
 //   - slug: lowercase letters and hyphens only
 //   - platform: "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"
 //   - apiPath must match platform default:
-//       unit3d     → "/api/user"
-//       gazelle    → "/ajax.php"
-//       ggn        → "/api.php"
-//       nebulance  → "/api.php"
-//       mam        → "/jsonLoad.php"
+//       unit3d   → "/api/user"
+//       gazelle  → "/ajax.php"
+//       ggn      → "/api.php"
+//       avistaz  → "/profile"
 //   - url: the https origin only, no path, port or trailing slash
 //   - contentCategories: values must come from the allowed list above
 //   - language: required
 //   - rules: required (minimumRatio, seedTimeHours, loginIntervalDays as numbers)
+//   - rules.satisfactionMode: optional, "any" or "all". Only from the site's own wording
+//   - defunct: true requires defunctDate and defunctMessage
+//   - defunctDate: "YYYY-MM-DD" (same shape as a tracker's joinedAt)
+//   - defunctLink: https only, if present
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
 export const mytracker: TrackerRegistryEntry = {
   // ── Identity ────────────────────────────────────────────────────────
-  slug: "mytracker", // lowercase, hyphens only (e.g. "my-tracker")
+  slug: "mytracker", // lowercase, hyphens only ("my-tracker")
   name: "My Tracker", // display name
-  abbreviation: "", // short code (e.g. "ATH", "RED"), "" if none
+  abbreviation: "", // short code ("ATH", "RED"). "" if none
   url: "https://example.com", // https origin only
   description: "TODO", // 1-2 sentence overview
 
   // ── Platform & API ──────────────────────────────────────────────────
   platform: "unit3d", // "unit3d" | "gazelle" | "ggn" | "nebulance" | "mam" | "avistaz" | "digitalcore" | "filelist" | "btn" | "iptorrents" | "torrentleech" | "hawke" | "retrotoon" | "tr4ker" | "c411" | "animebytes" | "luminance" | "custom"
   // Platform-specific fields (uncomment for your platform):
-  //   gazelleAuthStyle: "token",   // gazelle only, "token" | "raw"
-  //   gazelleEnrich: true,         // gazelle only, enables enrichment call
-  //   unit3dAuthStyle: "bearer",   // unit3d only, "bearer" | "query"
-  apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php" | mam: "/jsonLoad.php"
+  //   gazelleAuthStyle: "token",   // gazelle only. "token" | "raw"
+  //   gazelleEnrich: true,         // gazelle only. Enables enrichment call
+  //   unit3dAuthStyle: "bearer",   // unit3d only. "bearer" | "query"
+  apiPath: "/api/user", // unit3d: "/api/user" | gazelle: "/ajax.php" | ggn: "/api.php"
 
   // ── Content ─────────────────────────────────────────────────────────
-  specialty: "", // what the tracker is known for (e.g. "HD Movies", "Anime")
+  specialty: "", // what the tracker is known for ("HD Movies", "Anime")
   contentCategories: [], // see allowed list in header
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#000000", // hex accent color for the tracker's detail page
-  logo: "", // "/tracker-logos/mytracker_logo.svg", file must exist in public/, "" if none
-  // bonusName: "TL Points", // optional, the tracker's own name for bonus points, omit if it says seedbonus
+  logo: "", // "/tracker-logos/mytracker_logo.svg". File must exist in public/ or "" if none
+  // bonusName: "TL Points", // optional. The tracker's own name for bonus points. Omit if it says seedbonus
 
   // ── External Links ──────────────────────────────────────────────────
-  trackerHubSlug: "", // slug on trackerhub.xyz, if listed, "" if none
-  statusPageUrl: "", // external status page URL, "" if none
-  // announceHosts: ["flacsfor.me"], // optional, domains torrents announce on as checked in your client, registrable domains only, never a URL or subdomain, omit if unchecked
-  // previousHosts: ["reelflix.xyz"], // optional, domains the site used before its url, registrable domains only, never the current one
+  trackerHubSlug: "", // slug on trackerhub.xyz, if listed. "" if none
+  statusPageUrl: "", // external status page URL. "" if none
+  // announceHosts: ["flacsfor.me"], // optional. Domains torrents announce on, checked in your client. Omit if unchecked. Registrable domains only, never a URL or subdomain
+  // previousHosts: ["reelflix.xyz"], // optional. Domains the site used before its url. Registrable domains only, never the current one
 
   // ── Community ───────────────────────────────────────────────────────
-  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }]
+  // Lowest to highest. Flag staff/donor classes outsideLadder: "above" and
+  // demotion/administrative states "below"; unset means earned by stats.
+  userClasses: [], // [{ name: "Power User", requirements: "Upload ≥ 100 GiB" }, { name: "Uploader", requirements: "Staff", outsideLadder: "above" }]
   releaseGroups: [], // [{ name: "GrpName", description: "Encodes" }] or ["GrpName"]
-  bannedGroups: [], // ["GroupName"], groups explicitly banned by the tracker
-  notableMembers: [], // ["handle"], notable community figures
+  bannedGroups: [], // ["GroupName"]. Groups explicitly banned by the tracker
+  notableMembers: [], // ["handle"]. Notable community figures
 
   // ── Rules ───────────────────────────────────────────────────────────
   rules: {
     minimumRatio: 0, // 0 = no minimum
     seedTimeHours: 0, // 0 = no minimum
     loginIntervalDays: 0, // 0 = no login interval policy
-    // fulfillmentPeriodHours: 72,      // optional, hours to complete H&R seeding
-    // hnrBanLimit: 3,                  // optional, number of H&Rs before ban
-    // fullRulesMarkdown: `...`,        // optional, detailed rules as markdown string
+    // satisfactionMode: "any",         // optional. "any" = meeting seedTimeHours OR
+    //                                  // minimumRatio clears a torrent, "all" = both.
+    //                                  // Set it only from the tracker's own wording.
+    //                                  // Omitted, seed time alone decides and
+    //                                  // minimumRatio stays account-level.
+    // fulfillmentPeriodHours: 72,      // optional. Hours to complete H&R seeding
+    // hnrBanLimit: 3,                  // optional. Number of H&Rs before ban
+    // fullRulesMarkdown: [],             // optional. Detailed rules as markdown string[]
   },
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: false, // true if the tracker has a known issue or is at risk
-  warningNote: "", // short description of the warning, "" if none
+  warningNote: "", // short description of the warning. "" if none
+  // Defunct = permanently shut down, not merely offline or unreachable. Setting
+  // this shows a banner prompting the user to archive their tracker. Omit all
+  // four fields for a live tracker; setting defunct: true requires the date and
+  // the message. A defunct tracker's API is gone, so this can only be recorded
+  // by hand here. It can never come from the adapter.
+  // defunct: true,
+  // defunctMessage: "",   // one short factual line, "Example has shut down."
+  // defunctDate: "",      // "YYYY-MM-DD". The shutdown date, "2026-05-11"
+  // defunctLink: "",      // https:// announcement (forum post, reddit thread). Omit if none
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: true, // remove (or set false) once all required fields are filled in
   supportsTransitPapers: false, // true if the tracker supports transit papers export
-  profileUrlPattern: "", // e.g. "/user.php?id={id}", required when supportsTransitPapers: true
+  profileUrlPattern: "", // "/user.php?id={id}". Required when supportsTransitPapers: true
 
   // ── Stats (omit this block entirely if no real data is available) ───
   // stats: {
   //   userCount: undefined,
   //   activeUsers: undefined,
   //   torrentCount: undefined,
-  //   seedSize: undefined,    // e.g. "500 TiB"
+  //   seedSize: undefined,    // "500 TiB"
   //   statsUpdatedAt: undefined, // ISO 8601 date string
   // },
 }
@@ -239,7 +257,7 @@ Which adapter handles API requests. This tells the scheduler how to fetch stats.
 | Platform         | What it means                                               |
 | ---------------- | ----------------------------------------------------------- |
 | `"unit3d"`       | Runs UNIT3D                                                 |
-| `"gazelle"`      | Runs Gazelle or a fork (Orpheus, Gazelle-Music, etc.)       |
+| `"gazelle"`      | Runs Gazelle or a fork (such as Orpheus or Gazelle-Music)       |
 | `"ggn"`          | GazelleGames only, has its own custom API                   |
 | `"nebulance"`    | Uses Nebulance's API                                        |
 | `"mam"`          | MyAnonaMouse, cookie-based auth via `mam_id`                |
@@ -515,7 +533,7 @@ stats: {
   userCount?: number
   activeUsers?: number
   torrentCount?: number
-  seedSize?: string       // e.g. "500 TiB"
+  seedSize?: string       // such as "500 TiB"
   statsUpdatedAt?: string // ISO 8601 date string
 }
 ```
@@ -550,7 +568,7 @@ Only flag a bottom class when it is a penalty. LST's "Leech" is its entry class 
 userClasses: [
   {
     name: "Leech",
-    requirements: "Ratio below 0.4 — download privileges revoked",
+    requirements: "Ratio below 0.4. Download privileges revoked",
     outsideLadder: "below",
   },
   { name: "Phobos", requirements: "Ratio ≥ 0.4. 4 download slots" },
@@ -563,7 +581,7 @@ userClasses: [
   // Staff-assigned ranks follow community ranks
   {
     name: "Uploader",
-    requirements: "Staff — role model uploader. Freeleech, H&R immune",
+    requirements: "Staff (role model uploader). Freeleech, H&R immune",
     outsideLadder: "above",
   },
 ]
@@ -630,11 +648,11 @@ Use the object form when you have something useful to say about what the group r
 ```typescript
 // From aither.ts, objects with descriptions
 releaseGroups: [
-  { name: "ATELiER", description: "Main house group — high-quality 1080p encodes and remuxes" },
-  { name: "Kitsune", description: "Primary — WEB-DL" },
+  { name: "ATELiER", description: "Main house group for high-quality 1080p encodes and remuxes" },
+  { name: "Kitsune", description: "Primary for WEB-DL" },
   {
     name: "MainFrame",
-    description: "Primary — 2160p encodes, secondary 1080p encodes and remuxes",
+    description: "Primary for 2160p encodes, secondary for 1080p encodes and remuxes",
   },
   { name: "ARTiCUN0" }, // object without description, name only
 ]
@@ -695,7 +713,7 @@ rules: {
 
 ### satisfactionMode
 
-`satisfactionMode` says how `seedTimeHours` and `minimumRatio` combine when the app decides whether a single torrent is done seeding. It is optional and deliberately opt-in.
+`satisfactionMode` says how `seedTimeHours` and `minimumRatio` combine when the app decides whether a single torrent is done seeding. It is optional and opt-in.
 
 - `"any"` means either threshold clears a torrent. TorrentLeech states this outright: seed to 1:1, **or** seed for your user class's minimum time.
 - `"all"` means both must be met.
@@ -797,7 +815,7 @@ If the tracker appears in search results and polls successfully, the registry en
 ## 8. Adding a Whole New Platform
 
 Everything above covers adding a tracker to a platform that already has an
-adapter. If the tracker runs software we don't support yet, a registry entry
+adapter. If the tracker runs software Tracker Tracker doesn't support yet, a registry entry
 alone is not enough. It will show up in the picker and then fail at poll time.
 
 A new platform touches five places. Miss any one and the tracker is either
@@ -866,7 +884,7 @@ and produces the error wording users already see on the other adapters.
 
 If one of those fields is a pasted `Cookie` header, run it through
 `validateCookieHeader` as well. It strips a leading `Cookie:` prefix, and catches the
-two mistakes that actually reach us: pasting a lone cookie *name* instead of the
+two mistakes that come up in practice: pasting a lone cookie *name* instead of the
 header value, and a value the browser truncated mid-copy into a non-ASCII
 ellipsis.
 

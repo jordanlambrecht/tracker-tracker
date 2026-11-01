@@ -5,7 +5,7 @@ description: Get alerts in Discord when your ratio drops, a tracker goes down, o
 
 # Webhooks
 
-Tracker Tracker sends you alerts when things change on your trackers: ratio drops, hit-and-runs, outages, rank changes, and more.
+Tracker Tracker sends you alerts when things change on your trackers: ratio drops, hit-and-runs, outages, rank changes, and other events.
 
 ## Supported Platforms
 
@@ -23,7 +23,7 @@ Tracker Tracker sends you alerts when things change on your trackers: ratio drop
 
 1. Open the channel where you want alerts
 2. **Edit Channel → Integrations → Webhooks → New Webhook**
-3. Name it (i.e., "Tracker Alerts")
+3. Name it (for example, "Tracker Alerts")
 4. Copy the webhook URL
 
 Keep this URL private, because anyone with it can post to your channel.
@@ -72,15 +72,15 @@ Two thresholds can be adjusted per target:
 
 ## Scoping to Specific Trackers
 
-By default, a target receives events from all trackers. You can limit it to specific trackers instead, and events from others are ignored. Great for one Discord channel per tracker, or if you only want alerts for certain sites.
+By default, a target receives events from all trackers. You can limit it to specific trackers instead, and events from others are ignored. Use this for one Discord channel per tracker, or if you only want alerts for certain sites.
 
 ## Multiple Targets
 
 Set up as many targets as you need:
 
-- **One channel per tracker**: scope each target to a single tracker
-- **Urgent vs. routine**: ratio danger and outages in one channel, rank changes and anniversaries in another
-- **Private vs. shared**: disable "Include tracker name" on public channels
+- One channel per tracker: scope each target to a single tracker
+- Urgent vs. routine: ratio danger and outages in one channel, rank changes and anniversaries in another
+- Private vs. shared: disable "Include tracker name" on public channels
 
 ## Privacy
 
@@ -94,10 +94,10 @@ Webhook URLs stay encrypted in the database, so they never show up in API respon
 
 Notifications arrive as Discord embeds with a colored sidebar:
 
-- **Red** is urgent: tracker down, hit-and-run, ratio below minimum, account warning
-- **Amber** is caution: ratio drop, zero active seeds
-- **Cyan** is positive: rank change, anniversary
-- **Green** is milestone: buffer threshold crossed
+- Red is urgent: tracker down, hit-and-run, ratio below minimum, account warning
+- Amber is caution: ratio drop, zero active seeds
+- Cyan is positive: rank change, anniversary
+- Green is milestone: buffer threshold crossed
 
 ## Troubleshooting
 
@@ -105,9 +105,9 @@ Notifications arrive as Discord embeds with a colored sidebar:
 
 Open the target card to see the error under the status badge. Common causes:
 
-- **Webhook deleted in Discord.** Re-create it and update the URL in Tracker Tracker.
-- **Channel deleted.** Discord removes all webhooks when a channel is deleted.
-- **Network issue.** Transient problem. Click **Test Webhook** to retry.
+- Webhook deleted in Discord. Re-create it and update the URL in Tracker Tracker.
+- Channel deleted. Discord removes all webhooks when a channel is deleted.
+- Network issue. This is usually transient. Click **Test Webhook** to retry.
 
 ### Notifications stopped arriving
 

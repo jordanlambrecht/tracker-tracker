@@ -46,7 +46,6 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Name              | Abbreviation |
     | ----------------- | ------------ |
     | AlphaRatio        | AR           |
-    | BroadcasTheNet    | BTN          |
     | Empornium         | EMP          |
     | Great Poster Wall | GPW          |
     | MoreThanTV        | MTV          |
@@ -54,6 +53,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | PassThePopcorn    | PTP          |
     | Phoenix Project   | PP           |
     | REDacted          | RED          |
+
+=== "BTN"
+
+    | Name           | Abbreviation |
+    | -------------- | ------------ |
+    | BroadcasTheNet | BTN          |
 
 === "GGn"
 
@@ -145,9 +150,9 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Cathode-Ray.Tube | CRT          |
 
 !!! note "Draft entries"
-    Some trackers show a dashed border saying "Stats tracking not yet supported." You can pin them as quicklinks, but they won't poll yet.
+    Some trackers show a dashed border saying "Stats tracking not yet supported." You can use them as quicklinks, but they won't poll yet.
 
-Added trackers hide from the list automatically.
+Trackers you've already added are hidden from the list.
 
 ## Required fields
 
@@ -172,7 +177,7 @@ Location varies by platform:
     Gazelle shows keys only once when created, so copy it right away.
 
     !!! tip "Scoped keys"
-        Some Gazelle forks support limited-permission keys. Since Tracker Tracker only reads your stats, read-only access works great.
+        Some Gazelle forks support limited-permission keys. Since Tracker Tracker only reads your stats, read-only access is enough.
 
 === "GGn"
 
@@ -316,7 +321,7 @@ Location varies by platform:
 
 ### Proxy
 
-If the tracker needs a proxy (i.e., for geo-restrictions), toggle **Use Proxy** on the tracker's settings page. See [Proxy Support](../features/proxies.md) for setup.
+If the tracker needs a proxy (for example, for geo-restrictions), toggle **Use Proxy** on the tracker's settings page. See [Proxy Support](../features/proxies.md) for setup.
 
 !!! tip "Getting a red dot?"
     Check your API token. Most often it's a copy-paste error or a token that rotated after you saved it.
@@ -331,7 +336,7 @@ Manual polls don't interfere with the global schedule (default: every 60 minutes
 
 ## What stats each platform provides
 
-Different platforms expose different stats. Here's what you'll get:
+Different platforms expose different stats:
 
 | Stat             | UNIT3D | Gazelle | GGn     | AvistaZ | DigitalCore | RetroToon | Luminance | Notes                                                                        |
 | ---------------- | ------ | ------- | ------- | ------- | ----------- | --------- | --------- | ---------------------------------------------------------------------------- |
@@ -349,13 +354,13 @@ Different platforms expose different stats. Here's what you'll get:
 
 ### Gazelle: extra data on RED
 
-REDacted and Phoenix Project return additional fields (warned status, join date, avatar, and detailed seeding/leeching counts), which gives you richer info than other Gazelle trackers.
+REDacted and Phoenix Project return additional fields (warned status, join date, avatar, and detailed seeding/leeching counts), which gives richer info than other Gazelle trackers.
 
 ### GGn quirks
 
-- **Seeding/leeching can show 0**: GGn's API doesn't always expose these counts. That's normal.
-- **Hit & Runs shows unknown** for Elite Gamer and above, because those classes are HNR-immune.
-- **Gold, not seedbonus**: GGn calls bonus currency "gold," which we map to the bonus points field.
+- Seeding/leeching can show 0: GGn's API doesn't always expose these counts. That's normal.
+- Hit & Runs shows unknown for Elite Gamer and above, because those classes are HNR-immune.
+- Gold, not seedbonus: GGn calls the bonus currency "gold," which Tracker Tracker maps to the bonus points field.
 
 ---
 

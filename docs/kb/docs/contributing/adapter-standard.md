@@ -49,7 +49,7 @@ All sixteen implement both. `fetchRaw` is still declared optional at
 > one.**
 
 This is the most important rule here. It has already caused shipped bugs (`9f8aaa5`, `c83f96c`).
-A run of fabricated zeroes cannot be told apart from an account that genuinely stopped seeding,
+A run of fabricated zeroes cannot be told apart from an account that stopped seeding,
 and it corrupts every chart drawn from snapshot history.
 
 Eight `TrackerStats` fields are nullable for exactly this reason (`src/types/tracker-stats.ts`):
@@ -191,7 +191,7 @@ must not lie.
   `fetchStats` tolerates takes its `error` from the function that decides the failure, so the
   entry shows the reason `fetchStats` logs. Reference: `profileFailure` in `gazelle.ts`.
 - **Emit an entry for a call you skipped**, with `data: null` and a reason. A debug view that
-  simply ends after one entry cannot be told from a one-call adapter.
+  ends after one entry cannot be told from a one-call adapter.
 - **Do not abandon later calls when an earlier one fails** if a cached value can satisfy the
   dependency. `options.remoteUserId` is that cached id, and a failing first call is exactly when
   the second call's output matters most. An id read from a body the poll rejects does not count,
@@ -310,7 +310,7 @@ dashes.
 **Errors and credentials**
 
 - [ ] Every "could not read the payload" error begins with `Unexpected response from <host>: `.
-- [ ] No message contains "invalid" unless it is genuinely a credential fault.
+- [ ] No message contains "invalid" unless it is a credential fault.
 - [ ] I do not call `sanitizeNetworkError` myself, and I classify on `response.status` or an error
       type, never on digits in a message.
 - [ ] `classifyFetchError` is applied only to a `fetch` rejection, and `classifyProxyFetchError`
@@ -366,7 +366,7 @@ enforced by section 7 rather than remembered.
 1. **Adapters still emit three different date shapes.** The scheduler no longer corrupts a bare
    date, so this is now consistency rather than correctness. Pick one shape and say which.
 2. **`digitalcore.ts` still hand-rolls its credential parser.** Allowlisted in the conformance
-   test with its reason: its messages and cookie-injection guards differ deliberately from
+   test with its reason: its messages and cookie-injection guards differ on purpose from
    `parseCredentialJson`. Reconciling the wording would let the allowlist entry go.
 
 ## 6a. Calls made without documented intent
@@ -487,7 +487,7 @@ the installed version.
 
 - **Done:** `helpers/html-parse.test.ts` now exists and drives both unit families through
   `tryParseSiteBytes`. Its absence is why the binary-unit defect stayed invisible.
-- **Done:** a date-shape test pins that a bare `YYYY-MM-DD` survives unchanged.
+- **Done:** a date-shape test checks that a bare `YYYY-MM-DD` survives unchanged.
 - Add an assertion to `helpers/html-fetch.test.ts` that `proxyFetch` receives
   `timeoutMs: ADAPTER_FETCH_TIMEOUT_MS`, so the two transports cannot drift.
 
