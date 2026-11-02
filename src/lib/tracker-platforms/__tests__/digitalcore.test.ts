@@ -1,6 +1,6 @@
 // src/lib/tracker-platforms/__tests__/digitalcore.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { PROXY_AUTH_REQUIRED_CAUSE, sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { DigitalCoreAdapter, parseDigitalCoreCredentials } from "../adapters/digitalcore"
 import type { DigitalCorePlatformMeta } from "../contract"
@@ -907,7 +907,7 @@ describe("DigitalCoreAdapter.fetchStats - HTTP error handling", () => {
     }
   })
 
-  it("keeps the reason phrase, which reads a proxy that wants its own login as a proxy fault", async () => {
+  it("reads a direct 407 as the host's answer, not a proxy fault", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: false,
       status: 407,
@@ -921,7 +921,7 @@ describe("DigitalCoreAdapter.fetchStats - HTTP error handling", () => {
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
     expect(err?.message).toBe("Tracker API error: 407 Proxy Authentication Required")
-    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("API returned 407")
   })
 
   it("throws with sanitized message on network failure", async () => {
@@ -1360,6 +1360,30 @@ describe("DigitalCoreAdapter - proxy routing", () => {
         proxyAgent: {} as never,
       })
     ).rejects.toThrow("Session expired")
+    vi.doUnmock("@/lib/tunnel")
+  })
+
+  it("reads a proxied 407 as the proxy refusing its own login", async () => {
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 407,
+      statusText: "Proxy Authentication Required",
+      json: async () => ({}),
+      buffer: async () => Buffer.from(""),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+
+    const { DigitalCoreAdapter: FreshAdapter } = await import("../adapters/digitalcore")
+
+    const err = await new FreshAdapter()
+      .fetchStats("https://digitalcore.club", validToken, "", { proxyAgent: {} as never })
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(
+      `Failed to connect to digitalcore.club via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`
+    )
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
     vi.doUnmock("@/lib/tunnel")
   })
 })

@@ -1,6 +1,6 @@
 // src/lib/tracker-platforms/__tests__/html-fetch.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { PROXY_AUTH_REQUIRED_CAUSE, sanitizeNetworkError } from "@/lib/error-utils"
 import { DEFAULT_USER_AGENT } from "@/lib/user-agent"
 import { SessionExpiredError } from "../helpers/errors"
 import { fetchTrackerHtml } from "../helpers/html-fetch"
@@ -279,6 +279,10 @@ describe("fetchTrackerHtml - errors", () => {
     expect(await cardFor(403, "Forbidden")).toBe("Authentication failed")
   })
 
+  it("names a direct 407 as the host's answer, not the proxy's", async () => {
+    expect(await cardFor(407, "Proxy Authentication Required")).toBe("API returned 407")
+  })
+
   it("classifies a connection failure by hostname", async () => {
     const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
     vi.spyOn(global, "fetch").mockRejectedValueOnce(new TypeError("fetch failed", { cause }))
@@ -425,6 +429,19 @@ describe("fetchTrackerHtml - through a proxy", () => {
     await expect(run({})).rejects.toThrow(
       "Failed to connect to tracker.example via proxy: Proxy connection ended before receiving CONNECT response"
     )
+  })
+
+  it("fails a proxied 407 as the proxy refusing its own login", async () => {
+    proxyFetch.mockResolvedValueOnce(proxyResponse(407, ""))
+
+    const err = await run({})
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(
+      `Failed to connect to tracker.example via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`
+    )
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
   })
 
   it("refuses to follow a proxied redirect off-origin, and sends nothing there", async () => {

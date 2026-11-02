@@ -1,7 +1,7 @@
 // src/lib/tracker-platforms/__tests__/login-session.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { PROXY_AUTH_REQUIRED_CAUSE, sanitizeNetworkError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
 import { DEFAULT_USER_AGENT } from "@/lib/user-agent"
@@ -104,6 +104,19 @@ describe("loginRequest, through a proxy", () => {
 
     expect(err?.message).toBe("Request to tracker.example timed out (via proxy)")
     expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Request timed out")
+  })
+
+  it("fails a proxied 407 as the proxy refusing its own login", async () => {
+    vi.mocked(proxyFetch).mockResolvedValueOnce(proxied(407))
+
+    const err = await loginRequest(LOGIN_URL, { method: "POST", headers: {} }, agent)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(
+      `Failed to connect to tracker.example via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`
+    )
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
   })
 })
 

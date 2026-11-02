@@ -119,8 +119,7 @@ async function login(
     if (isCloudflareInterstitial(html)) {
       throw new Error("Cloudflare challenge detected on the TorrentLeech login page")
     }
-    // Same wording adapterFetch throws, which sanitizeNetworkError matches on. A
-    // 407 is the proxy asking for its own credentials.
+    // Same wording adapterFetch throws, which sanitizeNetworkError matches on.
     if (loginStatus === 407 || loginStatus === 429 || loginStatus >= 500) {
       throw new Error(`Tracker API error: ${loginStatus} ${response.statusText}`)
     }

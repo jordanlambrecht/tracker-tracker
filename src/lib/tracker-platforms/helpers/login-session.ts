@@ -3,7 +3,11 @@
 // Functions: loginRequest, sessionKey, withLoginSession
 
 import { randomBytes, scrypt } from "node:crypto"
-import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
+import {
+  classifyFetchError,
+  classifyProxyFetchError,
+  PROXY_AUTH_REQUIRED_CAUSE,
+} from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { proxyFetch } from "@/lib/tunnel"
 import { withDefaultUserAgent } from "@/lib/user-agent"
@@ -51,6 +55,9 @@ export async function loginRequest(
       })
     } catch (err) {
       throw classifyProxyFetchError(err, hostname)
+    }
+    if (res.status === 407) {
+      throw classifyProxyFetchError(new Error(PROXY_AUTH_REQUIRED_CAUSE), hostname)
     }
     return {
       status: res.status,

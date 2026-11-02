@@ -3,7 +3,11 @@
 // Functions: buildHtmlHeaders, fetchFailure, failureBody, isCloudflareChallengeResponse,
 //            getHtmlViaProxy, getHtml, followRedirectChain, fetchTrackerHtml
 
-import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
+import {
+  classifyFetchError,
+  classifyProxyFetchError,
+  PROXY_AUTH_REQUIRED_CAUSE,
+} from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { isRedirect } from "@/lib/network"
 import { withDefaultUserAgent } from "@/lib/user-agent"
@@ -128,6 +132,9 @@ async function getHtmlViaProxy(
     })
   } catch (err) {
     throw classifyProxyFetchError(err, hostname)
+  }
+  if (result.status === 407) {
+    throw classifyProxyFetchError(new Error(PROXY_AUTH_REQUIRED_CAUSE), hostname)
   }
   return {
     ok: result.ok,

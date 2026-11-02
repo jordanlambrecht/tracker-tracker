@@ -2,7 +2,11 @@
 //
 // Functions: readJson, refuseRedirect, adapterRequest, adapterFetch
 
-import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
+import {
+  classifyFetchError,
+  classifyProxyFetchError,
+  PROXY_AUTH_REQUIRED_CAUSE,
+} from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
 import { isRedirect } from "@/lib/network"
 import { proxyFetch } from "@/lib/tunnel"
@@ -86,6 +90,9 @@ async function adapterRequest(
       })
     } catch (err) {
       throw classifyProxyFetchError(err, hostname)
+    }
+    if (result.status === 407) {
+      throw classifyProxyFetchError(new Error(PROXY_AUTH_REQUIRED_CAUSE), hostname)
     }
     refuseRedirect(result.status, hostname)
 

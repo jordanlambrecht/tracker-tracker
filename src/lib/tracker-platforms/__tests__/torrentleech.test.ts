@@ -1,7 +1,11 @@
 // src/lib/tracker-platforms/__tests__/torrentleech.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  isUnreachableMessage,
+  PROXY_AUTH_REQUIRED_CAUSE,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 import { parseTlCredentials, parseTlProfile, TorrentleechAdapter } from "../adapters/torrentleech"
 import { SessionExpiredError } from "../helpers/errors"
 
@@ -572,6 +576,7 @@ describe("TorrentleechAdapter.fetchStats", () => {
     [500, "Internal Server Error", "API returned 500"],
     [503, "Service Unavailable", "API returned 503"],
     [429, "Too Many Requests", "API returned 429"],
+    [407, "Proxy Authentication Required", "API returned 407"],
   ])(
     "reports a %i on the login by its status, not as a refused login",
     async (status, statusText, card) => {
@@ -612,7 +617,9 @@ describe("TorrentleechAdapter.fetchStats", () => {
       .then(() => null)
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
-    expect(err?.message).toBe("Tracker API error: 407 Proxy Authentication Required")
+    expect(err?.message).toBe(
+      `Failed to connect to www.torrentleech.org via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`
+    )
     expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Proxy connection failed")
   })
 

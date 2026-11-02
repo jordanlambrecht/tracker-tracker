@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/__tests__/adapter-fetch.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { PROXY_AUTH_REQUIRED_CAUSE, sanitizeNetworkError } from "@/lib/error-utils"
+import { isRetryablePollError } from "@/lib/tracker-status"
 import { DEFAULT_USER_AGENT } from "@/lib/user-agent"
 import { adapterFetch, adapterRequest } from "../helpers/adapter-fetch"
 
@@ -253,6 +254,56 @@ describe("adapterRequest - non-2xx is returned, not thrown", () => {
   })
 })
 
+// A 407 through the proxy is the proxy refusing its own login, retried like a
+// proxy that is down. A 407 on the direct path is a host's answer.
+describe("adapterRequest - a 407", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("fails a proxied 407 as the proxy's, which is retried", async () => {
+    // https-proxy-agent hands a refused CONNECT back as the response.
+    const proxyFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 407,
+      statusText: "Proxy Authentication Required",
+      buffer: async () => Buffer.from(""),
+    })
+    vi.doMock("@/lib/tunnel", () => ({ proxyFetch }))
+    vi.resetModules()
+    const { adapterRequest: fresh } = await import("../helpers/adapter-fetch")
+
+    const err = await fresh("https://tracker.example/api", "tracker.example", {
+      proxyAgent: {} as never,
+    })
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe(
+      `Failed to connect to tracker.example via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`
+    )
+    const message = sanitizeNetworkError(err?.message ?? "", "Poll failed")
+    expect(message).toBe("Proxy connection failed")
+    expect(isRetryablePollError(message)).toBe(true)
+    vi.doUnmock("@/lib/tunnel")
+  })
+
+  it("fails a direct 407 as the host's answer, which is never retried", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("", { status: 407, statusText: "Proxy Authentication Required" })
+    )
+
+    const err = await adapterFetch("https://tracker.example/api", "tracker.example")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("Tracker API error: 407 Proxy Authentication Required")
+    const message = sanitizeNetworkError(err?.message ?? "", "Poll failed")
+    expect(message).toBe("API returned 407")
+    expect(isRetryablePollError(message)).toBe(false)
+  })
+})
+
 describe("adapterRequest - a body that is not JSON", () => {
   // A maintenance or challenge page served with 200. The tracker answered, so
   // the card must not read it as a failure to reach the host.
@@ -488,5 +539,16 @@ describe("adapterFetch - a Cloudflare challenge", () => {
     await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
       "Tracker API error: 503 Service Unavailable"
     )
+  })
+
+  it("keeps a plain 403 an authentication failure", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("<html><body>Forbidden</body></html>", { status: 403, statusText: "Forbidden" })
+    )
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Tracker API error: 403 Forbidden"
+    )
+    expect(sanitizeNetworkError("Tracker API error: 403 Forbidden")).toBe("Authentication failed")
   })
 })

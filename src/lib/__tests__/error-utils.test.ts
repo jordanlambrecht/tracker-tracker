@@ -8,6 +8,7 @@ import {
   isDecryptionError,
   isUnreachableMessage,
   isUnreadableClientCredential,
+  PROXY_AUTH_REQUIRED_CAUSE,
   PROXY_REQUIRED_ERROR,
   sanitizeNetworkError,
 } from "@/lib/error-utils"
@@ -328,12 +329,19 @@ describe("sanitizeNetworkError", () => {
     ).toBe("Proxy connection failed")
   })
 
-  // The proxy refusing its own credentials answers the CONNECT, so the request
-  // never reaches the tracker.
-  it("maps the proxy's 407 to 'Proxy connection failed'", () => {
-    expect(sanitizeNetworkError("Tracker API error: 407 Proxy Authentication Required")).toBe(
-      "Proxy connection failed"
-    )
+  // The tracker transports wrap a 407 from the configured proxy. Any other 407
+  // is a host's answer.
+  it("maps the proxy's own 407 to 'Proxy connection failed'", () => {
+    expect(
+      sanitizeNetworkError(`Failed to connect to aither.cc via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`)
+    ).toBe("Proxy connection failed")
+  })
+
+  it.each([
+    ["Tracker API error: 407 Proxy Authentication Required", "Poll failed", "API returned 407"],
+    ["Webhook API error: 407 Proxy Authentication Required", "Delivery failed", "Delivery failed"],
+  ])("reads a 407 that no proxied request threw as the host's: %s", (raw, fallback, message) => {
+    expect(sanitizeNetworkError(raw, fallback)).toBe(message)
   })
 
   it.each([

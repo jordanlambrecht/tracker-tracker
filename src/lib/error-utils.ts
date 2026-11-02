@@ -49,6 +49,8 @@ export const PROXY_PASSWORD_UNREADABLE_ERROR =
   "Stored proxy password can't be read. Enter it again in the proxy settings"
 // What tunnel.ts's refusing agent fails every proxied request with.
 export const PROXY_PASSWORD_UNREADABLE_CAUSE = "Unreadable stored proxy password"
+// What the tracker transports fail a request with when the proxy refuses its own login.
+export const PROXY_AUTH_REQUIRED_CAUSE = "407 Proxy Authentication Required"
 const PROXY_PASSWORD_UNREADABLE = new RegExp(
   `^Failed to connect to \\S+ via proxy: ${PROXY_PASSWORD_UNREADABLE_CAUSE}$`
 )
@@ -222,8 +224,6 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // classifyProxyFetchError's wrapper. A tracker's own text that mentions a
   // proxy falls through to the rules below.
   if (/^Failed to connect to \S+ via proxy: /.test(raw)) return "Proxy connection failed"
-  // The configured proxy refusing its own credentials. The tracker never saw it.
-  if (/API error: 407\b/.test(raw)) return "Proxy connection failed"
   const apiMatch = raw.match(/Tracker API error: (\d+)/i)
   if (apiMatch) return `API returned ${apiMatch[1]}`
   return fallback

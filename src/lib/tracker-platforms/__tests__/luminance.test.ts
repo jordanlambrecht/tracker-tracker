@@ -1,7 +1,7 @@
 // src/lib/tracker-platforms/__tests__/luminance.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { PROXY_AUTH_REQUIRED_CAUSE, sanitizeNetworkError } from "@/lib/error-utils"
 import { proxyFetch } from "@/lib/tunnel"
 import { DEFAULT_USER_AGENT } from "@/lib/user-agent"
 import {
@@ -386,11 +386,12 @@ describe("LuminanceAdapter login outcomes", () => {
     )
   })
 
-  // A 5xx or a 429 says nothing about the password. Reported as a refused
-  // login, the card sends the user to re-enter one that works.
+  // A 5xx, a 429 or a direct 407 says nothing about the password. Reported as a
+  // refused login, the card sends the user to re-enter one that works.
   it.each([
     [503, "Service Unavailable", "post"],
     [500, "Internal Server Error", "post"],
+    [407, "Proxy Authentication Required", "post"],
     [429, "Too Many Requests", "form"],
     [503, "Service Unavailable", "form"],
   ] as const)("reports a %i on the login %s by its status", async (status, statusText, step) => {
@@ -612,8 +613,7 @@ describe("LuminanceAdapter through a proxy", () => {
     expect(sanitizeNetworkError(err.message, "Poll failed")).toBe("Request timed out")
   })
 
-  // https-proxy-agent hands a refused CONNECT back as the response, and its
-  // reason phrase is what names the proxy on the card.
+  // https-proxy-agent hands a refused CONNECT back as the response.
   it("reports a proxy that wants its own credentials as a proxy problem", async () => {
     vi.mocked(proxyFetch).mockResolvedValueOnce({
       ...proxied(407, "<h1>407 Proxy Authentication Required</h1>"),
@@ -624,7 +624,7 @@ describe("LuminanceAdapter through a proxy", () => {
       new LuminanceAdapter().fetchStats(BASE, CREDS, "/user.php", { proxyAgent: {} as never })
     )
 
-    expect(err.message).toBe("Tracker API error: 407 Proxy Authentication Required")
+    expect(err.message).toBe(`Failed to connect to ${HOST} via proxy: ${PROXY_AUTH_REQUIRED_CAUSE}`)
     expect(sanitizeNetworkError(err.message, "Poll failed")).toBe("Proxy connection failed")
   })
 })
