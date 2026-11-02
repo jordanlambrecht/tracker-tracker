@@ -17,7 +17,7 @@ import {
 import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { trackers } from "@/lib/db/schema"
+import { appSettings, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -48,16 +48,18 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt } = body as {
-    name?: string
-    slug?: string
-    apiToken?: string
-    color?: string
-    qbtTag?: string
-    mouseholeUrl?: string
-    mouseholeToken?: string
-    joinedAt?: string
-  }
+  const { name, slug, apiToken, color, qbtTag, mouseholeUrl, mouseholeToken, joinedAt, useProxy } =
+    body as {
+      name?: string
+      slug?: string
+      apiToken?: string
+      color?: string
+      qbtTag?: string
+      mouseholeUrl?: string
+      mouseholeToken?: string
+      joinedAt?: string
+      useProxy?: unknown
+    }
 
   if (
     typeof name !== "string" ||
@@ -134,6 +136,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: trackerHeldError(entry.name) }, { status: 409 })
     }
 
+    // Only an explicit false polls directly. Anything else follows the proxy
+    // switch, so a tracker added while it is on never polls around it, and one
+    // added while its settings are broken is refused until they are fixed.
+    const [proxy] = await db
+      .select({ proxyEnabled: appSettings.proxyEnabled })
+      .from(appSettings)
+      .limit(1)
+
     const key = decodeKey(auth)
     const encryptedApiToken = encrypt(trimmedApiToken, key)
 
@@ -151,6 +161,7 @@ export async function POST(request: Request) {
         mouseholeUrl: trimmedMouseholeUrl || null,
         encryptedMouseholeToken: trimmedMouseholeToken ? encrypt(trimmedMouseholeToken, key) : null,
         joinedAt: typeof joinedAt === "string" && joinedAt ? joinedAt : null,
+        useProxy: useProxy !== false && (proxy?.proxyEnabled ?? false),
       })
       .returning()
 

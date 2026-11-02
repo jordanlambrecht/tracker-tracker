@@ -26,7 +26,11 @@ export async function POST(request: Request) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
-  const { slug, apiToken } = body as { slug?: string; apiToken?: string }
+  const { slug, apiToken, useProxy } = body as {
+    slug?: string
+    apiToken?: string
+    useProxy?: unknown
+  }
 
   // The slug's registry entry settles address, platform and API path, so nothing
   // else in the body can choose where the token goes.
@@ -60,13 +64,13 @@ export async function POST(request: Request) {
       .from(appSettings)
       .limit(1)
 
-    const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
+    // An explicit false tests directly, the choice of a tracker that polls without
+    // the proxy. Otherwise the switch decides, and settings it can't use are refused.
+    const proxyAgent =
+      settings && useProxy !== false ? buildProxyAgentFromSettings(settings, key) : undefined
 
     const adapter = getAdapter(site.platform)
-    const fetchOptions = buildFetchOptions({
-      entry: site.entry,
-      proxyAgent: proxyAgent ?? undefined,
-    })
+    const fetchOptions = buildFetchOptions({ entry: site.entry, proxyAgent })
     const stats = await adapter.fetchStats(site.url, trimmedApiToken, site.apiPath, fetchOptions)
 
     const result: Record<string, unknown> = {

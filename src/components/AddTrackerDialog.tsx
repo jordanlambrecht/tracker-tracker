@@ -3,7 +3,7 @@
 
 import { H2, Subtext } from "@typography"
 import clsx from "clsx"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { CredentialFields } from "@/components/CredentialFields"
 import { CHART_THEME } from "@/components/charts/lib/theme"
 import { ADDABLE_TRACKERS, TrackerCombobox } from "@/components/TrackerCombobox"
@@ -14,6 +14,7 @@ import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
+import { Toggle } from "@/components/ui/Toggle"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
 import {
   buildCredentialBlob,
@@ -52,10 +53,22 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
   const [testResult, setTestResult] = useState<{ username: string; group: string | null } | null>(
     null
   )
+  // Null until the settings read answers. Until the toggle shows, nothing is
+  // sent and the server's own default keeps a set-up proxy in use.
+  const [proxyUsable, setProxyUsable] = useState<boolean | null>(null)
+  const [useProxy, setUseProxy] = useState(true)
 
   const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
     setCredentials((prev) => ({ ...prev, [field]: value }))
   }, [])
+
+  useEffect(() => {
+    if (!open || proxyUsable !== null) return
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setProxyUsable(data?.proxyUsable === true))
+      .catch(() => setProxyUsable(false))
+  }, [open, proxyUsable])
 
   const resetForm = useCallback(() => {
     setSelectedPreset("")
@@ -69,6 +82,9 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
     setErrors({})
     setLoading(false)
     setTestResult(null)
+    // Read again on the next open, since the proxy can be set up between adds.
+    setProxyUsable(null)
+    setUseProxy(true)
   }, [])
 
   const handleDialogClose = useCallback(() => {
@@ -128,6 +144,8 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
     // navigator is a browser-only global; this component is server-rendered on
     // first load, so it is read in the handler and never during render.
     const effectiveApiToken = buildCredentialBlob(credentialForm, credentials, navigator.userAgent)
+    // The test and the first poll take the same route.
+    const proxyChoice = proxyUsable ? { useProxy } : {}
 
     try {
       const testRes = await fetch("/api/trackers/test-connection", {
@@ -136,6 +154,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
         body: JSON.stringify({
           slug: selectedPreset,
           apiToken: effectiveApiToken,
+          ...proxyChoice,
         }),
       })
 
@@ -160,6 +179,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
           joinedAt: joinedAt || undefined,
           mouseholeUrl: mouseholeUrl.trim() || undefined,
           mouseholeToken: mouseholeToken.trim() || undefined,
+          ...proxyChoice,
         }),
       })
 
@@ -327,6 +347,15 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
             max={localDateStr()}
             onChange={(e) => setJoinedAt(e.target.value)}
             placeholder="YYYY-MM-DD"
+          />
+        )}
+
+        {proxyUsable && (
+          <Toggle
+            label="Use proxy"
+            checked={useProxy}
+            onChange={setUseProxy}
+            description="Route API requests for this tracker through the global proxy configured in Settings."
           />
         )}
 

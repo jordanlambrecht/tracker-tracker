@@ -22,7 +22,10 @@ vi.mock("@/lib/crypto", () => ({ decrypt: vi.fn(() => "token") }))
 vi.mock("@/lib/notifications/dispatch", () => ({ dispatchNotifications: vi.fn(async () => {}) }))
 vi.mock("@/lib/alert-pruning", () => ({ pruneDismissedAlerts: vi.fn(async () => 0) }))
 vi.mock("@/lib/server-data", () => ({ recordDatabaseSize: vi.fn(async () => {}) }))
-vi.mock("@/lib/tunnel", () => ({ buildProxyAgentFromSettings: vi.fn(() => undefined) }))
+vi.mock("@/lib/tunnel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/tunnel")>()),
+  buildProxyAgentFromSettings: vi.fn(() => undefined),
+}))
 vi.mock("node-cron", () => ({ default: { schedule: vi.fn() } }))
 
 const fetchStats = vi.fn()
@@ -33,9 +36,11 @@ vi.mock("@/lib/tracker-platforms", () => ({
 
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { PROXY_UNUSABLE_ERROR } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { pollTracker } from "@/lib/tracker-scheduler"
+import { isRetryablePollError } from "@/lib/tracker-status"
 
 /** Drizzle-shaped chain: any method sequence resolves to `result`. */
 function chain(result: unknown): Record<string, unknown> {
@@ -90,6 +95,18 @@ beforeEach(() => {
 })
 
 const KEY = Buffer.alloc(32)
+
+/** Records each db.update(...).set(...) payload. */
+function captureSets(): Record<string, unknown>[] {
+  const sets: Record<string, unknown>[] = []
+  vi.mocked(db.update).mockImplementation((() => ({
+    set: (values: Record<string, unknown>) => {
+      sets.push(values)
+      return chain([{ consecutiveFailures: 1, pausedAt: null }])
+    },
+  })) as never)
+  return sets
+}
 
 describe("pollTracker failure logging", () => {
   it("logs the raw cause next to the sanitised message", async () => {
@@ -153,18 +170,6 @@ describe("pollTracker failure logging", () => {
 })
 
 describe("pollTracker on a stored credential it cannot read", () => {
-  /** Records each db.update(...).set(...) payload. */
-  function captureSets(): Record<string, unknown>[] {
-    const sets: Record<string, unknown>[] = []
-    vi.mocked(db.update).mockImplementation((() => ({
-      set: (values: Record<string, unknown>) => {
-        sets.push(values)
-        return chain([{ consecutiveFailures: 1, pausedAt: null }])
-      },
-    })) as never)
-    return sets
-  }
-
   it("asks for the credentials again in lastError and the notification", async () => {
     vi.mocked(decrypt).mockImplementationOnce(() => {
       throw new Error("Unsupported state or unable to authenticate data")
@@ -206,5 +211,43 @@ describe("pollTracker on a stored credential it cannot read", () => {
 
     expect(sets.map((s) => s.lastError)).toContain("Invalid credentials")
     expect(fetchStats).not.toHaveBeenCalled()
+  })
+})
+
+// A tracker added through the API while the proxy is on but its settings are
+// broken is stored with useProxy on. Its first poll is refused, never direct.
+describe("pollTracker through a proxy that is on but unusable", () => {
+  it("refuses the poll with the settings message, which is never retried", async () => {
+    const { buildProxyAgentFromSettings: buildAgent } =
+      await vi.importActual<typeof import("@/lib/tunnel")>("@/lib/tunnel")
+    const { adapterFetch } = await import("@/lib/tracker-platforms/helpers/adapter-fetch")
+    const proxyAgent = buildAgent(
+      {
+        proxyEnabled: true,
+        proxyType: "socks5",
+        proxyHost: "proxy.example.test:1080",
+        proxyPort: 1080,
+        proxyUsername: null,
+        encryptedProxyPassword: null,
+      },
+      KEY
+    )
+    vi.mocked(db.select).mockImplementation(((cols: Record<string, unknown>) =>
+      chain(
+        Object.keys(cols ?? {}).includes("encryptedApiToken")
+          ? [{ ...TRACKER_ROW, useProxy: true }]
+          : []
+      )) as never)
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+    vi.mocked(buildFetchOptions).mockImplementationOnce((opts) => ({ proxyAgent: opts.proxyAgent }))
+    fetchStats.mockImplementationOnce((baseUrl: string, _token, apiPath: string, options) =>
+      adapterFetch(`${baseUrl}${apiPath}`, new URL(baseUrl).hostname, options)
+    )
+    const sets = captureSets()
+
+    await pollTracker(42, KEY, false, proxyAgent)
+
+    expect(sets.map((s) => s.lastError)).toContain(PROXY_UNUSABLE_ERROR)
+    expect(isRetryablePollError(PROXY_UNUSABLE_ERROR)).toBe(false)
   })
 })

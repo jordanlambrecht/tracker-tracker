@@ -120,7 +120,8 @@ describe("AddTrackerDialog cookie paste errors", () => {
     await user.click(screen.getByRole("button", { name: "Add Tracker" }))
 
     expect(await screen.findByText(/you pasted a cookie name \("PHPSESSID"\)/)).toBeInTheDocument()
-    expect(fetchMock).not.toHaveBeenCalled()
+    // The settings read on open is the only request; nothing goes to a tracker route.
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual(["/api/settings"])
   })
 
   it("quotes the tracker's own cookie example when there is no key=value pair", async () => {

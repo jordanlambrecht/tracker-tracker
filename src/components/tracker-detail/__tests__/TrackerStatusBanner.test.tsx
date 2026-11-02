@@ -386,6 +386,25 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     expect(screen.getByRole("button", { name: "Link to a tracker" })).toBeDisabled()
   })
 
+  // The key is tested on the route the row's polls take.
+  it("tests the key for Link through the proxy when the row polls through it", async () => {
+    const user = userEvent.setup()
+    fetchMock.mockImplementation(async () => jsonResponse({ username: "someone", group: null }))
+    renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, useProxy: true }))
+
+    await user.click(screen.getByRole("button", { name: "Link to a tracker" }))
+    await user.type(screen.getByPlaceholderText("Search trackers..."), "Aither")
+    await user.keyboard("{Enter}")
+    await user.type(screen.getByLabelText("API Token"), "fresh-token")
+    await user.click(screen.getByRole("button", { name: "Link" }))
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/trackers/test-connection", expect.anything())
+    )
+    const test = fetchMock.mock.calls.find(([url]) => url === "/api/trackers/test-connection")
+    expect(JSON.parse(String(test?.[1]?.body))).toMatchObject({ slug: "aither", useProxy: true })
+  })
+
   it("says a duplicate is already tracked and offers Archive and Delete, not Link", () => {
     renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, duplicateOf: "ReelFliX" }))
 

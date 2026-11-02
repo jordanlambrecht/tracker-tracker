@@ -163,6 +163,7 @@ vi.mock("@/lib/tunnel", () => ({
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
   PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
   buildProxyAgentFromSettings: vi.fn().mockReturnValue(undefined),
+  isProxyUsable: vi.fn().mockReturnValue(false),
   proxyFetch: vi.fn(),
 }))
 
@@ -1151,9 +1152,10 @@ describe("Input validation: POST /api/trackers", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     mockAuthSuccess()
-    // No row holds the slug yet, so a valid body reaches the insert.
+    // No row holds the slug yet and there is no settings row, so a valid body
+    // reaches the insert.
     vi.mocked(db.select).mockReturnValue({
-      from: () => ({ where: () => ({ limit: async () => [] }) }),
+      from: () => ({ where: () => ({ limit: async () => [] }), limit: async () => [] }),
     } as unknown as ReturnType<typeof db.select>)
   })
 

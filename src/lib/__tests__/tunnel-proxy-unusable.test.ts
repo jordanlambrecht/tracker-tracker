@@ -11,7 +11,7 @@ import { PROXY_UNUSABLE_ERROR, sanitizeNetworkError } from "@/lib/error-utils"
 import { OUTBOUND_DISABLED_ERROR } from "@/lib/network"
 import { adapterFetch } from "@/lib/tracker-platforms/helpers/adapter-fetch"
 import { isRetryablePollError } from "@/lib/tracker-status"
-import { buildProxyAgentFromSettings, type ProxySettings } from "@/lib/tunnel"
+import { buildProxyAgentFromSettings, isProxyUsable, type ProxySettings } from "@/lib/tunnel"
 
 const KEY = Buffer.alloc(32, 1)
 
@@ -95,5 +95,20 @@ describe("buildProxyAgentFromSettings and settings it can't use", () => {
         "Poll failed"
       )
     ).not.toBe(PROXY_UNUSABLE_ERROR)
+  })
+})
+
+// What Add Tracker reads to decide whether to offer the proxy. The same check
+// as the agent above, with no key, so an unreadable password still counts.
+describe("isProxyUsable", () => {
+  it.each<[string, Partial<ProxySettings>, boolean]>([
+    ["settings that make an agent", {}, true],
+    ["a proxy that is off", { proxyEnabled: false }, false],
+    ["no host", { proxyHost: null }, false],
+    ["a type it has no agent for", { proxyType: "socks4" }, false],
+    ["a port typed into the host", { proxyHost: "proxy.example.test:1080" }, false],
+    ["a stored password that won't decrypt", { encryptedProxyPassword: "not-ciphertext" }, true],
+  ])("reads %s as usable: %s", (_case, change, usable) => {
+    expect(isProxyUsable({ ...SETTINGS, ...change })).toBe(usable)
   })
 })

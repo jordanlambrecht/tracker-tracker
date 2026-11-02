@@ -237,8 +237,13 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
           method: "POST",
           headers: { "Content-Type": "application/json" },
           // The route takes the address and platform from the registry entry
-          // the slug names, and refuses a row with none.
-          body: JSON.stringify({ slug: tracker.registrySlug, apiToken: trimmedToken }),
+          // the slug names, and refuses a row with none. The test takes the
+          // route the toggle sets for polls.
+          body: JSON.stringify({
+            slug: tracker.registrySlug,
+            apiToken: trimmedToken,
+            useProxy: form.useProxy,
+          }),
         })
         if (!testRes.ok) {
           const testData = await testRes.json().catch(() => ({ error: "Connection failed" }))

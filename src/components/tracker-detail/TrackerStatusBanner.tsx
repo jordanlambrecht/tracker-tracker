@@ -264,6 +264,7 @@ function UnlinkedCard({
           open={linking}
           onClose={() => setLinking(false)}
           trackerId={tracker.id}
+          useProxy={tracker.useProxy}
           heldSlugs={heldSlugs}
           onLinked={handleLinked}
         />

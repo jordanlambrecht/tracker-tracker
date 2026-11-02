@@ -141,7 +141,7 @@ describe("TrackerSettingsSheet credential re-test", () => {
     ["a row with no slug", null],
   ])("sends only the slug for %s", async (_form, registrySlug) => {
     const body = await changeCookies({ ...RETROTOON, registrySlug })
-    expect(body).toEqual({ slug: registrySlug, apiToken: expect.any(String) })
+    expect(body).toEqual({ slug: registrySlug, apiToken: expect.any(String), useProxy: false })
   })
 })
 

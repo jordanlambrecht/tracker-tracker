@@ -53,6 +53,8 @@ The master switch controls the proxy globally. Even if trackers have the toggle 
 
 On a tracker's settings page, toggle **Use Proxy**. That tracker's polls go through the global proxy.
 
+When the proxy is set up, **Add Tracker** shows the same toggle, on by default. The key test and the first poll both follow it.
+
 Trackers with the toggle off always poll directly.
 
 ## Credential Security

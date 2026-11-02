@@ -22,6 +22,8 @@ interface LinkTrackerDialogProps {
   open: boolean
   onClose: () => void
   trackerId: number
+  /** The row's own setting, so the key test takes the route its polls will. */
+  useProxy: boolean
   /** From useHeldTrackerSlugs, so a tracker already in use can't be picked. */
   heldSlugs: ReadonlyMap<string, boolean>
   /** Receives the link route's response, the row as now linked. */
@@ -37,6 +39,7 @@ function LinkTrackerDialog({
   open,
   onClose,
   trackerId,
+  useProxy,
   heldSlugs,
   onLinked,
 }: LinkTrackerDialogProps) {
@@ -97,7 +100,7 @@ function LinkTrackerDialog({
       const testRes = await fetch("/api/trackers/test-connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: entry.slug, apiToken }),
+        body: JSON.stringify({ slug: entry.slug, apiToken, useProxy }),
       })
       const testData = await testRes.json()
       if (!testRes.ok) {

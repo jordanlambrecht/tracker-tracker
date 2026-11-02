@@ -311,6 +311,15 @@ function endpointConfig(settings: ProxyEndpoint): ProxyConfig | null {
   return config
 }
 
+/**
+ * Whether the proxy is on and its settings make an agent. Reads no password, so
+ * it needs no key: a stored password that won't decrypt still counts as usable,
+ * and the poll reports it.
+ */
+export function isProxyUsable(settings: ProxyEndpoint): boolean {
+  return settings.proxyEnabled && endpointConfig(settings) !== null
+}
+
 // Undefined only when the proxy is off. A proxy that is on but can't be used
 // gets an agent that refuses every request, so no caller can fall back to direct.
 export function buildProxyAgentFromSettings(

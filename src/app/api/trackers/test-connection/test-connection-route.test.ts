@@ -543,4 +543,64 @@ describe("POST /api/trackers/test-connection — proxy wiring", () => {
     expect(res.status).toBe(200)
     expect(body.success).toBe(true)
   })
+
+  // A tracker set to poll directly is tested directly, and no proxy password is
+  // decrypted for it.
+  it("tests directly, building no agent, when the body says useProxy false", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ...VALID_BODY,
+      useProxy: false,
+    })
+    mockDbSettings({ proxyEnabled: true, proxyHost: "proxy.internal" })
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+
+    await POST(makeRequest(VALID_BODY))
+
+    expect(buildProxyAgentFromSettings).not.toHaveBeenCalled()
+    expect(buildFetchOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ proxyAgent: undefined })
+    )
+  })
+
+  it("refuses a direct test too while DISABLE_OUTBOUND_REQUESTS is on", async () => {
+    vi.stubEnv("DISABLE_OUTBOUND_REQUESTS", "true")
+    try {
+      ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ...VALID_BODY,
+        useProxy: false,
+      })
+      const { getAdapter } = await import("@/lib/tracker-platforms")
+
+      const res = await POST(makeRequest(VALID_BODY))
+
+      expect(res.status).toBe(503)
+      expect(parseJsonBody).not.toHaveBeenCalled()
+      expect(db.select).not.toHaveBeenCalled()
+      expect(getAdapter).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  // Only an explicit false skips the proxy, so a missing or malformed choice
+  // can't send a key around it.
+  it.each([
+    ["true", true],
+    ["absent", undefined],
+    ['the string "false"', "false"],
+    ["0", 0],
+    ["null", null],
+  ])("goes through the proxy agent when useProxy is %s", async (_case, useProxy) => {
+    const fakeAgent = { isFakeAgent: true }
+    ;(buildProxyAgentFromSettings as ReturnType<typeof vi.fn>).mockReturnValueOnce(fakeAgent)
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ...VALID_BODY, useProxy })
+    mockDbSettings({ proxyEnabled: true, proxyHost: "proxy.internal" })
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+
+    await POST(makeRequest(VALID_BODY))
+
+    expect(buildFetchOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ proxyAgent: fakeAgent })
+    )
+  })
 })

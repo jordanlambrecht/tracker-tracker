@@ -530,3 +530,28 @@ describe("TrackerSettingsSheet base URL", () => {
     expect(JSON.parse(saveCall[1].body)).not.toHaveProperty("baseUrl")
   })
 })
+
+describe("TrackerSettingsSheet proxy choice", () => {
+  // A changed key is tested the way the toggle, not the saved row, says polls go.
+  it("tests a changed key on the route the Use proxy toggle sets", async () => {
+    const user = userEvent.setup()
+    fetchMock.mockImplementation(async (url: unknown) =>
+      String(url) === "/api/settings" ? jsonResponse({ proxyEnabled: true }) : patchResult
+    )
+    renderSheet({ tracker: { ...TRACKER, useProxy: true } })
+
+    const toggle = screen.getByRole("switch", { name: "Use proxy" })
+    await waitFor(() => expect(toggle).toBeEnabled())
+    await user.click(toggle)
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByPlaceholderText("Paste API token"), "fresh-token")
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(trackerRequests().length).toBeGreaterThan(0))
+    const test = fetchMock.mock.calls.find(([url]) => url === "/api/trackers/test-connection")
+    expect(JSON.parse(String(test?.[1]?.body))).toMatchObject({
+      apiToken: "fresh-token",
+      useProxy: false,
+    })
+  })
+})

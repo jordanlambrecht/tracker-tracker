@@ -295,6 +295,8 @@ describe("GET /api/trackers", () => {
 describe("POST /api/trackers", () => {
   // The rows the held-slug check reads, matched by its WHERE.
   let table: Record<string, unknown>[] = []
+  // The settings row the proxy default reads.
+  let settingsRows: Record<string, unknown>[] = []
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -302,8 +304,10 @@ describe("POST /api/trackers", () => {
       encryptionKey: VALID_KEY,
     })
     table = []
+    settingsRows = [{ proxyEnabled: false }]
     ;(db.select as ReturnType<typeof vi.fn>).mockImplementation(() => ({
       from: () => ({
+        limit: async () => settingsRows,
         where: (where: Condition) => ({
           limit: async (n: number) =>
             table
@@ -347,6 +351,41 @@ describe("POST /api/trackers", () => {
     expect(mockValues).toHaveBeenCalledWith(
       expect.objectContaining({ registrySlug: "aither", baseUrl: "https://aither.cc" })
     )
+  })
+
+  // Only an explicit false polls directly. Anything else follows the proxy switch,
+  // so a direct API call can't add a tracker that polls around a proxy that is on,
+  // even one whose settings are broken: its polls are refused until they're fixed.
+  it.each<[string, Record<string, unknown>[], unknown, boolean]>([
+    ["the proxy is on and no choice is sent", [{ proxyEnabled: true }], undefined, true],
+    [
+      "the proxy is on but unusable and no choice is sent",
+      [{ proxyEnabled: true, proxyHost: "proxy.example.test:1080" }],
+      undefined,
+      true,
+    ],
+    ["the proxy is on and the choice is true", [{ proxyEnabled: true }], true, true],
+    ["the proxy is on and the choice is false", [{ proxyEnabled: true }], false, false],
+    [
+      'the proxy is on and the choice is the string "false"',
+      [{ proxyEnabled: true }],
+      "false",
+      true,
+    ],
+    ["the proxy is off, whatever the choice", [{ proxyEnabled: false }], true, false],
+    ["there is no settings row", [], true, false],
+  ])("stores useProxy when %s", async (_case, rows, useProxy, stored) => {
+    settingsRows = rows
+    const body = { name: "Aither", slug: "aither", apiToken: "mytoken", useProxy }
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    const mockReturning = vi.fn().mockResolvedValue([{ id: 42, name: "Aither" }])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const response = await POST(makeRequest("http://localhost/api/trackers", body, "POST"))
+
+    expect(response.status).toBe(201)
+    expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ useProxy: stored }))
   })
 
   it("takes the platform, API path and default color from the registry entry", async () => {

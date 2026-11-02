@@ -50,6 +50,7 @@ import { SNAPSHOT_QUERY_MAX } from "@/lib/limits"
 import { createPrivacyMaskSync } from "@/lib/privacy-db"
 import { loadTrackerProwlarrStates } from "@/lib/prowlarr/sync"
 import { serializeTrackerResponse } from "@/lib/tracker-serializer"
+import { isProxyUsable } from "@/lib/tunnel"
 import type {
   SafeProwlarrInstance,
   Snapshot,
@@ -124,6 +125,8 @@ export function serializeSettingsResponse(row: SettingsRow) {
     proxyPort: row.proxyPort,
     proxyUsername: row.proxyUsername,
     hasProxyPassword: !!row.hasProxyPassword,
+    // Whether Add Tracker offers the proxy. Decided here, without the password.
+    proxyUsable: isProxyUsable(row),
     hasPtpimgKey: !!row.hasPtpimgKey,
     hasOeimgKey: !!row.hasOeimgKey,
     hasImgbbKey: !!row.hasImgbbKey,

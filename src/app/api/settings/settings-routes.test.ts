@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { PATCH } from "./route"
+import { GET, PATCH } from "./route"
 
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
@@ -123,17 +123,12 @@ vi.mock("@/lib/privacy-db", () => ({
   scrubSnapshotUsernames: vi.fn().mockResolvedValue(0),
 }))
 
-vi.mock("@/lib/tunnel", () => ({
-  PROXY_HOST_PATTERN: /^[\w.\-:[\]]+$/,
-  VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
-}))
-
 vi.mock("@/lib/download-clients/qbt/qbitmanage-defaults", () => ({
   parseQbitmanageTags: vi.fn(() => ({})),
   QBITMANAGE_KEYS: [],
 }))
 
-function mockSettingsSelect() {
+function mockSettingsSelect(overrides: Record<string, unknown> = {}) {
   const settings = {
     id: 1,
     storeUsernames: true,
@@ -156,11 +151,56 @@ function mockSettingsSelect() {
     backupStoragePath: null,
     failedLoginAttempts: 0,
     lockedUntil: null,
+    ...overrides,
   }
   const limit = vi.fn().mockResolvedValue([settings])
   const from = vi.fn().mockReturnValue({ limit })
   ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from })
 }
+
+// Add Tracker offers the proxy only when this says it can be used. It is
+// decided on the server, and the stored password never leaves it.
+describe("GET /api/settings proxyUsable", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+  })
+
+  it.each<[string, Record<string, unknown>, boolean]>([
+    [
+      "is usable when on with a host",
+      { proxyEnabled: true, proxyHost: "proxy.example.test" },
+      true,
+    ],
+    ["is not usable while off", { proxyEnabled: false, proxyHost: "proxy.example.test" }, false],
+    ["is not usable with no host", { proxyEnabled: true, proxyHost: null }, false],
+    [
+      "is not usable with a port typed into the host",
+      { proxyEnabled: true, proxyHost: "proxy.example.test:1080" },
+      false,
+    ],
+  ])("says a proxy %s", async (_case, overrides, usable) => {
+    mockSettingsSelect(overrides)
+
+    const res = await GET()
+
+    expect((await res.json()).proxyUsable).toBe(usable)
+  })
+
+  it("decides it without sending the stored password", async () => {
+    const CANARY = "CANARY-proxy-password-ciphertext"
+    mockSettingsSelect({
+      proxyEnabled: true,
+      proxyHost: "proxy.example.test",
+      hasProxyPassword: CANARY,
+    })
+
+    const body = await (await GET()).json()
+
+    expect(body).toMatchObject({ proxyUsable: true, hasProxyPassword: true })
+    expect(JSON.stringify(body)).not.toContain(CANARY)
+  })
+})
 
 describe("PATCH /api/settings route validation", () => {
   beforeEach(() => {

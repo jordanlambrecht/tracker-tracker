@@ -33,13 +33,14 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock)
 })
 
-function renderDialog(heldSlugs = NONE_HELD) {
+function renderDialog(heldSlugs = NONE_HELD, useProxy = false) {
   const onLinked = vi.fn()
   render(
     <LinkTrackerDialog
       open
       onClose={vi.fn()}
       trackerId={42}
+      useProxy={useProxy}
       heldSlugs={heldSlugs}
       onLinked={onLinked}
     />
@@ -103,11 +104,33 @@ describe("LinkTrackerDialog", () => {
     await user.click(screen.getByRole("button", { name: "Link" }))
 
     expect(requests()).toEqual([
-      ["/api/trackers/test-connection", { slug: "aither", apiToken: "fresh-token" }],
+      [
+        "/api/trackers/test-connection",
+        { slug: "aither", apiToken: "fresh-token", useProxy: false },
+      ],
       ["/api/trackers/42/link", { slug: "aither", apiToken: "fresh-token" }],
       ["/api/trackers/42/poll", "POST"],
     ])
     expect(onLinked).toHaveBeenCalledWith(LINKED_ROW)
+  })
+
+  // The key test takes the route the row's polls will, through the proxy or not.
+  it("tests the key through the proxy when the row polls through it", async () => {
+    const user = userEvent.setup()
+    respond({
+      "/api/trackers/test-connection": jsonResponse({ username: "someone", group: "User" }),
+      "/api/trackers/42/link": jsonResponse(LINKED_ROW),
+    })
+    renderDialog(NONE_HELD, true)
+
+    await pick(user, "Aither")
+    await user.type(screen.getByLabelText("API Token"), "fresh-token")
+    await user.click(screen.getByRole("button", { name: "Link" }))
+
+    expect(requests()[0]).toEqual([
+      "/api/trackers/test-connection",
+      { slug: "aither", apiToken: "fresh-token", useProxy: true },
+    ])
   })
 
   it("starts no poll on a row the user paused", async () => {
