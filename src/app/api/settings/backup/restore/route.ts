@@ -405,6 +405,23 @@ export async function POST(request: Request) {
   let totpDisabledOnRestore = false
   let orphanedRecordsSkipped = 0
   let mouseholeCleared = 0
+  // The rows each table handed to its insert, so orphans and malformed entries
+  // the file held are not reported as restored.
+  const restored = {
+    trackers: 0,
+    trackerSnapshots: 0,
+    trackerRoles: 0,
+    downloadClients: 0,
+    tagGroups: 0,
+    tagGroupMembers: 0,
+    clientSnapshots: 0,
+    clientUptimeBuckets: 0,
+    appCoverageGaps: 0,
+    trackerOutages: 0,
+    dismissedAlerts: 0,
+    notificationTargets: 0,
+    prowlarrInstances: 0,
+  }
 
   try {
     await db.transaction(async (tx) => {
@@ -458,6 +475,7 @@ export async function POST(request: Request) {
           })
           .returning({ id: prowlarrInstances.id })
         prowlarrIdMap.set(oldId, inserted.id)
+        restored.prowlarrInstances++
       }
 
       // Insert trackers with token re-encryption
@@ -596,6 +614,7 @@ export async function POST(request: Request) {
           })
           .returning({ id: trackers.id })
         trackerIdMap.set(oldId, inserted.id)
+        restored.trackers++
       }
 
       // Insert downloadClients with credential re-encryption
@@ -699,6 +718,7 @@ export async function POST(request: Request) {
           })
           .returning({ id: downloadClients.id })
         clientIdMap.set(oldId, inserted.id)
+        restored.downloadClients++
         if (disabledOnRestore) clientCredentialsCleared++
       }
 
@@ -720,6 +740,7 @@ export async function POST(request: Request) {
           })
           .returning({ id: tagGroups.id })
         tagGroupIdMap.set(oldId, inserted.id)
+        restored.tagGroups++
       }
 
       // Batch insert trackerSnapshots (remap trackerId)
@@ -754,6 +775,7 @@ export async function POST(request: Request) {
         })
       }
       await batchInsert(tx, trackerSnapshots, snapshotRows)
+      restored.trackerSnapshots = snapshotRows.length
 
       // Batch insert trackerOutages (remap trackerId). Must follow the tracker
       // insert above so the FK resolves; rows whose tracker did not survive the
@@ -778,6 +800,7 @@ export async function POST(request: Request) {
           })
         }
         await batchInsert(tx, trackerOutages, outageRows)
+        restored.trackerOutages = outageRows.length
       }
 
       // Insert trackerRoles (remap trackerId)
@@ -794,6 +817,7 @@ export async function POST(request: Request) {
           achievedAt: new Date(fields.achievedAt as string),
           notes: (fields.notes as string | null) ?? null,
         })
+        restored.trackerRoles++
       }
 
       // Insert tagGroupMembers (remap groupId)
@@ -811,6 +835,7 @@ export async function POST(request: Request) {
           color: (fields.color as string | null) ?? null,
           sortOrder: (fields.sortOrder as number) ?? 0,
         })
+        restored.tagGroupMembers++
       }
 
       // Batch insert clientSnapshots (remap clientId)
@@ -837,6 +862,7 @@ export async function POST(request: Request) {
         })
       }
       await batchInsert(tx, clientSnapshots, clientSnapshotRows)
+      restored.clientSnapshots = clientSnapshotRows.length
 
       // Batch insert clientUptimeBuckets (remap clientId, optional for older backups)
       if (Array.isArray(payload.clientUptimeBuckets) && payload.clientUptimeBuckets.length > 0) {
@@ -861,6 +887,7 @@ export async function POST(request: Request) {
             await tx.insert(clientUptimeBuckets).values(batch).onConflictDoNothing()
           }
         }
+        restored.clientUptimeBuckets = uptimeRows.length
       }
 
       // Batch insert appCoverageGaps (optional, absent in older backups).
@@ -877,6 +904,7 @@ export async function POST(request: Request) {
           })
         }
         await batchInsert(tx, appCoverageGaps, gapRows)
+        restored.appCoverageGaps = gapRows.length
       }
 
       // Insert dismissedAlerts (optional, absent in older backups). A key naming a
@@ -911,6 +939,7 @@ export async function POST(request: Request) {
             await tx.insert(dismissedAlerts).values(batch).onConflictDoNothing()
           }
         }
+        restored.dismissedAlerts = alertRows.length
       }
 
       // Insert notificationTargets with config re-encryption (optional, absent in older backups)
@@ -957,6 +986,7 @@ export async function POST(request: Request) {
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),
           })
+          restored.notificationTargets++
         }
       }
 
@@ -1180,49 +1210,14 @@ export async function POST(request: Request) {
       mouseholeCleared,
       totpDisabledOnRestore,
       orphanedRecordsSkipped,
-      restored: {
-        trackers: payload.trackers.length,
-        trackerSnapshots: payload.trackerSnapshots.length,
-        trackerRoles: payload.trackerRoles.length,
-        downloadClients: payload.downloadClients.length,
-        tagGroups: payload.tagGroups.length,
-        dismissedAlerts: Array.isArray(payload.dismissedAlerts)
-          ? payload.dismissedAlerts.length
-          : 0,
-        notificationTargets: Array.isArray(payload.notificationTargets)
-          ? payload.notificationTargets.length
-          : 0,
-        prowlarrInstances: Array.isArray(payload.prowlarrInstances)
-          ? payload.prowlarrInstances.length
-          : 0,
-      },
+      restored,
     },
     "Restore operation completed successfully"
   )
 
   return NextResponse.json({
     success: true,
-    restored: {
-      trackers: payload.trackers.length,
-      trackerSnapshots: payload.trackerSnapshots.length,
-      trackerRoles: payload.trackerRoles.length,
-      downloadClients: payload.downloadClients.length,
-      tagGroups: payload.tagGroups.length,
-      tagGroupMembers: payload.tagGroupMembers.length,
-      clientSnapshots: payload.clientSnapshots.length,
-      clientUptimeBuckets: Array.isArray(payload.clientUptimeBuckets)
-        ? payload.clientUptimeBuckets.length
-        : 0,
-      appCoverageGaps: Array.isArray(payload.appCoverageGaps) ? payload.appCoverageGaps.length : 0,
-      trackerOutages: Array.isArray(payload.trackerOutages) ? payload.trackerOutages.length : 0,
-      dismissedAlerts: Array.isArray(payload.dismissedAlerts) ? payload.dismissedAlerts.length : 0,
-      notificationTargets: Array.isArray(payload.notificationTargets)
-        ? payload.notificationTargets.length
-        : 0,
-      prowlarrInstances: Array.isArray(payload.prowlarrInstances)
-        ? payload.prowlarrInstances.length
-        : 0,
-    },
+    restored,
     tokensPreserved,
     tokensCleared,
     clientCredentialsCleared,

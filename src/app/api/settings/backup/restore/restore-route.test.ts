@@ -1465,6 +1465,64 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(Number.isNaN(dismissedAt.getTime())).toBe(false)
   })
 
+  // The file holds an orphan in every child table and a malformed dismissal,
+  // none of which the transaction writes.
+  it("reports the rows it restored, not the rows the file held", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    payload.prowlarrInstances = [prowlarrInstance()]
+    payload.trackerSnapshots.push({
+      id: 2,
+      trackerId: 999,
+      polledAt: ISO,
+      uploadedBytes: "1",
+      downloadedBytes: "1",
+    })
+    payload.trackerRoles.push({ id: 2, trackerId: 999, roleName: "Elite", achievedAt: ISO })
+    payload.tagGroupMembers.push({ id: 2, groupId: 999, tag: "x", label: "X" })
+    payload.clientSnapshots.push({ id: 2, clientId: 999, polledAt: ISO })
+    payload.clientUptimeBuckets?.push({ id: 2, clientId: 999, bucketTs: ISO, ok: 1, fail: 0 })
+    payload.trackerOutages = [
+      { id: 1, trackerId: 1, startedAt: ISO, endedAt: ISO, reason: "poll" },
+      { id: 2, trackerId: 999, startedAt: ISO, endedAt: ISO, reason: "poll" },
+    ]
+    payload.appCoverageGaps = [{ id: 1, startedAt: ISO, endedAt: ISO, reason: "unclean" }]
+    payload.dismissedAlerts = [
+      {
+        id: 1,
+        alertKey: "update-available-2.15.0",
+        alertType: "update-available",
+        dismissedAt: ISO,
+      },
+      { id: 2, alertKey: "warned-999", alertType: "warned", dismissedAt: ISO },
+      null,
+    ] as unknown as Record<string, unknown>[]
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+    expect(res.status).toBe(200)
+
+    const { restored } = await res.json()
+    expect(restored).toEqual({
+      trackers: 1,
+      trackerSnapshots: 1,
+      trackerRoles: 1,
+      downloadClients: 1,
+      tagGroups: 1,
+      tagGroupMembers: 1,
+      clientSnapshots: 1,
+      clientUptimeBuckets: 1,
+      appCoverageGaps: 1,
+      trackerOutages: 1,
+      dismissedAlerts: 1,
+      notificationTargets: 1,
+      prowlarrInstances: 1,
+    })
+    expect(log.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "restore_completed", restored }),
+      "Restore operation completed successfully"
+    )
+  })
 
   // ─── 8. Scheduler lifecycle around the transaction ───────────────────────────
 
