@@ -427,6 +427,23 @@ describe("deepPollClient per-tag optimization", () => {
     )
   })
 
+  it("asks for the credentials again when they will not decrypt, not Connection failed", async () => {
+    mockDbSelectSequence(MOCK_CLIENT)
+    vi.mocked(createAdapterForClient).mockImplementationOnce(() => {
+      throw new Error('decrypt credentials failed for client "qBT": bad decrypt')
+    })
+    const { mockSet } = mockDbUpdateClient()
+
+    await deepPollClient(1, makeEncryptionKey(), ["🕵️ Aither"])
+
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastError:
+          "Stored credentials or URL path can't be read. Enter them again in this client's settings",
+      })
+    )
+  })
+
   // -------------------------------------------------------------------------
   // Success recording
   // -------------------------------------------------------------------------
@@ -1224,6 +1241,80 @@ describe("heartbeat failure logging", () => {
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ lastError: null, errorSince: null })
     )
+  })
+
+  // Credentials that will not read mean the client was never contacted: no
+  // uptime sample is taken, and an open outage is closed, since its clock
+  // measures nothing the card could show.
+  it.each([
+    [
+      "a key mismatch with no outage open",
+      null,
+      'decrypt credentials failed for client "Qbittorrent - PC": bad decrypt',
+    ],
+    [
+      "a key mismatch while an outage is open",
+      new Date("2026-11-01T00:00:00Z"),
+      'decrypt credentials failed for client "Qbittorrent - PC": bad decrypt',
+    ],
+    [
+      "a truncated ciphertext",
+      null,
+      'Failed to read credentials for client "Qbittorrent - PC": Invalid ciphertext: too short',
+    ],
+  ])("asks for the credentials again on %s", async (_label, errorSince, thrown) => {
+    heartbeatRow = { ...HEARTBEAT_ROW, errorSince }
+    vi.mocked(createAdapterForClient).mockImplementation(() => {
+      throw new Error(thrown)
+    })
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    expect(mockSet).toHaveBeenCalledTimes(1)
+    const failure = mockSet.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(failure.lastError).toBe(
+      "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+    )
+    expect(failure).toHaveProperty("errorSince", null)
+    expect(recordHeartbeat).not.toHaveBeenCalled()
+  })
+
+  // No outage holds the text in place, so the heartbeat that succeeds after the
+  // credentials are entered again is what clears it.
+  it("clears the unreadable-credentials text on the next good heartbeat", async () => {
+    heartbeatRow = {
+      ...HEARTBEAT_ROW,
+      lastError:
+        "Stored credentials or URL path can't be read. Enter them again in this client's settings",
+      errorSince: null,
+    }
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({ lastError: null, errorSince: null })
+    )
+  })
+
+  // The client was contacted, so a TLS code that mentions decryption is an outage.
+  it("opens an outage for a TLS decryption failure", async () => {
+    mockAdapter.getTransferInfo.mockRejectedValue(
+      new Error("Failed to connect to 192.168.1.42: ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC")
+    )
+    const { mockSet } = mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+
+    const failure = mockSet.mock.calls.at(-1)?.[0] as Record<string, unknown>
+    expect(failure.lastError).toBe("Connection failed")
+    expect(failure.errorSince).toBeDefined()
+    expect(recordHeartbeat).toHaveBeenCalledWith(1, false)
   })
 })
 

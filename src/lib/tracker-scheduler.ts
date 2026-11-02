@@ -22,7 +22,7 @@ import {
   trackerSnapshots,
   trackers,
 } from "@/lib/db/schema"
-import { errMsg, sanitizeNetworkError } from "@/lib/error-utils"
+import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
 import { POLL_CYCLE_DEADLINE_MS, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
@@ -173,6 +173,9 @@ export async function pollTracker(
       apiToken = decrypt(tracker.encryptedApiToken, encryptionKey)
     } catch (err) {
       const cause = errMsg(err)
+      if (isDecryptionError(err)) {
+        throw new Error(`Unreadable stored credential for tracker "${tracker.name}": ${cause}`)
+      }
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": ${cause}`)
     }
     // An empty token decrypts cleanly but can never authenticate, so fail here

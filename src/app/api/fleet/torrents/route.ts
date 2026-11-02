@@ -13,14 +13,7 @@ export async function GET() {
   const key = decodeKey(auth)
 
   try {
-    const result = await fetchFleetTorrents(key)
-
-    if (result.sessionExpired) {
-      log.warn({ route: "GET /api/fleet/torrents" }, "fleet fetch failed: stale session key")
-      return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
-    }
-
-    return NextResponse.json(result)
+    return NextResponse.json(await fetchFleetTorrents(key))
   } catch (error) {
     log.error(
       { route: "GET /api/fleet/torrents", error: String(error) },

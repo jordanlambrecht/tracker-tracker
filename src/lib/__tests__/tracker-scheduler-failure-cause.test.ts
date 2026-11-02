@@ -31,8 +31,10 @@ vi.mock("@/lib/tracker-platforms", () => ({
   buildFetchOptions: vi.fn(() => ({})),
 }))
 
+import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { log } from "@/lib/logger"
+import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { pollTracker } from "@/lib/tracker-scheduler"
 
 /** Drizzle-shaped chain: any method sequence resolves to `result`. */
@@ -147,5 +149,47 @@ describe("pollTracker failure logging", () => {
       cause: 'Failed query: insert into "snapshots" ("tracker_id", "username") values ($1, $2)',
     })
     expect(JSON.stringify(entry?.[0])).not.toContain("JohnDoe")
+  })
+})
+
+describe("pollTracker on a stored credential it cannot read", () => {
+  /** Records each db.update(...).set(...) payload. */
+  function captureSets(): Record<string, unknown>[] {
+    const sets: Record<string, unknown>[] = []
+    vi.mocked(db.update).mockImplementation((() => ({
+      set: (values: Record<string, unknown>) => {
+        sets.push(values)
+        return chain([{ consecutiveFailures: 1, pausedAt: null }])
+      },
+    })) as never)
+    return sets
+  }
+
+  it("asks for the credentials again in lastError and the notification", async () => {
+    vi.mocked(decrypt).mockImplementationOnce(() => {
+      throw new Error("Unsupported state or unable to authenticate data")
+    })
+    const sets = captureSets()
+
+    await pollTracker(42, KEY, false)
+
+    const message =
+      "Stored credentials for this tracker can't be read. Enter them again in its settings"
+    expect(sets.map((s) => s.lastError)).toContain(message)
+    expect(vi.mocked(dispatchNotifications).mock.calls[0]?.[0]).toMatchObject({
+      trackerDown: true,
+      trackerError: message,
+    })
+    expect(fetchStats).not.toHaveBeenCalled()
+  })
+
+  it("keeps Invalid credentials for a token that decrypts to empty", async () => {
+    vi.mocked(decrypt).mockReturnValueOnce("")
+    const sets = captureSets()
+
+    await pollTracker(42, KEY, false)
+
+    expect(sets.map((s) => s.lastError)).toContain("Invalid credentials")
+    expect(fetchStats).not.toHaveBeenCalled()
   })
 })

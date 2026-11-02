@@ -2,7 +2,8 @@
 //
 // The Add Client form once sent no type at all, so every client it created was
 // qBittorrent whatever the user meant. These tests read the POST it sends, the
-// credential fields the card offers each type, and the section's docs link.
+// credential fields the card offers each type, the card's error line, and the
+// section's docs link.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, within } from "@testing-library/react"
@@ -126,6 +127,36 @@ describe("client card", () => {
 
     expect(await screen.findByLabelText("Username")).toBeTruthy()
     expect(screen.queryByLabelText("API Key")).toBeNull()
+  })
+
+  // The heartbeat opens no outage for credentials it cannot read, so the card
+  // shows the reason instead of a down clock that hides it.
+  it("shows the stored-credentials error when no outage is open", async () => {
+    const lastError =
+      "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+    clients = [
+      {
+        id: 4,
+        name: "Home qBT",
+        type: "qbittorrent",
+        authMethod: "password",
+        hasCredentials: true,
+        hasUrlPath: false,
+        enabled: true,
+        isDefault: true,
+        host: "localhost",
+        port: 8080,
+        useSsl: false,
+        pollIntervalSeconds: 300,
+        crossSeedTags: [],
+        lastError,
+        errorSince: null,
+      },
+    ]
+    renderClients()
+
+    expect(await screen.findByText(lastError)).toBeTruthy()
+    expect(screen.queryByText(/Down since/)).toBeNull()
   })
 })
 

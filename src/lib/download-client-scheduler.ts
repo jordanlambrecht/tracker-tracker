@@ -35,7 +35,9 @@
 // Error fields: errorSince is the heartbeat's outage clock, set by its failure
 // and cleared by its recovery or a successful deep poll. A deep-poll failure
 // writes lastError alone, so a client that still answers is never shown as
-// down, and only a successful deep poll clears it.
+// down, and only a successful deep poll clears it. A heartbeat that cannot
+// read the stored credentials writes lastError and clears errorSince, since it
+// never reached the client, and its next success clears that lastError.
 
 import { eq, lt, sql } from "drizzle-orm"
 import cron, { type ScheduledTask } from "node-cron"
@@ -64,7 +66,11 @@ import {
 } from "@/lib/download-clients"
 import type { SyncStoreRefusal } from "@/lib/download-clients/sync-store"
 import { isResponseTooLarge } from "@/lib/download-clients/transport"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  CLIENT_CREDENTIALS_UNREADABLE_ERROR,
+  isUnreadableClientCredential,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 import {
   clearFailureLogGate,
   noteFailure,
@@ -93,6 +99,7 @@ export const HEARTBEAT_COLUMNS = {
   encryptedUrlPath: downloadClients.encryptedUrlPath,
   crossSeedTags: downloadClients.crossSeedTags,
   errorSince: downloadClients.errorSince,
+  lastError: downloadClients.lastError,
 } as const
 
 /** Needed by deepPollClient. Heartbeat fields + poll config */
@@ -164,6 +171,7 @@ async function heartbeatClient(
     encryptedUrlPath: string
     crossSeedTags: string[] | null
     errorSince: Date | null
+    lastError: string | null
   },
   encryptionKey: Buffer
 ): Promise<void> {
@@ -189,18 +197,23 @@ async function heartbeatClient(
       )
     }
 
-    // Only write to DB when ending an outage this loop recorded. A deep-poll
-    // error has no errorSince and stays until a deep poll succeeds.
-    if (client.errorSince !== null) {
+    // Only write to DB when ending an outage this loop recorded, or clearing the
+    // unreadable-credentials text it wrote. Any other deep-poll error has no
+    // errorSince and stays until a deep poll succeeds.
+    if (client.errorSince !== null || client.lastError === CLIENT_CREDENTIALS_UNREADABLE_ERROR) {
       await db
         .update(downloadClients)
         .set({ lastError: null, errorSince: null, updatedAt: new Date() })
         .where(eq(downloadClients.id, client.id))
     }
   } catch (error) {
-    recordHeartbeat(client.id, false)
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw)
+    // A stored credential that will not decrypt means the client was never
+    // contacted, so there is no uptime sample, and an outage clock would
+    // measure nothing.
+    const unreadable = isUnreadableClientCredential(error)
+    if (!unreadable) recordHeartbeat(client.id, false)
     const verdict = noteFailure(client.id, "heartbeat", raw)
     // `message` is deliberately lossy. It is what reaches the UI. Keep the
     // unsanitised cause in the server log too, or a missing DB column, a DNS
@@ -247,7 +260,7 @@ async function heartbeatClient(
         .update(downloadClients)
         .set({
           lastError: message,
-          errorSince: sql`COALESCE(${downloadClients.errorSince}, NOW())`,
+          errorSince: unreadable ? null : sql`COALESCE(${downloadClients.errorSince}, NOW())`,
           updatedAt: new Date(),
         })
         .where(eq(downloadClients.id, client.id))

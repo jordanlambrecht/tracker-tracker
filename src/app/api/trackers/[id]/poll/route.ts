@@ -5,7 +5,6 @@ import { trackerSiteFor } from "@/data/tracker-registry"
 import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
-import { isDecryptionError } from "@/lib/error-utils"
 import { POLL_MANUAL_COOLDOWN_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { pollTracker } from "@/lib/tracker-scheduler"
@@ -74,17 +73,12 @@ export async function POST(_request: Request, props: RouteContext) {
   const privacyMode = settings ? !settings.storeUsernames : false
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
+  // pollTracker records a failed poll on the row itself, so only a database
+  // fault reaches the catch.
   try {
     await pollTracker(trackerId, key, privacyMode, proxyAgent, undefined, undefined, true)
     return NextResponse.json({ success: true })
   } catch (error) {
-    if (isDecryptionError(error)) {
-      log.warn(
-        { route: "POST /api/trackers/[id]/poll", trackerId },
-        "manual poll failed: stale session key"
-      )
-      return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 })
-    }
     log.error(
       { route: "POST /api/trackers/[id]/poll", trackerId, error: String(error) },
       "manual poll failed"

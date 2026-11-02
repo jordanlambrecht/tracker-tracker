@@ -14,7 +14,7 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { prowlarrIndexers, prowlarrInstances } from "@/lib/db/schema"
-import { errMsg, isDecryptionError } from "@/lib/error-utils"
+import { errMsg, isDecryptionError, PROWLARR_KEY_UNREADABLE_ERROR } from "@/lib/error-utils"
 import {
   PROWLARR_INDEXER_REFRESH_MS,
   PROWLARR_STALE_MS,
@@ -49,18 +49,32 @@ class ProwlarrSetupError extends Error {
   }
 }
 
+/** A stored API key that will not decrypt. The test route returns the message, so it is fixed. */
+export class ProwlarrKeyUnreadableError extends Error {
+  constructor() {
+    super(PROWLARR_KEY_UNREADABLE_ERROR)
+    this.name = "ProwlarrKeyUnreadableError"
+  }
+}
+
 function describeFailure(err: unknown): string {
-  if (err instanceof ProwlarrSetupError) return err.message
-  if (isDecryptionError(err)) return "Stored API key could not be decrypted"
+  if (err instanceof ProwlarrSetupError || err instanceof ProwlarrKeyUnreadableError) {
+    return err.message
+  }
   return sanitizeProwlarrError(errMsg(err))
 }
 
-/** Decryption errors are thrown as they are, so a request route can answer them with a 401. */
+/** An unreadable key throws ProwlarrKeyUnreadableError, which a request route answers with 422. */
 export function decryptInstanceKey(instance: KeyedInstance, key: Buffer): ProwlarrConnection {
   if (!instance.encryptedApiKey) {
     throw new ProwlarrSetupError("No API key stored. Enter the Prowlarr API key")
   }
-  return { url: instance.url, apiKey: decrypt(instance.encryptedApiKey, key) }
+  try {
+    return { url: instance.url, apiKey: decrypt(instance.encryptedApiKey, key) }
+  } catch (err) {
+    if (isDecryptionError(err)) throw new ProwlarrKeyUnreadableError()
+    throw err
+  }
 }
 
 /** One cheap request, for the settings page's Test Connection button. */

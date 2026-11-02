@@ -56,6 +56,7 @@ type HeartbeatRequiredFields = {
   encryptedPassword: string
   encryptedApiKey: string
   encryptedUrlPath: string
+  lastError: string | null
 }
 
 type DeepPollRequiredFields = HeartbeatRequiredFields & {
@@ -79,6 +80,7 @@ describe("client-scheduler column projections", () => {
       "encryptedPassword",
       "encryptedApiKey",
       "encryptedUrlPath",
+      "lastError",
     ]
     for (const key of required) {
       expect(keys).toContain(key)

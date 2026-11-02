@@ -412,7 +412,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: [],
       clientErrors: [],
       clientCount: 0,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
 
@@ -431,7 +430,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: [],
       clientErrors: [],
       clientCount: 0,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
 
@@ -457,7 +455,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: [],
       clientErrors: [],
       clientCount: 0,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
 
@@ -482,7 +479,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: [],
       clientErrors: [],
       clientCount: 0,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
 
@@ -504,7 +500,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: [],
       clientErrors: [],
       clientCount: 0,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
 
@@ -526,7 +521,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: [],
       clientErrors: [],
       clientCount: 2,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult)
 
@@ -551,7 +545,6 @@ describe("fetchFleetTorrents", () => {
       crossSeedTags: ["cross-seed"],
       clientErrors: [],
       clientCount: 1,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult as never)
 
@@ -572,7 +565,6 @@ describe("fetchTrackerTorrents", () => {
     crossSeedTags: [],
     clientErrors: [],
     clientCount: 1,
-    sessionExpired: false,
   }
 
   /** The `select` predicate the coordinator hands to fetchAndMergeTorrents. */
@@ -814,7 +806,6 @@ describe("fetchTrackerTorrents", () => {
       crossSeedTags: [],
       clientErrors: ["Client B: timeout"],
       clientCount: 2,
-      sessionExpired: false,
     }
     vi.mocked(fetchAndMergeTorrents).mockResolvedValue(mergedResult as never)
 
@@ -1219,7 +1210,9 @@ describe("fetchFleetAggregation", () => {
     expect(getFilteredTorrents).not.toHaveBeenCalled()
     expect(vi.mocked(mergeTorrentLists).mock.calls[0][0]).toEqual([[cached]])
     // Reported like the live path reports it, rather than hidden behind the cache.
-    expect(result.clientErrors).toEqual(["Home qBT: Credential decryption failed"])
+    expect(result.clientErrors).toEqual([
+      "Home qBT: Stored credentials or URL path can't be read. Enter them again in this client's settings",
+    ])
     expect(log.warn).toHaveBeenCalledWith(
       { clientId: 1, error: 'decrypt credentials failed for client "Home qBT": bad decrypt' },
       expect.any(String)
@@ -1241,7 +1234,9 @@ describe("fetchFleetAggregation", () => {
     const result = await fetchFleetAggregation(makeKey())
 
     // One entry: an empty cache behind an unreadable path is not reported twice.
-    expect(result.clientErrors).toEqual(["Home qBT: Invalid credentials"])
+    expect(result.clientErrors).toEqual([
+      "Home qBT: Stored credentials or URL path can't be read. Enter them again in this client's settings",
+    ])
   })
 })
 

@@ -7,7 +7,11 @@ vi.mock("@/lib/crypto", () => ({
 }))
 
 import { decrypt } from "@/lib/crypto"
-import { isDecryptionError } from "@/lib/error-utils"
+import {
+  isDecryptionError,
+  isUnreadableClientCredential,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 
 const { decryptClientCredentials, decryptClientUrlPath } =
   await import("@/lib/download-clients/credentials")
@@ -90,7 +94,7 @@ describe("decryptClientCredentials", () => {
       }
     }).toThrow(/Unsupported auth method: "carrier-pigeon"/)
     // Must not be wrapped by the credential handler, a bad column value is a
-    // data problem, and reporting it as a stale key would send the user to
+    // data problem, and reporting it as an unreadable credential would send the user to
     // re-enter a password that was never the issue.
     expect(isDecryptionError(thrown)).toBe(false)
     expect((thrown as Error).message).not.toMatch(/Failed to read credentials/)
@@ -119,6 +123,11 @@ describe("decryptClientCredentials", () => {
       }
     }).toThrow()
     expect(isDecryptionError(thrown)).toBe(true)
+    // Callers recognise it by this predicate, and the schedulers store it through the sanitizer.
+    expect(isUnreadableClientCredential(thrown)).toBe(true)
+    expect(sanitizeNetworkError((thrown as Error).message)).toBe(
+      "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+    )
   })
 
   it("throws an error that isDecryptionError() does NOT recognise for non-crypto failures", () => {

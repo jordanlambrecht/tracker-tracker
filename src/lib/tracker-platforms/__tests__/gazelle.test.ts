@@ -626,7 +626,7 @@ describe("GazelleAdapter.fetchRaw", () => {
     const calls = await adapter.fetchRaw("https://redacted.sh", "fake-token", "/ajax.php")
 
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(calls[0].error).toBe("bad credentials")
+    expect(calls[0].error).toBe("Gazelle API returned status: failure: bad credentials")
     expect(calls[1]).toEqual({
       label: "User Profile",
       endpoint: "/ajax.php?action=user",
@@ -713,7 +713,7 @@ describe("GazelleAdapter.fetchRaw", () => {
       const calls = await pending
 
       expect(fetchSpy).toHaveBeenCalledTimes(2)
-      expect(calls[0].error).toBe("bad credentials")
+      expect(calls[0].error).toBe("Gazelle API returned status: failure: bad credentials")
       expect(calls[1].endpoint).toBe("/ajax.php?action=user&id=60517")
     } finally {
       vi.useRealTimers()

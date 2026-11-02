@@ -265,16 +265,17 @@ describe("fetchAndMergeTorrents — a client behind a URL path", () => {
     expect(result.torrents.map((t) => t.hash)).toEqual(["h1"])
   })
 
-  it("reports a path the session key cannot decrypt as a stale session", async () => {
+  it("asks for a path saved under another key to be entered again", async () => {
     vi.mocked(isStoreFresh).mockReturnValue(true)
-    const staleKey = Buffer.alloc(32, 0xcd)
-    const client = makeClient({ encryptedUrlPath: encrypt("/proxy/qui-client-key", staleKey) })
+    const otherKey = Buffer.alloc(32, 0xcd)
+    const client = makeClient({ encryptedUrlPath: encrypt("/proxy/qui-client-key", otherKey) })
 
     const result = await fetchAndMergeTorrents([client], ["aither"], makeKey())
 
     expect(createAdapterForClient).not.toHaveBeenCalled()
-    expect(result.sessionExpired).toBe(true)
-    expect(result.clientErrors).toEqual(["Home qBT: Credential decryption failed"])
+    expect(result.clientErrors).toEqual([
+      "Home qBT: Stored credentials or URL path can't be read. Enter them again in this client's settings",
+    ])
   })
 })
 
@@ -512,33 +513,16 @@ describe("fetchAndMergeTorrents — error handling", () => {
     expect(result.torrents[0].hash).toBe("good")
   })
 
-  it("sets sessionExpired when all clients fail with decryption errors", async () => {
-    vi.mocked(createAdapterForClient).mockImplementation(() => {
-      throw new Error("decrypt credentials failed for client")
-    })
+  // The client answered, so a TLS code that mentions decryption is a connection
+  // fault and never the stored credentials.
+  it("reports a TLS decryption failure as a connection fault", async () => {
+    mockAdapter.getTorrents.mockRejectedValue(
+      new Error("Failed to connect to localhost:8080: ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC")
+    )
 
     const result = await fetchAndMergeTorrents([makeClient()], ["aither"], makeKey())
 
-    expect(result.sessionExpired).toBe(true)
-    expect(result.torrents).toEqual([])
-  })
-
-  it("does not set sessionExpired when only some clients have decryption failures", async () => {
-    vi.mocked(createAdapterForClient)
-      .mockImplementationOnce(() => {
-        throw new Error("decrypt credentials failed for client")
-      })
-      .mockReturnValueOnce(mockAdapter)
-
-    mockAdapter.getTorrents.mockResolvedValue([])
-
-    const result = await fetchAndMergeTorrents(
-      [makeClient({ name: "Failing" }), makeClient({ name: "Working" })],
-      ["aither"],
-      makeKey()
-    )
-
-    expect(result.sessionExpired).toBe(false)
+    expect(result.clientErrors).toEqual(["Home qBT: Connection failed"])
   })
 })
 

@@ -231,9 +231,7 @@ describe("POST /api/prowlarr/[id]/test", () => {
     expect((await res.json()).error).toBe("API key rejected by Prowlarr")
   })
 
-  // A session key that cannot open the stored key is stale, and the answer must
-  // not lead to the key being re-entered under it.
-  it("answers a key that will not decrypt with an expired session", async () => {
+  it("asks for a key saved under another key to be entered again", async () => {
     const actual =
       await vi.importActual<typeof import("@/lib/prowlarr/sync")>("@/lib/prowlarr/sync")
     vi.mocked(testProwlarrInstance).mockImplementation(actual.testProwlarrInstance)
@@ -244,7 +242,9 @@ describe("POST /api/prowlarr/[id]/test", () => {
 
     const res = await TEST(new Request("http://localhost/api/prowlarr/1/test"), params("1"))
 
-    expect(res.status).toBe(401)
-    expect((await res.json()).error).toBe("Session expired. Please log in again")
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe(
+      "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+    )
   })
 })

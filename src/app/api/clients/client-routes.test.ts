@@ -248,12 +248,14 @@ describe("GET /api/clients/[id]/torrents", () => {
   // Credential handling
   // -------------------------------------------------------------------------
 
-  it("returns 401 when credential decryption fails", async () => {
+  it("returns 422 asking for the credentials again when they will not decrypt", async () => {
     mockDbSelectClient(MOCK_CLIENT)
-    // Decryption now happens inside createAdapterForClient. Simulate it throwing
-    // an AES-GCM authentication failure, which isDecryptionError detects as 401.
+    // Decryption happens inside createAdapterForClient, which throws
+    // credentials.ts's wrapper around the AES-GCM failure.
     vi.mocked(createAdapterForClient).mockImplementation(() => {
-      throw new Error("EVP_DecryptFinal_ex: bad decrypt")
+      throw new Error(
+        'decrypt credentials failed for client "qBT": EVP_DecryptFinal_ex: bad decrypt'
+      )
     })
 
     const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
@@ -261,12 +263,29 @@ describe("GET /api/clients/[id]/torrents", () => {
     const response = await GET(request, { params })
     const data = await response.json()
 
-    expect(response.status).toBe(401)
-    expect(data.error).toMatch(/session expired/i)
+    expect(response.status).toBe(422)
+    expect(data.error).toBe(
+      "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+    )
     const body = JSON.stringify(data)
     expect(body).not.toContain(VALID_KEY)
     expect(body).not.toContain(MOCK_CLIENT.encryptedUsername)
     expect(body).not.toContain(MOCK_CLIENT.encryptedPassword)
+  })
+
+  // The client answered, so a TLS code that mentions decryption is an upstream
+  // fault and never the stored credentials.
+  it("returns 502 for a TLS decryption failure", async () => {
+    mockDbSelectClient(MOCK_CLIENT)
+    mockAdapter.getTorrents.mockRejectedValue(
+      new Error("Failed to connect to localhost:8080: ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC")
+    )
+
+    const request = makeRequest("http://localhost/api/clients/1/torrents?tag=aither")
+    const response = await GET(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(502)
+    expect((await response.json()).error).toBe("Failed to fetch torrents")
   })
 
   // -------------------------------------------------------------------------

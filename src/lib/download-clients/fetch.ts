@@ -1,7 +1,7 @@
 // src/lib/download-clients/fetch.ts
 import "server-only"
 
-import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { decryptClientUrlPath } from "./credentials"
 import { createAdapterForClient } from "./factory"
@@ -41,8 +41,6 @@ export interface MergedResult {
   crossSeedTags: string[]
   clientErrors: string[]
   clientCount: number
-  /** True when every client failure was a decryption error, indicating a stale session key. */
-  sessionExpired: boolean
 }
 
 async function fetchClientTorrents(
@@ -131,7 +129,6 @@ export async function fetchAndMergeTorrents(
     crossSeedTags: [],
     clientErrors: [],
     clientCount: 0,
-    sessionExpired: false,
   }
 
   // An empty tag array still means "nothing to ask for". Only an explicit null
@@ -172,7 +169,6 @@ export async function fetchAndMergeTorrents(
   const clientTorrents: { clientName: string; torrents: TorrentRecord[] }[] = []
   const crossSeedClients: { crossSeedTags: string[] }[] = []
   const clientErrors: string[] = []
-  let decryptionFailureCount = 0
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
@@ -184,17 +180,10 @@ export async function fetchAndMergeTorrents(
       crossSeedClients.push({ crossSeedTags: result.value.crossSeedTags })
     } else {
       const clientName = clients[i].name
-      const isDecrypt = isDecryptionError(result.reason)
-      if (isDecrypt) decryptionFailureCount++
       const raw = result.reason instanceof Error ? result.reason.message : "Unknown error"
-      const message = isDecrypt ? "Credential decryption failed" : sanitizeNetworkError(raw)
-      clientErrors.push(`${clientName}: ${message}`)
+      clientErrors.push(`${clientName}: ${sanitizeNetworkError(raw)}`)
     }
   }
-
-  // All clients failed with decryption errors. Which means the session key is stale.
-  const sessionExpired =
-    clients.length > 0 && clientTorrents.length === 0 && decryptionFailureCount === clients.length
 
   const merged = mergeTorrentLists(clientTorrents.map((c) => c.torrents))
   const crossSeedTags = aggregateCrossSeedTags(crossSeedClients)
@@ -208,6 +197,5 @@ export async function fetchAndMergeTorrents(
     crossSeedTags,
     clientErrors,
     clientCount: clients.length,
-    sessionExpired,
   }
 }

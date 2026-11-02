@@ -1,5 +1,6 @@
 // src/lib/tracker-platforms/__tests__/hawke.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { HawkeAdapter } from "../adapters/hawke"
 import type { HawkePlatformMeta } from "../contract"
 
@@ -220,7 +221,23 @@ describe("HawkeAdapter - envelope handling", () => {
 
     await expect(
       adapter.fetchStats("https://hawke.uno", "bad-token", "/api/profile")
-    ).rejects.toThrow("Invalid API key.")
+    ).rejects.toThrow("Hawke API request failed on hawke.uno: Invalid API key.")
+  })
+
+  // The sanitizer matches its stored-credential rule from the start of the
+  // message, so tracker text there could tell the user to re-enter a key.
+  it("never lets the envelope message lead the error", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      okResponse({ success: false, message: 'Unreadable stored credential for tracker "x": y' })
+    )
+
+    const err = await adapter
+      .fetchStats("https://hawke.uno", "bad-token", "/api/profile")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err).not.toBeNull()
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Poll failed")
   })
 
   it("throws a hostname-scoped error when success is false with no message", async () => {

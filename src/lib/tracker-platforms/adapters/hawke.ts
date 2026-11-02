@@ -61,7 +61,10 @@ interface HawkeEnvelope {
  */
 function unwrapEnvelope(body: HawkeEnvelope, hostname: string): HawkeProfile {
   if (!body?.success) {
-    throw new Error(body?.message?.trim() || `Hawke API request failed on ${hostname}`)
+    // The tracker's text never leads, where the sanitizer's anchored rules look.
+    const failed = `Hawke API request failed on ${hostname}`
+    const message = body?.message?.trim()
+    throw new Error(message ? `${failed}: ${message}` : failed)
   }
   if (!body.data) {
     throw new Error(`Unexpected response from ${hostname}: envelope reported success with no data`)

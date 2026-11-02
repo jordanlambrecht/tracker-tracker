@@ -1,7 +1,7 @@
 // src/lib/error-utils.ts
 //
 // Functions: errMsg, sanitizeNetworkError, isUnreachableMessage, isDecryptionError,
-//            classifyFetchError, classifyProxyFetchError
+//            isUnreadableClientCredential, classifyFetchError, classifyProxyFetchError
 
 /** Extracts a string message from an unknown error value. */
 export function errMsg(err: unknown): string {
@@ -10,14 +10,38 @@ export function errMsg(err: unknown): string {
 
 /**
  * Returns true when an error originates from AES-256-GCM authentication failure
- * or key/ciphertext mismatch. That is, the session encryption key is stale.
- * Used by route handlers to distinguish key-mismatch (→ 401) from genuinely
- * missing or corrupt stored credentials (→ 422).
+ * or key/ciphertext mismatch. authenticate() has already refused a stale
+ * session, so the stored value was sealed under another key, which a restore or
+ * a recover.cjs reset can leave. Logging in again never fixes that. Entering the
+ * credential again does. Run it over decrypt()'s own error only, since a TLS
+ * ERR_SSL_DECRYPTION_FAILED code from a network call matches it too.
  */
 export function isDecryptionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   return /decrypt|authenticate\s*data|bad\s*decrypt|invalid\s*key|EVP_/i.test(error.message)
 }
+
+// The two wrappers credentials.ts puts around a decrypt() failure. Behind either
+// one is a stored value that will not read: sealed under another key, or a
+// ciphertext too short to hold its IV and tag.
+const UNREADABLE_CLIENT_CREDENTIAL =
+  /^(decrypt credentials failed|Failed to read credentials) for client /
+
+/** True for credentials.ts's errors alone, never for a network fault that mentions decryption. */
+export function isUnreadableClientCredential(error: unknown): boolean {
+  return error instanceof Error && UNREADABLE_CLIENT_CREDENTIAL.test(error.message)
+}
+
+// What an unreadable stored credential shows, one line per kind. credentials.ts
+// wraps a client's URL path the same way as its password or API key.
+export const TRACKER_CREDENTIALS_UNREADABLE_ERROR =
+  "Stored credentials for this tracker can't be read. Enter them again in its settings"
+export const CLIENT_CREDENTIALS_UNREADABLE_ERROR =
+  "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+export const PROWLARR_KEY_UNREADABLE_ERROR =
+  "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+export const MOUSEHOLE_TOKEN_UNREADABLE_ERROR =
+  "Stored Mousehole API token can't be read. Enter it again in this tracker's settings"
 
 /**
  * Maps raw network/auth error messages to safe user-facing messages.
@@ -25,7 +49,13 @@ export function isDecryptionError(error: unknown): boolean {
  * and potentially shown in the UI.
  */
 export function sanitizeNetworkError(raw: string, fallback = "Connection failed"): string {
-  // Transmission outcomes come first. Its credential and oversized messages
+  // The wrappers pollTracker and credentials.ts put around a stored credential
+  // that will not decrypt. Matched from the start, where only they put the phrase.
+  if (/^Unreadable stored credential for tracker /.test(raw)) {
+    return TRACKER_CREDENTIALS_UNREADABLE_ERROR
+  }
+  if (UNREADABLE_CLIENT_CREDENTIAL.test(raw)) return CLIENT_CREDENTIALS_UNREADABLE_ERROR
+  // Transmission outcomes come next. Its credential and oversized messages
   // would match the qBittorrent rules below and name the wrong client, and the
   // rest would reach the fallback, which reads as unreachable. Each rule matches
   // a whole phrase, since a hostname can contain the word Transmission.

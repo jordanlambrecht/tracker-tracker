@@ -124,7 +124,10 @@ function readIndex(
   downloaded: bigint
 } {
   if (data.status !== "success") {
-    throw new Error(data.error?.trim() || `Gazelle API returned status: ${data.status}`)
+    // The tracker's text never leads, where the sanitizer's anchored rules look.
+    const failed = `Gazelle API returned status: ${data.status}`
+    const error = data.error?.trim()
+    throw new Error(error ? `${failed}: ${error}` : failed)
   }
 
   const response = data.response

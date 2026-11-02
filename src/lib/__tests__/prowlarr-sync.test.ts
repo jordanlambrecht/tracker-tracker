@@ -19,7 +19,11 @@ import {
   fetchIndexers,
   fetchSystemStatus,
 } from "@/lib/prowlarr/client"
-import { loadTrackerProwlarrStates, pollProwlarrInstance } from "@/lib/prowlarr/sync"
+import {
+  loadTrackerProwlarrStates,
+  pollProwlarrInstance,
+  testProwlarrInstance,
+} from "@/lib/prowlarr/sync"
 
 vi.mock("@/lib/db", () => ({
   db: { select: vi.fn(), update: vi.fn(), transaction: vi.fn() },
@@ -52,6 +56,8 @@ const KEY = Buffer.alloc(32, 7)
 const OTHER_KEY = Buffer.alloc(32, 9)
 const API_KEY = "fedcba9876543210fedcba9876543210"
 const HOUR_MS = 3_600_000
+const TLS_FAILURE =
+  "Failed to connect to prowlarr.test: ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC"
 
 const STATS = {
   averageResponseTime: 250,
@@ -416,14 +422,27 @@ describe("pollProwlarrInstance", () => {
     expect(sets[0].lastError).toMatch(/No API key stored/)
   })
 
-  // Asking to re-enter the key would have a stale session seal it under the wrong key.
-  it("reports a key that does not decrypt without asking for it again", async () => {
+  it("asks for a key saved under another key to be entered again", async () => {
     mockSelects([instanceRow({ encryptedApiKey: encrypt(API_KEY, OTHER_KEY) })])
     const sets = mockInstanceUpdate()
 
     await pollProwlarrInstance(1, KEY)
 
-    expect(sets[0].lastError).toBe("Stored API key could not be decrypted")
+    expect(sets[0].lastError).toBe(
+      "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+    )
+  })
+
+  // Prowlarr answered, so a TLS code that mentions decryption is a connection
+  // fault and never the stored key.
+  it("reports a TLS decryption failure as a connection fault", async () => {
+    mockSelects([instanceRow()])
+    const sets = mockInstanceUpdate()
+    vi.mocked(fetchIndexerStatuses).mockRejectedValue(new Error(TLS_FAILURE))
+
+    await pollProwlarrInstance(1, KEY)
+
+    expect(sets[0].lastError).toBe("Prowlarr unreachable: Connection failed")
   })
 
   it("does nothing for a disabled or deleted instance", async () => {
@@ -559,5 +578,15 @@ describe("loadTrackerProwlarrStates", () => {
 
     expect((await loadTrackerProwlarrStates(trackers)).size).toBe(0)
     expect(db.select).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("testProwlarrInstance", () => {
+  it("reports a TLS decryption failure as a connection fault", async () => {
+    vi.mocked(fetchSystemStatus).mockRejectedValue(new Error(TLS_FAILURE))
+
+    const out = await testProwlarrInstance(instanceRow(), KEY)
+
+    expect(out).toEqual({ error: "Prowlarr unreachable: Connection failed" })
   })
 })

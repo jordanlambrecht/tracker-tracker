@@ -236,7 +236,7 @@ describe("GET /api/trackers/[id]/mousehole", () => {
 
   it("returns 500 when the saved token is not ciphertext at all", async () => {
     // Too short to hold an IV and auth tag, which decrypt() reports in words
-    // isDecryptionError does not key on, so this is the non-stale failure.
+    // isDecryptionError does not key on, so this is not the wrong-key failure.
     mockTrackerRow({ encryptedMouseholeToken: "AAAA" })
 
     const response = await GET(new Request("http://localhost"), makeContext())
@@ -262,14 +262,14 @@ describe("GET /api/trackers/[id]/mousehole", () => {
     expect(body.stateError).toBe("Mousehole returned an unreadable /state response")
   })
 
-  it("returns 401 when the session key cannot open the saved token, before any request", async () => {
+  it("asks for the token again when it was saved under another key, before any request", async () => {
     mockTrackerRow({ encryptedMouseholeToken: encrypt(TOKEN, OTHER_KEY) })
 
     const response = await GET(new Request("http://localhost"), makeContext())
 
-    expect(response.status).toBe(401)
+    expect(response.status).toBe(422)
     await expect(response.json()).resolves.toEqual({
-      error: "Session expired. Please log in again.",
+      error: "Stored Mousehole API token can't be read. Enter it again in this tracker's settings",
     })
     expect(requested).toEqual([])
   })

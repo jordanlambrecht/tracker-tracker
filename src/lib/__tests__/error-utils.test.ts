@@ -6,6 +6,7 @@ import {
   classifyProxyFetchError,
   isDecryptionError,
   isUnreachableMessage,
+  isUnreadableClientCredential,
   sanitizeNetworkError,
 } from "@/lib/error-utils"
 
@@ -452,6 +453,60 @@ describe("sanitizeNetworkError redirect refusals", () => {
     )
     expect(card).toBe("Tracker redirected the request")
     expect(isUnreachableMessage(card)).toBe(false)
+  })
+})
+
+describe("sanitizeNetworkError unreadable stored credentials", () => {
+  // The wrappers pollTracker and credentials.ts throw when a stored credential
+  // will not decrypt. Nothing was contacted, so neither may read as unreachable.
+  const CAUSE = "Unsupported state or unable to authenticate data"
+
+  it("tells the user to enter a tracker's credentials again", () => {
+    const card = sanitizeNetworkError(
+      `Unreadable stored credential for tracker "Aither": ${CAUSE}`,
+      "Poll failed"
+    )
+    expect(card).toBe(
+      "Stored credentials for this tracker can't be read. Enter them again in its settings"
+    )
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+
+  it("tells the user to enter a client's credentials again instead of Connection failed", () => {
+    const card = sanitizeNetworkError(`decrypt credentials failed for client "qBT": ${CAUSE}`)
+    expect(card).toBe(
+      "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+    )
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+
+  // A bad restore can leave a ciphertext too short to hold its IV and tag.
+  it("asks for a truncated client credential again instead of Invalid credentials", () => {
+    const card = sanitizeNetworkError(
+      'Failed to read credentials for client "qBT": Invalid ciphertext: too short'
+    )
+    expect(card).toBe(
+      "Stored credentials or URL path can't be read. Enter them again in this client's settings"
+    )
+  })
+})
+
+describe("isUnreadableClientCredential", () => {
+  it.each([
+    'decrypt credentials failed for client "qBT": bad decrypt',
+    'Failed to read credentials for client "qBT": Invalid ciphertext: too short',
+  ])("is true for credentials.ts's %j", (message) => {
+    expect(isUnreadableClientCredential(new Error(message))).toBe(true)
+  })
+
+  // isDecryptionError matches this TLS code, so the client paths key on the wrapper.
+  it("is false for a TLS failure that mentions decryption", () => {
+    const tls = new Error(
+      "Failed to connect to qbt.lan: ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC"
+    )
+    expect(isDecryptionError(tls)).toBe(true)
+    expect(isUnreadableClientCredential(tls)).toBe(false)
+    expect(sanitizeNetworkError(tls.message)).toBe("Connection failed")
   })
 })
 

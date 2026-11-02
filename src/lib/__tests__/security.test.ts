@@ -198,7 +198,6 @@ vi.mock("@/lib/download-clients", () => ({
     crossSeedTags: [],
     clientErrors: [],
     clientCount: 0,
-    sessionExpired: false,
   }),
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t

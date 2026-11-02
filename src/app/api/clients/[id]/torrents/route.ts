@@ -8,7 +8,11 @@ import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/
 import { db } from "@/lib/db"
 import { downloadClients } from "@/lib/db/schema"
 import { createAdapterForClient, stripSensitiveTorrentFields } from "@/lib/download-clients"
-import { isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  CLIENT_CREDENTIALS_UNREADABLE_ERROR,
+  isUnreadableClientCredential,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 
 export async function GET(request: Request, props: RouteContext) {
@@ -53,9 +57,12 @@ export async function GET(request: Request, props: RouteContext) {
     const torrents = await adapter.getTorrents({ tag: tag.trim() })
     return NextResponse.json(torrents.map(stripSensitiveTorrentFields))
   } catch (error) {
-    if (isDecryptionError(error)) {
-      log.warn({ route: "GET /api/clients/[id]/torrents", clientId }, "failed: stale session key")
-      return NextResponse.json({ error: "Session expired. Please log in again" }, { status: 401 })
+    if (isUnreadableClientCredential(error)) {
+      log.warn(
+        { route: "GET /api/clients/[id]/torrents", clientId },
+        "failed: unreadable stored credential"
+      )
+      return NextResponse.json({ error: CLIENT_CREDENTIALS_UNREADABLE_ERROR }, { status: 422 })
     }
     const raw = error instanceof Error ? error.message : ""
     const message = sanitizeNetworkError(raw, "Failed to fetch torrents")

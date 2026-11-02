@@ -203,7 +203,7 @@ describe("GGnAdapter", () => {
 
     await expect(
       adapter.fetchStats("https://gazellegames.net", "bad-key", "/api.php")
-    ).rejects.toThrow("Invalid API key")
+    ).rejects.toThrow("GGn API returned status: failure: Invalid API key")
   })
 
   it("throws on user API failure", async () => {
@@ -218,7 +218,7 @@ describe("GGnAdapter", () => {
       } as Response)
 
     await expect(adapter.fetchStats("https://gazellegames.net", "key", "/api.php")).rejects.toThrow(
-      "bad id parameter"
+      "GGn API returned status: failure: bad id parameter"
     )
   })
 

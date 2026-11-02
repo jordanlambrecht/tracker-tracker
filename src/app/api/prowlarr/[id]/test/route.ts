@@ -7,9 +7,8 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { prowlarrInstances } from "@/lib/db/schema"
-import { isDecryptionError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
-import { testProwlarrInstance } from "@/lib/prowlarr/sync"
+import { ProwlarrKeyUnreadableError, testProwlarrInstance } from "@/lib/prowlarr/sync"
 
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -31,11 +30,12 @@ export async function POST(_request: Request, props: RouteContext) {
   try {
     out = await testProwlarrInstance(instance, decodeKey(auth))
   } catch (err) {
-    // The key was sealed under the master key, so a session key that cannot
-    // open it is stale. Re-entering the key would seal it under that stale key.
-    if (isDecryptionError(err)) {
-      log.warn({ route: "POST /api/prowlarr/[id]/test" }, "failed: stale session key")
-      return NextResponse.json({ error: "Session expired. Please log in again" }, { status: 401 })
+    if (err instanceof ProwlarrKeyUnreadableError) {
+      log.warn(
+        { route: "POST /api/prowlarr/[id]/test", prowlarrInstanceId: instanceId },
+        "failed: unreadable stored credential"
+      )
+      return NextResponse.json({ error: err.message }, { status: 422 })
     }
     throw err
   }

@@ -8,7 +8,12 @@ import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/li
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
-import { classifyFetchError, errMsg, isDecryptionError } from "@/lib/error-utils"
+import {
+  classifyFetchError,
+  errMsg,
+  isDecryptionError,
+  MOUSEHOLE_TOKEN_UNREADABLE_ERROR,
+} from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import type { MouseholeResult, MouseholeStatusResponse } from "@/lib/mousehole"
 
@@ -103,11 +108,11 @@ async function resolveMousehole(
       headers.Authorization = `Bearer ${decrypt(tracker.encryptedMouseholeToken, decodeKey(auth))}`
     } catch (error) {
       if (isDecryptionError(error)) {
-        log.warn({ route: ROUTE, trackerId }, "Mousehole token unreadable: stale session key")
-        return NextResponse.json(
-          { error: "Session expired. Please log in again." },
-          { status: 401 }
+        log.warn(
+          { route: ROUTE, trackerId },
+          "Mousehole check failed: unreadable stored credential"
         )
+        return NextResponse.json({ error: MOUSEHOLE_TOKEN_UNREADABLE_ERROR }, { status: 422 })
       }
       log.error({ route: ROUTE, trackerId, error: errMsg(error) }, "Mousehole token unreadable")
       return NextResponse.json({ error: "Failed to read the Mousehole API token" }, { status: 500 })

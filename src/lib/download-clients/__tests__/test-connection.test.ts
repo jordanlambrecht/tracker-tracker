@@ -77,18 +77,19 @@ vi.mock("../factory", () => ({
   createAdapterForClient: vi.fn(() => mockAdapter),
 }))
 
-vi.mock("@/lib/error-utils", () => ({
-  sanitizeNetworkError: vi.fn((raw: string, fallback = "Connection failed") => {
-    if (/timed?\s*out/i.test(raw)) return "Request timed out"
-    if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
-    if (/40[13]|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
-    return fallback
-  }),
-  isDecryptionError: vi.fn((err: unknown) => {
-    if (!(err instanceof Error)) return false
-    return /decrypt|bad\s*decrypt/i.test(err.message)
-  }),
-}))
+vi.mock("@/lib/error-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/error-utils")>()
+  return {
+    CLIENT_CREDENTIALS_UNREADABLE_ERROR: actual.CLIENT_CREDENTIALS_UNREADABLE_ERROR,
+    isUnreadableClientCredential: actual.isUnreadableClientCredential,
+    sanitizeNetworkError: vi.fn((raw: string, fallback = "Connection failed") => {
+      if (/timed?\s*out/i.test(raw)) return "Request timed out"
+      if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
+      if (/40[13]|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
+      return fallback
+    }),
+  }
+})
 
 vi.mock("../credentials", () => ({
   CLIENT_CONNECTION_COLUMNS: {
@@ -208,15 +209,32 @@ describe("testClientConnection", () => {
     expect(result).toEqual({ error: "Client not found", status: 404 })
   })
 
-  it("returns 401 when credential decryption fails (stale key)", async () => {
+  it("returns 422 asking for the credentials again when they will not decrypt", async () => {
     setupDbSelect([makeClientRow()])
     vi.mocked(createAdapterForClient).mockImplementation(() => {
-      throw new Error("decrypt credentials failed for client")
+      throw new Error('decrypt credentials failed for client "Home qBT": bad decrypt')
     })
 
     const result = await testClientConnection(1, FAKE_KEY)
 
-    expect(result).toEqual({ error: "Session expired. Please log in again", status: 401 })
+    expect(result).toEqual({
+      error:
+        "Stored credentials or URL path can't be read. Enter them again in this client's settings",
+      status: 422,
+    })
+  })
+
+  // The client answered, so a TLS code that mentions decryption is a connection
+  // fault and never the stored credentials.
+  it("keeps a TLS decryption failure a connection fault", async () => {
+    setupDbSelect([makeClientRow()])
+    mockAdapter.testConnection.mockRejectedValue(
+      new Error("Failed to connect to localhost:8080: ERR_SSL_DECRYPTION_FAILED_OR_BAD_RECORD_MAC")
+    )
+
+    const result = await testClientConnection(1, FAKE_KEY)
+
+    expect(result).toEqual({ error: "Connection test failed", status: 422 })
   })
 
   it("returns { success: true } when adapter.testConnection() resolves", async () => {

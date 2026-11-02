@@ -84,14 +84,22 @@ function ggnUserUrl(apiPath: string, baseUrl: string, apiToken: string, userId: 
   return url
 }
 
+/**
+ * A failed reply's error. The tracker's text never leads, where the sanitizer's
+ * anchored rules look.
+ */
+function statusError(data: { status: string; error?: string }): Error {
+  const failed = `GGn API returned status: ${data.status}`
+  const error = data.error?.trim()
+  return new Error(error ? `${failed}: ${error}` : failed)
+}
+
 /** The user's id and name from quick_user, or the error fetchStats fails the poll with. */
 function readQuickUser(
   data: GGnQuickUserResponse,
   hostname: string
 ): { id: number; username: string } {
-  if (data.status !== "success") {
-    throw new Error(data.error?.trim() || `GGn API returned status: ${data.status}`)
-  }
+  if (data.status !== "success") throw statusError(data)
   if (!data.response?.id || !data.response.username) {
     throw new Error(`Unexpected response from ${hostname}: missing user ID or username`)
   }
@@ -115,9 +123,7 @@ function readUserStats(
   data: GGnUserResponse,
   hostname: string
 ): { resp: NonNullable<GGnUserResponse["response"]>; uploaded: bigint; downloaded: bigint } {
-  if (data.status !== "success") {
-    throw new Error(data.error?.trim() || `GGn API returned status: ${data.status}`)
-  }
+  if (data.status !== "success") throw statusError(data)
 
   const resp = data.response
   if (!resp?.stats) {

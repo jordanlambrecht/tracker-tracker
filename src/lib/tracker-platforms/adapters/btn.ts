@@ -140,7 +140,13 @@ async function callBtnUserInfo(
 /** The userInfo result, or the error fetchStats fails the poll with. */
 function readBtnUserInfo(data: BtnJsonRpcResponse): BtnUserInfoResult {
   if (data.error) {
-    throw new Error(data.error.message?.trim() || "BTN API returned an error with no message")
+    // The tracker's text never leads, where the sanitizer's anchored rules look.
+    const message = data.error.message?.trim()
+    throw new Error(
+      message
+        ? `BTN API returned an error: ${message}`
+        : "BTN API returned an error with no message"
+    )
   }
   if (!data.result) {
     throw new Error(`Unexpected response from ${BTN_API_HOSTNAME}: missing result`)

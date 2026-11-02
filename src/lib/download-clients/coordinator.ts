@@ -13,7 +13,12 @@ import { eq } from "drizzle-orm"
 import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
 import { db } from "@/lib/db"
 import { downloadClients, trackers } from "@/lib/db/schema"
-import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import {
+  CLIENT_CREDENTIALS_UNREADABLE_ERROR,
+  errMsg,
+  isUnreadableClientCredential,
+  sanitizeNetworkError,
+} from "@/lib/error-utils"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation, type FleetAggregation } from "@/lib/fleet-aggregation"
 import { log } from "@/lib/logger"
@@ -292,10 +297,7 @@ export async function fetchFleetAggregation(
       baseUrl = buildBaseUrl(client.host, client.port, client.useSsl, urlPath)
     } catch (err) {
       const raw = errMsg(err)
-      const message = isDecryptionError(err)
-        ? "Credential decryption failed"
-        : sanitizeNetworkError(raw)
-      clientErrors.push(`${client.name}: ${message}`)
+      clientErrors.push(`${client.name}: ${sanitizeNetworkError(raw)}`)
       log.warn(
         { clientId: client.id, error: raw },
         "fleet aggregation: URL path did not decrypt, reading the cached torrents"
@@ -471,8 +473,8 @@ export async function testClientConnection(
     await adapter.testConnection()
     return { success: true }
   } catch (error) {
-    if (isDecryptionError(error)) {
-      return { error: "Session expired. Please log in again", status: 401 }
+    if (isUnreadableClientCredential(error)) {
+      return { error: CLIENT_CREDENTIALS_UNREADABLE_ERROR, status: 422 }
     }
     const raw = error instanceof Error ? error.message : ""
     return { error: sanitizeNetworkError(raw, "Connection test failed"), status: 422 }

@@ -267,7 +267,7 @@ describe("BtnAdapter", () => {
     [
       "a JSON-RPC error",
       { jsonrpc: "2.0", id: 1, error: { code: -32001, message: "API key not found" } },
-      "API key not found",
+      "BTN API returned an error: API key not found",
     ],
     [
       "a JSON-RPC error with a blank message",
