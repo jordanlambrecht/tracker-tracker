@@ -59,10 +59,13 @@ export function buildBaseUrl(host: string, port: number, ssl: boolean, urlPath: 
  * first. Without the caller's signal, a client past its deadline is abandoned
  * rather than cancelled and keeps its socket and response buffer open.
  */
-export function fetchSignal(signal?: AbortSignal): AbortSignal {
+export function fetchSignal(
+  signal?: AbortSignal,
+  timeoutMs = ADAPTER_FETCH_TIMEOUT_MS
+): AbortSignal {
   return signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS)])
-    : AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS)
+    ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+    : AbortSignal.timeout(timeoutMs)
 }
 
 // ---------------------------------------------------------------------------

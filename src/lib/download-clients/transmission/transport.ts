@@ -11,7 +11,7 @@
 //   getSessionStats     - session-stats (global transfer speeds)
 //   testSession         - session-get, used to prove reachability and credentials
 
-import { ADAPTER_FETCH_TIMEOUT_MS, TRANSMISSION_RESPONSE_MAX_BYTES } from "@/lib/limits"
+import { TRANSMISSION_RESPONSE_MAX_BYTES, TRANSMISSION_RPC_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { resetStore } from "../sync-store"
 import {
@@ -119,7 +119,7 @@ async function postRpc(
       // A followed redirect would feed the parser a body from wherever the
       // Location points. Manual mode surfaces the 3xx as non-ok instead.
       redirect: "manual",
-      signal: fetchSignal(signal),
+      signal: fetchSignal(signal, TRANSMISSION_RPC_TIMEOUT_MS),
     })
   } catch (err) {
     const errName =
@@ -127,7 +127,7 @@ async function postRpc(
         ? String((err as { name: unknown }).name)
         : ""
     if (errName === "TimeoutError" || errName === "AbortError") {
-      throw new Error(`Request to ${host} timed out after ${ADAPTER_FETCH_TIMEOUT_MS / 1000}s`)
+      throw new Error(`Request to ${host} timed out after ${TRANSMISSION_RPC_TIMEOUT_MS / 1000}s`)
     }
     // The hostname only. The scheduler logs this raw, and the URL path can
     // carry a proxy key.
