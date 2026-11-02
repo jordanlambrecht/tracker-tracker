@@ -78,6 +78,14 @@ describe("isRetryablePollError", () => {
     expect(isRetryablePollError(message)).toBe(true)
   })
 
+  it.each(["ENETUNREACH", "ECONNABORTED", "EPIPE", "UND_ERR_SOCKET"])(
+    "retries a socket fault, %s",
+    (code) => {
+      const message = sanitizeNetworkError(`Failed to connect to aither.cc: ${code}`, "Poll failed")
+      expect(isRetryablePollError(message)).toBe(true)
+    }
+  )
+
   it("does not retry a refused key whose message mentions a timeout", () => {
     const message = sanitizeNetworkError(
       "Tracker API error: 401 Unauthorized: token timed out",

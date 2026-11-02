@@ -144,6 +144,33 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("ECONNRESET")).toBe("Connection reset")
   })
 
+  // Through classifyFetchError, which words every direct transport fault.
+  it.each([
+    ["ENETUNREACH", "Host unreachable"],
+    ["ECONNABORTED", "Connection reset"],
+    ["EPIPE", "Connection reset"],
+    ["UND_ERR_SOCKET", "Connection reset"],
+  ])("maps a socket fault, %s, to %j", (code, message) => {
+    const cause = Object.assign(new Error("socket fault"), { code })
+    const fault = Object.assign(new TypeError("fetch failed"), { cause })
+    const raw = classifyFetchError(fault, "aither.cc").message
+    expect(sanitizeNetworkError(raw, "Poll failed")).toBe(message)
+  })
+
+  it("maps a socket fault behind the proxy too", () => {
+    const raw = classifyProxyFetchError(new Error("write EPIPE"), "aither.cc").message
+    expect(sanitizeNetworkError(raw, "Poll failed")).toBe("Connection reset")
+  })
+
+  it("leaves a socket fault quoted in a tracker's own answer to the status", () => {
+    expect(
+      sanitizeNetworkError(
+        "Tracker API error: 500 Internal Server Error: write EPIPE",
+        "Poll failed"
+      )
+    ).toBe("API returned 500")
+  })
+
   it("maps 'ip ban' to IP ban message", () => {
     expect(sanitizeNetworkError("ip ban detected")).toBe("IP temporarily banned by tracker")
   })

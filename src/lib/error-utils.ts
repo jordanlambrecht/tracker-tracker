@@ -195,6 +195,13 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/ENOTFOUND|EAI_AGAIN/i.test(raw)) return "Host not found"
   if (/EHOSTUNREACH/i.test(raw)) return "Host unreachable"
   if (/ECONNRESET/i.test(raw)) return "Connection reset"
+  // Socket faults from Node and undici, matched only inside the transport
+  // wrappers' "Failed to connect to <host>" shape. A tracker's own text can
+  // quote its backend's errors.
+  if (/^Failed to connect to .*\bENETUNREACH\b/.test(raw)) return "Host unreachable"
+  if (/^Failed to connect to .*\b(ECONNABORTED|EPIPE|UND_ERR_SOCKET)\b/.test(raw)) {
+    return "Connection reset"
+  }
   if (/ip.*ban|ban.*ip|rate.?limit/i.test(raw)) return "IP temporarily banned by tracker"
   if (/Session expired/i.test(raw)) return "Session expired"
   if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"

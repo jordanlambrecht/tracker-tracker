@@ -1177,7 +1177,7 @@ describe("heartbeat failure logging", () => {
       cause: CONNECT_FAILURE,
     })
     // The sanitized message is what the UI gets, and it is lossy
-    expect(vi.mocked(log.error).mock.calls[0][1]).toContain("Connection failed")
+    expect(vi.mocked(log.error).mock.calls[0][1]).toContain("Connection reset")
   })
 
   it("logs recovery once and re-arms the gate for the next outage", async () => {
@@ -1228,7 +1228,7 @@ describe("heartbeat failure logging", () => {
     await flushAsync()
 
     const failure = mockSet.mock.calls.at(-1)?.[0] as Record<string, unknown>
-    expect(failure.lastError).toBe("Connection failed")
+    expect(failure.lastError).toBe("Connection reset")
     // COALESCE(errorSince, NOW()), so the clock keeps the outage's first failure.
     expect(failure.errorSince).toBeDefined()
     expect(failure.errorSince).not.toBeNull()
