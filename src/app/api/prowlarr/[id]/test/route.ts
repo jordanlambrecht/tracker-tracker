@@ -7,6 +7,7 @@ import { NextResponse } from "next/server"
 import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { prowlarrInstances } from "@/lib/db/schema"
+import { PROWLARR_KEY_UNREADABLE_ERROR, PROWLARR_NO_API_KEY_ERROR } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import {
   ProwlarrKeyUnreadableError,
@@ -39,14 +40,14 @@ export async function POST(_request: Request, props: RouteContext) {
         { route: "POST /api/prowlarr/[id]/test", prowlarrInstanceId: instanceId },
         "failed: unreadable stored credential"
       )
-      return NextResponse.json({ error: err.message }, { status: 422 })
+      return NextResponse.json({ error: PROWLARR_KEY_UNREADABLE_ERROR }, { status: 422 })
     }
     if (err instanceof ProwlarrSetupError) {
       log.warn(
         { route: "POST /api/prowlarr/[id]/test", prowlarrInstanceId: instanceId },
         "failed: no API key stored"
       )
-      return NextResponse.json({ error: err.message }, { status: 422 })
+      return NextResponse.json({ error: PROWLARR_NO_API_KEY_ERROR }, { status: 422 })
     }
     throw err
   }

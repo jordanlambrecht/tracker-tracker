@@ -43,6 +43,8 @@ export const CLIENT_CREDENTIALS_UNREADABLE_ERROR =
   "Stored credentials or URL path can't be read. Enter them again in this client's settings"
 export const PROWLARR_KEY_UNREADABLE_ERROR =
   "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+// A Prowlarr instance saved with no API key.
+export const PROWLARR_NO_API_KEY_ERROR = "No API key stored. Enter the Prowlarr API key"
 export const MOUSEHOLE_TOKEN_UNREADABLE_ERROR =
   "Stored Mousehole API token can't be read. Enter it again in this tracker's settings"
 export const PROXY_PASSWORD_UNREADABLE_ERROR =

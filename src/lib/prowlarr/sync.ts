@@ -14,7 +14,12 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { prowlarrIndexers, prowlarrInstances } from "@/lib/db/schema"
-import { errMsg, isDecryptionError, PROWLARR_KEY_UNREADABLE_ERROR } from "@/lib/error-utils"
+import {
+  errMsg,
+  isDecryptionError,
+  PROWLARR_KEY_UNREADABLE_ERROR,
+  PROWLARR_NO_API_KEY_ERROR,
+} from "@/lib/error-utils"
 import {
   PROWLARR_INDEXER_REFRESH_MS,
   PROWLARR_STALE_MS,
@@ -41,15 +46,15 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 type KeyedInstance = { url: string; encryptedApiKey: string | null }
 
-/** A problem with the stored settings, already worded for the UI. */
+/** A Prowlarr instance with no API key stored. */
 export class ProwlarrSetupError extends Error {
-  constructor(message: string) {
-    super(message)
+  constructor() {
+    super(PROWLARR_NO_API_KEY_ERROR)
     this.name = "ProwlarrSetupError"
   }
 }
 
-/** A stored API key that will not decrypt. The test route returns the message, so it is fixed. */
+/** A stored API key that will not decrypt. */
 export class ProwlarrKeyUnreadableError extends Error {
   constructor() {
     super(PROWLARR_KEY_UNREADABLE_ERROR)
@@ -67,7 +72,7 @@ function describeFailure(err: unknown): string {
 /** An unreadable key throws ProwlarrKeyUnreadableError, which a request route answers with 422. */
 export function decryptInstanceKey(instance: KeyedInstance, key: Buffer): ProwlarrConnection {
   if (!instance.encryptedApiKey) {
-    throw new ProwlarrSetupError("No API key stored. Enter the Prowlarr API key")
+    throw new ProwlarrSetupError()
   }
   try {
     return { url: instance.url, apiKey: decrypt(instance.encryptedApiKey, key) }
