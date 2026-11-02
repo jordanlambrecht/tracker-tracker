@@ -321,6 +321,19 @@ function makeBackupPayload(encryptionSalt: string, ct: Ciphertexts): BackupPaylo
   }
 }
 
+/** A Prowlarr instance with no API key stored. */
+function prowlarrInstance(): Record<string, unknown> {
+  return {
+    id: 5,
+    name: "Home Prowlarr",
+    url: "http://prowlarr.test:9696",
+    encryptedApiKey: null,
+    enabled: true,
+    createdAt: ISO,
+    updatedAt: ISO,
+  }
+}
+
 // ─── Mock plumbing ────────────────────────────────────────────────────────────
 
 interface InsertCall {
@@ -768,6 +781,67 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(res.status).toBe(400)
     await expect(res.json()).resolves.toEqual({ error: "Invalid or corrupted backup file" })
     expect(recorder.inserts).toHaveLength(0)
+  })
+
+  // A date the insert cannot take throws inside the transaction, after the wipe
+  // has begun. Only the log names the field.
+  it.each([
+    ["trackers", "updatedAt", "not-a-date"],
+    ["trackers", "joinedAt", "2024-02-30"],
+    ["trackerSnapshots", "polledAt", "2026-01-01T25:00:00.000Z"],
+    ["trackerRoles", "achievedAt", "not-a-date"],
+    ["downloadClients", "createdAt", "not-a-date"],
+    ["tagGroups", "updatedAt", "not-a-date"],
+    ["clientSnapshots", "polledAt", "2026-13-01T00:00:00.000Z"],
+    ["notificationTargets", "createdAt", "not-a-date"],
+    ["prowlarrInstances", "updatedAt", "not-a-date"],
+    ["settings", "retentionPromptedAt", "not-a-date"],
+  ])(
+    "refuses a backup whose %s %s is %j before anything is deleted",
+    async (table, field, value) => {
+      const backupKey = await deriveKey(PASSWORD, SALT_A)
+      const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+      payload.prowlarrInstances = [prowlarrInstance()]
+      const row =
+        table === "settings"
+          ? payload.settings
+          : (payload[table as keyof BackupPayload] as Record<string, unknown>[])[0]
+      row[field] = value
+      mockCurrentSettings({ encryptionSalt: SALT_A })
+
+      const res = await POST(makeRequest(payload, PASSWORD))
+
+      expect(res.status).toBe(400)
+      await expect(res.json()).resolves.toEqual({ error: "Invalid or corrupted backup file" })
+      const label = table === "settings" ? `settings.${field}` : `${table}[0].${field}`
+      expect(log.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.stringContaining(`${label} must be a valid`) }),
+        "backup file validation or decryption failed"
+      )
+      expect(stopScheduler).not.toHaveBeenCalled()
+      expect(db.transaction).not.toHaveBeenCalled()
+    }
+  )
+
+  // v2.10.0 is the oldest release users run. Its export already carried every
+  // date the restore checks, but no Prowlarr, Mousehole token or URL path.
+  it("restores a backup shaped like a v2.10.0 export", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    delete (payload.trackers[0] as Record<string, unknown>).encryptedMouseholeToken
+    delete (payload.downloadClients[0] as Record<string, unknown>).encryptedUrlPath
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    expect(onlyInsert(recorder, "trackers")).toMatchObject({
+      createdAt: new Date(ISO),
+      userPausedAt: null,
+      avatarCachedAt: null,
+      joinedAt: "2020-01-01",
+      lastAccessAt: null,
+    })
+    expect(recorder.settingsUpdate?.retentionPromptedAt).toBeNull()
   })
 
   it("restores every snapshot column the backup carries", async () => {
@@ -1390,6 +1464,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(dismissedAt).toBeInstanceOf(Date)
     expect(Number.isNaN(dismissedAt.getTime())).toBe(false)
   })
+
 
   // ─── 8. Scheduler lifecycle around the transaction ───────────────────────────
 

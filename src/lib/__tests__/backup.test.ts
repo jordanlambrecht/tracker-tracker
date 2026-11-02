@@ -270,6 +270,34 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("trackerSnapshots[0].polledAt")
   })
 
+  // The pattern alone passes both, and the insert throws on the Invalid Date they make.
+  it.each([
+    ["month 13", "2026-13-01T00:00:00.000Z"],
+    ["hour 25", "2026-03-09T25:00:00.000Z"],
+  ])("rejects a snapshot polledAt with %s", (_case, polledAt) => {
+    const p = validPayload()
+    ;(p.trackerSnapshots[0] as Record<string, unknown>).polledAt = polledAt
+    expect(() => validateBackupJson(p)).toThrow(
+      "trackerSnapshots[0].polledAt must be a valid ISO 8601 string"
+    )
+  })
+
+  // NaN fails every comparison, so the inversion check alone passes this.
+  it("rejects an outage that starts in month 13", () => {
+    const p = validPayload() as Record<string, unknown>
+    p.trackerOutages = [
+      {
+        trackerId: 1,
+        startedAt: "2026-13-01T00:00:00.000Z",
+        endedAt: "2026-03-09T00:00:00.000Z",
+        reason: "poll",
+      },
+    ]
+    expect(() => validateBackupJson(p)).toThrow(
+      "trackerOutages[0].startedAt must be a valid ISO 8601 string"
+    )
+  })
+
   it("rejects download client with port out of range", () => {
     const p = validPayload() as unknown as Record<string, unknown>
     p.downloadClients = [
@@ -292,6 +320,8 @@ describe("validateBackupJson", () => {
     type: "qbittorrent",
     encryptedUsername: "enc",
     encryptedPassword: "enc",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-03-09T00:00:00.000Z",
   })
 
   // The client routes refuse these, so a restore must not store them either.
@@ -339,7 +369,14 @@ describe("validateBackupJson", () => {
   it("accepts a Prowlarr instance on a private host", () => {
     const p = validPayload() as unknown as Record<string, unknown>
     p.prowlarrInstances = [
-      { id: 1, name: "Home", url: "http://192.168.1.10:9696", encryptedApiKey: null },
+      {
+        id: 1,
+        name: "Home",
+        url: "http://192.168.1.10:9696",
+        encryptedApiKey: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-03-09T00:00:00.000Z",
+      },
     ]
     expect(() => validateBackupJson(p)).not.toThrow()
   })
@@ -348,6 +385,135 @@ describe("validateBackupJson", () => {
     const p = validPayload() as unknown as Record<string, unknown>
     p.tagGroupMembers = [{ tag: "test", label: "Test" }]
     expect(() => validateBackupJson(p)).toThrow("tagGroupMembers[0].groupId")
+  })
+
+  // One row in every table whose dates the restore writes back, dated as an export dates it.
+  function datedPayload(): Record<string, unknown> {
+    const p = validPayload() as unknown as Record<string, unknown>
+    const stamp = "2026-01-01T00:00:00.000Z"
+    Object.assign((p.trackers as Record<string, unknown>[])[0], {
+      userPausedAt: stamp,
+      avatarCachedAt: stamp,
+      joinedAt: "2020-01-01",
+      lastAccessAt: "2026-02-28",
+    })
+    Object.assign(p.settings as Record<string, unknown>, { retentionPromptedAt: stamp })
+    p.trackerRoles = [{ id: 1, trackerId: 1, roleName: "User", achievedAt: stamp, notes: null }]
+    p.downloadClients = [validClient()]
+    p.tagGroups = [{ id: 1, name: "Movies", createdAt: stamp, updatedAt: stamp }]
+    p.clientSnapshots = [{ id: 1, clientId: 1, polledAt: stamp }]
+    p.notificationTargets = [
+      {
+        id: 1,
+        name: "Discord",
+        type: "discord",
+        encryptedConfig: "enc",
+        createdAt: stamp,
+        updatedAt: stamp,
+      },
+    ]
+    p.prowlarrInstances = [
+      {
+        id: 1,
+        name: "Home",
+        url: "http://192.168.1.10:9696",
+        encryptedApiKey: null,
+        createdAt: stamp,
+        updatedAt: stamp,
+      },
+    ]
+    return p
+  }
+
+  // Sets `field` on settings or on the first row of `table`, and returns its label.
+  function setDate(p: Record<string, unknown>, table: string, field: string, value: unknown) {
+    if (table === "settings") {
+      ;(p.settings as Record<string, unknown>)[field] = value
+      return `settings.${field}`
+    }
+    ;(p[table] as Record<string, unknown>[])[0][field] = value
+    return `${table}[0].${field}`
+  }
+
+  const REQUIRED_DATES: [string, string][] = [
+    ["trackers", "createdAt"],
+    ["trackers", "updatedAt"],
+    ["trackerRoles", "achievedAt"],
+    ["downloadClients", "createdAt"],
+    ["downloadClients", "updatedAt"],
+    ["tagGroups", "createdAt"],
+    ["tagGroups", "updatedAt"],
+    ["clientSnapshots", "polledAt"],
+    ["notificationTargets", "createdAt"],
+    ["notificationTargets", "updatedAt"],
+    ["prowlarrInstances", "createdAt"],
+    ["prowlarrInstances", "updatedAt"],
+  ]
+  const NULLABLE_DATES: [string, string][] = [
+    ["trackers", "userPausedAt"],
+    ["trackers", "avatarCachedAt"],
+    ["settings", "retentionPromptedAt"],
+  ]
+  const CALENDAR_DATES: [string, string][] = [
+    ["trackers", "joinedAt"],
+    ["trackers", "lastAccessAt"],
+  ]
+
+  it("accepts a row in every dated table", () => {
+    expect(() => validateBackupJson(datedPayload())).not.toThrow()
+  })
+
+  it.each(
+    REQUIRED_DATES.flatMap(([table, field]): [string, string, unknown, string][] => [
+      [table, field, undefined, "must be a string"],
+      [table, field, "not-a-date", "must be a valid ISO 8601 string"],
+    ])
+  )("rejects %s %s set to %s", (table, field, value, message) => {
+    const p = datedPayload()
+    const label = setDate(p, table, field, value)
+    expect(() => validateBackupJson(p)).toThrow(`Backup validation: ${label} ${message}`)
+  })
+
+  it.each(
+    [...NULLABLE_DATES, ...CALENDAR_DATES].flatMap(
+      ([table, field]): [string, string, unknown][] => [
+        [table, field, null],
+        [table, field, undefined],
+      ]
+    )
+  )("accepts %s %s set to %s", (table, field, value) => {
+    const p = datedPayload()
+    setDate(p, table, field, value)
+    expect(() => validateBackupJson(p)).not.toThrow()
+  })
+
+  it.each(
+    NULLABLE_DATES.flatMap(([table, field]): [string, string, string][] => [
+      [table, field, ""],
+      [table, field, "not-a-date"],
+    ])
+  )("rejects %s %s set to %j", (table, field, value) => {
+    const p = datedPayload()
+    const label = setDate(p, table, field, value)
+    expect(() => validateBackupJson(p)).toThrow(
+      `Backup validation: ${label} must be a valid ISO 8601 string`
+    )
+  })
+
+  // Postgres refuses each of these as a date, which would fail the restore's transaction.
+  it.each(
+    CALENDAR_DATES.flatMap(([table, field]): [string, string, string][] => [
+      [table, field, "2024-02-30"],
+      [table, field, "2024-13-01"],
+      [table, field, ""],
+      [table, field, "not-a-date"],
+    ])
+  )("rejects %s %s set to %j", (table, field, value) => {
+    const p = datedPayload()
+    const label = setDate(p, table, field, value)
+    expect(() => validateBackupJson(p)).toThrow(
+      `Backup validation: ${label} must be a valid YYYY-MM-DD date`
+    )
   })
 })
 

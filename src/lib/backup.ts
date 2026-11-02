@@ -35,7 +35,7 @@ import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import { prowlarrUrlError } from "@/lib/prowlarr/client"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
-import { HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
+import { DATE_RE, HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
 import packageJson from "../../package.json"
 
 export const CURRENT_BACKUP_VERSION = 1
@@ -308,8 +308,22 @@ function assertArray(value: unknown, label: string): asserts value is unknown[] 
 
 function assertValidIso(value: unknown, label: string): void {
   assertString(value, label)
-  if (!ISO_8601_RE.test(value)) {
+  // The pattern alone passes month 13 or hour 25, an Invalid Date the insert throws on.
+  if (!ISO_8601_RE.test(value) || Number.isNaN(new Date(value).getTime())) {
     throw new Error(`Backup validation: ${label} must be a valid ISO 8601 string`)
+  }
+}
+
+// A Postgres date refuses 2024-02-30, which new Date() rolls into March.
+function assertValidDate(value: unknown, label: string): void {
+  assertString(value, label)
+  const parsed = new Date(`${value}T00:00:00Z`)
+  if (
+    !DATE_RE.test(value) ||
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== value
+  ) {
+    throw new Error(`Backup validation: ${label} must be a valid YYYY-MM-DD date`)
   }
 }
 
@@ -380,6 +394,10 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
         "Backup validation: settings.backupRetentionCount must be an integer between 1 and 365"
       )
     }
+  }
+
+  if (settings.retentionPromptedAt !== null && settings.retentionPromptedAt !== undefined) {
+    assertValidIso(settings.retentionPromptedAt, "settings.retentionPromptedAt")
   }
 
   // array fields
@@ -458,6 +476,8 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
           `Backup validation: ${prefix}.type must be one of: ${VALID_NOTIFICATION_TYPES.join(", ")}`
         )
       }
+      assertValidIso(nt.createdAt, `${prefix}.createdAt`)
+      assertValidIso(nt.updatedAt, `${prefix}.updatedAt`)
     }
   }
 
@@ -476,6 +496,8 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
       if (pi.encryptedApiKey !== null && pi.encryptedApiKey !== undefined) {
         assertString(pi.encryptedApiKey, `${prefix}.encryptedApiKey`)
       }
+      assertValidIso(pi.createdAt, `${prefix}.createdAt`)
+      assertValidIso(pi.updatedAt, `${prefix}.updatedAt`)
     }
   }
 
@@ -543,6 +565,19 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
         throw new Error(`Backup validation: ${prefix}.color must be a valid hex color or null`)
       }
     }
+
+    assertValidIso(t.createdAt, `${prefix}.createdAt`)
+    assertValidIso(t.updatedAt, `${prefix}.updatedAt`)
+    for (const field of ["userPausedAt", "avatarCachedAt"] as const) {
+      if (t[field] !== null && t[field] !== undefined) {
+        assertValidIso(t[field], `${prefix}.${field}`)
+      }
+    }
+    for (const field of ["joinedAt", "lastAccessAt"] as const) {
+      if (t[field] !== null && t[field] !== undefined) {
+        assertValidDate(t[field], `${prefix}.${field}`)
+      }
+    }
   }
 
   // trackerSnapshot entries
@@ -567,6 +602,12 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     }
 
     assertValidIso(s.polledAt, `${prefix}.polledAt`)
+  }
+
+  // trackerRole entries
+  for (let i = 0; i < p.trackerRoles.length; i++) {
+    const r = p.trackerRoles[i] as Record<string, unknown>
+    assertValidIso(r.achievedAt, `trackerRoles[${i}].achievedAt`)
   }
 
   // downloadClient entries
@@ -624,6 +665,21 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
     if (typeof c.encryptedUrlPath !== "undefined") {
       assertString(c.encryptedUrlPath, `${prefix}.encryptedUrlPath`)
     }
+    assertValidIso(c.createdAt, `${prefix}.createdAt`)
+    assertValidIso(c.updatedAt, `${prefix}.updatedAt`)
+  }
+
+  // clientSnapshot entries
+  for (let i = 0; i < p.clientSnapshots.length; i++) {
+    const cs = p.clientSnapshots[i] as Record<string, unknown>
+    assertValidIso(cs.polledAt, `clientSnapshots[${i}].polledAt`)
+  }
+
+  // tagGroup entries
+  for (let i = 0; i < p.tagGroups.length; i++) {
+    const g = p.tagGroups[i] as Record<string, unknown>
+    assertValidIso(g.createdAt, `tagGroups[${i}].createdAt`)
+    assertValidIso(g.updatedAt, `tagGroups[${i}].updatedAt`)
   }
 
   // tagGroupMember entries
