@@ -365,6 +365,27 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled()
   })
 
+  it("holds Link while Archive runs", async () => {
+    const user = userEvent.setup()
+    fetchMock.mockImplementation(() => new Promise(() => {}))
+    renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED }))
+
+    await user.click(screen.getByRole("button", { name: "Archive" }))
+
+    expect(screen.getByRole("button", { name: "Link to a tracker" })).toBeDisabled()
+  })
+
+  it("holds Link while Delete runs", async () => {
+    const user = userEvent.setup()
+    fetchMock.mockImplementation(() => new Promise(() => {}))
+    renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED }))
+
+    await user.click(screen.getByRole("button", { name: "Delete" }))
+    await user.click(screen.getByRole("button", { name: "Confirm Delete" }))
+
+    expect(screen.getByRole("button", { name: "Link to a tracker" })).toBeDisabled()
+  })
+
   it("says a duplicate is already tracked and offers Archive and Delete, not Link", () => {
     renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, duplicateOf: "ReelFliX" }))
 
