@@ -8,6 +8,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
+import { getTrackerBySlug, type TrackerRegistryEntry } from "@/data/tracker-registry"
 import type { TrackerSummary } from "@/types/api"
 
 const SITE = "https://old-host.example"
@@ -47,12 +48,12 @@ function makeTracker(overrides: Partial<TrackerSummary> = {}): TrackerSummary {
   }
 }
 
-function renderHeader(tracker: TrackerSummary) {
+function renderHeader(tracker: TrackerSummary, registryEntry?: TrackerRegistryEntry) {
   return render(
     <TrackerDetailHeader
       tracker={tracker}
       stats={null}
-      registryEntry={undefined}
+      registryEntry={registryEntry}
       accentColor="#00d4ff"
       polling={false}
       onPollNow={vi.fn()}
@@ -100,6 +101,17 @@ describe("TrackerDetailHeader", () => {
     expect(siteLink(container)).toBeNull()
     expect(pollControls()).toEqual([])
     expect(screen.getByText("Not in the tracker list, so it isn't polled")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Tracker settings" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Tracker credentials" })).toBeInTheDocument()
+  })
+
+  // The poll and debug routes refuse a tracker that has shut down.
+  it("drops every poll control on a tracker that has shut down", () => {
+    const fearnopeer = getTrackerBySlug("fearnopeer")
+    renderHeader(makeTracker({ registrySlug: "fearnopeer", name: "FearNoPeer" }), fearnopeer)
+
+    expect(fearnopeer?.defunct).toBe(true)
+    expect(pollControls()).toEqual([])
     expect(screen.getByRole("button", { name: "Tracker settings" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Tracker credentials" })).toBeInTheDocument()
   })

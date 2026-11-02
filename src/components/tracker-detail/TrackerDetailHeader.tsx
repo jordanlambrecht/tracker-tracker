@@ -122,9 +122,9 @@ export function TrackerDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:shrink-0">
-          {/* Nothing polls an unlinked row. Debug and Poll Now are refused, and a
-              pause would have nothing to pause. */}
-          {tracker.linked && (
+          {/* Nothing polls an unlinked or defunct row. Debug and Poll Now are
+              refused, and a pause would have nothing to pause. */}
+          {tracker.linked && !registryEntry?.defunct && (
             <>
               <Tooltip content="Fetch raw API response">
                 <Button
