@@ -201,13 +201,13 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 ### `Proxy connection failed`
 
-**Cause:** **Use Proxy** is enabled and the proxy is unreachable or erroring. Tracker Tracker doesn't bypass required proxies.
+**Cause:** The proxy is on, the tracker has **Use Proxy** on, and the proxy is unreachable or erroring. While the proxy is on, Tracker Tracker never sends that tracker's requests directly.
 
 !!! success "Solution"
 
     1. Check **Settings → General → Proxy** and verify host, port, type, username, and password.
     2. Confirm the proxy is running and reachable.
-    3. Or disable **Use Proxy** in tracker settings.
+    3. Or turn off **Use Proxy** in tracker settings. Turning the proxy itself off in Settings sends every tracker direct, and each keeps its **Use Proxy** setting for when the proxy is back on.
 
 ---
 

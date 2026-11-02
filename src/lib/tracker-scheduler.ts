@@ -150,7 +150,8 @@ export async function pollTracker(
   trackerId: number,
   encryptionKey: Buffer,
   privacyMode: boolean,
-  proxyAgent?: HttpAgent,
+  // Undefined means the proxy is off, and a row set to use it polls directly.
+  proxyAgent: HttpAgent | undefined,
   batchTimestamp?: Date,
   enabledTargets?: NotificationTargetRow[],
   isManual = false
@@ -189,9 +190,8 @@ export async function pollTracker(
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
     const adapter = getAdapter(site.platform)
-    if (tracker.useProxy && !proxyAgent) {
-      throw new Error("Proxy required but not available, refusing to leak IP via direct connection")
-    }
+    // With the proxy off there is no agent, so a row set to use it polls directly.
+    // A proxy that is on but unusable hands over an agent that refuses everything.
     const fetchOptions = buildFetchOptions({
       entry: site.entry,
       proxyAgent: tracker.useProxy ? proxyAgent : undefined,

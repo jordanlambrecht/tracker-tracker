@@ -117,7 +117,7 @@ describe("pollTracker download-revoked context", () => {
     seedTracker(platform)
     fetchStats.mockResolvedValue({ ...STATS, platformMeta: { canDownload: false } })
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
     expect(ctx?.platformContext).toMatchObject({ canDownload: false, previousCanDownload: true })
@@ -134,7 +134,7 @@ describe("pollTracker download-revoked context", () => {
       seedTracker(platform, JSON.stringify(stored))
       fetchStats.mockResolvedValue({ ...STATS, platformMeta: polled })
 
-      await pollTracker(42, KEY, false)
+      await pollTracker(42, KEY, false, undefined)
 
       const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
       expect(ctx?.platformContext).toMatchObject({ canDownload: false, previousCanDownload: true })
@@ -145,7 +145,7 @@ describe("pollTracker download-revoked context", () => {
     seedTracker("unit3d")
     fetchStats.mockResolvedValue({ ...STATS, platformMeta: { canDownload: false } })
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
     expect(ctx).toBeDefined()
@@ -156,7 +156,7 @@ describe("pollTracker download-revoked context", () => {
     seedTracker("c411")
     fetchStats.mockResolvedValue({ ...STATS, platformMeta: {} })
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
     expect(ctx?.platformContext?.canDownload).toBeNull()
@@ -167,7 +167,7 @@ describe("pollTracker download-revoked context", () => {
     seedTracker("c411", JSON.stringify({}))
     fetchStats.mockResolvedValue({ ...STATS, platformMeta: { canDownload: false } })
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
     expect(ctx?.platformContext).toMatchObject({ canDownload: false, previousCanDownload: null })
@@ -179,7 +179,7 @@ describe("pollTracker bonus-cap context", () => {
     seedTracker("mam")
     fetchStats.mockResolvedValue({ ...STATS, platformMeta: {} })
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
     expect(ctx?.platformContext?.currentSeedbonus).toBe(1840)
@@ -192,7 +192,7 @@ describe("pollTracker bonus-cap context", () => {
       seedTracker(platform)
       fetchStats.mockResolvedValue({ ...STATS, platformMeta: {} })
 
-      await pollTracker(42, KEY, false)
+      await pollTracker(42, KEY, false, undefined)
 
       const ctx = vi.mocked(dispatchNotifications).mock.calls[0]?.[0]
       expect(ctx?.platformContext).toBeDefined()

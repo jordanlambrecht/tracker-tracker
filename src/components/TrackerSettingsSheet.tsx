@@ -518,7 +518,9 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             description={
               proxyAvailable
                 ? "Route API requests for this tracker through the global proxy configured in Settings."
-                : "No proxy configured. Enable a proxy in Settings first."
+                : proxyAvailable === false && form.useProxy
+                  ? "The proxy is off in Settings, so this tracker polls directly. It uses the proxy again once the proxy is back on."
+                  : "No proxy configured. Enable a proxy in Settings first."
             }
           />
 

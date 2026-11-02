@@ -123,26 +123,23 @@ export async function GET(_request: Request, props: RouteContext) {
     let imageBuffer: Buffer
     let mimeType = "image/png"
 
-    if (tracker.useProxy) {
-      const [settings] = await db
-        .select({
-          proxyEnabled: appSettings.proxyEnabled,
-          proxyType: appSettings.proxyType,
-          proxyHost: appSettings.proxyHost,
-          proxyPort: appSettings.proxyPort,
-          proxyUsername: appSettings.proxyUsername,
-          encryptedProxyPassword: appSettings.encryptedProxyPassword,
-        })
-        .from(appSettings)
-        .limit(1)
+    const [settings] = tracker.useProxy
+      ? await db
+          .select({
+            proxyEnabled: appSettings.proxyEnabled,
+            proxyType: appSettings.proxyType,
+            proxyHost: appSettings.proxyHost,
+            proxyPort: appSettings.proxyPort,
+            proxyUsername: appSettings.proxyUsername,
+            encryptedProxyPassword: appSettings.encryptedProxyPassword,
+          })
+          .from(appSettings)
+          .limit(1)
+      : []
+    // Undefined while the proxy is off, when a row set to use it fetches directly.
+    const agent = settings ? buildProxyAgentFromSettings(settings, decodeKey(auth)) : undefined
 
-      const key = decodeKey(auth)
-      const agent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
-
-      if (!agent) {
-        return NextResponse.json({ error: "Proxy required but not configured" }, { status: 503 })
-      }
-
+    if (agent) {
       // The direct path below gets a User-Agent from fetch() itself; through
       // the tunnel node sends none, and a tracker behind a WAF that requires
       // one answers 400 rather than serving the avatar.

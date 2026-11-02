@@ -121,14 +121,8 @@ export async function POST(_request: Request, props: RouteContext) {
     )
   }
 
+  // Undefined while the proxy is off, when a row set to use it goes direct.
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
-
-  if (tracker.useProxy && !proxyAgent) {
-    return NextResponse.json(
-      { error: "Proxy required but not configured, refusing direct connection" },
-      { status: 400 }
-    )
-  }
 
   const fetchOptions = buildFetchOptions({
     entry: site.entry,

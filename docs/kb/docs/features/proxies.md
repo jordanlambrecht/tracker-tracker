@@ -47,7 +47,7 @@ Fill in your proxy details:
 | Username   | Optional, for authenticated proxies only                  |
 | Password   | Optional, stored securely, never plaintext                |
 
-The master switch controls the proxy globally. Even if trackers have the toggle on, nothing routes through while the master switch is off.
+The master switch controls the proxy for every tracker. While it's off, every tracker polls directly, including trackers with **Use Proxy** on. Each tracker keeps its own setting, which applies again when you turn the switch back on.
 
 ### Step 2: Enable per tracker
 

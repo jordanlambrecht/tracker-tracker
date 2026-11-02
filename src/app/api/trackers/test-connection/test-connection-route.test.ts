@@ -544,6 +544,25 @@ describe("POST /api/trackers/test-connection — proxy wiring", () => {
     expect(body.success).toBe(true)
   })
 
+  it.each<[string, Record<string, unknown> | null]>([
+    ["the proxy is off", { proxyEnabled: false }],
+    ["there is no settings row", null],
+  ])("tests a row set to use the proxy directly when %s", async (_case, settings) => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ...VALID_BODY,
+      useProxy: true,
+    })
+    mockDbSettings(settings)
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+
+    const res = await POST(makeRequest(VALID_BODY))
+
+    expect(res.status).toBe(200)
+    expect(buildFetchOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ proxyAgent: undefined })
+    )
+  })
+
   // A tracker set to poll directly is tested directly, and no proxy password is
   // decrypted for it.
   it("tests directly, building no agent, when the body says useProxy false", async () => {

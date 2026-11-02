@@ -15,7 +15,7 @@
 //    nothing.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { localDateStr } from "@/lib/formatters"
@@ -553,5 +553,59 @@ describe("TrackerSettingsSheet proxy choice", () => {
       apiToken: "fresh-token",
       useProxy: false,
     })
+  })
+
+  const PROXY_ON =
+    "Route API requests for this tracker through the global proxy configured in Settings."
+  const NO_PROXY = "No proxy configured. Enable a proxy in Settings first."
+  const POLLS_DIRECTLY =
+    "The proxy is off in Settings, so this tracker polls directly. It uses the proxy again once the proxy is back on."
+
+  it("keeps a row's proxy setting, unchangeable, while the proxy is off", async () => {
+    const user = userEvent.setup()
+    renderSheet({ tracker: { ...TRACKER, useProxy: true } })
+
+    const toggle = screen.getByRole("switch", { name: "Use proxy" })
+    await waitFor(() => expect(toggle).toHaveAccessibleDescription(POLLS_DIRECTLY))
+    expect(toggle).toBeChecked()
+    expect(toggle).toBeDisabled()
+
+    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/trackers/42",
+        expect.objectContaining({ method: "PATCH" })
+      )
+    )
+    const save = fetchMock.mock.calls.find(([url]) => url === "/api/trackers/42")
+    expect(JSON.parse(String(save?.[1]?.body))).toMatchObject({ useProxy: true })
+  })
+
+  it("shows a row with the proxy off as off and unchangeable while the proxy is off", async () => {
+    renderSheet()
+    // Nothing on screen changes when the settings read answers here, so let it settle.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/settings"))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    const toggle = screen.getByRole("switch", { name: "Use proxy" })
+    expect(toggle).not.toBeChecked()
+    expect(toggle).toBeDisabled()
+    expect(toggle).toHaveAccessibleDescription(NO_PROXY)
+  })
+
+  it("offers the proxy both ways while it is on", async () => {
+    const user = userEvent.setup()
+    fetchMock.mockImplementation(async (url: unknown) =>
+      String(url) === "/api/settings" ? jsonResponse({ proxyEnabled: true }) : patchResult
+    )
+    renderSheet()
+
+    const toggle = screen.getByRole("switch", { name: "Use proxy" })
+    await waitFor(() => expect(toggle).toBeEnabled())
+    expect(toggle).toHaveAccessibleDescription(PROXY_ON)
+    await user.click(toggle)
+
+    expect(toggle).toBeChecked()
   })
 })

@@ -13,7 +13,6 @@ import {
   isUnreachableMessage,
   isUnreadableClientCredential,
   PROXY_AUTH_REQUIRED_CAUSE,
-  PROXY_REQUIRED_ERROR,
   sanitizeNetworkError,
 } from "@/lib/error-utils"
 import { isRetryablePollError } from "@/lib/tracker-status"
@@ -355,15 +354,6 @@ describe("sanitizeNetworkError", () => {
     ["Tracker API error: 500 Internal Server Error: proxy upstream", "API returned 500"],
   ])("leaves a tracker's own text that mentions a proxy to the later rules: %s", (raw, message) => {
     expect(sanitizeNetworkError(raw, "Poll failed")).toBe(message)
-  })
-
-  it("names the missing proxy setting rather than a proxy that is down", () => {
-    const message = sanitizeNetworkError(
-      "Proxy required but not available, refusing to leak IP via direct connection",
-      "Poll failed"
-    )
-    expect(message).toBe(PROXY_REQUIRED_ERROR)
-    expect(isUnreachableMessage(message)).toBe(false)
   })
 
   it("extracts status code from 'Tracker API error: 404'", () => {

@@ -60,9 +60,6 @@ const PROXY_PASSWORD_UNREADABLE = new RegExp(
   `^Failed to connect to \\S+ via proxy: ${PROXY_PASSWORD_UNREADABLE_CAUSE}$`
 )
 const PROXY_UNUSABLE = new RegExp(`^Failed to connect to \\S+ via proxy: ${PROXY_UNUSABLE_CAUSE}$`)
-// A tracker set to poll through the proxy while no proxy is set up. A setting to
-// change, so it is never retried.
-export const PROXY_REQUIRED_ERROR = "Proxy is required but not set up"
 
 // The app's own credential refusals, each anchored to the start of the message,
 // where only the app puts these phrases, so a tracker's or a library's text
@@ -255,8 +252,6 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   }
   if (/ip.*ban|ban.*ip|rate.?limit/i.test(raw)) return "IP temporarily banned by tracker"
   if (/Session expired/i.test(raw)) return "Session expired"
-  // pollTracker's refusal to send a useProxy tracker's request directly.
-  if (/^Proxy required but not available/.test(raw)) return PROXY_REQUIRED_ERROR
   // classifyProxyFetchError's wrapper. A tracker's own text that mentions a
   // proxy falls through to the rules below.
   if (/^Failed to connect to \S+ via proxy: /.test(raw)) return "Proxy connection failed"

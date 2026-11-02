@@ -9,8 +9,10 @@ import { getTrackerBySlug, TRACKER_REGISTRY } from "@/data/tracker-registry"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { getAdapter } from "@/lib/tracker-platforms"
+import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
+import { adapterFetch } from "@/lib/tracker-platforms/helpers/adapter-fetch"
 import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
+import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import { POST } from "./route"
 
 vi.mock("@/lib/api-helpers", () => ({
@@ -24,7 +26,10 @@ vi.mock("@/lib/crypto", () => ({ decrypt: vi.fn(() => "token") }))
 vi.mock("@/lib/logger", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
-vi.mock("@/lib/tunnel", () => ({ buildProxyAgentFromSettings: vi.fn(() => undefined) }))
+vi.mock("@/lib/tunnel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/tunnel")>()),
+  buildProxyAgentFromSettings: vi.fn(() => undefined),
+}))
 
 const fetchRaw = vi.fn()
 const fetchStats = vi.fn()
@@ -50,7 +55,7 @@ function chain(result: unknown): Record<string, unknown> {
   return proxy
 }
 
-function mockRow(overrides: Record<string, unknown>) {
+function mockRow(overrides: Record<string, unknown>, settings?: Record<string, unknown>) {
   const tracker = {
     id: 7,
     name: "Anthelion",
@@ -62,7 +67,9 @@ function mockRow(overrides: Record<string, unknown>) {
     ...overrides,
   }
   vi.mocked(db.select).mockImplementation(((cols: Record<string, unknown>) =>
-    chain(Object.keys(cols ?? {}).includes("encryptedApiToken") ? [tracker] : [])) as never)
+    chain(
+      Object.keys(cols ?? {}).includes("encryptedApiToken") ? [tracker] : settings ? [settings] : []
+    )) as never)
 }
 
 function debug(): Promise<Response> {
@@ -109,5 +116,52 @@ describe("POST /api/trackers/[id]/debug", () => {
     expect(fetchRaw).toHaveBeenCalledWith(entry?.url, "token", entry?.apiPath, {})
     expect(fetchStats).toHaveBeenCalledWith(entry?.url, "token", entry?.apiPath, {})
     await expect(res.json()).resolves.toMatchObject({ platform: entry?.platform })
+  })
+})
+
+describe("POST /api/trackers/[id]/debug and the proxy switch", () => {
+  const PROXY = {
+    proxyEnabled: true,
+    proxyType: "socks5",
+    proxyHost: "proxy.example.test",
+    proxyPort: 1080,
+    proxyUsername: null,
+    encryptedProxyPassword: null,
+  }
+
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("@/lib/tunnel")>("@/lib/tunnel")
+    vi.mocked(buildProxyAgentFromSettings).mockImplementation(actual.buildProxyAgentFromSettings)
+    vi.mocked(buildFetchOptions).mockImplementation((opts) => ({ proxyAgent: opts.proxyAgent }))
+    fetchRaw.mockImplementation((baseUrl: string, _token, apiPath: string, options) =>
+      adapterFetch(`${baseUrl}${apiPath}`, new URL(baseUrl).hostname, options)
+    )
+  })
+
+  it.each<[string, Record<string, unknown> | undefined]>([
+    ["the proxy is off", { ...PROXY, proxyEnabled: false }],
+    ["there is no settings row", undefined],
+  ])("debugs a row set to use the proxy directly when %s", async (_case, settings) => {
+    fetchRaw.mockResolvedValueOnce([])
+    mockRow({ useProxy: true }, settings)
+
+    const res = await debug()
+
+    expect(res.status).toBe(200)
+    expect(buildFetchOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ proxyAgent: undefined })
+    )
+    expect(fetchRaw).toHaveBeenCalled()
+  })
+
+  it("refuses rather than going direct while the proxy is on but can't be used", async () => {
+    const host = new URL(String(getTrackerBySlug("anthelion")?.url)).hostname
+    mockRow({ useProxy: true }, { ...PROXY, proxyHost: null })
+
+    const res = await debug()
+
+    await expect(res.json()).resolves.toMatchObject({
+      rawError: `Failed to connect to ${host} via proxy: Unusable proxy settings`,
+    })
   })
 })

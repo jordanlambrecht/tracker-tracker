@@ -123,7 +123,7 @@ describe("pollTracker → tracker outage ledger", () => {
   it("records one failure when a scheduled poll fails", async () => {
     fetchStats.mockRejectedValue(new Error("ETIMEDOUT"))
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(recordTrackerPollFailure).toHaveBeenCalledTimes(1)
     expect(recordTrackerPollFailure).toHaveBeenCalledWith(42, "poll")
@@ -145,7 +145,7 @@ describe("pollTracker → tracker outage ledger", () => {
       throw new Error("bad key")
     })
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(recordTrackerPollFailure).toHaveBeenCalledTimes(1)
   })
@@ -153,7 +153,7 @@ describe("pollTracker → tracker outage ledger", () => {
   it("records NOTHING when the poll succeeds", async () => {
     fetchStats.mockResolvedValue(STATS)
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(recordTrackerPollFailure).not.toHaveBeenCalled()
   })
@@ -168,7 +168,7 @@ describe("pollTracker → tracker outage ledger", () => {
     }) as never)
     fetchStats.mockResolvedValue(STATS)
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(recordTrackerPollFailure).not.toHaveBeenCalled()
   })
@@ -182,7 +182,7 @@ describe("pollTracker → tracker outage ledger", () => {
       return chain([])
     }) as never)
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(recordTrackerPollFailure).not.toHaveBeenCalled()
   })

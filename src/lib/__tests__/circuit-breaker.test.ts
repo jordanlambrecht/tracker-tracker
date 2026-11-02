@@ -241,7 +241,7 @@ describe("pollTracker: success path", () => {
     // db.insert for the snapshot
     mockInsertChain()
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     // The final update must set consecutiveFailures: 0, pausedAt: null, lastErrorAt: null
     const setCalls = updateChain.set.mock.calls
@@ -261,7 +261,7 @@ describe("pollTracker: success path", () => {
     mockUpdateChain()
     const insertChain = mockInsertChain()
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     expect(db.insert).toHaveBeenCalled()
     expect(insertChain.values).toHaveBeenCalledWith(
@@ -288,7 +288,7 @@ describe("pollTracker: success path", () => {
     const insertChain = mockInsertChain()
 
     // Call without the 7th arg, isManual must default to false
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     // The first insert call is for trackerSnapshots; check its values argument
     expect(insertChain.values).toHaveBeenCalledWith(expect.objectContaining({ isManual: false }))
@@ -319,7 +319,7 @@ describe("pollTracker: success path", () => {
       mockSelectOnce([makeTrackerRow({ isActive: false })])
     )
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     expect(db.insert).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
@@ -328,7 +328,7 @@ describe("pollTracker: success path", () => {
   it("does nothing when tracker row is not found", async () => {
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(mockSelectOnce([]))
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     expect(db.insert).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
@@ -354,7 +354,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     // Simulate DB returning new count = 2 (below threshold), pausedAt still null
     const updateChain = mockUpdateChain([{ consecutiveFailures: 2, pausedAt: null }])
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     // The failure update must use sql expressions for both consecutiveFailures and pausedAt,
     // not raw numbers or null. Find the set call that contains lastError.
@@ -384,7 +384,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     const adapter = mockSuccessAdapter()
     const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     // Must be a recorded failure, the success path writes lastError: null, so
     // match on a string specifically rather than merely "defined".
@@ -409,7 +409,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     // Return new count = 3 (below threshold), pausedAt remains null
     mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD - 1, pausedAt: null }])
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     // db.update called exactly once, single atomic operation
     expect(db.update).toHaveBeenCalledTimes(1)
@@ -432,7 +432,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     const autoPassedAt = new Date()
     mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD, pausedAt: autoPassedAt }])
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     // Only one db.update call, the atomic CASE expression handles everything
     expect(db.update).toHaveBeenCalledTimes(1)
@@ -460,7 +460,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
         { consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt },
       ])
 
-      await pollTracker(1, MOCK_KEY, false)
+      await pollTracker(1, MOCK_KEY, false, undefined)
 
       const arg = updateChain.set.mock.calls
         .map((call: unknown[]) => call[0] as Record<string, unknown>)
@@ -474,7 +474,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     it("logs a failed retry, not a new auto-pause", async () => {
       mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt }])
 
-      await pollTracker(1, MOCK_KEY, false)
+      await pollTracker(1, MOCK_KEY, false, undefined)
 
       const { log } = await import("@/lib/logger")
       expect(log.warn).not.toHaveBeenCalledWith(
@@ -515,7 +515,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     // Return both fields so the warn-check branch works correctly
     const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     const setArg = updateChain.set.mock.calls[0]?.[0] as Record<string, unknown>
     expect(setArg.lastError).toBe("Bad API key")
@@ -528,7 +528,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     const updateChain = mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
 
     const before = new Date()
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
     const after = new Date()
 
     // Find the set call that carries lastError (the failure update)
@@ -1100,7 +1100,7 @@ describe("post-resume behavior: clean slate after resume", () => {
     // Failure increments 0+1=1, which is below threshold, so pausedAt stays null
     mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     expect(db.update).toHaveBeenCalledTimes(1)
 
@@ -1128,7 +1128,7 @@ describe("post-resume behavior: clean slate after resume", () => {
     const updateChain = mockUpdateChain()
     mockInsertChain()
 
-    await pollTracker(1, MOCK_KEY, false)
+    await pollTracker(1, MOCK_KEY, false, undefined)
 
     const setCalls = updateChain.set.mock.calls
     const successReset = setCalls.find(

@@ -143,7 +143,7 @@ describe("pollTracker takes the address from the registry entry", () => {
       row({ baseUrl: "https://old-anthelion.example", apiPath: "/old.php", platformType: "unit3d" })
     )
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(getAdapter).toHaveBeenCalledWith(entry?.platform)
     expect(buildFetchOptions).toHaveBeenCalledWith(expect.objectContaining({ entry }))
@@ -163,7 +163,7 @@ describe("pollTracker takes the address from the registry entry", () => {
       })
     )
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(getAdapter).toHaveBeenCalledWith("animebytes")
     expect(fetchStats).toHaveBeenCalledWith(entry?.url, "token", entry?.apiPath, {})
@@ -181,7 +181,7 @@ describe("pollTracker never polls a row the tracker list cannot place", () => {
     expect(slug, "the registry has no draft entry left to test with").not.toBeUndefined()
     mockRow(row({ registrySlug: slug, baseUrl: "https://www.old-site.example" }))
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(decrypt).not.toHaveBeenCalled()
     expect(fetchStats).not.toHaveBeenCalled()
@@ -207,7 +207,7 @@ describe("pollTracker never polls a row the tracker list cannot place", () => {
   it("leaves the host out when the stored address does not parse", async () => {
     mockRow(row({ registrySlug: null, baseUrl: "not a url" }))
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(updates.map(({ values }) => values.lastError)).toEqual([
       "Not in the tracker list, so it isn't polled",
@@ -238,7 +238,7 @@ describe("pollTracker never polls a row the tracker list cannot place", () => {
     expect(defunct, "the registry has no defunct entry left to test with").toBeDefined()
     mockRow(row({ registrySlug: defunct?.slug, baseUrl: defunct?.url }))
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(decrypt).not.toHaveBeenCalled()
     expect(fetchStats).not.toHaveBeenCalled()

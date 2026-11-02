@@ -113,7 +113,7 @@ describe("pollTracker failure logging", () => {
     const raw = "Cannot read properties of undefined (reading 'trim')"
     fetchStats.mockRejectedValue(new Error(raw))
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const entry = vi
       .mocked(log.error)
@@ -154,7 +154,7 @@ describe("pollTracker failure logging", () => {
     vi.mocked(db.insert).mockImplementation((() =>
       chain(Promise.reject(new Error(dbMessage)))) as never)
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const entry = vi
       .mocked(log.error)
@@ -176,7 +176,7 @@ describe("pollTracker on a stored credential it cannot read", () => {
     })
     const sets = captureSets()
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     const message =
       "Stored credentials for this tracker can't be read. Enter them again in its settings"
@@ -195,7 +195,7 @@ describe("pollTracker on a stored credential it cannot read", () => {
     })
     const sets = captureSets()
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(sets.map((s) => s.lastError)).toContain(
       "Stored credentials for this tracker can't be read. Enter them again in its settings"
@@ -207,7 +207,7 @@ describe("pollTracker on a stored credential it cannot read", () => {
     vi.mocked(decrypt).mockReturnValueOnce("")
     const sets = captureSets()
 
-    await pollTracker(42, KEY, false)
+    await pollTracker(42, KEY, false, undefined)
 
     expect(sets.map((s) => s.lastError)).toContain("Invalid credentials")
     expect(fetchStats).not.toHaveBeenCalled()
@@ -249,5 +249,41 @@ describe("pollTracker through a proxy that is on but unusable", () => {
 
     expect(sets.map((s) => s.lastError)).toContain(PROXY_UNUSABLE_ERROR)
     expect(isRetryablePollError(PROXY_UNUSABLE_ERROR)).toBe(false)
+  })
+})
+
+describe("pollTracker while the proxy is off", () => {
+  it("polls a row set to use the proxy directly and leaves its setting alone", async () => {
+    const { buildProxyAgentFromSettings: buildAgent } =
+      await vi.importActual<typeof import("@/lib/tunnel")>("@/lib/tunnel")
+    const proxyAgent = buildAgent(
+      {
+        proxyEnabled: false,
+        proxyType: "socks5",
+        proxyHost: "proxy.example.test",
+        proxyPort: 1080,
+        proxyUsername: null,
+        encryptedProxyPassword: null,
+      },
+      KEY
+    )
+    vi.mocked(db.select).mockImplementation(((cols: Record<string, unknown>) =>
+      chain(
+        Object.keys(cols ?? {}).includes("encryptedApiToken")
+          ? [{ ...TRACKER_ROW, useProxy: true }]
+          : []
+      )) as never)
+    const { buildFetchOptions } = await import("@/lib/tracker-platforms")
+    vi.mocked(buildFetchOptions).mockImplementationOnce((opts) => ({ proxyAgent: opts.proxyAgent }))
+    fetchStats.mockRejectedValueOnce(new Error("Tracker API error: 401"))
+    const sets = captureSets()
+
+    await pollTracker(42, KEY, false, proxyAgent)
+
+    expect(fetchStats).toHaveBeenCalledWith("https://lst.gg", "token", "/api/user", {
+      proxyAgent: undefined,
+    })
+    expect(sets.map((s) => s.lastError)).toEqual(["Authentication failed"])
+    expect(sets.some((s) => "useProxy" in s)).toBe(false)
   })
 })

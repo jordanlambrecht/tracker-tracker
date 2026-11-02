@@ -1,10 +1,6 @@
 // src/lib/__tests__/pause-state.test.ts
 import { describe, expect, it } from "vitest"
-import {
-  PROXY_REQUIRED_ERROR,
-  sanitizeNetworkError,
-  TRACKER_CREDENTIALS_UNREADABLE_ERROR,
-} from "@/lib/error-utils"
+import { sanitizeNetworkError, TRACKER_CREDENTIALS_UNREADABLE_ERROR } from "@/lib/error-utils"
 import {
   getPauseState,
   isRetryablePollError,
@@ -94,14 +90,6 @@ describe("isRetryablePollError", () => {
     expect(message).toBe("Authentication failed")
     expect(isRetryablePollError(message)).toBe(false)
   })
-
-  it("does not retry a proxy that is required but not set up", () => {
-    const message = sanitizeNetworkError(
-      "Proxy required but not available, refusing to leak IP via direct connection",
-      "Poll failed"
-    )
-    expect(isRetryablePollError(message)).toBe(false)
-  })
 })
 
 type PauseRow = Parameters<typeof isRetryingPause>[0]
@@ -136,7 +124,8 @@ describe("isRetryingPause", () => {
     ["paused by invalid credentials", { lastError: "Invalid credentials" }],
     ["paused by a stored key it cannot read", { lastError: TRACKER_CREDENTIALS_UNREADABLE_ERROR }],
     ["paused by the catch-all", { lastError: "Poll failed" }],
-    ["paused because its proxy is not set up", { lastError: PROXY_REQUIRED_ERROR }],
+    // Older versions refused a row set to use the proxy while it was off.
+    ["paused by that old refusal", { lastError: "Proxy is required but not set up" }],
     ["paused with no error on record", { lastError: null }],
   ])("never retries a tracker %s", (_, change) => {
     expect(isRetryingPause({ ...RETRYING, ...change })).toBe(false)

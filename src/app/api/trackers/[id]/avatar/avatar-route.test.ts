@@ -12,6 +12,7 @@
 // so a test that passes here would also pass against a real fetch. A mock
 // that never followed would make the security assertions vacuous.
 
+import net from "node:net"
 import type { Mock } from "vitest"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
@@ -116,6 +117,16 @@ function mockTrackerRow(overrides: Record<string, unknown> = {}) {
   const where = vi.fn().mockReturnValue({ limit })
   const from = vi.fn().mockReturnValue({ where })
   ;(db.select as Mock).mockReturnValue({ from })
+  return { from }
+}
+
+/** A row set to use the proxy, then the settings row its fetch reads. */
+function mockProxiedRow(settings: Record<string, unknown> | undefined) {
+  const trackerSelect = mockTrackerRow({ useProxy: true })
+  const limit = vi.fn().mockResolvedValue(settings ? [settings] : [])
+  ;(db.select as Mock)
+    .mockReturnValueOnce(trackerSelect)
+    .mockReturnValueOnce({ from: () => ({ limit }) })
 }
 
 function mockUpdate(): Mock {
@@ -301,5 +312,56 @@ describe("GET /api/trackers/[id]/avatar with outbound requests off", () => {
     expect(response.status).toBe(200)
     expect(Buffer.from(await response.arrayBuffer())).toEqual(PNG)
     expect(requested).toEqual([])
+  })
+})
+
+describe("GET /api/trackers/[id]/avatar and the proxy switch", () => {
+  const PROXY = {
+    proxyEnabled: true,
+    proxyType: "socks5",
+    proxyHost: "proxy.example.test",
+    proxyPort: 1080,
+    proxyUsername: null,
+    encryptedProxyPassword: null,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+    requested = []
+    routes = new Map()
+    ;(authenticate as Mock).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    ;(parseTrackerId as Mock).mockResolvedValue(1)
+    mockUpdate()
+    installFetchMock()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each<[string, Record<string, unknown> | undefined]>([
+    ["the proxy is off", { ...PROXY, proxyEnabled: false }],
+    ["there is no settings row", undefined],
+  ])("fetches a row set to use the proxy directly when %s", async (_case, settings) => {
+    routes.set(TRACKER_AVATAR, { status: 200, body: PNG, contentType: "image/png" })
+    mockProxiedRow(settings)
+
+    const response = await GET(new Request("http://localhost"), makeContext())
+
+    expect(response.status).toBe(200)
+    expect(requested).toEqual([TRACKER_AVATAR])
+  })
+
+  it("refuses rather than going direct while the proxy is on but can't be used", async () => {
+    routes.set(TRACKER_AVATAR, { status: 200, body: PNG, contentType: "image/png" })
+    mockProxiedRow({ ...PROXY, proxyHost: null })
+    const connect = vi.spyOn(net.Socket.prototype, "connect")
+
+    const response = await GET(new Request("http://localhost"), makeContext())
+
+    expect(response.status).toBe(502)
+    expect(requested).toEqual([])
+    expect(connect).not.toHaveBeenCalled()
   })
 })
