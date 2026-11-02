@@ -1165,6 +1165,24 @@ describe("PATCH /api/trackers/[id]", () => {
     })
   })
 
+  // A condition on lastError would have to let NULL through, which ne() alone doesn't.
+  it("clears the auto-pause of a linked row whose lastError is null", async () => {
+    const row = {
+      id: 1,
+      registrySlug: "aither",
+      userPausedAt: new Date(),
+      pausedAt: new Date(),
+      consecutiveFailures: 4,
+      lastError: null,
+      lastErrorAt: null,
+    }
+
+    const response = await patchRow({ pollingPaused: false }, row)
+
+    expect(response.status).toBe(200)
+    expect(row).toMatchObject({ userPausedAt: null, pausedAt: null, consecutiveFailures: 0 })
+  })
+
   // On a row the user also paused, the banner shows only the user pause, so the
   // toggle must not send an unlinked row back to polling or drop its reason.
   it.each([
