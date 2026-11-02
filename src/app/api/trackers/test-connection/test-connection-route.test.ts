@@ -346,13 +346,16 @@ describe("POST /api/trackers/test-connection — sanitized error response", () =
     expect(body.error).toBe("Authentication failed")
   })
 
-  it("returns sanitized proxy error message when error contains 'proxy'", async () => {
-    // Use a message that only triggers the proxy branch, not an earlier branch.
-    // sanitizeNetworkError checks ECONNREFUSED before proxy, so use a proxy-only phrase.
+  it("returns sanitized proxy error message for a proxied request that failed", async () => {
+    // classifyProxyFetchError's wording, with a reason no earlier rule reads.
     mockDbSettings()
     const { getAdapter } = await import("@/lib/tracker-platforms")
     ;(getAdapter as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-      fetchStats: vi.fn().mockRejectedValueOnce(new Error("Failed to connect via proxy server")),
+      fetchStats: vi
+        .fn()
+        .mockRejectedValueOnce(
+          new Error("Failed to connect to aither.cc via proxy: Socket closed")
+        ),
     })
 
     const res = await POST(makeRequest(VALID_BODY))

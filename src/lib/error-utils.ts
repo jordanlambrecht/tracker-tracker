@@ -216,7 +216,11 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"
   // pollTracker's refusal to send a useProxy tracker's request directly.
   if (/^Proxy required but not available/.test(raw)) return PROXY_REQUIRED_ERROR
-  if (/proxy/i.test(raw)) return "Proxy connection failed"
+  // classifyProxyFetchError's wrapper. A tracker's own text that mentions a
+  // proxy falls through to the rules below.
+  if (/^Failed to connect to \S+ via proxy: /.test(raw)) return "Proxy connection failed"
+  // The configured proxy refusing its own credentials. The tracker never saw it.
+  if (/API error: 407\b/.test(raw)) return "Proxy connection failed"
   const apiMatch = raw.match(/Tracker API error: (\d+)/i)
   if (apiMatch) return `API returned ${apiMatch[1]}`
   return fallback

@@ -307,8 +307,28 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("Session expired")).toBe("Session expired")
   })
 
-  it("maps 'proxy' to 'Proxy connection failed'", () => {
-    expect(sanitizeNetworkError("Could not connect via proxy")).toBe("Proxy connection failed")
+  it("maps the proxy wrapper's failure to 'Proxy connection failed'", () => {
+    expect(
+      sanitizeNetworkError(
+        "Failed to connect to aither.cc via proxy: Proxy connection ended before receiving CONNECT response"
+      )
+    ).toBe("Proxy connection failed")
+  })
+
+  // The proxy refusing its own credentials answers the CONNECT, so the request
+  // never reaches the tracker.
+  it("maps the proxy's 407 to 'Proxy connection failed'", () => {
+    expect(sanitizeNetworkError("Tracker API error: 407 Proxy Authentication Required")).toBe(
+      "Proxy connection failed"
+    )
+  })
+
+  it.each([
+    ["Hawke API request failed on hawke.uno: VPN or proxy detected", "Poll failed"],
+    ["Gazelle API returned status: failure: Proxy users are not allowed", "Poll failed"],
+    ["Tracker API error: 500 Internal Server Error: proxy upstream", "API returned 500"],
+  ])("leaves a tracker's own text that mentions a proxy to the later rules: %s", (raw, message) => {
+    expect(sanitizeNetworkError(raw, "Poll failed")).toBe(message)
   })
 
   it("names the missing proxy setting rather than a proxy that is down", () => {
@@ -624,7 +644,7 @@ describe("isUnreachableMessage", () => {
     "getaddrinfo EAI_AGAIN lst.gg",
     "EHOSTUNREACH",
     "ECONNRESET",
-    "Could not connect via proxy",
+    "Failed to connect to lst.gg via proxy: Socket closed",
   ])("is true for the sanitized form of %j", (raw) => {
     expect(isUnreachableMessage(sanitizeNetworkError(raw))).toBe(true)
   })
