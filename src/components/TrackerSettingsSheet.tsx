@@ -578,7 +578,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               size="sm"
               onClick={handleArchive}
               loading={archiving}
-              disabled={saving || archiving}
+              disabled={saving || archiving || deleting}
               text={tracker.isActive ? "Archive" : "Reactivate"}
             />
 
@@ -587,6 +587,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
               confirmLabel="Confirm Delete"
               busyLabel="Deleting..."
               busy={deleting}
+              disabled={archiving || deleting}
               onConfirm={handleDelete}
             />
           </div>

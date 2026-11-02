@@ -358,6 +358,36 @@ describe("TrackerSettingsSheet shared tracker cache", () => {
   })
 })
 
+describe("TrackerSettingsSheet archive and delete", () => {
+  // The tracker's own PATCH and DELETE never answer, so each action stays running.
+  beforeEach(() => {
+    fetchMock.mockImplementation(async (url: unknown) =>
+      String(url) === "/api/settings"
+        ? jsonResponse({ proxyEnabled: false })
+        : new Promise(() => {})
+    )
+  })
+
+  it("holds Delete while Archive runs", async () => {
+    const user = userEvent.setup()
+    renderSheet()
+
+    await user.click(screen.getByRole("button", { name: "Archive" }))
+
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled()
+  })
+
+  it("holds Archive while Delete runs", async () => {
+    const user = userEvent.setup()
+    renderSheet()
+
+    await user.click(screen.getByRole("button", { name: "Delete" }))
+    await user.click(screen.getByRole("button", { name: "Confirm Delete" }))
+
+    expect(screen.getByRole("button", { name: "Archive" })).toBeDisabled()
+  })
+})
+
 // ---------------------------------------------------------------------------
 // This sheet rebuilds the DigitalCore blob from scratch, and the stored token
 // never reaches the client, so it cannot preserve a UA it was not given.

@@ -355,6 +355,16 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     expect(cachedTrackers(queryClient)).toEqual([row, OTHER])
   })
 
+  it("holds Delete while Archive runs", async () => {
+    const user = userEvent.setup()
+    fetchMock.mockImplementation(() => new Promise(() => {}))
+    renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED }))
+
+    await user.click(screen.getByRole("button", { name: "Archive" }))
+
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled()
+  })
+
   it("says a duplicate is already tracked and offers Archive and Delete, not Link", () => {
     renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, duplicateOf: "ReelFliX" }))
 

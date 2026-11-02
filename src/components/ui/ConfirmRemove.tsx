@@ -13,6 +13,8 @@ interface ConfirmRemoveProps {
   /** Disables buttons and shows busyLabel while processing */
   busy?: boolean
   busyLabel?: string
+  /** Disables every button while another action on the same row runs */
+  disabled?: boolean
 }
 
 function ConfirmRemove({
@@ -23,6 +25,7 @@ function ConfirmRemove({
   className,
   busy,
   busyLabel,
+  disabled,
 }: ConfirmRemoveProps) {
   const [confirming, setConfirming] = useState(false)
 
@@ -33,14 +36,14 @@ function ConfirmRemove({
           size="sm"
           variant="danger"
           onClick={onConfirm}
-          disabled={busy}
+          disabled={busy || disabled}
           text={busy && busyLabel ? busyLabel : confirmLabel}
         />
         <Button
           size="sm"
           variant="ghost"
           onClick={() => setConfirming(false)}
-          disabled={busy}
+          disabled={busy || disabled}
           text="Cancel"
         />
       </div>
@@ -53,6 +56,7 @@ function ConfirmRemove({
       variant={variant}
       className={className}
       onClick={() => setConfirming(true)}
+      disabled={disabled}
       text={label}
     />
   )

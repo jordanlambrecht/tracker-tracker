@@ -254,6 +254,7 @@ function UnlinkedCard({
           confirmLabel="Confirm Delete"
           busyLabel="Deleting..."
           busy={deleting}
+          disabled={archiving || deleting}
           onConfirm={handleDelete}
         />
       </div>
