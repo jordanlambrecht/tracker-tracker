@@ -64,7 +64,7 @@ export const DOCS = {
     description: "Get alerts in Discord when something happens on your trackers",
   },
   IMAGE_HOSTING: {
-    href: `${DOCS_URL}/features/`,
+    href: `${DOCS_URL}/features/transit-papers/#image-host-setup`,
     description: "Upload tracker proof to image hosting sites",
   },
   TRANSIT_PAPERS: {
