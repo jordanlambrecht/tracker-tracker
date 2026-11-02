@@ -57,7 +57,7 @@ interface PollAllButtonProps {
 export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
   const [polling, setPolling] = useState(false)
   const [progress, setProgress] = useState({ completed: 0, total: 0 })
-  const [status, setStatus] = useState<"idle" | "success" | "failed">("idle")
+  const [status, setStatus] = useState<"idle" | "success" | "failed" | "empty">("idle")
 
   const handleClick = useCallback(async () => {
     if (polling || status !== "idle") return
@@ -66,6 +66,7 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
     setProgress({ completed: 0, total: 0 })
 
     let failCount = 0
+    let total: number | undefined
 
     try {
       const res = await fetch("/api/trackers/poll-all", { method: "POST" })
@@ -77,11 +78,11 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
 
       for (;;) {
         const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
+        buffer += done ? decoder.decode() : decoder.decode(value, { stream: true })
 
         const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
+        // A partial line waits for the next chunk, until the stream ends.
+        buffer = done ? "" : (lines.pop() ?? "")
 
         for (const line of lines) {
           if (!line.trim()) continue
@@ -92,6 +93,7 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
             continue // skip malformed line
           }
           if (msg.total !== undefined) {
+            total = msg.total
             setProgress((p) => ({ ...p, total: msg.total as number }))
           } else if (msg.trackerId !== undefined) {
             if (!msg.ok) failCount++
@@ -100,10 +102,11 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
             failCount = msg.failed ?? failCount
           }
         }
+        if (done) break
       }
 
       await onPollComplete()
-      setStatus(failCount > 0 ? "failed" : "success")
+      setStatus(total === 0 ? "empty" : failCount > 0 ? "failed" : "success")
     } catch {
       setStatus("failed")
     } finally {
@@ -137,6 +140,13 @@ export function PollAllButton({ onPollComplete }: PollAllButtonProps) {
           }
         >
           ✕ Some Failed
+        </span>
+        <span
+          className={
+            !polling && status === "empty" ? "opacity-100" : "opacity-0 pointer-events-none"
+          }
+        >
+          Nothing to Poll
         </span>
       </span>
     </Button>

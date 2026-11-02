@@ -1657,7 +1657,11 @@ describe("POST /api/trackers/poll-all", () => {
     const response = await PollAllPOST()
 
     expect(pollTracker).not.toHaveBeenCalled()
-    expect(await response.json()).toEqual({ total: 0, done: true, polled: 0, failed: 0 })
+    // One newline-ended NDJSON line, which the button's line reader parses.
+    expect(response.headers.get("Content-Type")).toBe("application/x-ndjson")
+    expect(await response.text()).toBe(
+      `${JSON.stringify({ total: 0, done: true, polled: 0, failed: 0 })}\n`
+    )
   })
 })
 

@@ -6,6 +6,7 @@
 // First line: { "total": N }
 // Per tracker: { "trackerId": N, "ok": bool }
 // Final line:  { "done": true, "polled": N, "failed": N }
+// Nothing to poll: one line, { "total": 0, "done": true, "polled": 0, "failed": 0 }
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -16,6 +17,8 @@ import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
 import { pollTracker } from "@/lib/tracker-scheduler"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
+
+const NDJSON_HEADERS = { "Content-Type": "application/x-ndjson", "Cache-Control": "no-cache" }
 
 export async function POST() {
   const auth = await authenticate()
@@ -56,8 +59,10 @@ export async function POST() {
   const privacyMode = settings ? !settings.storeUsernames : false
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
+  // One NDJSON line, newline and all, so the button reads it like the stream.
   if (trackersToPoll.length === 0) {
-    return NextResponse.json({ total: 0, done: true, polled: 0, failed: 0 })
+    const line = `${JSON.stringify({ total: 0, done: true, polled: 0, failed: 0 })}\n`
+    return new Response(line, { headers: NDJSON_HEADERS })
   }
 
   log.info(
@@ -113,10 +118,6 @@ export async function POST() {
   })
 
   return new Response(stream, {
-    headers: {
-      "Content-Type": "application/x-ndjson",
-      "Cache-Control": "no-cache",
-      "Transfer-Encoding": "chunked",
-    },
+    headers: { ...NDJSON_HEADERS, "Transfer-Encoding": "chunked" },
   })
 }
