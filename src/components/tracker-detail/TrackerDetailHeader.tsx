@@ -77,7 +77,7 @@ export function TrackerDetailHeader({
   )
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-10">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex flex-col gap-3">
           {/* Title row */}
