@@ -8,7 +8,11 @@ import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/
 import { db } from "@/lib/db"
 import { prowlarrInstances } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
-import { ProwlarrKeyUnreadableError, testProwlarrInstance } from "@/lib/prowlarr/sync"
+import {
+  ProwlarrKeyUnreadableError,
+  ProwlarrSetupError,
+  testProwlarrInstance,
+} from "@/lib/prowlarr/sync"
 
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -34,6 +38,13 @@ export async function POST(_request: Request, props: RouteContext) {
       log.warn(
         { route: "POST /api/prowlarr/[id]/test", prowlarrInstanceId: instanceId },
         "failed: unreadable stored credential"
+      )
+      return NextResponse.json({ error: err.message }, { status: 422 })
+    }
+    if (err instanceof ProwlarrSetupError) {
+      log.warn(
+        { route: "POST /api/prowlarr/[id]/test", prowlarrInstanceId: instanceId },
+        "failed: no API key stored"
       )
       return NextResponse.json({ error: err.message }, { status: 422 })
     }

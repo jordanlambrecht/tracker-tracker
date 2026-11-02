@@ -42,7 +42,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 type KeyedInstance = { url: string; encryptedApiKey: string | null }
 
 /** A problem with the stored settings, already worded for the UI. */
-class ProwlarrSetupError extends Error {
+export class ProwlarrSetupError extends Error {
   constructor(message: string) {
     super(message)
     this.name = "ProwlarrSetupError"

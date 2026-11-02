@@ -231,6 +231,18 @@ describe("POST /api/prowlarr/[id]/test", () => {
     expect((await res.json()).error).toBe("API key rejected by Prowlarr")
   })
 
+  it("asks for the API key when none is stored", async () => {
+    const actual =
+      await vi.importActual<typeof import("@/lib/prowlarr/sync")>("@/lib/prowlarr/sync")
+    vi.mocked(testProwlarrInstance).mockImplementation(actual.testProwlarrInstance)
+    mockSelectRow({ url: "http://prowlarr.test:9696", encryptedApiKey: null })
+
+    const res = await TEST(new Request("http://localhost/api/prowlarr/1/test"), params("1"))
+
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe("No API key stored. Enter the Prowlarr API key")
+  })
+
   it("asks for a key saved under another key to be entered again", async () => {
     const actual =
       await vi.importActual<typeof import("@/lib/prowlarr/sync")>("@/lib/prowlarr/sync")
