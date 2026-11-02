@@ -2,7 +2,7 @@
 //
 // Types: ImageHostId, UploadOptions, UploadResult, ImageHostAdapter
 
-export type ImageHostId = "ptpimg" | "onlyimage" | "imgbb"
+export type ImageHostId = "onlyimage" | "imgbb"
 
 export interface UploadOptions {
   /** Seconds until auto-delete. Only supported by imgbb (60-15552000) and onlyimage (ISO 8601 converted internally). null = permanent. */

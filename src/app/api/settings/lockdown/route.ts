@@ -98,7 +98,6 @@ export async function POST(request: Request) {
           totpBackupCodes: null,
           encryptedProxyPassword: null,
           encryptedBackupPassword: null,
-          encryptedPtpimgApiKey: null,
           encryptedOeimgApiKey: null,
           encryptedImgbbApiKey: null,
           username: null,

@@ -318,6 +318,7 @@ import { POST as UploadImagePOST } from "@/app/api/upload-image/route"
 import { authenticate, parseJsonBody, parseRouteId, parseTrackerId } from "@/lib/api-helpers"
 import { readSession } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { getImageHostAdapter } from "@/lib/image-hosting"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -793,7 +794,7 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
 
   it("POST /api/upload-image returns 401", async () => {
     const formData = new FormData()
-    formData.append("host", "ptpimg")
+    formData.append("host", "imgbb")
     formData.append("image", new Blob(["fake"], { type: "image/png" }), "test.png")
     const req = new Request("http://localhost/api/upload-image", {
       method: "POST",
@@ -1011,12 +1012,11 @@ describe("Token leakage prevention", () => {
 
   it("GET /api/settings/image-hosts returns booleans, not ciphertext", async () => {
     // Mock returns the shape produced by settingsColumns projection.
-    // The encrypted columns are selected under aliased names (hasPtpimgKey etc.)
+    // The encrypted columns are selected under aliased names (hasOeimgKey etc.)
     // and coerced to booleans by the serializer. Ciphertext enters server memory
     // but never reaches the response.
     const mockLimit = vi.fn().mockResolvedValue([
       {
-        hasPtpimgKey: "ENCRYPTED_PTPIMG_KEY_CIPHERTEXT",
         hasOeimgKey: "ENCRYPTED_OEIMG_KEY_CIPHERTEXT",
         hasImgbbKey: null,
       },
@@ -1030,16 +1030,12 @@ describe("Token leakage prevention", () => {
     const json = JSON.stringify(body)
 
     // Ciphertext must never appear in the response
-    expect(json).not.toContain("ENCRYPTED_PTPIMG_KEY_CIPHERTEXT")
     expect(json).not.toContain("ENCRYPTED_OEIMG_KEY_CIPHERTEXT")
-    expect(json).not.toContain("encryptedPtpimgApiKey")
     expect(json).not.toContain("encryptedOeimgApiKey")
     expect(json).not.toContain("encryptedImgbbApiKey")
 
     // Response must only contain boolean presence flags
-    expect(body).toHaveProperty("ptpimg", true)
-    expect(body).toHaveProperty("onlyimage", true)
-    expect(body).toHaveProperty("imgbb", false)
+    expect(body).toEqual({ onlyimage: true, imgbb: false })
   })
 
   it("GET /api/settings does not include encrypted image hosting keys in response", async () => {
@@ -1063,7 +1059,6 @@ describe("Token leakage prevention", () => {
         proxyUsername: null,
         hasProxyPassword: null,
         // These are the encrypted key columns projected as boolean aliases
-        hasPtpimgKey: "ENCRYPTED_PTPIMG_KEY_SHOULD_NOT_APPEAR",
         hasOeimgKey: "ENCRYPTED_OEIMG_KEY_SHOULD_NOT_APPEAR",
         hasImgbbKey: null,
         qbitmanageEnabled: false,
@@ -1085,14 +1080,12 @@ describe("Token leakage prevention", () => {
     const json = JSON.stringify(body)
 
     // Ciphertext must never appear in the response
-    expect(json).not.toContain("ENCRYPTED_PTPIMG_KEY_SHOULD_NOT_APPEAR")
     expect(json).not.toContain("ENCRYPTED_OEIMG_KEY_SHOULD_NOT_APPEAR")
-    expect(json).not.toContain("encryptedPtpimgApiKey")
     expect(json).not.toContain("encryptedOeimgApiKey")
     expect(json).not.toContain("encryptedImgbbApiKey")
 
     // serializeSettingsResponse must coerce to boolean
-    expect(body).toHaveProperty("hasPtpimgKey", true)
+    expect(body).not.toHaveProperty("hasPtpimgKey")
     expect(body).toHaveProperty("hasOeimgKey", true)
     expect(body).toHaveProperty("hasImgbbKey", false)
   })
@@ -1257,6 +1250,25 @@ describe("Input validation: additional field constraints", () => {
   })
 
   // "rejects oversized API token" is covered in tracker-routes.test.ts
+
+  // PTPImg shut down. A client still naming it is refused before any key is read
+  // or anything is sent.
+  it("refuses an upload to PTPImg, a host that no longer exists", async () => {
+    vi.mocked(db.select).mockClear()
+    vi.mocked(getImageHostAdapter).mockClear()
+    const formData = new FormData()
+    formData.append("host", "ptpimg")
+    formData.append("image", new Blob(["fake"], { type: "image/png" }), "test.png")
+
+    const res = await UploadImagePOST(
+      new Request("http://localhost/api/upload-image", { method: "POST", body: formData })
+    )
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: "host must be one of: onlyimage, imgbb" })
+    expect(db.select).not.toHaveBeenCalled()
+    expect(getImageHostAdapter).not.toHaveBeenCalled()
+  })
 
   it("rejects oversized qbtTag (>100 chars)", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({

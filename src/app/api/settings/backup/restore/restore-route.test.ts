@@ -109,6 +109,7 @@ const PLAIN = {
   notificationConfig: '{"webhookUrl":"https://example.com/hook"}',
   proxyPassword: "proxy-secret",
   backupPassword: "backup-secret",
+  // v2.15.1 and older carry a PTPImg key. That host is gone, and a restore leaves it out.
   ptpimgApiKey: "ptpimg-key",
   totpSecret: "JBSWY3DPEHPK3PXP",
   totpBackupCodes: '["11111111","22222222"]',
@@ -844,6 +845,24 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(recorder.settingsUpdate?.retentionPromptedAt).toBeNull()
   })
 
+  // The re-encrypt path is the one that would read the key, so the salts differ,
+  // and the key is not even ciphertext.
+  it("restores a v2.15.1 backup that still carries a PTPImg key, leaving the key out", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, {
+      ...encryptAll(backupKey),
+      ptpimgApiKey: "not-ciphertext",
+    })
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+
+    expect(res.status).toBe(200)
+    expect(recorder.settingsUpdate).not.toBeNull()
+    expect(recorder.settingsUpdate).not.toHaveProperty("encryptedPtpimgApiKey")
+    expect(log.warn).not.toHaveBeenCalled()
+  })
+
   it("restores every snapshot column the backup carries", async () => {
     const { trackerSnapshots: snapshotsTable } =
       await vi.importActual<typeof import("@/lib/db/schema")>("@/lib/db/schema")
@@ -950,7 +969,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(decrypt(settings?.encryptedBackupPassword as string, currentKey)).toBe(
       PLAIN.backupPassword
     )
-    expect(decrypt(settings?.encryptedPtpimgApiKey as string, currentKey)).toBe(PLAIN.ptpimgApiKey)
+    expect(settings).not.toHaveProperty("encryptedPtpimgApiKey")
     expect(decrypt(settings?.totpSecret as string, currentKey)).toBe(PLAIN.totpSecret)
     expect(decrypt(settings?.totpBackupCodes as string, currentKey)).toBe(PLAIN.totpBackupCodes)
 
@@ -1034,7 +1053,7 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const settings = recorder.settingsUpdate
     expect(settings?.encryptedProxyPassword).toBeNull()
     expect(settings?.encryptedBackupPassword).toBeNull()
-    expect(settings?.encryptedPtpimgApiKey).toBeNull()
+    expect(settings).not.toHaveProperty("encryptedPtpimgApiKey")
     expect(settings?.totpSecret).toBeNull()
     expect(settings?.totpBackupCodes).toBeNull()
 
@@ -1815,6 +1834,24 @@ describe("POST /api/settings/backup/restore — dry run", () => {
       }
 
     expect(await dryRun(withToken)).toEqual(await dryRun(withoutToken))
+  })
+
+  // The restore leaves an older backup's PTPImg key out, so the preview must not
+  // count it as a credential to keep.
+  it("leaves an older backup's PTPImg key out of the count", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const withKey = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    const withoutKey = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    withoutKey.settings.encryptedPtpimgApiKey = null
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const dryRun = async (payload: BackupPayload) =>
+      (await (await POST(makeRequest(payload, PASSWORD, undefined, true))).json()) as {
+        credentialsTotal: number
+        credentialsRecoverable: number
+      }
+
+    expect(await dryRun(withKey)).toEqual(await dryRun(withoutKey))
   })
 
   it("counts credentials written under a different key as at risk", async () => {

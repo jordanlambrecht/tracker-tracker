@@ -60,7 +60,6 @@ export interface SettingsData {
   backupEncryptionEnabled: boolean
   hasBackupPassword: boolean
   backupStoragePath: string | null
-  hasPtpimgKey: boolean
   hasOeimgKey: boolean
   hasImgbbKey: boolean
   credentialVaultEnabled: boolean
@@ -104,7 +103,6 @@ export function SettingsClient({
 
           <ImageHostingSection
             initialHasKeys={{
-              ptpimg: initialSettings.hasPtpimgKey,
               oeimg: initialSettings.hasOeimgKey,
               imgbb: initialSettings.hasImgbbKey,
             }}

@@ -12,7 +12,7 @@ import { getImageHostAdapter } from "@/lib/image-hosting"
 import { IMAGE_EXPIRATION_MAX, UPLOAD_IMAGE_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
-const VALID_HOSTS = new Set<ImageHostId>(["ptpimg", "onlyimage", "imgbb"])
+const VALID_HOSTS = new Set<ImageHostId>(["onlyimage", "imgbb"])
 const VALID_MIME_TYPES = [
   "image/jpeg",
   "image/png",
@@ -103,7 +103,6 @@ export async function POST(request: Request) {
   // pulling sensitive fields (passwordHash, totpSecret, etc.) into memory.
   const [settings] = await db
     .select({
-      encryptedPtpimgApiKey: appSettings.encryptedPtpimgApiKey,
       encryptedOeimgApiKey: appSettings.encryptedOeimgApiKey,
       encryptedImgbbApiKey: appSettings.encryptedImgbbApiKey,
     })
@@ -115,11 +114,7 @@ export async function POST(request: Request) {
 
   // Type-safe column lookup: compiler catches renamed columns
   const encryptedKey =
-    hostId === "ptpimg"
-      ? settings.encryptedPtpimgApiKey
-      : hostId === "onlyimage"
-        ? settings.encryptedOeimgApiKey
-        : settings.encryptedImgbbApiKey
+    hostId === "onlyimage" ? settings.encryptedOeimgApiKey : settings.encryptedImgbbApiKey
 
   if (!encryptedKey) {
     return NextResponse.json({ error: `No API key configured for ${hostId}` }, { status: 400 })

@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest"
 import { getImageHostAdapter } from "../index"
 
 describe("getImageHostAdapter", () => {
-  it("returns ptpimg adapter", () => {
-    expect(getImageHostAdapter("ptpimg").id).toBe("ptpimg")
-  })
-
   it("returns onlyimage adapter", () => {
     expect(getImageHostAdapter("onlyimage").id).toBe("onlyimage")
   })

@@ -66,7 +66,6 @@ export const appSettings = pgTable("app_settings", {
   backupStoragePath: varchar("backup_storage_path", { length: 500 }),
   draftQuicklinks: text("draft_quicklinks"),
   dashboardSettings: text("dashboard_settings"),
-  encryptedPtpimgApiKey: text("encrypted_ptpimg_api_key"),
   encryptedOeimgApiKey: text("encrypted_oeimg_api_key"),
   encryptedImgbbApiKey: text("encrypted_imgbb_api_key"),
   encryptedSchedulerKey: text("encrypted_scheduler_key"),

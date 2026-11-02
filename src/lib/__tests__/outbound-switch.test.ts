@@ -16,7 +16,6 @@ import { getTransferInfo, login as qbtLogin } from "@/lib/download-clients/qbt/t
 import { testSession as transmissionTestSession } from "@/lib/download-clients/transmission/transport"
 import { imgbbAdapter } from "@/lib/image-hosting/imgbb"
 import { onlyimageAdapter } from "@/lib/image-hosting/onlyimage"
-import { ptpimgAdapter } from "@/lib/image-hosting/ptpimg"
 import { log } from "@/lib/logger"
 import {
   fetchFollowingSafeRedirects,
@@ -275,7 +274,6 @@ describe("transports with DISABLE_OUTBOUND_REQUESTS=true", () => {
     ],
     ["imgbb", () => imgbbAdapter.upload(image, "a.png", "imgbb-key")],
     ["onlyimage", () => onlyimageAdapter.upload(image, "a.png", "onlyimage-key")],
-    ["ptpimg", () => ptpimgAdapter.upload(image, "a.png", "ptpimg-key")],
   ])("%s refuses before fetch", async (_name, call) => {
     await expect(call()).rejects.toThrow(OUTBOUND_DISABLED_ERROR)
     expect(fetchSpy).not.toHaveBeenCalled()

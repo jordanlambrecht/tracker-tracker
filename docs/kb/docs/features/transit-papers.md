@@ -40,7 +40,6 @@ Upload your Proof directly to an image host for a shareable URL. This is most re
 
 | Host          | Notes                                                                              |
 | ------------- | ---------------------------------------------------------------------------------- |
-| **PTPImg**    | Most widely accepted across private trackers. Serves PNGs untouched.               |
 | **OnlyImage** | onlyimage.org. Accepted by OnlyEncodes and other trackers.                         |
 | **ImgBB**     | Supports auto-delete timers if you want expiring links. May recompress large PNGs. |
 
@@ -52,7 +51,7 @@ No integration? Share the original PNG directly:
 
 - Attach it to a forum PM or recruitment thread
 - Send via IRC DCC
-- Upload to any lossless image host manually (ptpimg.me, imgbox.com, catbox.moe)
+- Upload to any lossless image host manually (imgbox.com, catbox.moe)
 
 !!! danger "Do not screenshot the report"
 
@@ -66,7 +65,6 @@ The data strip and fractal seal are verified at the pixel level. Lossy compressi
 
 ### Lossless (verification works perfectly)
 
-- ptpimg.me
 - OnlyImage (onlyimage.org)
 - imgbox.com
 - catbox.moe
@@ -99,7 +97,7 @@ The verifier uses fuzzy recovery: it tries nearby perceptual hash keys until it 
 
 **For users:** Use a built-in integration or share the original file directly.
 
-**For mods:** If verification shows bit flips, ask the user to reshare via ptpimg or OnlyImage.
+**For mods:** If verification shows bit flips, ask the user to reshare via OnlyImage.
 
 ---
 
@@ -187,7 +185,6 @@ Configure API keys in **Settings → General → Image Hosting**.
 
 | Host      | Where to find your key                                     | Notes                                                                             |
 | --------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| PTPImg    | Log into ptpimg.me, view page source, find `api_key` value | Most widely accepted. Lossless PNG hosting.                                       |
 | OnlyImage | onlyimage.org → user settings → API section                | Key starts with `chv_`                                                            |
 | ImgBB     | api.imgbb.com → create account → generate key              | 32-char hex. Supports auto-delete (1 min to 6 months). May recompress large PNGs. |
 

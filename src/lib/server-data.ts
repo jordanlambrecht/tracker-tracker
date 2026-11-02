@@ -85,7 +85,6 @@ export const settingsColumns = {
   proxyPort: appSettings.proxyPort,
   proxyUsername: appSettings.proxyUsername,
   hasProxyPassword: appSettings.encryptedProxyPassword,
-  hasPtpimgKey: appSettings.encryptedPtpimgApiKey,
   hasOeimgKey: appSettings.encryptedOeimgApiKey,
   hasImgbbKey: appSettings.encryptedImgbbApiKey,
   qbitmanageEnabled: appSettings.qbitmanageEnabled,
@@ -127,7 +126,6 @@ export function serializeSettingsResponse(row: SettingsRow) {
     hasProxyPassword: !!row.hasProxyPassword,
     // Whether Add Tracker offers the proxy. Decided here, without the password.
     proxyUsable: isProxyUsable(row),
-    hasPtpimgKey: !!row.hasPtpimgKey,
     hasOeimgKey: !!row.hasOeimgKey,
     hasImgbbKey: !!row.hasImgbbKey,
     qbitmanageEnabled: row.qbitmanageEnabled,

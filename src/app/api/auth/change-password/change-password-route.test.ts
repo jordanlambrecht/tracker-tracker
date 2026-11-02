@@ -134,7 +134,6 @@ function makeSettingsRow(overrides: Row = {}): Row {
     totpBackupCodes: encrypt(BACKUP_CODES, oldKey),
     encryptedProxyPassword: encrypt("proxy-pw", oldKey),
     encryptedBackupPassword: encrypt("backup-pw", oldKey),
-    encryptedPtpimgApiKey: encrypt("ptpimg-key", oldKey),
     encryptedOeimgApiKey: encrypt("oeimg-key", oldKey),
     encryptedImgbbApiKey: encrypt("imgbb-key", oldKey),
     lockoutEnabled: true,
@@ -280,7 +279,6 @@ describe("POST /api/auth/change-password — re-encryption round trip", () => {
     expect(decrypt(settings.totpBackupCodes as string, newKey)).toBe(BACKUP_CODES)
     expect(decrypt(settings.encryptedProxyPassword as string, newKey)).toBe("proxy-pw")
     expect(decrypt(settings.encryptedBackupPassword as string, newKey)).toBe("backup-pw")
-    expect(decrypt(settings.encryptedPtpimgApiKey as string, newKey)).toBe("ptpimg-key")
     expect(decrypt(settings.encryptedOeimgApiKey as string, newKey)).toBe("oeimg-key")
     expect(decrypt(settings.encryptedImgbbApiKey as string, newKey)).toBe("imgbb-key")
   })
@@ -485,7 +483,6 @@ describe("POST /api/auth/change-password — undecryptable fields", () => {
     settingsRow = makeSettingsRow({
       encryptedProxyPassword: encrypt("proxy-pw", strangerKey),
       encryptedBackupPassword: encrypt("backup-pw", strangerKey),
-      encryptedPtpimgApiKey: encrypt("ptpimg-key", strangerKey),
       encryptedOeimgApiKey: encrypt("oeimg-key", strangerKey),
       encryptedImgbbApiKey: encrypt("imgbb-key", strangerKey),
     })
@@ -498,7 +495,6 @@ describe("POST /api/auth/change-password — undecryptable fields", () => {
       expect.arrayContaining([
         "Proxy password could not be re-encrypted and was cleared. Re-enter it in settings.",
         "Backup password could not be re-encrypted and was cleared. Re-set it in backup settings.",
-        "PTPImg API key could not be re-encrypted and was cleared. Re-enter it in settings.",
         "OEImg API key could not be re-encrypted and was cleared. Re-enter it in settings.",
         "ImgBB API key could not be re-encrypted and was cleared. Re-enter it in settings.",
       ])
@@ -507,7 +503,6 @@ describe("POST /api/auth/change-password — undecryptable fields", () => {
     const settings = settingsWrite()
     expect(settings.encryptedProxyPassword).toBeNull()
     expect(settings.encryptedBackupPassword).toBeNull()
-    expect(settings.encryptedPtpimgApiKey).toBeNull()
     expect(settings.encryptedOeimgApiKey).toBeNull()
     expect(settings.encryptedImgbbApiKey).toBeNull()
   })

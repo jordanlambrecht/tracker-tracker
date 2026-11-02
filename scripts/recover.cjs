@@ -291,7 +291,6 @@ const MASTER_KEY_SETTINGS_COLUMNS = [
   "totp_backup_codes",
   "encrypted_proxy_password",
   "encrypted_backup_password",
-  "encrypted_ptpimg_api_key",
   "encrypted_oeimg_api_key",
   "encrypted_imgbb_api_key",
 ]

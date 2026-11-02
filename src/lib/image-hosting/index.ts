@@ -4,11 +4,9 @@
 
 import { imgbbAdapter } from "@/lib/image-hosting/imgbb"
 import { onlyimageAdapter } from "@/lib/image-hosting/onlyimage"
-import { ptpimgAdapter } from "@/lib/image-hosting/ptpimg"
 import type { ImageHostAdapter, ImageHostId } from "@/lib/image-hosting/types"
 
 const adapters: Record<ImageHostId, ImageHostAdapter> = {
-  ptpimg: ptpimgAdapter,
   onlyimage: onlyimageAdapter,
   imgbb: imgbbAdapter,
 }

@@ -9,12 +9,6 @@ import { DOCS } from "@/lib/constants"
 
 const IMAGE_HOSTS = [
   {
-    key: "ptpimg" as const,
-    label: "PTPImg",
-    field: "ptpimgApiKey",
-    description: "ptpimg.me, required by PTP and accepted by most trackers.",
-  },
-  {
     key: "oeimg" as const,
     label: "OnlyImage",
     field: "oeimgApiKey",
@@ -30,7 +24,6 @@ const IMAGE_HOSTS = [
 
 interface ImageHostingSectionProps {
   initialHasKeys: {
-    ptpimg: boolean
     oeimg: boolean
     imgbb: boolean
   }
@@ -39,7 +32,6 @@ interface ImageHostingSectionProps {
 export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps) {
   const [hasKeys, setHasKeys] = useState(initialHasKeys)
   const [values, setValues] = useState<Record<string, string>>({
-    ptpimgApiKey: "",
     oeimgApiKey: "",
     imgbbApiKey: "",
   })
@@ -47,7 +39,7 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
 
   const { saving, error, success, patch, clearSuccess } = usePatchSettings()
 
-  async function handleSave(field: string, hostKey: "ptpimg" | "oeimg" | "imgbb") {
+  async function handleSave(field: string, hostKey: "oeimg" | "imgbb") {
     clearSuccess()
     const result = await patch({ [field]: values[field] })
     if (result.ok) {
@@ -57,7 +49,7 @@ export function ImageHostingSection({ initialHasKeys }: ImageHostingSectionProps
     }
   }
 
-  async function handleClear(field: string, hostKey: "ptpimg" | "oeimg" | "imgbb") {
+  async function handleClear(field: string, hostKey: "oeimg" | "imgbb") {
     clearSuccess()
     const result = await patch({ [field]: null })
     if (result.ok) {

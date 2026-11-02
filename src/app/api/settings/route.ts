@@ -443,23 +443,6 @@ export async function PATCH(request: Request) {
   }
 
   // --- Image hosting API keys ---
-  if (body.ptpimgApiKey !== undefined) {
-    if (body.ptpimgApiKey === null || body.ptpimgApiKey === "") {
-      updates.encryptedPtpimgApiKey = null
-    } else if (typeof body.ptpimgApiKey === "string") {
-      const ptpimgApiKeyErr = validateMaxLength(
-        body.ptpimgApiKey,
-        LONG_STRING_MAX,
-        "PTPimg API key"
-      )
-      if (ptpimgApiKeyErr) return ptpimgApiKeyErr
-      const key = decodeKey(auth)
-      updates.encryptedPtpimgApiKey = encrypt(body.ptpimgApiKey, key)
-    } else {
-      return NextResponse.json({ error: "Invalid ptpimgApiKey" }, { status: 400 })
-    }
-  }
-
   if (body.oeimgApiKey !== undefined) {
     if (body.oeimgApiKey === null || body.oeimgApiKey === "") {
       updates.encryptedOeimgApiKey = null

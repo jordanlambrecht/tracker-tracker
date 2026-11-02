@@ -331,21 +331,6 @@ export async function POST(request: Request) {
     }
   }
 
-  if (settings.encryptedPtpimgApiKey) {
-    try {
-      settingsUpdates.encryptedPtpimgApiKey = reencrypt(
-        settings.encryptedPtpimgApiKey,
-        oldKey,
-        newKey
-      )
-    } catch {
-      settingsUpdates.encryptedPtpimgApiKey = null
-      warnings.push(
-        "PTPImg API key could not be re-encrypted and was cleared. Re-enter it in settings."
-      )
-    }
-  }
-
   if (settings.encryptedOeimgApiKey) {
     try {
       settingsUpdates.encryptedOeimgApiKey = reencrypt(

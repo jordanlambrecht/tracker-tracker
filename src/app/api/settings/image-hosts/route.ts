@@ -17,7 +17,6 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    ptpimg: !!settings.hasPtpimgKey,
     onlyimage: !!settings.hasOeimgKey,
     imgbb: !!settings.hasImgbbKey,
   })

@@ -105,7 +105,6 @@ function backupCiphertexts(payload: BackupPayload, authenticated: boolean): stri
       : []),
     settings.encryptedProxyPassword,
     settings.encryptedBackupPassword,
-    settings.encryptedPtpimgApiKey,
     settings.encryptedOeimgApiKey,
     settings.encryptedImgbbApiKey,
     settings.totpSecret,
@@ -1022,22 +1021,8 @@ export async function POST(request: Request) {
         }
       }
 
-      // Re-encrypt image hosting API keys if possible
-      let encryptedPtpimgApiKey: string | null = null
-      if (payload.settings.encryptedPtpimgApiKey) {
-        if (canPassThrough) {
-          encryptedPtpimgApiKey = payload.settings.encryptedPtpimgApiKey as string
-        } else if (canReencrypt) {
-          encryptedPtpimgApiKey =
-            reencryptField(
-              payload.settings.encryptedPtpimgApiKey as string,
-              backupKey,
-              currentKey,
-              "settings ptpimgApiKey"
-            ) || null
-        }
-      }
-
+      // Re-encrypt image hosting API keys if possible. A backup's PTPImg key
+      // (that host is gone) is not read.
       let encryptedOeimgApiKey: string | null = null
       if (payload.settings.encryptedOeimgApiKey) {
         if (canPassThrough) {
@@ -1145,7 +1130,6 @@ export async function POST(request: Request) {
           backupEncryptionEnabled: payload.settings.backupEncryptionEnabled as boolean,
           encryptedBackupPassword: backupPasswordEncrypted,
           backupStoragePath: (payload.settings.backupStoragePath as string | null) ?? null,
-          encryptedPtpimgApiKey,
           encryptedOeimgApiKey,
           encryptedImgbbApiKey,
           draftQuicklinks: (payload.settings.draftQuicklinks as string | null) ?? null,
