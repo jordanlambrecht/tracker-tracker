@@ -857,6 +857,31 @@ describe("computeAlerts", () => {
     expect(paused?.message).toContain("Polling paused after repeated failures")
   })
 
+  it.each([
+    [
+      "it retries on its own while unreachable",
+      "Request timed out",
+      "Tracker unreachable. Polling is paused and retries on its own",
+    ],
+    [
+      "the key needs checking once the tracker refused it",
+      "Authentication failed",
+      "Polling paused after repeated failures. Check the API key and resume",
+    ],
+  ])("says %s", (_, lastError, message) => {
+    mockRegistryEntryFor.mockReturnValue(makeRegistryEntry({}))
+    const tracker = makeTracker({
+      registrySlug: "aither",
+      pausedAt: "2026-11-01T02:30:00Z",
+      consecutiveFailures: 4,
+      lastError,
+    })
+
+    const paused = computeAlerts([tracker]).find((a) => a.type === "poll-paused")
+
+    expect(paused?.message).toBe(message)
+  })
+
   it("suppresses error alert when tracker is paused", () => {
     const trackers = [
       makeTracker({

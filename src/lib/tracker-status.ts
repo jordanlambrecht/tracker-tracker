@@ -1,6 +1,6 @@
 // src/lib/tracker-status.ts
 //
-// Functions: getPauseState, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthDot
+// Functions: getPauseState, isRetryablePollError, isRetryingPause, pauseRetryDueAt, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthDot
 //
 // Single source of truth for tracker health status. Includes type, derivation
 // logic, and all visual mappings (StatusDot tone and glow, Badge variant,
@@ -10,6 +10,8 @@
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { StatusDotProps, StatusDotTone } from "@/components/ui/StatusDot"
 import { registryEntryFor } from "@/data/tracker-registry"
+import { isUnreachableMessage } from "@/lib/error-utils"
+import { PAUSE_RETRY_MAX_MS, POLL_FAILURE_THRESHOLD } from "@/lib/limits"
 import type { TrackerSummary } from "@/types/api"
 
 // Ordered loosely by severity, ascending. "warning" and "no-seeds" are
@@ -110,6 +112,50 @@ function getPauseState(tracker: {
   if (userPaused) return { isPaused: true, reason: "user", since: userPaused }
   if (autoPaused) return { isPaused: true, reason: "failure", since: autoPaused }
   return { isPaused: false }
+}
+
+// The stored poll errors a paused tracker is retried on. isUnreachableMessage
+// covers a host that never answered. The rest are the sanitizer's wording for a
+// gateway or CDN in front of the tracker failing: "API returned 502", "503",
+// "504" and "520" to "524". A 500, a 429, a ban and anything else the tracker
+// answered with are not retried.
+const GATEWAY_FAILURE = /^API returned (50[234]|52[0-4])$/
+
+function isRetryablePollError(message: string): boolean {
+  return isUnreachableMessage(message) || GATEWAY_FAILURE.test(message)
+}
+
+// A failure pause the poll cycle retries on its own, because the tracker never
+// answered or its gateway failed. A user pause, an archived row, a row not in the
+// tracker list (which a restore pause always is) and a defunct tracker are never
+// retried. Neither is a failure the tracker answered: sending a rejected key
+// again can get the account banned.
+function isRetryingPause(tracker: {
+  pausedAt?: Date | string | null
+  userPausedAt?: Date | string | null
+  isActive: boolean
+  registrySlug: string | null
+  lastError: string | null
+}): boolean {
+  if (!tracker.pausedAt || tracker.userPausedAt || !tracker.isActive) return false
+  const entry = registryEntryFor(tracker)
+  if (!entry || entry.defunct) return false
+  return tracker.lastError !== null && isRetryablePollError(tracker.lastError)
+}
+
+// When a retrying pause is next polled. The first retry comes one poll interval
+// after the failure that paused it, and each failed retry doubles the wait, up
+// to PAUSE_RETRY_MAX_MS. A retry never comes sooner than a normal poll would.
+// Null when there is no failure time to count from.
+function pauseRetryDueAt(
+  tracker: { lastErrorAt?: Date | string | null; consecutiveFailures: number },
+  pollIntervalMinutes: number
+): Date | null {
+  if (!tracker.lastErrorAt) return null
+  const intervalMs = pollIntervalMinutes * 60_000
+  const retries = tracker.consecutiveFailures - POLL_FAILURE_THRESHOLD
+  const wait = Math.max(intervalMs, Math.min(intervalMs * 2 ** retries, PAUSE_RETRY_MAX_MS))
+  return new Date(new Date(tracker.lastErrorAt).getTime() + wait)
 }
 
 // The lastError a backup restore pauses a tracker with when the registry cannot
@@ -284,8 +330,11 @@ export {
   getHealthLabel,
   getPauseState,
   getTrackerHealth,
+  isRetryablePollError,
+  isRetryingPause,
   NEW_KEY_RESET,
   PAUSE_RESET,
+  pauseRetryDueAt,
   resolveRequiredRatio,
   TRACKER_ALREADY_LINKED_ERROR,
   TRACKER_DEFUNCT_ERROR,

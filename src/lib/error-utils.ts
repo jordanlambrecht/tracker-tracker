@@ -42,6 +42,9 @@ export const PROWLARR_KEY_UNREADABLE_ERROR =
   "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
 export const MOUSEHOLE_TOKEN_UNREADABLE_ERROR =
   "Stored Mousehole API token can't be read. Enter it again in this tracker's settings"
+// A tracker set to poll through the proxy while no proxy is set up. A setting to
+// change, so it is never retried.
+export const PROXY_REQUIRED_ERROR = "Proxy is required but not set up"
 
 /**
  * Maps raw network/auth error messages to safe user-facing messages.
@@ -181,17 +184,22 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/redirected off-site/i.test(raw)) return "Tracker redirected to another site"
   if (/Too many redirects from/i.test(raw)) return "Tracker redirected too many times"
   if (/answered with a \d{3} redirect/i.test(raw)) return "Tracker redirected the request"
+  // Anchored to the "API error: <status>" shape every caller throws. Log lines
+  // that reach this carry ids, counts and durations with the same digits. Ahead
+  // of the connection rules, since c411 and Nebulance append the tracker's own
+  // text, and a refused key must not read as a timeout that gets retried.
+  if (/API error: 40[13]\b/i.test(raw)) return "Authentication failed"
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
   if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
-  if (/ENOTFOUND/i.test(raw)) return "Host not found"
+  // EAI_AGAIN is a DNS lookup that failed for now, not a name that is gone.
+  if (/ENOTFOUND|EAI_AGAIN/i.test(raw)) return "Host not found"
   if (/EHOSTUNREACH/i.test(raw)) return "Host unreachable"
   if (/ECONNRESET/i.test(raw)) return "Connection reset"
   if (/ip.*ban|ban.*ip|rate.?limit/i.test(raw)) return "IP temporarily banned by tracker"
-  // Anchored to the "API error: <status>" shape every caller throws. Log lines
-  // that reach this carry ids, counts and durations with the same digits.
-  if (/API error: 40[13]\b/i.test(raw)) return "Authentication failed"
   if (/Session expired/i.test(raw)) return "Session expired"
   if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"
+  // pollTracker's refusal to send a useProxy tracker's request directly.
+  if (/^Proxy required but not available/.test(raw)) return PROXY_REQUIRED_ERROR
   if (/proxy/i.test(raw)) return "Proxy connection failed"
   const apiMatch = raw.match(/Tracker API error: (\d+)/i)
   if (apiMatch) return `API returned ${apiMatch[1]}`

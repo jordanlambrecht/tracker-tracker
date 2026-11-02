@@ -9,10 +9,11 @@ import { ConfirmRemove } from "@/components/ui/ConfirmRemove"
 import { Notice } from "@/components/ui/Notice"
 import { registryHostname } from "@/data/tracker-registry"
 import { useHeldTrackerSlugs } from "@/hooks/useHeldTrackerSlugs"
+import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
 import { DOCS } from "@/lib/constants"
 import { formatDateTime } from "@/lib/formatters"
-import { canLink, getPauseState } from "@/lib/tracker-status"
+import { canLink, getPauseState, isRetryingPause, pauseRetryDueAt } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerStatusBannerProps {
@@ -61,6 +62,7 @@ export function TrackerStatusBanner({
     !pollError && !isArchived && tracker.linked && pause.isPaused && pause.reason === "user"
   const showAutoPaused =
     !pollError && !isArchived && tracker.linked && pause.isPaused && pause.reason === "failure"
+  const retrying = isRetryingPause(tracker)
   // Gated on the pause banners rather than on `pause.isPaused` directly. For an
   // active tracker the two are identical, but an archived tracker that was
   // auto-paused before archiving carries both a pausedAt and a lastError, and
@@ -119,13 +121,14 @@ export function TrackerStatusBanner({
         <Card glow glowColor="var(--color-danger-dim)" elevation="elevated">
           <div className="flex items-start justify-between gap-3 mb-2">
             <p className="text-xs font-sans font-medium text-danger uppercase tracking-wider">
-              Polling Paused
+              {retrying ? "Tracker Unreachable" : "Polling Paused"}
             </p>
             <span className="timestamp shrink-0">{formatDateTime(pause.since)}</span>
           </div>
           <p className="text-sm font-mono text-warn mb-2">
-            Polling was paused after repeated failures. Verify your API key is correct before
-            resuming.{" "}
+            {retrying
+              ? "Polling is paused because the tracker couldn't be reached. It retries on its own and resumes when the tracker is back."
+              : "Polling was paused after repeated failures. Verify your API key is correct before resuming."}{" "}
             <a
               href={DOCS.TRACKER_OFFLINE.href}
               target="_blank"
@@ -135,6 +138,7 @@ export function TrackerStatusBanner({
               Troubleshooting guide →
             </a>
           </p>
+          {retrying && <NextRetry tracker={tracker} />}
           {tracker.lastError && (
             <p className="text-xs font-mono text-danger/80 mb-3">Last error: {tracker.lastError}</p>
           )}
@@ -155,6 +159,23 @@ export function TrackerStatusBanner({
         </Card>
       )}
     </>
+  )
+}
+
+// Its own component so the settings query runs only for a retrying pause. The
+// hook's fallback interval before settings load is not the server's, so no
+// time shows until they do, and none once the time has passed.
+function NextRetry({ tracker }: { tracker: TrackerSummary }) {
+  const { trackerPollIntervalMinutes } = usePollingIntervals()
+  const retryAt =
+    trackerPollIntervalMinutes === null
+      ? null
+      : pauseRetryDueAt(tracker, trackerPollIntervalMinutes)
+  if (!retryAt || retryAt.getTime() <= Date.now()) return null
+  return (
+    <p className="text-xs font-mono text-secondary mb-2">
+      Next try around {formatDateTime(retryAt)}
+    </p>
   )
 }
 

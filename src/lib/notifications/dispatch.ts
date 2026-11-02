@@ -133,7 +133,9 @@ export async function dispatchNotifications(
         try {
           // Cooldown check. In-memory lookup from batched query
           const snoozedUntil = cooldownMap.get(`${target.id}:${event}`)
-          if (snoozedUntil && now < snoozedUntil) continue
+          // A paused tracker's tracker_down is the retry that turned the pause hard, never snoozed.
+          const hardened = event === "tracker_down" && ctx.trackerPausedAt !== null
+          if (snoozedUntil && now < snoozedUntil && !hardened) continue
 
           const embed = buildDiscordEmbed({
             eventType: event,
@@ -345,7 +347,7 @@ export function buildEventData(
     case "hit_and_run":
       return { previousHnrs: ctx.previousHnrs, currentHnrs: ctx.currentHnrs }
     case "tracker_down":
-      return { error: ctx.trackerError ?? "Unknown error" }
+      return { error: ctx.trackerError ?? "Unknown error", paused: ctx.trackerPausedAt !== null }
     case "buffer_milestone":
       return { bufferBytes: Number(ctx.currentBufferBytes ?? 0n) }
     case "warned":

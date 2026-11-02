@@ -16,6 +16,14 @@ vi.mock("@/lib/db", () => ({
   },
 }))
 
+vi.mock("@/lib/notifications/decrypt", () => ({
+  decryptNotificationConfig: vi.fn(() => ({ webhookUrl: "https://discord.com/api/webhooks/1/x" })),
+}))
+
+vi.mock("@/lib/notifications/deliver", () => ({
+  deliverDiscordWebhook: vi.fn(async () => ({ success: true, status: "delivered" })),
+}))
+
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
 function makeTarget(overrides: Partial<NotificationTargetRow> = {}): NotificationTargetRow {
@@ -664,5 +672,95 @@ describe("buildDiscordEmbed tracker_down wording", () => {
       data: { error: "Authentication failed" },
     })
     expect(embed.description).toBe("A tracker poll failed: Authentication failed")
+  })
+
+  // A tracker paused before the failure only notifies when a retry turns the
+  // pause hard, so trackerPausedAt marks that notification.
+  it.each([
+    [
+      "a retry that turned the pause hard",
+      "2026-11-01T02:30:00.000Z",
+      "Authentication failed",
+      "LST poll failed: Authentication failed. Polling stays paused until you resume it.",
+    ],
+    [
+      "a hardening retry with no detail",
+      "2026-11-01T02:30:00.000Z",
+      "Poll failed",
+      "LST poll failed. Polling stays paused until you resume it.",
+    ],
+    [
+      "a failure before any pause",
+      null,
+      "Authentication failed",
+      "LST poll failed: Authentication failed",
+    ],
+  ])("words %s", async (_, trackerPausedAt, trackerError, description) => {
+    const { buildEventData } = await import("@/lib/notifications/dispatch")
+    const { buildDiscordEmbed } = await import("@/lib/notifications/payload")
+    const ctx = makeContext({ trackerError, trackerPausedAt })
+    const embed = buildDiscordEmbed({
+      eventType: "tracker_down",
+      trackerName: "LST",
+      includeTrackerName: true,
+      storeUsernames: false,
+      data: buildEventData("tracker_down", ctx),
+    })
+    expect(embed.description).toBe(description)
+  })
+})
+
+// ─── tracker_down cooldown ───────────────────────────────────────────────────
+//
+// The first failure's tracker_down snoozes the event for 6 hours. The notice that
+// a retry turned the pause hard must still reach the user inside that window.
+
+describe("dispatchNotifications tracker_down cooldown", () => {
+  async function dispatchInsideSnooze(trackerPausedAt: string | null) {
+    const { db } = await import("@/lib/db")
+    const { deliverDiscordWebhook } = await import("@/lib/notifications/deliver")
+    const { dispatchNotifications } = await import("@/lib/notifications/dispatch")
+    vi.mocked(deliverDiscordWebhook).mockClear()
+    // The first failure's notice, snoozed for three more hours.
+    const snoozed = [
+      {
+        targetId: 1,
+        eventType: "tracker_down",
+        snoozedUntil: new Date(Date.now() + 3 * 3_600_000),
+      },
+    ]
+    vi.mocked(db.select).mockReturnValue({
+      from: () => ({ where: async () => snoozed }),
+    } as never)
+    const upsert = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(db.insert).mockReturnValue({
+      values: () => ({ onConflictDoUpdate: upsert }),
+    } as never)
+    vi.mocked(db.update).mockReturnValue({
+      set: () => ({ where: vi.fn().mockResolvedValue(undefined) }),
+    } as never)
+
+    await dispatchNotifications(
+      makeContext({ trackerDown: true, trackerError: "Authentication failed", trackerPausedAt }),
+      Buffer.alloc(32),
+      [makeTarget({ notifyTrackerDown: true })]
+    )
+    return { deliveries: vi.mocked(deliverDiscordWebhook).mock.calls.length, upsert }
+  }
+
+  it("delivers the notice that a retry turned the pause hard, and snoozes it again", async () => {
+    const { deliveries, upsert } = await dispatchInsideSnooze("2026-11-01T02:30:00.000Z")
+
+    expect(deliveries).toBe(1)
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ set: expect.objectContaining({ snoozedUntil: expect.any(Date) }) })
+    )
+  })
+
+  it("still holds back an ordinary tracker_down", async () => {
+    const { deliveries, upsert } = await dispatchInsideSnooze(null)
+
+    expect(deliveries).toBe(0)
+    expect(upsert).not.toHaveBeenCalled()
   })
 })

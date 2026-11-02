@@ -87,11 +87,15 @@ function buildTitle(eventType: NotificationEventType, data: Record<string, unkno
   return EVENT_TITLES[eventType] ?? eventType
 }
 
+// A tracker already paused only notifies when a retry turns the pause hard, and
+// from then on it waits for the user.
 function trackerDownLine(source: string, data: Record<string, unknown>): string {
   const error = String(data.error ?? "Unknown error")
   if (isUnreachableMessage(error)) return `${source} is unreachable: ${error}`
-  if (GENERIC_POLL_ERRORS.has(error)) return `${source} poll failed`
-  return `${source} poll failed: ${error}`
+  const line = GENERIC_POLL_ERRORS.has(error)
+    ? `${source} poll failed`
+    : `${source} poll failed: ${error}`
+  return data.paused ? `${line}. Polling stays paused until you resume it.` : line
 }
 
 function buildDescription(

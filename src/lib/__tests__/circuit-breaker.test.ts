@@ -4,13 +4,15 @@
 //
 // Functions covered:
 //   pollTracker:                    success resets state; failures increment atomically via SQL expression; threshold triggers pause
-//   pollAllTrackers:                skips trackers with pausedAt set; polls overdue non-paused trackers
+//   pollAllTrackers:                skips trackers with pausedAt set; polls overdue non-paused trackers;
+//                                   retries a pause left by an unreachable tracker on a doubling wait
 //   POST /api/trackers/[id]/resume: clears pausedAt + lastError + lastErrorAt; resets consecutiveFailures to 0; idempotent 200 when not paused; 404 when not found; 400 for an unlinked row
 //   post-resume behavior:           clean slate after resume; full threshold required to re-pause
 
 import { SQL } from "drizzle-orm"
+import { PgDialect } from "drizzle-orm/pg-core"
 import { NextResponse } from "next/server"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -45,9 +47,13 @@ vi.mock("@/lib/tunnel", () => ({
   VALID_PROXY_TYPES: new Set(["socks5", "http", "https"]),
 }))
 
-vi.mock("@/lib/error-utils", () => ({
-  sanitizeNetworkError: vi.fn((msg: string) => msg),
-}))
+vi.mock("@/lib/error-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/error-utils")>()
+  return {
+    isUnreachableMessage: actual.isUnreachableMessage,
+    sanitizeNetworkError: vi.fn((msg: string) => msg),
+  }
+})
 
 vi.mock("@/lib/logger", () => ({
   log: {
@@ -100,9 +106,10 @@ import { POST as ResumePost } from "@/app/api/trackers/[id]/resume/route"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { POLL_FAILURE_THRESHOLD } from "@/lib/limits"
 import { getAdapter } from "@/lib/tracker-platforms"
-import { POLL_FAILURE_THRESHOLD, pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
-import { TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
+import { pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
+import { TRACKER_UNLINKED_ERROR, UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -438,6 +445,69 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     )
   })
 
+  describe("a tracker already paused that fails again", () => {
+    const pausedAt = new Date("2026-11-01T02:30:00Z")
+
+    beforeEach(() => {
+      ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockSelectOnce([makeTrackerRow({ consecutiveFailures: POLL_FAILURE_THRESHOLD, pausedAt })])
+      )
+      mockFailureAdapter()
+    })
+
+    it("keeps the time the pause began", async () => {
+      const updateChain = mockUpdateChain([
+        { consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt },
+      ])
+
+      await pollTracker(1, MOCK_KEY, false)
+
+      const arg = updateChain.set.mock.calls
+        .map((call: unknown[]) => call[0] as Record<string, unknown>)
+        .find((set) => set.lastError !== undefined)
+      // Rendered, since the database decides: a stored pause wins, and only a
+      // row without one is paused at the threshold.
+      const { sql: text } = new PgDialect().sqlToQuery(arg?.pausedAt as SQL)
+      expect(text).toMatch(/^COALESCE\("trackers"\."paused_at", CASE WHEN /)
+    })
+
+    it("logs a failed retry, not a new auto-pause", async () => {
+      mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt }])
+
+      await pollTracker(1, MOCK_KEY, false)
+
+      const { log } = await import("@/lib/logger")
+      expect(log.warn).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining("auto-paused")
+      )
+      expect(log.info).toHaveBeenCalledWith(
+        expect.objectContaining({ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1 }),
+        "Paused tracker 1 failed again"
+      )
+    })
+
+    // The scheduler never retries a hard pause, so only Poll Now reaches one.
+    it("sends nothing when Poll Now fails on a pause the tracker refused", async () => {
+      ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockSelectOnce([
+          makeTrackerRow({
+            consecutiveFailures: POLL_FAILURE_THRESHOLD,
+            pausedAt,
+            lastError: "Authentication failed",
+          }),
+        ])
+      )
+      mockFailureAdapter("Authentication failed")
+      mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt }])
+      const { dispatchNotifications } = await import("@/lib/notifications/dispatch")
+
+      await pollTracker(1, MOCK_KEY, false, undefined, undefined, undefined, true)
+
+      expect(dispatchNotifications).not.toHaveBeenCalled()
+    })
+  })
+
   it("records lastError message when poll fails", async () => {
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue(mockSelectOnce([makeTrackerRow()]))
     mockFailureAdapter("Bad API key")
@@ -595,6 +665,202 @@ describe("pollAllTrackers: skips paused trackers", () => {
 
     // Snapshot insert confirms the tracker was polled
     expect(insertChain.values).toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// pollAllTrackers, retries of a tracker paused while unreachable
+// ---------------------------------------------------------------------------
+
+describe("pollAllTrackers: retries a tracker paused while unreachable", () => {
+  const NOW = new Date("2026-11-01T12:00:00Z")
+  const HOUR = 60 * 60_000
+  const ago = (ms: number) => new Date(NOW.getTime() - ms)
+
+  // Paused an hour ago at the fourth timeout, on an hourly poll.
+  function pausedRow(overrides: Record<string, unknown> = {}) {
+    return makeTrackerRow({
+      pausedAt: ago(HOUR),
+      userPausedAt: null,
+      lastError: "Request timed out",
+      lastErrorAt: ago(HOUR),
+      consecutiveFailures: POLL_FAILURE_THRESHOLD,
+      lastPolledAt: ago(5 * HOUR),
+      ...overrides,
+    })
+  }
+
+  // One poll cycle: settings, the active rows, then pollTracker's own reads.
+  // A cycle that polls nothing returns after the second select.
+  function mockPollCycle(row: Record<string, unknown>) {
+    const settingsChain = {
+      from: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue([
+          {
+            storeUsernames: true,
+            snapshotRetentionDays: null,
+            trackerPollIntervalMinutes: 60,
+            proxyEnabled: false,
+            proxyType: "socks5",
+            proxyHost: null,
+            proxyPort: 1080,
+            proxyUsername: null,
+            encryptedProxyPassword: null,
+          },
+        ]),
+      }),
+    }
+    const trackersChain = {
+      from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([row]) }),
+    }
+    ;(db.select as ReturnType<typeof vi.fn>)
+      .mockReturnValueOnce(settingsChain)
+      .mockReturnValueOnce(trackersChain)
+      .mockReturnValue({ from: vi.fn().mockReturnValue(mockSelectOnce([row])) })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(NOW)
+    ;(decrypt as ReturnType<typeof vi.fn>).mockReturnValue("plain-token")
+    mockInsertChain()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("retries once one poll interval has passed, and a success un-pauses it", async () => {
+    mockPollCycle(pausedRow())
+    const adapter = mockSuccessAdapter()
+    const update = mockUpdateChain()
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(1)
+    expect(update.set).toHaveBeenCalledWith(
+      expect.objectContaining({ pausedAt: null, consecutiveFailures: 0, lastError: null })
+    )
+  })
+
+  it("retries a pause left by a gateway failure", async () => {
+    mockPollCycle(pausedRow({ lastError: "API returned 502" }))
+    const adapter = mockSuccessAdapter()
+    mockUpdateChain()
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(1)
+  })
+
+  // The cycle takes in a poll due within its 60-second batch tolerance, the
+  // same as an overdue one.
+  it.each([
+    ["retries with a minute of the wait left", HOUR - 60_000, 1],
+    ["waits with a minute and a millisecond left", HOUR - 60_001, 0],
+  ])("%s", async (_, sinceFailure, polls) => {
+    mockPollCycle(pausedRow({ lastErrorAt: ago(sinceFailure) }))
+    const adapter = mockSuccessAdapter()
+    mockUpdateChain()
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(polls)
+  })
+
+  // One retry has failed, so the wait is two hours.
+  it.each([
+    ["waits 90 minutes into the doubled wait", 90 * 60_000, 0],
+    ["retries once the doubled wait has passed", 2 * HOUR, 1],
+  ])("%s", async (_, sinceFailure, polls) => {
+    mockPollCycle(
+      pausedRow({ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, lastErrorAt: ago(sinceFailure) })
+    )
+    const adapter = mockSuccessAdapter()
+    mockUpdateChain()
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(polls)
+  })
+
+  it.each([
+    ["a user pause", { userPausedAt: ago(30 * 60_000) }],
+    ["a restore pause", { registrySlug: null, lastError: UNLINKED_RESTORE_ERROR }],
+    ["a pause the tracker answered", { lastError: "Authentication failed" }],
+  ])("never polls %s, however long ago it failed", async (_, overrides) => {
+    mockPollCycle(pausedRow({ lastErrorAt: ago(48 * HOUR), ...overrides }))
+    mockSuccessAdapter()
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(db.select).toHaveBeenCalledTimes(2)
+  })
+
+  it("sends nothing when a retry fails for the same reason", async () => {
+    mockPollCycle(pausedRow())
+    const adapter = mockFailureAdapter("Request timed out")
+    mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt: ago(HOUR) }])
+    const { dispatchNotifications } = await import("@/lib/notifications/dispatch")
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(1)
+    expect(dispatchNotifications).not.toHaveBeenCalled()
+  })
+
+  it("stops retrying once a retry is refused, and says so once", async () => {
+    mockPollCycle(pausedRow())
+    const adapter = mockFailureAdapter("Authentication failed")
+    const update = mockUpdateChain([
+      { consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt: ago(HOUR) },
+    ])
+    const { dispatchNotifications } = await import("@/lib/notifications/dispatch")
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(1)
+    // The one notification carries the pause, which adds the "stays paused" line.
+    expect(dispatchNotifications).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(dispatchNotifications).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        trackerDown: true,
+        trackerError: "Authentication failed",
+        trackerPausedAt: ago(HOUR).toISOString(),
+      })
+    )
+
+    // The next cycle reads the row the failure wrote, long after any wait.
+    const written = update.set.mock.calls
+      .map((call: unknown[]) => call[0] as Record<string, unknown>)
+      .find((set) => typeof set.lastError === "string")
+    vi.setSystemTime(new Date(NOW.getTime() + 48 * HOUR))
+    mockPollCycle(
+      pausedRow({
+        lastError: written?.lastError,
+        lastErrorAt: written?.lastErrorAt,
+        consecutiveFailures: POLL_FAILURE_THRESHOLD + 1,
+      })
+    )
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(1)
+  })
+
+  it("still notifies a failure before any pause", async () => {
+    mockPollCycle(makeTrackerRow({ lastPolledAt: ago(2 * HOUR), lastError: null, pausedAt: null }))
+    mockFailureAdapter("Request timed out")
+    mockUpdateChain([{ consecutiveFailures: 1, pausedAt: null }])
+    const { dispatchNotifications } = await import("@/lib/notifications/dispatch")
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(dispatchNotifications).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(dispatchNotifications).mock.calls[0][0]).toEqual(
+      expect.objectContaining({ trackerDown: true, trackerPausedAt: null })
+    )
   })
 })
 

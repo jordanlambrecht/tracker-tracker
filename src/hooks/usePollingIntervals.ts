@@ -11,6 +11,8 @@ interface PollingIntervals {
   trackerRefetchMs: number
   /** Client snapshot refetch interval in ms (from minimum pollIntervalSeconds across clients) */
   clientRefetchMs: number
+  /** The server's tracker poll interval, null until settings load */
+  trackerPollIntervalMinutes: number | null
 }
 
 const DEFAULT_TRACKER_MS = 60_000
@@ -50,5 +52,9 @@ export function usePollingIntervals(): PollingIntervals {
 
   const clientRefetchMs = clientsData ? clientsData * 1000 : DEFAULT_CLIENT_MS
 
-  return { trackerRefetchMs, clientRefetchMs }
+  return {
+    trackerRefetchMs,
+    clientRefetchMs,
+    trackerPollIntervalMinutes: settingsData?.trackerPollIntervalMinutes ?? null,
+  }
 }

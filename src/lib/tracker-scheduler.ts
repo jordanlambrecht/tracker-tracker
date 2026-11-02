@@ -1,7 +1,7 @@
 // src/lib/tracker-scheduler.ts
 //
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
-// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning, POLL_FAILURE_THRESHOLD
+// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning
 // Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
@@ -24,14 +24,20 @@ import {
 } from "@/lib/db/schema"
 import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
-import { POLL_CYCLE_DEADLINE_MS, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
+import { POLL_CYCLE_DEADLINE_MS, POLL_FAILURE_THRESHOLD, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
 import { pruneTrackerOutages, recordTrackerPollFailure } from "@/lib/tracker-outages"
 import { buildFetchOptions, getAdapter } from "@/lib/tracker-platforms"
-import { getPauseState, resolveRequiredRatio } from "@/lib/tracker-status"
+import {
+  getPauseState,
+  isRetryablePollError,
+  isRetryingPause,
+  pauseRetryDueAt,
+  resolveRequiredRatio,
+} from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 import type {
   AvistazPlatformMeta,
@@ -130,8 +136,6 @@ async function pauseUnlinked(tracker: {
     )
   }
 }
-
-export const POLL_FAILURE_THRESHOLD = 4
 
 /**
  * Tolerance window for the overdue check. Trackers that would become overdue
@@ -469,7 +473,8 @@ export async function pollTracker(
           lastError: message,
           lastErrorAt: now,
           consecutiveFailures: sql`${trackers.consecutiveFailures} + 1`,
-          pausedAt: sql`CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now.toISOString()}::timestamp ELSE ${trackers.pausedAt} END`,
+          // A pause keeps the time it began through every failed retry.
+          pausedAt: sql`COALESCE(${trackers.pausedAt}, CASE WHEN ${trackers.consecutiveFailures} + 1 >= ${POLL_FAILURE_THRESHOLD} THEN ${now.toISOString()}::timestamp END)`,
           updatedAt: now,
         })
         .where(eq(trackers.id, trackerId))
@@ -478,7 +483,7 @@ export async function pollTracker(
           pausedAt: trackers.pausedAt,
         })
 
-      if (updated?.pausedAt) {
+      if (updated?.pausedAt && !tracker.pausedAt) {
         log.warn(
           {
             trackerId,
@@ -488,6 +493,16 @@ export async function pollTracker(
             lastError: message,
           },
           `Tracker ${trackerId} auto-paused after ${updated.consecutiveFailures} consecutive failures`
+        )
+      } else if (updated?.pausedAt) {
+        log.info(
+          {
+            trackerId,
+            consecutiveFailures: updated.consecutiveFailures,
+            source: isManual ? "manual" : "scheduled",
+            lastError: message,
+          },
+          `Paused tracker ${trackerId} failed again`
         )
       } else if (updated) {
         log.info(
@@ -510,6 +525,11 @@ export async function pollTracker(
     // closed, so there is deliberately no matching call on the success path.
     // recordTrackerPollFailure never throws, so this needs no guard of its own.
     await recordTrackerPollFailure(trackerId, isManual ? "manual" : "poll")
+
+    // A paused tracker's failures send nothing, except the retry that turns the
+    // pause hard: the tracker answered, so waiting will not fix it.
+    const notify = !tracker.pausedAt || (isRetryingPause(tracker) && !isRetryablePollError(message))
+    if (!notify) return
 
     try {
       await dispatchNotifications(
@@ -602,8 +622,8 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
     .from(appSettings)
     .limit(1)
 
-  const globalIntervalMs =
-    (settings?.trackerPollIntervalMinutes ?? POLL_INTERVAL_DEFAULT) * 60 * 1000
+  const intervalMinutes = settings?.trackerPollIntervalMinutes ?? POLL_INTERVAL_DEFAULT
+  const globalIntervalMs = intervalMinutes * 60 * 1000
 
   const allTrackers = await db
     .select(POLL_TRACKER_COLUMNS)
@@ -615,6 +635,18 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const overdue = allTrackers.filter((tracker) => {
     const pause = getPauseState(tracker)
     if (pause.isPaused) {
+      const retryAt = isRetryingPause(tracker) ? pauseRetryDueAt(tracker, intervalMinutes) : null
+      if (retryAt && now >= retryAt.getTime() - BATCH_TOLERANCE_MS) {
+        log.info(
+          {
+            tracker: tracker.name,
+            consecutiveFailures: tracker.consecutiveFailures,
+            lastError: tracker.lastError,
+          },
+          "retrying a tracker paused while unreachable"
+        )
+        return true
+      }
       log.debug(
         {
           tracker: tracker.name,

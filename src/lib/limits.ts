@@ -60,6 +60,10 @@ export const POLL_INTERVAL_MIN = 15
 export const POLL_INTERVAL_MAX = 1440
 export const POLL_INTERVAL_DEFAULT = 60
 export const POLL_MANUAL_COOLDOWN_MS = 10_000
+/** Failed polls in a row that pause a tracker. */
+export const POLL_FAILURE_THRESHOLD = 4
+/** The longest a tracker paused while unreachable waits between retries. */
+export const PAUSE_RETRY_MAX_MS = 6 * 60 * 60 * 1000
 export const CLIENT_POLL_INTERVAL_MIN = 60
 export const CLIENT_POLL_INTERVAL_MAX = 86400
 export const CLIENT_POLL_INTERVAL_DEFAULT = 300

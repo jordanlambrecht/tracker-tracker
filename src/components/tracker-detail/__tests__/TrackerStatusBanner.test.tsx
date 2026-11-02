@@ -23,6 +23,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
+import { formatDateTime } from "@/lib/formatters"
 import { trackerQueryOptions } from "@/lib/query-options"
 import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
@@ -108,6 +109,92 @@ describe("TrackerStatusBanner on an active tracker", () => {
 
     expect(screen.getByText("Last Error")).toBeInTheDocument()
     expect(screen.getByText("401 Unauthorized")).toBeInTheDocument()
+  })
+})
+
+describe("TrackerStatusBanner on a tracker paused while unreachable", () => {
+  const fetchMock = vi.fn()
+  const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+  // Paused at its fourth timeout, ten minutes ago.
+  const retrying = (overrides: Partial<TrackerSummary> = {}) =>
+    makeTracker({
+      registrySlug: "orpheus",
+      pausedAt: minutesAgo(10),
+      lastError: "Request timed out",
+      lastErrorAt: minutesAgo(10),
+      consecutiveFailures: 4,
+      ...overrides,
+    })
+
+  // Settings answer with an hourly poll. Everything else never answers.
+  function answerSettings() {
+    fetchMock.mockImplementation((url: string) =>
+      url === "/api/settings"
+        ? Promise.resolve({ ok: true, json: async () => ({ trackerPollIntervalMinutes: 60 }) })
+        : new Promise(() => {})
+    )
+  }
+
+  async function settingsLoaded(queryClient: QueryClient) {
+    await waitFor(() =>
+      expect(queryClient.getQueryState(["polling-intervals"])?.status).toBe("success")
+    )
+  }
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    fetchMock.mockImplementation(() => new Promise(() => {}))
+    vi.stubGlobal("fetch", fetchMock)
+  })
+
+  it("says it retries on its own instead of asking for the key", () => {
+    renderBanner(retrying())
+
+    expect(screen.getByText("Tracker Unreachable")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /^Polling is paused because the tracker couldn't be reached\. It retries on its own and resumes when the tracker is back\./
+      )
+    ).toBeInTheDocument()
+    expect(screen.getByText("Last error: Request timed out")).toBeInTheDocument()
+    expect(resumeButton()).toBeInTheDocument()
+    expect(pausedHeading()).not.toBeInTheDocument()
+    expect(screen.queryByText(/Verify your API key/)).not.toBeInTheDocument()
+  })
+
+  it("shows the next try once the poll interval has loaded", async () => {
+    answerSettings()
+    const tracker = retrying()
+    renderBanner(tracker)
+
+    const due = new Date(Date.parse(tracker.lastErrorAt as string) + 60 * 60_000)
+    expect(await screen.findByText(`Next try around ${formatDateTime(due)}`)).toBeInTheDocument()
+  })
+
+  it("shows no time before the poll interval loads", () => {
+    // Thirty seconds ago, so the hook's one-minute fallback would still give a time ahead.
+    renderBanner(retrying({ lastErrorAt: minutesAgo(0.5) }))
+
+    expect(screen.queryByText(/Next try/)).not.toBeInTheDocument()
+  })
+
+  it("shows no time once it has passed", async () => {
+    answerSettings()
+    const { queryClient } = renderBanner(retrying({ lastErrorAt: minutesAgo(90) }))
+
+    await settingsLoaded(queryClient)
+
+    expect(screen.queryByText(/Next try/)).not.toBeInTheDocument()
+  })
+
+  it("keeps asking for the key when the tracker refused it", () => {
+    renderBanner(retrying({ lastError: "Authentication failed" }))
+
+    expect(pausedHeading()).toBeInTheDocument()
+    expect(screen.getByText(/Verify your API key is correct before resuming/)).toBeInTheDocument()
+    expect(screen.queryByText("Tracker Unreachable")).not.toBeInTheDocument()
+    // No next-try line is mounted, so nothing asks for the poll interval.
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

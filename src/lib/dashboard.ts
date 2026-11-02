@@ -11,7 +11,7 @@ import {
   checkTrackerError,
   checkZeroSeeding,
 } from "@/lib/tracker-events"
-import { canLink, resolveRequiredRatio } from "@/lib/tracker-status"
+import { canLink, isRetryingPause, resolveRequiredRatio } from "@/lib/tracker-status"
 import { compareVersions } from "@/lib/version"
 import type { Snapshot, TrackerSummary } from "@/types/api"
 
@@ -190,7 +190,9 @@ export function computeAlerts(trackers: TrackerSummary[]): DashboardAlert[] {
         trackerId: tracker.id,
         trackerName: tracker.name,
         trackerColor: tracker.color,
-        message: "Polling paused after repeated failures. Check the API key and resume",
+        message: isRetryingPause(tracker)
+          ? "Tracker unreachable. Polling is paused and retries on its own"
+          : "Polling paused after repeated failures. Check the API key and resume",
         timestamp: tracker.pausedAt ?? undefined,
         dismissible: false,
       })

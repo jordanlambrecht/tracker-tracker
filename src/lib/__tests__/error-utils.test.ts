@@ -7,6 +7,7 @@ import {
   isDecryptionError,
   isUnreachableMessage,
   isUnreadableClientCredential,
+  PROXY_REQUIRED_ERROR,
   sanitizeNetworkError,
 } from "@/lib/error-utils"
 
@@ -127,6 +128,12 @@ describe("sanitizeNetworkError", () => {
 
   it("maps 'ENOTFOUND' to 'Host not found'", () => {
     expect(sanitizeNetworkError("getaddrinfo ENOTFOUND example.invalid")).toBe("Host not found")
+  })
+
+  it("maps a DNS lookup that failed for now, EAI_AGAIN, to 'Host not found'", () => {
+    expect(sanitizeNetworkError("Failed to connect to aither.cc: EAI_AGAIN", "Poll failed")).toBe(
+      "Host not found"
+    )
   })
 
   it("maps 'EHOSTUNREACH' to 'Host unreachable'", () => {
@@ -262,12 +269,28 @@ describe("sanitizeNetworkError", () => {
     )
   })
 
+  // c411 appends the tracker's message after the status, as here.
+  it("reads a 401 whose message says timed out as a refused key", () => {
+    expect(sanitizeNetworkError("Tracker API error: 401 Unauthorized: token timed out")).toBe(
+      "Authentication failed"
+    )
+  })
+
   it("maps 'Session expired' to 'Session expired'", () => {
     expect(sanitizeNetworkError("Session expired")).toBe("Session expired")
   })
 
   it("maps 'proxy' to 'Proxy connection failed'", () => {
     expect(sanitizeNetworkError("Could not connect via proxy")).toBe("Proxy connection failed")
+  })
+
+  it("names the missing proxy setting rather than a proxy that is down", () => {
+    const message = sanitizeNetworkError(
+      "Proxy required but not available, refusing to leak IP via direct connection",
+      "Poll failed"
+    )
+    expect(message).toBe(PROXY_REQUIRED_ERROR)
+    expect(isUnreachableMessage(message)).toBe(false)
   })
 
   it("extracts status code from 'Tracker API error: 404'", () => {
@@ -571,6 +594,7 @@ describe("isUnreachableMessage", () => {
     "Request timed out after 15s",
     "ECONNREFUSED 127.0.0.1:443",
     "getaddrinfo ENOTFOUND lst.gg",
+    "getaddrinfo EAI_AGAIN lst.gg",
     "EHOSTUNREACH",
     "ECONNRESET",
     "Could not connect via proxy",
