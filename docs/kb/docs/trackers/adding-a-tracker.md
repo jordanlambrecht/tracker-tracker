@@ -24,7 +24,6 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Concertos          | CON          |
     | DarkPeers          | DP           |
     | DreadVault         | DV           |
-    | FearNoPeer         | FNP          |
     | InfinityHD         | IHD          |
     | LST                | LST          |
     | Luminarr           | LUME         |
