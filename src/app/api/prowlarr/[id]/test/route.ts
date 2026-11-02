@@ -4,7 +4,13 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseRouteId,
+  type RouteContext,
+  refuseIfOutboundDisabled,
+} from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { prowlarrInstances } from "@/lib/db/schema"
 import { PROWLARR_KEY_UNREADABLE_ERROR, PROWLARR_NO_API_KEY_ERROR } from "@/lib/error-utils"
@@ -18,6 +24,8 @@ import {
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const instanceId = await parseRouteId(props.params, "Prowlarr instance ID")
   if (instanceId instanceof NextResponse) return instanceId

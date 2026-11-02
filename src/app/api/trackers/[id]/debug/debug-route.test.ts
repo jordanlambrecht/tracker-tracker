@@ -17,6 +17,7 @@ vi.mock("@/lib/api-helpers", () => ({
   authenticate: vi.fn(),
   decodeKey: vi.fn(() => Buffer.alloc(32)),
   parseTrackerId: vi.fn(),
+  refuseIfOutboundDisabled: vi.fn(() => null),
 }))
 vi.mock("@/lib/db", () => ({ db: { select: vi.fn() } }))
 vi.mock("@/lib/crypto", () => ({ decrypt: vi.fn(() => "token") }))

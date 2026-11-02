@@ -80,6 +80,7 @@ import {
 import { parseTorrentTags } from "@/lib/fleet"
 import { formatCount, localDateStr } from "@/lib/formatters"
 import { log } from "@/lib/logger"
+import { isOutboundDisabled } from "@/lib/network"
 import { announceHostKeySet, createTrackedTorrentPredicate } from "@/lib/tracker-matching"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
@@ -664,6 +665,7 @@ export function isClientSchedulerRunning(): boolean {
 }
 
 export function startClientScheduler(encryptionKey: Buffer): void {
+  if (isOutboundDisabled()) return
   // Checks both tasks: the heartbeat is registered first, so a throw before the
   // deep-poll task exists leaves a live heartbeat over a dead deep poll.
   if (isClientSchedulerRunning()) return

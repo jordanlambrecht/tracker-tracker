@@ -21,6 +21,9 @@ export async function register() {
     )
   }
 
+  const { logOutboundMode } = await import("@/lib/network")
+  logOutboundMode()
+
   // Before the key check below, which returns early. A row with no slug has to
   // be linked whether or not polling starts on this boot. The call swallows its
   // own failures and never throws.

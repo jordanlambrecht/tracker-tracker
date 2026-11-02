@@ -8,7 +8,7 @@ import {
   PROXY_AUTH_REQUIRED_CAUSE,
 } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
-import { isRedirect } from "@/lib/network"
+import { assertOutboundAllowed, isRedirect } from "@/lib/network"
 import { proxyFetch } from "@/lib/tunnel"
 import { withDefaultUserAgent } from "@/lib/user-agent"
 import type { FetchOptions } from "../contract"
@@ -73,6 +73,7 @@ async function adapterRequest(
   headers?: Record<string, string>,
   init?: { method?: "GET" | "POST"; body?: string }
 ): Promise<AdapterResponse> {
+  assertOutboundAllowed()
   const mergedHeaders = withDefaultUserAgent({ Accept: "application/json", ...headers })
   const method = init?.method ?? "GET"
   const body = method === "POST" ? (init?.body ?? "") : undefined

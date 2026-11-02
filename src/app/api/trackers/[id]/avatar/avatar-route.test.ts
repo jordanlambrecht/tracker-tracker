@@ -13,7 +13,7 @@
 // that never followed would make the security assertions vacuous.
 
 import type { Mock } from "vitest"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { GET } from "./route"
@@ -254,6 +254,52 @@ describe("GET /api/trackers/[id]/avatar redirect handling", () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({ error: "Invalid avatar URL" })
+    expect(requested).toEqual([])
+  })
+})
+
+describe("GET /api/trackers/[id]/avatar with outbound requests off", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+    requested = []
+    routes = new Map()
+    ;(authenticate as Mock).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    ;(parseTrackerId as Mock).mockResolvedValue(1)
+    mockUpdate()
+    installFetchMock()
+    vi.stubEnv("DISABLE_OUTBOUND_REQUESTS", "true")
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it("refuses with 503 and requests nothing when no avatar is cached", async () => {
+    routes.set(TRACKER_AVATAR, { status: 200, body: PNG, contentType: "image/png" })
+    mockTrackerRow()
+
+    const response = await GET(new Request("http://localhost"), makeContext())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      error: "Outbound requests are turned off on this instance (DISABLE_OUTBOUND_REQUESTS)",
+    })
+    expect(requested).toEqual([])
+  })
+
+  it("serves a stale cached avatar instead of refreshing it", async () => {
+    routes.set(TRACKER_AVATAR, { status: 200, body: PNG, contentType: "image/png" })
+    mockTrackerRow({
+      avatarData: PNG.toString("base64"),
+      avatarMimeType: "image/png",
+      avatarCachedAt: new Date(0),
+    })
+
+    const response = await GET(new Request("http://localhost"), makeContext())
+
+    expect(response.status).toBe(200)
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(PNG)
     expect(requested).toEqual([])
   })
 })

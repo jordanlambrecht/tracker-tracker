@@ -2,7 +2,13 @@
 import { and, eq, isNull, lte, or } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { trackerSiteFor } from "@/data/tracker-registry"
-import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseTrackerId,
+  type RouteContext,
+  refuseIfOutboundDisabled,
+} from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { POLL_MANUAL_COOLDOWN_MS } from "@/lib/limits"
@@ -14,6 +20,8 @@ import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId

@@ -5,7 +5,7 @@
 //            validateHexColor, validatePort, validatePastDate, validateJoinedAt,
 //            validateLastAccessAt, validateIntRange, validateMaxLength,
 //            validateAuthMethod, validateAuthMethodForType, validateUrlPath,
-//            validateClientHost, decodeKey
+//            validateClientHost, decodeKey, refuseIfOutboundDisabled
 
 import { NextResponse } from "next/server"
 import { clearSession, readSession, STALE_SESSION_MESSAGE } from "@/lib/auth"
@@ -14,7 +14,7 @@ import { clearSession, readSession, STALE_SESSION_MESSAGE } from "@/lib/auth"
 import { clientSupportsApiKey, VALID_AUTH_METHODS } from "@/lib/download-clients/types"
 import { localDateStr } from "@/lib/formatters"
 import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
-import { isUnsafeNetworkHost } from "@/lib/network"
+import { isOutboundDisabled, isUnsafeNetworkHost, OUTBOUND_DISABLED_ERROR } from "@/lib/network"
 import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
 
 /** Shared route handler context for dynamic [id] segments */
@@ -288,4 +288,14 @@ export function validateClientHost(host: string): NextResponse | null {
 
 export function decodeKey(auth: { encryptionKey: string }): Buffer {
   return Buffer.from(auth.encryptionKey, "hex")
+}
+
+/**
+ * The 503 for a user action that would contact a tracker, client or service
+ * while DISABLE_OUTBOUND_REQUESTS is set. Call it after authenticate(), so an
+ * unauthenticated caller still gets the 401.
+ */
+export function refuseIfOutboundDisabled(): NextResponse | null {
+  if (!isOutboundDisabled()) return null
+  return NextResponse.json({ error: OUTBOUND_DISABLED_ERROR }, { status: 503 })
 }

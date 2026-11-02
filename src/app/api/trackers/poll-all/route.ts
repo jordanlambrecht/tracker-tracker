@@ -11,7 +11,7 @@
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { trackerSiteFor } from "@/data/tracker-registry"
-import { authenticate, decodeKey } from "@/lib/api-helpers"
+import { authenticate, decodeKey, refuseIfOutboundDisabled } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -23,6 +23,8 @@ const NDJSON_HEADERS = { "Content-Type": "application/x-ndjson", "Cache-Control"
 export async function POST() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const key = decodeKey(auth)
 

@@ -2,6 +2,7 @@
 
 import { render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { OutboundProvider } from "@/components/layout/OutboundProvider"
 import { TrackerHubStatus } from "@/components/TrackerHubStatus"
 
 const ENTRY = {
@@ -51,5 +52,30 @@ describe("TrackerHubStatus", () => {
 
     const grid = (await screen.findByText("Uptime")).parentElement as HTMLElement
     expect(within(grid).getAllByText("—")).toHaveLength(4)
+  })
+
+  it("asks TrackerHub when outbound requests are allowed", async () => {
+    mockSummary(ENTRY)
+    render(
+      <OutboundProvider disabled={false}>
+        <TrackerHubStatus trackerHubSlug="example" />
+      </OutboundProvider>
+    )
+
+    expect(await screen.findByText("Up")).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it("never asks TrackerHub when outbound requests are off", async () => {
+    mockSummary(ENTRY)
+    const { container } = render(
+      <OutboundProvider disabled>
+        <TrackerHubStatus trackerHubSlug="example" />
+      </OutboundProvider>
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect(container).toBeEmptyDOMElement()
   })
 })

@@ -26,6 +26,7 @@ import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-uti
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
 import { POLL_CYCLE_DEADLINE_MS, POLL_FAILURE_THRESHOLD, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isOutboundDisabled } from "@/lib/network"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
 import { maskUsername } from "@/lib/privacy"
 import { recordDatabaseSize } from "@/lib/server-data"
@@ -774,6 +775,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
 }
 
 export function startTrackerPolling(encryptionKey: Buffer): void {
+  if (isOutboundDisabled()) return
   if (getSchedulerTask()) return
 
   setSchedulerKey(encryptionKey)

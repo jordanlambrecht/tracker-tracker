@@ -1,6 +1,7 @@
 // src/lib/image-hosting/imgbb.ts
 
 import { IMAGE_EXPIRATION_MAX, IMAGE_EXPIRATION_MIN } from "@/lib/limits"
+import { assertOutboundAllowed } from "@/lib/network"
 import { safeImageUrl, validateImageUrl } from "@/lib/validators"
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
@@ -43,6 +44,7 @@ export const imgbbAdapter: ImageHostAdapter = {
       form.set("expiration", String(clamped))
     }
 
+    assertOutboundAllowed()
     const response = await fetch(UPLOAD_URL, {
       method: "POST",
       body: form,

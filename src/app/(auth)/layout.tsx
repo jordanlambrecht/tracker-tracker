@@ -5,9 +5,11 @@ import type { ReactNode } from "react"
 import { UsernamePrompt } from "@/components/auth/UsernamePromptDialog"
 import { OutageBandsProvider } from "@/components/charts/lib/OutageBandsProvider"
 import { AuthShell } from "@/components/layout/AuthShell"
+import { OutboundProvider } from "@/components/layout/OutboundProvider"
 import { getSession } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { isOutboundDisabled } from "@/lib/network"
 import { ensureSchedulerRunning } from "@/lib/scheduler"
 import { QueryProvider } from "./QueryProvider"
 
@@ -45,7 +47,9 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
           no bands when it is absent, so nothing here is load-bearing for a
           chart rendered outside this tree. */}
       <OutageBandsProvider>
-        <AuthShell>{children}</AuthShell>
+        <OutboundProvider disabled={isOutboundDisabled()}>
+          <AuthShell>{children}</AuthShell>
+        </OutboundProvider>
       </OutageBandsProvider>
     </QueryProvider>
   )

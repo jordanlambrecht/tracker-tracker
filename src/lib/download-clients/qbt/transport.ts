@@ -16,6 +16,7 @@
 
 import { ADAPTER_FETCH_TIMEOUT_MS, QBT_RESPONSE_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { assertOutboundAllowed } from "@/lib/network"
 import { clearAllStores, resetStore } from "../sync-store"
 import type { SlimTorrent } from "../transforms"
 import {
@@ -224,6 +225,7 @@ export async function login(
 
   const rejection = rejectionFor(username, password, urlPath)
 
+  assertOutboundAllowed()
   let response: Response
   try {
     response = await fetch(url, {
@@ -335,6 +337,7 @@ async function qbtFetch(
     if (blocked) throw new Error(blocked)
   }
 
+  assertOutboundAllowed()
   let response: Response
   try {
     response = await fetch(url, {

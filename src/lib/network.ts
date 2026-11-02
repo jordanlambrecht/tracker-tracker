@@ -1,9 +1,61 @@
 // src/lib/network.ts
 //
-// Functions: toIpv4Integer, isPrivateIpv4Literal, normalizeShorthandIpv4, isUnsafeIpv6Literal,
+// Functions: isOutboundDisabled, logOutboundMode, assertOutboundAllowed, toIpv4Integer,
+//            isPrivateIpv4Literal, normalizeShorthandIpv4, isUnsafeIpv6Literal,
 //            isUnsafeNetworkHost, isSafeHttpUrl, isRedirect, fetchFollowingSafeRedirects
 
 import { isIP } from "node:net"
+import { log } from "@/lib/logger"
+
+export const OUTBOUND_DISABLED_ENV = "DISABLE_OUTBOUND_REQUESTS"
+export const OUTBOUND_DISABLED_ERROR = `Outbound requests are turned off on this instance (${OUTBOUND_DISABLED_ENV})`
+
+// Compared after trim and lowercase. Only these leave outbound requests on.
+const OUTBOUND_ALLOWED_VALUES = new Set(["", "false", "0", "no"])
+const OUTBOUND_DISABLED_VALUES = new Set(["true", "1", "yes"])
+
+function outboundSwitchValue(): string {
+  return (process.env[OUTBOUND_DISABLED_ENV] ?? "").trim().toLowerCase()
+}
+
+/**
+ * Rehearsal switch: DISABLE_OUTBOUND_REQUESTS=true keeps a restored copy of a
+ * production backup from polling trackers, logging in to clients, reading
+ * Prowlarr or sending notifications with the real credentials.
+ *
+ * Fails closed. It is an interlock, so any set value that is not an explicit
+ * off value, a typo included, turns outbound requests off.
+ *
+ * Read on every call, never captured at load. A restore and a login both start
+ * the schedulers again, and the switch has to hold through each of them.
+ */
+export function isOutboundDisabled(): boolean {
+  return !OUTBOUND_ALLOWED_VALUES.has(outboundSwitchValue())
+}
+
+/** Logs the mode in effect. Called once, at boot, from instrumentation. */
+export function logOutboundMode(): void {
+  const value = outboundSwitchValue()
+  if (OUTBOUND_ALLOWED_VALUES.has(value)) {
+    log.info(`Outbound requests are on (${OUTBOUND_DISABLED_ENV} is ${value || "unset"})`)
+    return
+  }
+  if (!OUTBOUND_DISABLED_VALUES.has(value)) {
+    log.error(
+      `${OUTBOUND_DISABLED_ENV}=${JSON.stringify(process.env[OUTBOUND_DISABLED_ENV])} is not ` +
+        "a recognised value, so outbound requests are treated as off. Use true or false."
+    )
+  }
+  log.warn(
+    `${OUTBOUND_DISABLED_ENV} is set: no tracker, download client, Prowlarr or notification ` +
+      "request will be sent, and the pollers will not start. Unset it to resume polling."
+  )
+}
+
+/** Every transport calls this before it opens a request. */
+export function assertOutboundAllowed(): void {
+  if (isOutboundDisabled()) throw new Error(OUTBOUND_DISABLED_ERROR)
+}
 
 function toIpv4Integer(host: string): number | null {
   const parts = host.split(".")
@@ -188,6 +240,7 @@ export async function fetchFollowingSafeRedirects(
   deadline: AbortSignal,
   maxRedirects = 3
 ): Promise<Response> {
+  assertOutboundAllowed()
   if (!isSafeHttpUrl(url)) throw new Error("Refusing to fetch an unsafe URL")
 
   let currentUrl = url

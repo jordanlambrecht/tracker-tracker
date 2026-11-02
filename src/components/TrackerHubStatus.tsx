@@ -8,6 +8,7 @@
 import clsx from "clsx"
 import Image from "next/image"
 import { useEffect, useState } from "react"
+import { useOutboundDisabled } from "@/components/layout/OutboundProvider"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { StatusDot } from "@/components/ui/StatusDot"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
@@ -91,7 +92,10 @@ function TrackerHubStatus({
     defaultExpanded
   )
 
+  const outboundDisabled = useOutboundDisabled()
+
   useEffect(() => {
+    if (outboundDisabled) return
     let cancelled = false
     async function fetchStatus() {
       try {
@@ -113,7 +117,7 @@ function TrackerHubStatus({
     return () => {
       cancelled = true
     }
-  }, [trackerHubSlug])
+  }, [trackerHubSlug, outboundDisabled])
 
   if (!data) return null
 

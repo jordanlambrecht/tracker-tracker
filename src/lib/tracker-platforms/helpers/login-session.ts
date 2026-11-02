@@ -9,6 +9,7 @@ import {
   PROXY_AUTH_REQUIRED_CAUSE,
 } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
+import { assertOutboundAllowed } from "@/lib/network"
 import { proxyFetch } from "@/lib/tunnel"
 import { withDefaultUserAgent } from "@/lib/user-agent"
 import type { FetchOptions } from "../contract"
@@ -41,6 +42,7 @@ export async function loginRequest(
   init: { method: "GET" | "POST"; headers: Record<string, string>; body?: string },
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<LoginResponse> {
+  assertOutboundAllowed()
   const headers = withDefaultUserAgent(init.headers)
   const hostname = new URL(url).hostname
 

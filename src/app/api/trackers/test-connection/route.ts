@@ -1,7 +1,13 @@
 // src/app/api/trackers/test-connection/route.ts
 import { NextResponse } from "next/server"
 import { trackerSiteFor } from "@/data/tracker-registry"
-import { authenticate, decodeKey, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseJsonBody,
+  refuseIfOutboundDisabled,
+  validateMaxLength,
+} from "@/lib/api-helpers"
 import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
@@ -14,6 +20,8 @@ import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 export async function POST(request: Request) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body

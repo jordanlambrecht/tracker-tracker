@@ -3,13 +3,15 @@
 // Functions: GET
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey } from "@/lib/api-helpers"
+import { authenticate, decodeKey, refuseIfOutboundDisabled } from "@/lib/api-helpers"
 import { fetchFleetTorrents } from "@/lib/download-clients"
 import { log } from "@/lib/logger"
 
 export async function GET() {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
   const key = decodeKey(auth)
 
   try {

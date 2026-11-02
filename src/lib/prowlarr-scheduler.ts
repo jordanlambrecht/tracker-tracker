@@ -14,6 +14,7 @@ import { db } from "@/lib/db"
 import { prowlarrInstances } from "@/lib/db/schema"
 import { PROWLARR_CYCLE_DEADLINE_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isOutboundDisabled } from "@/lib/network"
 import { pollProwlarrInstance } from "@/lib/prowlarr/sync"
 
 // On globalThis so it persists across HMR reloads, like the other schedulers.
@@ -34,6 +35,11 @@ export function requestProwlarrPoll(
   encryptionKey: Buffer,
   options: { readIndexers?: boolean; skipIfBusy?: boolean } = {}
 ): Promise<void> {
+  // Before the queue, so a save made with the switch on records no failed poll.
+  if (isOutboundDisabled()) {
+    log.debug(`Prowlarr poll of instance ${instanceId} skipped: outbound requests are off`)
+    return Promise.resolve()
+  }
   g.__prowlarrPolls ??= new Map()
   const polls = g.__prowlarrPolls
   const previous = polls.get(instanceId)
@@ -80,6 +86,7 @@ async function runCycle(encryptionKey: Buffer): Promise<void> {
 }
 
 export function startProwlarrScheduler(encryptionKey: Buffer): void {
+  if (isOutboundDisabled()) return
   if (g.__prowlarrTask) return
   void runCycle(encryptionKey)
   g.__prowlarrTask = cron.schedule("*/5 * * * *", () => runCycle(encryptionKey))

@@ -1,5 +1,6 @@
 // src/lib/image-hosting/ptpimg.ts
 
+import { assertOutboundAllowed } from "@/lib/network"
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
 
 const UPLOAD_URL = "https://ptpimg.me/upload.php"
@@ -17,6 +18,7 @@ export const ptpimgAdapter: ImageHostAdapter = {
     form.set("api_key", apiKey)
     form.set("file-upload[]", new Blob([new Uint8Array(fileBuffer)]), fileName)
 
+    assertOutboundAllowed()
     const response = await fetch(UPLOAD_URL, {
       method: "POST",
       body: form,

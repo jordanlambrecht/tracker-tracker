@@ -3,13 +3,21 @@
 // Functions: GET
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseTrackerId,
+  type RouteContext,
+  refuseIfOutboundDisabled,
+} from "@/lib/api-helpers"
 import { fetchTrackerTorrents } from "@/lib/download-clients"
 import { log } from "@/lib/logger"
 
 export async function GET(request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const trackerId = await parseTrackerId(props.params)
   if (trackerId instanceof NextResponse) return trackerId

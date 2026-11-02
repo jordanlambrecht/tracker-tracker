@@ -4,7 +4,13 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseTrackerId, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseTrackerId,
+  type RouteContext,
+  refuseIfOutboundDisabled,
+} from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { trackers } from "@/lib/db/schema"
@@ -179,6 +185,8 @@ function failure(route: string, hostname: string, error: unknown): NextResponse 
 export async function GET(_request: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const target = await resolveMousehole(auth, params)
   if (target instanceof NextResponse) return target
@@ -246,6 +254,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
 export async function POST(_request: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const target = await resolveMousehole(auth, params)
   if (target instanceof NextResponse) return target

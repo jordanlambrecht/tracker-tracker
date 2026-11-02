@@ -16,6 +16,7 @@ import {
   PROWLARR_RESPONSE_MAX_BYTES,
   TRACKER_URL_MAX,
 } from "@/lib/limits"
+import { assertOutboundAllowed } from "@/lib/network"
 import { hostsFromUrls } from "@/lib/prowlarr/matching"
 import type { ProwlarrIndexerStats } from "@/types/api"
 
@@ -219,6 +220,7 @@ async function readCappedJson(response: Response): Promise<unknown> {
  * name the host only.
  */
 async function prowlarrGet(conn: ProwlarrConnection, path: string): Promise<unknown> {
+  assertOutboundAllowed()
   const base = normalizeProwlarrUrl(conn.url)
   const hostname = new URL(base).hostname
   let response: Response

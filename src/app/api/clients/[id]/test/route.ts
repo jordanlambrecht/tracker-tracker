@@ -3,13 +3,21 @@
 // Functions: POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseRouteId,
+  type RouteContext,
+  refuseIfOutboundDisabled,
+} from "@/lib/api-helpers"
 import { testClientConnection } from "@/lib/download-clients"
 import { log } from "@/lib/logger"
 
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const clientId = await parseRouteId(props.params, "client ID")
   if (clientId instanceof NextResponse) return clientId

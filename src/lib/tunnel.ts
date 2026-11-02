@@ -16,6 +16,7 @@ import { decrypt } from "@/lib/crypto"
 import { PROXY_PASSWORD_UNREADABLE_CAUSE } from "@/lib/error-utils"
 import { PROXY_DECODED_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isOutboundDisabled, OUTBOUND_DISABLED_ERROR } from "@/lib/network"
 
 export type ProxyType = "socks5" | "http" | "https"
 
@@ -143,6 +144,10 @@ export function proxyFetch(
   } = {}
 ): Promise<ProxyFetchResult> {
   return new Promise((resolve, reject) => {
+    if (isOutboundDisabled()) {
+      reject(new Error(OUTBOUND_DISABLED_ERROR))
+      return
+    }
     const parsed = new URL(url)
     if (parsed.protocol !== "https:") {
       reject(new Error("proxyFetch only supports HTTPS URLs"))

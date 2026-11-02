@@ -11,13 +11,14 @@ import {
   decodeKey,
   parseTrackerId,
   type RouteContext,
+  refuseIfOutboundDisabled,
   validateHttpUrl,
 } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { appSettings, trackers } from "@/lib/db/schema"
 import { AVATAR_FETCH_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
-import { fetchFollowingSafeRedirects } from "@/lib/network"
+import { fetchFollowingSafeRedirects, isOutboundDisabled } from "@/lib/network"
 import { buildProxyAgentFromSettings, proxyFetch } from "@/lib/tunnel"
 import { withDefaultUserAgent } from "@/lib/user-agent"
 
@@ -99,10 +100,11 @@ export async function GET(_request: Request, props: RouteContext) {
     return NextResponse.json({ error: "Invalid avatar URL" }, { status: 400 })
   }
 
-  // Serve from DB cache if fresh
+  // Serve from DB cache if fresh. With outbound requests off a stale copy is
+  // served too, since nothing can refresh it.
   if (tracker.avatarData && tracker.avatarCachedAt) {
     const age = Date.now() - tracker.avatarCachedAt.getTime()
-    if (age < STALE_MS) {
+    if (age < STALE_MS || isOutboundDisabled()) {
       const data = Buffer.from(tracker.avatarData, "base64")
       return new NextResponse(new Uint8Array(data), {
         headers: {
@@ -112,6 +114,9 @@ export async function GET(_request: Request, props: RouteContext) {
       })
     }
   }
+
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   // Fetch from tracker
   try {

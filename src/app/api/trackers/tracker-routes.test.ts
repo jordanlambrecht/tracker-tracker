@@ -1550,6 +1550,41 @@ describe("POST /api/trackers/[id]/poll", () => {
     expect(data.error).toBe("Poll failed")
   })
 
+  it("returns 503 without claiming the cooldown or polling when outbound requests are off", async () => {
+    vi.stubEnv("DISABLE_OUTBOUND_REQUESTS", "true")
+    try {
+      const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+      const params = Promise.resolve({ id: "1" })
+      const response = await PollPOST(request, { params })
+      const data = await response.json()
+
+      expect(response.status).toBe(503)
+      expect(data.error).toBe(
+        "Outbound requests are turned off on this instance (DISABLE_OUTBOUND_REQUESTS)"
+      )
+      expect(db.update).not.toHaveBeenCalled()
+      expect(pollTracker).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it("still returns 401 before the outbound refusal when unauthenticated", async () => {
+    vi.stubEnv("DISABLE_OUTBOUND_REQUESTS", "true")
+    try {
+      ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      )
+      const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+      const params = Promise.resolve({ id: "1" })
+      const response = await PollPOST(request, { params })
+
+      expect(response.status).toBe(401)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it("returns 429 when tracker was polled within cooldown period", async () => {
     // Atomic claim returns 0 rows = cooldown still active
     const mockReturning = vi.fn().mockResolvedValue([])

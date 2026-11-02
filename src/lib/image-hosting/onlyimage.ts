@@ -1,5 +1,6 @@
 // src/lib/image-hosting/onlyimage.ts
 
+import { assertOutboundAllowed } from "@/lib/network"
 import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import { safeImageUrl, validateImageUrl } from "@/lib/validators"
 import type { ImageHostAdapter, UploadOptions, UploadResult } from "./types"
@@ -47,6 +48,7 @@ export const onlyimageAdapter: ImageHostAdapter = {
       form.set("expiration_date", secondsToIsoDuration(options.expirationSeconds))
     }
 
+    assertOutboundAllowed()
     const response = await fetch(UPLOAD_URL, {
       method: "POST",
       headers: { "X-API-Key": key },

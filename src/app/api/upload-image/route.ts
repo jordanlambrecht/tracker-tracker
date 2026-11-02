@@ -3,7 +3,7 @@
 // Functions: POST
 
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey } from "@/lib/api-helpers"
+import { authenticate, decodeKey, refuseIfOutboundDisabled } from "@/lib/api-helpers"
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
@@ -43,6 +43,8 @@ function matchesMagicBytes(buf: Buffer, mimeType: string): boolean {
 export async function POST(request: Request) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   // Parse form data
   let formData: FormData

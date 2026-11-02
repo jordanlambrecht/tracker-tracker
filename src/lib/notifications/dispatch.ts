@@ -12,6 +12,7 @@ import {
   VIP_EXPIRING_DAYS_DEFAULT,
 } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isOutboundDisabled } from "@/lib/network"
 import { decryptNotificationConfig } from "@/lib/notifications/decrypt"
 import { deliverDiscordWebhook } from "@/lib/notifications/deliver"
 import { buildDiscordEmbed } from "@/lib/notifications/payload"
@@ -45,6 +46,13 @@ export async function dispatchNotifications(
   encryptionKey: Buffer,
   enabledTargets?: NotificationTargetRow[]
 ): Promise<void> {
+  // Before the targets query, so no cooldown or delivery row is written either.
+  if (isOutboundDisabled()) {
+    log.debug(
+      `dispatchNotifications: skipped for tracker ${ctx.trackerId}, outbound requests are off`
+    )
+    return
+  }
   // Use pre-fetched targets if provided, otherwise query (backward-compat)
   let targets: NotificationTargetRow[]
   if (enabledTargets) {

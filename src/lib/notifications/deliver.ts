@@ -3,6 +3,7 @@
 import { sanitizeNetworkError } from "@/lib/error-utils"
 import { NOTIFICATION_COOLDOWN_MAX_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { isOutboundDisabled, OUTBOUND_DISABLED_ERROR } from "@/lib/network"
 import type { DiscordEmbed } from "./payload"
 
 export interface CircuitState {
@@ -67,6 +68,10 @@ export async function deliverDiscordWebhook(
   webhookUrl: string,
   embeds: DiscordEmbed[]
 ): Promise<DeliveryResult> {
+  // Not counted as a failure, so the breaker is closed when the switch comes off.
+  if (isOutboundDisabled()) {
+    return { success: false, status: "failed", error: OUTBOUND_DISABLED_ERROR }
+  }
   if (isCircuitOpen(targetId)) {
     return { success: false, status: "failed", error: "Circuit breaker open, skipping delivery" }
   }

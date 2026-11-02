@@ -13,6 +13,7 @@
 
 import { TRANSMISSION_RESPONSE_MAX_BYTES, TRANSMISSION_RPC_TIMEOUT_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { assertOutboundAllowed } from "@/lib/network"
 import { resetStore } from "../sync-store"
 import {
   blockKeyFor,
@@ -111,6 +112,7 @@ async function postRpc(
   sessionId: string | undefined,
   signal: AbortSignal | undefined
 ): Promise<Response> {
+  assertOutboundAllowed()
   try {
     return await fetch(url, {
       method: "POST",

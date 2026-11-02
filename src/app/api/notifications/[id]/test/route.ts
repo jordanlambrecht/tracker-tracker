@@ -4,7 +4,13 @@
 
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { authenticate, decodeKey, parseRouteId, type RouteContext } from "@/lib/api-helpers"
+import {
+  authenticate,
+  decodeKey,
+  parseRouteId,
+  type RouteContext,
+  refuseIfOutboundDisabled,
+} from "@/lib/api-helpers"
 import { db } from "@/lib/db"
 import { notificationTargets } from "@/lib/db/schema"
 import { log } from "@/lib/logger"
@@ -15,6 +21,8 @@ import { type DiscordConfig, isDiscordConfig } from "@/lib/notifications/types"
 export async function POST(_req: Request, { params }: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const id = await parseRouteId(params, "notification target ID")
   if (id instanceof NextResponse) return id

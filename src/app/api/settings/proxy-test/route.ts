@@ -7,6 +7,7 @@ import {
   authenticate,
   decodeKey,
   parseJsonBody,
+  refuseIfOutboundDisabled,
   validateMaxLength,
   validatePort,
 } from "@/lib/api-helpers"
@@ -31,6 +32,8 @@ const IP_PATTERN = /^[\d.,: a-fA-F]+$/
 export async function POST(request: Request) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
+  const refusal = refuseIfOutboundDisabled()
+  if (refusal) return refusal
 
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body

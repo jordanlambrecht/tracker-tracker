@@ -9,7 +9,7 @@ import {
   PROXY_AUTH_REQUIRED_CAUSE,
 } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
-import { isRedirect } from "@/lib/network"
+import { assertOutboundAllowed, isRedirect } from "@/lib/network"
 import { withDefaultUserAgent } from "@/lib/user-agent"
 import type { FetchOptions } from "../contract"
 import { SessionExpiredError } from "./errors"
@@ -232,6 +232,7 @@ async function followRedirectChain(
  * reaches a log or an API response.
  */
 export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<string> {
+  assertOutboundAllowed()
   const { url, cookies, label, sessionExpiredMessage, userAgent, proxyAgent, followRedirects } =
     request
   const headers = buildHtmlHeaders(cookies, userAgent)

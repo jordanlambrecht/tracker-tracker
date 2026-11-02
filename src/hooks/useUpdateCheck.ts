@@ -1,5 +1,6 @@
 // src/hooks/useUpdateCheck.ts
 import { useQuery } from "@tanstack/react-query"
+import { useOutboundDisabled } from "@/components/layout/OutboundProvider"
 import { compareVersions } from "@/lib/version"
 
 const GITHUB_REPO = "jordanlambrecht/tracker-tracker"
@@ -43,9 +44,11 @@ async function fetchLatestVersion(): Promise<string | null> {
  * so the check runs at most once per session, even when called from multiple components.
  */
 export function useUpdateCheck(): UpdateCheckResult {
+  const outboundDisabled = useOutboundDisabled()
   const { data: latestVersion = null, isLoading: loading } = useQuery({
     queryKey: ["update-check"],
     queryFn: fetchLatestVersion,
+    enabled: !outboundDisabled,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
     retry: false,
