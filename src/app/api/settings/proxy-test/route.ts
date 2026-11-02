@@ -13,6 +13,7 @@ import {
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
+import { PROXY_PASSWORD_UNREADABLE_ERROR } from "@/lib/error-utils"
 import { CREDENTIAL_MAX, HOST_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import {
@@ -93,8 +94,8 @@ export async function POST(request: Request) {
           "proxy test failed: password decrypt error"
         )
         return NextResponse.json(
-          { success: false, error: "Failed to decrypt stored proxy password" },
-          { status: 500 }
+          { success: false, error: PROXY_PASSWORD_UNREADABLE_ERROR },
+          { status: 422 }
         )
       }
     }

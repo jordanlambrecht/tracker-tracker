@@ -42,6 +42,13 @@ export const PROWLARR_KEY_UNREADABLE_ERROR =
   "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
 export const MOUSEHOLE_TOKEN_UNREADABLE_ERROR =
   "Stored Mousehole API token can't be read. Enter it again in this tracker's settings"
+export const PROXY_PASSWORD_UNREADABLE_ERROR =
+  "Stored proxy password can't be read. Enter it again in the proxy settings"
+// What tunnel.ts's refusing agent fails every proxied request with.
+export const PROXY_PASSWORD_UNREADABLE_CAUSE = "Unreadable stored proxy password"
+const PROXY_PASSWORD_UNREADABLE = new RegExp(
+  `^Failed to connect to \\S+ via proxy: ${PROXY_PASSWORD_UNREADABLE_CAUSE}$`
+)
 // A tracker set to poll through the proxy while no proxy is set up. A setting to
 // change, so it is never retried.
 export const PROXY_REQUIRED_ERROR = "Proxy is required but not set up"
@@ -58,6 +65,8 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
     return TRACKER_CREDENTIALS_UNREADABLE_ERROR
   }
   if (UNREADABLE_CLIENT_CREDENTIAL.test(raw)) return CLIENT_CREDENTIALS_UNREADABLE_ERROR
+  // classifyProxyFetchError's wrapper around the refusing agent's failure.
+  if (PROXY_PASSWORD_UNREADABLE.test(raw)) return PROXY_PASSWORD_UNREADABLE_ERROR
   // Transmission outcomes come next. Its credential and oversized messages
   // would match the qBittorrent rules below and name the wrong client, and the
   // rest would reach the fallback, which reads as unreachable. Each rule matches

@@ -11,9 +11,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const requestMock = vi.hoisted(() => vi.fn())
 
-vi.mock("node:https", () => ({
-  default: { request: requestMock },
-}))
+vi.mock("node:https", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:https")>()
+  return { default: { ...actual, request: requestMock } }
+})
 
 import { proxyFetch } from "@/lib/tunnel"
 

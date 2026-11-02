@@ -2,15 +2,18 @@
 //
 // Functions: buildProxyUrl, createProxyAgent, decodeBody, isZlibWrapped, proxyFetch,
 //            buildProxyAgentFromSettings
+// Classes: RefusingAgent
 // Exports: VALID_PROXY_TYPES, PROXY_HOST_PATTERN, ProxyType, ProxyConfig, ProxyFetchResult, ProxySettings
 
-import type { Agent as HttpAgent, IncomingHttpHeaders } from "node:http"
+import type { ClientRequestArgs, Agent as HttpAgent, IncomingHttpHeaders } from "node:http"
 import https from "node:https"
+import type { Duplex } from "node:stream"
 import zlib from "node:zlib"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import { SocksProxyAgent } from "socks-proxy-agent"
 
 import { decrypt } from "@/lib/crypto"
+import { PROXY_PASSWORD_UNREADABLE_CAUSE } from "@/lib/error-utils"
 import { PROXY_DECODED_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 
@@ -253,6 +256,20 @@ export function proxyFetch(
   })
 }
 
+// Stands in for the proxy agent when the stored password won't decrypt. Each
+// request fails at the connection step, before any socket opens, so nothing
+// leaves without the proxy's auth, and nothing goes out directly either.
+class RefusingAgent extends https.Agent {
+  createConnection(
+    _options: ClientRequestArgs,
+    callback?: (err: Error | null, stream: Duplex) => void
+  ): undefined {
+    // Node reads the stream only when err is null.
+    callback?.(new Error(PROXY_PASSWORD_UNREADABLE_CAUSE), undefined as unknown as Duplex)
+    return undefined
+  }
+}
+
 export interface ProxySettings {
   proxyEnabled: boolean
   proxyType: string
@@ -278,7 +295,8 @@ export function buildProxyAgentFromSettings(
     try {
       password = decrypt(settings.encryptedProxyPassword, encryptionKey)
     } catch {
-      log.error("Failed to decrypt proxy password, proceeding without auth")
+      log.error("Stored proxy password won't decrypt, so every proxied request is refused")
+      return new RefusingAgent()
     }
   }
 
