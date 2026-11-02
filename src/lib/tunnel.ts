@@ -13,7 +13,7 @@ import { HttpsProxyAgent } from "https-proxy-agent"
 import { SocksProxyAgent } from "socks-proxy-agent"
 
 import { decrypt } from "@/lib/crypto"
-import { PROXY_PASSWORD_UNREADABLE_CAUSE } from "@/lib/error-utils"
+import { PROXY_PASSWORD_UNREADABLE_CAUSE, PROXY_UNUSABLE_CAUSE } from "@/lib/error-utils"
 import { PROXY_DECODED_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { isOutboundDisabled, OUTBOUND_DISABLED_ERROR } from "@/lib/network"
@@ -261,16 +261,20 @@ export function proxyFetch(
   })
 }
 
-// Stands in for the proxy agent when the stored password won't decrypt. Each
+// Stands in for the proxy agent when the proxy is on but can't be used. Each
 // request fails at the connection step, before any socket opens, so nothing
-// leaves without the proxy's auth, and nothing goes out directly either.
+// leaves without the proxy or its auth, and nothing goes out directly either.
 class RefusingAgent extends https.Agent {
+  constructor(private readonly refusal: string) {
+    super()
+  }
+
   createConnection(
     _options: ClientRequestArgs,
     callback?: (err: Error | null, stream: Duplex) => void
   ): undefined {
     // Node reads the stream only when err is null.
-    callback?.(new Error(PROXY_PASSWORD_UNREADABLE_CAUSE), undefined as unknown as Duplex)
+    callback?.(new Error(this.refusal), undefined as unknown as Duplex)
     return undefined
   }
 }
@@ -284,15 +288,44 @@ export interface ProxySettings {
   encryptedProxyPassword: string | null
 }
 
+// The stored settings without the password, which never decides whether an
+// agent builds: it is percent-encoded into the URL.
+type ProxyEndpoint = Omit<ProxySettings, "encryptedProxyPassword">
+
+// The agent config the settings make, password aside, or null when no agent
+// builds from them: no host, an unknown type, or a host the proxy URL can't
+// hold, such as one with a port typed into it.
+function endpointConfig(settings: ProxyEndpoint): ProxyConfig | null {
+  if (!settings.proxyHost) return null
+  const config: ProxyConfig = {
+    type: settings.proxyType as ProxyType,
+    host: settings.proxyHost,
+    port: settings.proxyPort ?? 1080,
+    username: settings.proxyUsername,
+  }
+  try {
+    createProxyAgent(config)
+  } catch {
+    return null
+  }
+  return config
+}
+
+// Undefined only when the proxy is off. A proxy that is on but can't be used
+// gets an agent that refuses every request, so no caller can fall back to direct.
 export function buildProxyAgentFromSettings(
   settings: ProxySettings,
   encryptionKey: Buffer
 ): HttpAgent | undefined {
-  if (!settings.proxyEnabled || !settings.proxyHost) return undefined
+  if (!settings.proxyEnabled) return undefined
 
-  if (!VALID_PROXY_TYPES.has(settings.proxyType)) {
-    log.error(`Invalid proxy type in settings: "${settings.proxyType}", skipping proxy`)
-    return undefined
+  const config = endpointConfig(settings)
+  if (!config) {
+    log.error(
+      { proxyType: settings.proxyType, hasHost: Boolean(settings.proxyHost) },
+      "Proxy settings can't make an agent, so every proxied request is refused"
+    )
+    return new RefusingAgent(PROXY_UNUSABLE_CAUSE)
   }
 
   let password: string | null = null
@@ -301,22 +334,9 @@ export function buildProxyAgentFromSettings(
       password = decrypt(settings.encryptedProxyPassword, encryptionKey)
     } catch {
       log.error("Stored proxy password won't decrypt, so every proxied request is refused")
-      return new RefusingAgent()
+      return new RefusingAgent(PROXY_PASSWORD_UNREADABLE_CAUSE)
     }
   }
 
-  const config: ProxyConfig = {
-    type: settings.proxyType as ProxyType,
-    host: settings.proxyHost,
-    port: settings.proxyPort ?? 1080,
-    username: settings.proxyUsername,
-    password,
-  }
-
-  try {
-    return createProxyAgent(config)
-  } catch (_err) {
-    log.error("Failed to create proxy agent (check proxy host/port configuration)")
-    return undefined
-  }
+  return createProxyAgent({ ...config, password })
 }

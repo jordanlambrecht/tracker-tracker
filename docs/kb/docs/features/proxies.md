@@ -61,12 +61,12 @@ Your proxy password is encrypted at rest. It's decrypted in memory only when pol
 
 ## Troubleshooting
 
-| Error message                                                        | What it means                                                                                                                                        |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Failed to create proxy agent (check proxy host/port configuration)` | Invalid host or port format. Check for typos and no `http://` prefix in the host field.                                                              |
-| `Failed to decrypt proxy password, proceeding without auth`          | The proxy password couldn't be read. This can happen after restore from a backup with a different password. Re-enter the proxy password in settings. |
-| `Request timed out after 15000ms`                                    | The proxy or tracker didn't respond in 15 seconds. Check that the proxy is running and reachable.                                                    |
-| `proxyFetch only supports HTTPS URLs`                                | The tracker URL uses `http://`. Change it to `https://`.                                                                                             |
+| Error message                                                                   | What it means                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Proxy settings can't be used. Check the proxy type, host and port in Settings` | The proxy is on, but its type, host or port can't make a connection, so every proxied request is refused rather than sent directly. Check for a port typed into the host field, an IPv6 address without brackets, or an `http://` prefix. |
+| `Stored proxy password can't be read. Enter it again in the proxy settings`     | The proxy password couldn't be read. This can happen after restore from a backup with a different password. Every proxied request is refused until you enter the password again.                                                          |
+| `Request timed out after 15000ms`                                               | The proxy or tracker didn't respond in 15 seconds. Check that the proxy is running and reachable.                                                                                                                                         |
+| `proxyFetch only supports HTTPS URLs`                                           | The tracker URL uses `http://`. Change it to `https://`.                                                                                                                                                                                  |
 
 ## Proxy Host Format
 
@@ -76,4 +76,4 @@ The host field accepts:
 - IPv4 addresses: `192.0.2.1`
 - IPv6 addresses: `[2001:db8::1]` (bracket notation supported)
 
-Do not include a protocol prefix (`http://`, `socks5://`) in the host field.
+Do not include a protocol prefix (`http://`, `socks5://`) in the host field. Put the port in the **Port** field, not after the host.

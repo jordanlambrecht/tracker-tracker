@@ -211,6 +211,18 @@ These appear in the **Poll Error Banner** on the tracker detail page.
 
 ---
 
+### `Proxy settings can't be used. Check the proxy type, host and port in Settings`
+
+**Cause:** The proxy is on, but its settings can't make a connection: no host, an unknown type, or a host with the port typed into it. Tracker Tracker refuses every proxied request rather than sending it directly.
+
+!!! success "Solution"
+
+    1. Open **Settings → General → Proxy**.
+    2. Put the port in the **Port** field, and wrap an IPv6 address in brackets (`[2001:db8::1]`).
+    3. Save, then click **Poll Now**. If the tracker paused after repeated failures, click **Resume Polling** first.
+
+---
+
 ### `Cloudflare challenge blocked the request`
 
 **Cause:** Cloudflare answered with a challenge page in place of the tracker's page, and wants a browser check first.

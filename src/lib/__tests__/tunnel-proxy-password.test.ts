@@ -18,6 +18,8 @@ import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 const KEY = Buffer.alloc(32, 1)
 const OTHER_KEY = Buffer.alloc(32, 2)
 const CANARY = "CANARY-proxy-password"
+const CANARY_SPECIAL = "CANARY p@ss:w/rd?#%25 é😀 !~*'()"
+const USER_SPECIAL = "us er@home/?#%"
 
 function proxySettings(encryptedProxyPassword: string | null) {
   return {
@@ -108,5 +110,54 @@ describe("buildProxyAgentFromSettings and the stored proxy password", () => {
     ) as SocksProxyAgent
 
     expect(agent.proxyUrl).toBe(`socks5h://user:${CANARY}@proxy.example.test:1080`)
+  })
+
+  // Both credentials are percent-encoded into the proxy URL, so no character in
+  // them can stop the agent building or reach the proxy changed.
+  it("builds a SOCKS agent from credentials full of URL-special characters", () => {
+    const agent = buildProxyAgentFromSettings(
+      { ...proxySettings(encrypt(CANARY_SPECIAL, KEY)), proxyUsername: USER_SPECIAL },
+      KEY
+    ) as SocksProxyAgent
+
+    expect(agent.proxy.userId).toBe(USER_SPECIAL)
+    expect(agent.proxy.password).toBe(CANARY_SPECIAL)
+  })
+
+  it("sends credentials full of URL-special characters to an HTTP proxy intact", async () => {
+    // A local proxy that records the CONNECT request's auth, then hangs up.
+    let auth = ""
+    const server = net.createServer((socket) => {
+      let head = ""
+      socket.on("data", (chunk) => {
+        head += chunk.toString("latin1")
+        if (!head.includes("\r\n\r\n")) return
+        auth = /^proxy-authorization: basic (\S+)\r$/im.exec(head)?.[1] ?? ""
+        socket.destroy()
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+    const { port } = server.address() as net.AddressInfo
+    try {
+      const proxyAgent = buildProxyAgentFromSettings(
+        {
+          proxyEnabled: true,
+          proxyType: "http",
+          proxyHost: "127.0.0.1",
+          proxyPort: port,
+          proxyUsername: USER_SPECIAL,
+          encryptedProxyPassword: encrypt(CANARY_SPECIAL, KEY),
+        },
+        KEY
+      )
+
+      await adapterFetch("https://tracker.example/api/user", "tracker.example", {
+        proxyAgent,
+      }).catch(() => {})
+
+      expect(Buffer.from(auth, "base64").toString("utf8")).toBe(`${USER_SPECIAL}:${CANARY_SPECIAL}`)
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
   })
 })
