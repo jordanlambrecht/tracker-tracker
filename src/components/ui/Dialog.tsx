@@ -146,7 +146,7 @@ function Dialog({
       </div>
     )
 
-  const body = <div className="overflow-y-auto flex-1 p-6">{children}</div>
+  const body = <div className="overflow-y-auto flex-1 p-6 styled-scrollbar">{children}</div>
   const footerEl = footer ? (
     <div className="shrink-0 px-6 py-4 border-t border-border">{footer}</div>
   ) : null

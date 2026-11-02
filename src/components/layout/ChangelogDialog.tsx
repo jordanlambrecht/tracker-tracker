@@ -40,7 +40,7 @@ export function ChangelogDialog({ open, onClose }: ChangelogDialogProps) {
   )
 
   return (
-    <Dialog open={open} onClose={onClose} title={header} size="sm" maxHeight="70vh">
+    <Dialog open={open} onClose={onClose} title={header} size="md" maxHeight="70vh">
       <div className="prose prose-invert prose-sm max-w-none prose-headings:font-mono prose-h1:hidden prose-h2:text-sm prose-h2:font-medium prose-h2:text-primary prose-h2:border-t prose-h2:border-border prose-h2:pt-4 prose-h2:mt-4 prose-h2:mb-2 prose-h2:first:border-0 prose-h2:first:pt-0 prose-h2:first:mt-0 prose-h3:text-xs prose-h3:font-medium prose-h3:text-tertiary prose-h3:mb-1 prose-h3:mt-2.5 prose-li:text-secondary prose-li:text-[13px] prose-li:leading-relaxed prose-p:text-secondary prose-strong:text-primary prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-ul:my-1.5 prose-ul:pl-4">
         {content ? (
           <ChangelogContent content={content} />
