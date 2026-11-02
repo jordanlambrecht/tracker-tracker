@@ -437,6 +437,15 @@ dialog[data-overlay][data-visible]::backdrop {
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 
+/* Reduced motion holds the pulse at its resting glow and full opacity, so a live
+   dot still reads apart from a still one. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-glow {
+    animation: none;
+    filter: drop-shadow(0 0 5px currentColor);
+  }
+}
+
 @keyframes jiggle {
   0%,
   100% {
