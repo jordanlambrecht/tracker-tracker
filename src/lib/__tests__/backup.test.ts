@@ -264,6 +264,54 @@ describe("validateBackupJson", () => {
     expect(() => validateBackupJson(p)).toThrow("trackerSnapshots[0].uploadedBytes")
   })
 
+  // The restore turns each into BigInt inside its transaction, after the wipe has begun.
+  const BIGINT_FIELDS: [string, string][] = [
+    ["trackerSnapshots", "uploadedBytes"],
+    ["trackerSnapshots", "downloadedBytes"],
+    ["trackerSnapshots", "bufferBytes"],
+    ["clientSnapshots", "uploadSpeedBytes"],
+    ["clientSnapshots", "downloadSpeedBytes"],
+  ]
+
+  function withBigInt(table: string, field: string, value: unknown) {
+    const p = validPayload() as unknown as Record<string, unknown>
+    p.clientSnapshots = [{ id: 1, clientId: 1, polledAt: "2026-01-01T00:00:00.000Z" }]
+    ;(p[table] as Record<string, unknown>[])[0][field] = value
+    return p
+  }
+
+  it.each(
+    BIGINT_FIELDS.flatMap(([table, field]): [string, string, string][] => [
+      [table, field, ""],
+      [table, field, "1.5"],
+      [table, field, "0x10"],
+      [table, field, " 5"],
+      [table, field, "9223372036854775808"],
+    ])
+  )("rejects %s %s set to %j", (table, field, value) => {
+    expect(() => validateBackupJson(withBigInt(table, field, value))).toThrow(
+      `Backup validation: ${table}[0].${field} must be a valid whole number`
+    )
+  })
+
+  it.each(
+    BIGINT_FIELDS.flatMap(([table, field]): [string, string, string][] => [
+      [table, field, "0"],
+      [table, field, "-536870912"],
+      [table, field, "9223372036854775807"],
+    ])
+  )("accepts %s %s set to %j", (table, field, value) => {
+    expect(() => validateBackupJson(withBigInt(table, field, value))).not.toThrow()
+  })
+
+  it.each([
+    ["trackerSnapshots", "bufferBytes"],
+    ["clientSnapshots", "uploadSpeedBytes"],
+    ["clientSnapshots", "downloadSpeedBytes"],
+  ])("accepts %s %s left null", (table, field) => {
+    expect(() => validateBackupJson(withBigInt(table, field, null))).not.toThrow()
+  })
+
   it("rejects invalid snapshot polledAt", () => {
     const p = validPayload()
     ;(p.trackerSnapshots[0] as Record<string, unknown>).polledAt = "invalid"
@@ -467,6 +515,7 @@ describe("validateBackupJson", () => {
     REQUIRED_DATES.flatMap(([table, field]): [string, string, unknown, string][] => [
       [table, field, undefined, "must be a string"],
       [table, field, "not-a-date", "must be a valid ISO 8601 string"],
+      [table, field, "2026-02-30T00:00:00.000Z", "must be a valid ISO 8601 string"],
     ])
   )("rejects %s %s set to %s", (table, field, value, message) => {
     const p = datedPayload()
@@ -490,6 +539,7 @@ describe("validateBackupJson", () => {
   it.each(
     NULLABLE_DATES.flatMap(([table, field]): [string, string, string][] => [
       [table, field, ""],
+      [table, field, "2026-02-30T00:00:00.000Z"],
       [table, field, "not-a-date"],
     ])
   )("rejects %s %s set to %j", (table, field, value) => {

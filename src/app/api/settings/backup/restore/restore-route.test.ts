@@ -797,6 +797,9 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     ["notificationTargets", "createdAt", "not-a-date"],
     ["prowlarrInstances", "updatedAt", "not-a-date"],
     ["settings", "retentionPromptedAt", "not-a-date"],
+    ["trackers", "createdAt", "2024-02-30T00:00:00.000Z"],
+    ["trackerSnapshots", "bufferBytes", "1.5"],
+    ["clientSnapshots", "uploadSpeedBytes", "0x10"],
   ])(
     "refuses a backup whose %s %s is %j before anything is deleted",
     async (table, field, value) => {

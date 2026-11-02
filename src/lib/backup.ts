@@ -308,9 +308,29 @@ function assertArray(value: unknown, label: string): asserts value is unknown[] 
 
 function assertValidIso(value: unknown, label: string): void {
   assertString(value, label)
-  // The pattern alone passes month 13 or hour 25, an Invalid Date the insert throws on.
-  if (!ISO_8601_RE.test(value) || Number.isNaN(new Date(value).getTime())) {
+  // The pattern alone passes month 13 or hour 25, an Invalid Date the insert throws
+  // on, and Date rolls February 30 into March, so the restore would store another day.
+  const parsed = new Date(value)
+  if (
+    !ISO_8601_RE.test(value) ||
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== value.slice(0, 10)
+  ) {
     throw new Error(`Backup validation: ${label} must be a valid ISO 8601 string`)
+  }
+}
+
+// The export writes bigint columns as decimal strings. BigInt() alone reads ""
+// as 0 and takes hex, and a value past the column's range fails mid-restore.
+// A bigint has at most 19 digits, so a longer string is refused before BigInt()
+// spends time parsing it.
+const BIGINT_MIN = -(2n ** 63n)
+const BIGINT_MAX = 2n ** 63n - 1n
+function assertBigIntString(value: unknown, label: string): void {
+  assertString(value, label)
+  const parsed = /^-?\d{1,19}$/.test(value) ? BigInt(value) : null
+  if (parsed === null || parsed < BIGINT_MIN || parsed > BIGINT_MAX) {
+    throw new Error(`Backup validation: ${label} must be a valid whole number`)
   }
 }
 
@@ -587,18 +607,10 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
 
     assertNumber(s.trackerId, `${prefix}.trackerId`)
 
-    assertString(s.uploadedBytes, `${prefix}.uploadedBytes`)
-    try {
-      BigInt(s.uploadedBytes)
-    } catch {
-      throw new Error(`Backup validation: ${prefix}.uploadedBytes must be parseable as BigInt`)
-    }
-
-    assertString(s.downloadedBytes, `${prefix}.downloadedBytes`)
-    try {
-      BigInt(s.downloadedBytes)
-    } catch {
-      throw new Error(`Backup validation: ${prefix}.downloadedBytes must be parseable as BigInt`)
+    assertBigIntString(s.uploadedBytes, `${prefix}.uploadedBytes`)
+    assertBigIntString(s.downloadedBytes, `${prefix}.downloadedBytes`)
+    if (s.bufferBytes !== null && s.bufferBytes !== undefined) {
+      assertBigIntString(s.bufferBytes, `${prefix}.bufferBytes`)
     }
 
     assertValidIso(s.polledAt, `${prefix}.polledAt`)
@@ -673,6 +685,11 @@ export function validateBackupJson(payload: unknown): asserts payload is BackupP
   for (let i = 0; i < p.clientSnapshots.length; i++) {
     const cs = p.clientSnapshots[i] as Record<string, unknown>
     assertValidIso(cs.polledAt, `clientSnapshots[${i}].polledAt`)
+    for (const field of ["uploadSpeedBytes", "downloadSpeedBytes"] as const) {
+      if (cs[field] !== null && cs[field] !== undefined) {
+        assertBigIntString(cs[field], `clientSnapshots[${i}].${field}`)
+      }
+    }
   }
 
   // tagGroup entries
