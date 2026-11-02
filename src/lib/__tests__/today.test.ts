@@ -425,9 +425,21 @@ describe("computeTodayAtAGlance on the day a tracker starts reporting its bonus"
 // Yesterday comparison via checkpoint pairs
 // ---------------------------------------------------------------------------
 
+/**
+ * The local calendar date `days` before today. Subtracting 24 hours would land on today itself
+ * in the last hour of a 25-hour fall-back day, so the date moves from local noon, which no
+ * daylight-saving change can push onto another day.
+ */
+function daysAgo(days: number): string {
+  const date = new Date()
+  date.setHours(12, 0, 0, 0)
+  date.setDate(date.getDate() - days)
+  return localDateStr(date)
+}
+
 describe("computeTodayAtAGlance — yesterday comparison", () => {
-  const yesterdayStr = localDateStr(Date.now() - 86400000)
-  const dayBeforeStr = localDateStr(Date.now() - 172800000)
+  const yesterdayStr = daysAgo(1)
+  const dayBeforeStr = daysAgo(2)
 
   it("computes fleet upload and download deltas for yesterday", async () => {
     const tracker = makeTracker(1)
