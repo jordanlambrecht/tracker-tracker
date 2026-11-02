@@ -20,6 +20,7 @@ import { log } from "@/lib/logger"
 const g = globalThis as typeof globalThis & {
   __backupSchedulerTask?: ScheduledTask | null
   __backupSchedulerKey?: Buffer | null
+  __backupSchedulerStarting?: object | null
 }
 
 function getBackupTask(): ScheduledTask | null {
@@ -135,12 +136,20 @@ export async function runScheduledBackup(encryptionKey: Buffer): Promise<void> {
 }
 
 export function startBackupScheduler(encryptionKey: Buffer): void {
-  if (getBackupTask()) return
+  if (getBackupTask() || g.__backupSchedulerStarting) return
+
+  // Held from before the settings read until the task replaces it, so a second
+  // call inside that round trip cannot register a second cron. A stop clears it,
+  // and the start still waiting on the read then registers nothing.
+  const starting = {}
+  g.__backupSchedulerStarting = starting
 
   db.select()
     .from(appSettings)
     .limit(1)
     .then(([settings]) => {
+      if (g.__backupSchedulerStarting !== starting) return
+      g.__backupSchedulerStarting = null
       if (!settings?.backupScheduleEnabled) return
 
       setBackupKey(Buffer.from(encryptionKey))
@@ -159,11 +168,13 @@ export function startBackupScheduler(encryptionKey: Buffer): void {
       log.info(`Backup scheduler started (${settings.backupScheduleFrequency} at 03:00)`)
     })
     .catch((err) => {
+      if (g.__backupSchedulerStarting === starting) g.__backupSchedulerStarting = null
       log.error(err, "Failed to initialize backup scheduler")
     })
 }
 
 export function stopBackupScheduler(): void {
+  g.__backupSchedulerStarting = null
   const task = getBackupTask()
   if (task) {
     task.stop()
