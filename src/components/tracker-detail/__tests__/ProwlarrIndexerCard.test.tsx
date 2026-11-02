@@ -1,7 +1,7 @@
 // src/components/tracker-detail/__tests__/ProwlarrIndexerCard.test.tsx
 
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { ProwlarrIndexerCard } from "@/components/tracker-detail/ProwlarrIndexerCard"
 import type { TrackerProwlarrIndexer } from "@/types/api"
 
@@ -146,5 +146,34 @@ describe("ProwlarrIndexerCard", () => {
   it("leaves the stats out until Prowlarr has reported them", () => {
     render(<ProwlarrIndexerCard indexers={[indexer()]} />)
     expect(screen.queryByText("Queries")).not.toBeInTheDocument()
+  })
+})
+
+// The dot beside the status label is a StatusDot like every other, so it pulses
+// in step with them and dims the same way when still.
+describe("ProwlarrIndexerCard status dot", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, "getAnimations")
+  })
+
+  it("pulses a live indexer's dot in step with the others", () => {
+    const pulse = { animationName: "pulse-glow", startTime: 1234 as number | null }
+    Object.defineProperty(HTMLElement.prototype, "getAnimations", {
+      value: vi.fn(() => [pulse]),
+      configurable: true,
+    })
+
+    render(<ProwlarrIndexerCard indexers={[indexer()]} />)
+
+    expect(screen.getByText("OK").previousElementSibling).toHaveClass("animate-pulse-glow")
+    expect(pulse.startTime).toBe(0)
+  })
+
+  it("dims a still indexer's dot", () => {
+    render(<ProwlarrIndexerCard indexers={[indexer({ stale: true })]} />)
+
+    const dot = screen.getByText("No recent data").previousElementSibling
+    expect(dot).toHaveClass("bg-muted", "opacity-50")
+    expect(dot).not.toHaveClass("animate-pulse-glow")
   })
 })

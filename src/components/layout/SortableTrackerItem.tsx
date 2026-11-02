@@ -64,11 +64,7 @@ function SortableTrackerItem({
           ⠿
         </span>
       )}
-      {archived ? (
-        <span className="w-2 h-2 rounded-full bg-muted shrink-0" aria-hidden="true" />
-      ) : (
-        <StatusDot {...getHealthDot(health)} size="sm" />
-      )}
+      {archived ? <StatusDot tone="muted" /> : <StatusDot {...getHealthDot(health)} size="sm" />}
       <span className="flex-1 truncate text-sm font-semibold">{tracker.name}</span>
       <span className="font-mono text-xs tabular-nums text-tertiary shrink-0">
         {archived ? (

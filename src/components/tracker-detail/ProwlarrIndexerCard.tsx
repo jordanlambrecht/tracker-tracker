@@ -3,6 +3,7 @@
 
 import clsx from "clsx"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
+import { StatusDot, type StatusDotTone } from "@/components/ui/StatusDot"
 import { Tooltip } from "@/components/ui/Tooltip"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { formatCount, formatDateTime, formatPercent, formatSpanInWords } from "@/lib/formatters"
@@ -15,17 +16,15 @@ import {
 } from "@/lib/prowlarr/status"
 import type { ProwlarrIndexerStats, TrackerProwlarrIndexer } from "@/types/api"
 
-const STATUS_STYLE: Record<IndexerStatus, { label: string; dot: string; text: string }> = {
-  // Live states glow like StatusDot; the glow takes the text colour.
-  ok: { label: "OK", dot: "bg-success text-success animate-pulse-glow", text: "text-success" },
-  failing: { label: "Failing", dot: "bg-warn text-warn animate-pulse-glow", text: "text-warn" },
-  "prowlarr-error": {
-    label: "Prowlarr error",
-    dot: "bg-danger text-danger animate-pulse-glow",
-    text: "text-danger",
-  },
-  stale: { label: "No recent data", dot: "bg-muted", text: "text-muted" },
-  disabled: { label: "Disabled", dot: "bg-muted", text: "text-muted" },
+const STATUS_STYLE: Record<
+  IndexerStatus,
+  { label: string; tone: StatusDotTone; glow: boolean; text: string }
+> = {
+  ok: { label: "OK", tone: "success", glow: true, text: "text-success" },
+  failing: { label: "Failing", tone: "warn", glow: true, text: "text-warn" },
+  "prowlarr-error": { label: "Prowlarr error", tone: "danger", glow: true, text: "text-danger" },
+  stale: { label: "No recent data", tone: "muted", glow: false, text: "text-muted" },
+  disabled: { label: "Disabled", tone: "muted", glow: false, text: "text-muted" },
 }
 
 function formatResponseTime(ms: number): string {
@@ -156,7 +155,7 @@ function IndexerCard({
           className="flex items-center gap-2 cursor-pointer min-w-0"
         >
           <ChevronToggle expanded={expanded} className="text-muted" />
-          <span className={clsx("inline-block w-2 h-2 rounded-full shrink-0", style.dot)} />
+          <StatusDot tone={style.tone} glow={style.glow} />
           <span
             className={clsx("text-xs font-mono font-semibold tracking-wider uppercase", style.text)}
           >
