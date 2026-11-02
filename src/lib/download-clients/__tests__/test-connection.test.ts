@@ -77,20 +77,6 @@ vi.mock("../factory", () => ({
   createAdapterForClient: vi.fn(() => mockAdapter),
 }))
 
-vi.mock("@/lib/error-utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/error-utils")>()
-  return {
-    CLIENT_CREDENTIALS_UNREADABLE_ERROR: actual.CLIENT_CREDENTIALS_UNREADABLE_ERROR,
-    isUnreadableClientCredential: actual.isUnreadableClientCredential,
-    sanitizeNetworkError: vi.fn((raw: string, fallback = "Connection failed") => {
-      if (/timed?\s*out/i.test(raw)) return "Request timed out"
-      if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
-      if (/40[13]|Unauthorized|Forbidden/i.test(raw)) return "Authentication failed"
-      return fallback
-    }),
-  }
-})
-
 vi.mock("../credentials", () => ({
   CLIENT_CONNECTION_COLUMNS: {
     name: "downloadClients.name",
@@ -276,7 +262,8 @@ describe("testClientConnection", () => {
 
   it("returns 422 with descriptive message on 403 error", async () => {
     setupDbSelect([makeClientRow()])
-    mockAdapter.testConnection.mockRejectedValue(new Error("HTTP 403 Forbidden"))
+    // The qBittorrent transport's own wording for a refused request.
+    mockAdapter.testConnection.mockRejectedValue(new Error("qBittorrent API error: 403 Forbidden"))
 
     const result = await testClientConnection(1, FAKE_KEY)
 

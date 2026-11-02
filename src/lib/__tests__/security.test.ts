@@ -61,18 +61,6 @@ vi.mock("@/lib/scheduler", () => ({
   ensureSchedulerRunning: vi.fn(),
 }))
 
-vi.mock("@/lib/transit-papers/report-generator", () => ({
-  generateReportPng: vi.fn().mockResolvedValue(Buffer.from("fake-png")),
-}))
-
-vi.mock("@/lib/transit-papers/combined-seal", () => ({
-  renderCombinedSeal: vi.fn().mockReturnValue({ pixels: new Uint8ClampedArray(4) }),
-}))
-
-vi.mock("@/lib/transit-papers/png", () => ({
-  rgbaToPng: vi.fn().mockReturnValue(Buffer.from("fake-png")),
-}))
-
 vi.mock("@/lib/image-hosting", () => ({
   getImageHostAdapter: vi.fn().mockReturnValue({
     upload: vi.fn().mockResolvedValue({ url: "https://example.com/image.png" }),
@@ -179,14 +167,7 @@ vi.mock("@/lib/tunnel", () => ({
 }))
 
 vi.mock("@/lib/download-clients", () => ({
-  buildBaseUrl: vi.fn().mockReturnValue("http://localhost:8080"),
-  getSession: vi.fn(),
-  getTorrents: vi.fn().mockResolvedValue([]),
-  getTransferInfo: vi.fn().mockResolvedValue({}),
-  invalidateSession: vi.fn(),
   clearAllSessions: vi.fn(),
-  login: vi.fn().mockResolvedValue("sid"),
-  withSessionRetry: vi.fn().mockResolvedValue([]),
   aggregateByTag: vi.fn().mockReturnValue({}),
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
@@ -205,7 +186,6 @@ vi.mock("@/lib/download-clients", () => ({
   }),
   CLIENT_CONNECTION_COLUMNS: {},
   decryptClientCredentials: vi.fn().mockReturnValue({ username: "admin", password: "pass" }),
-  parseCrossSeedTags: vi.fn((raw: string[] | null) => raw ?? []),
   slimTorrentForCache: vi.fn((t: Record<string, unknown>) => t),
   parseCachedTorrents: vi.fn().mockReturnValue([]),
   STORE_MAX_AGE_MS: 600000,
