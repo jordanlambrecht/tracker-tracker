@@ -41,7 +41,7 @@ interface FleetSpeedSparklinesProps {
 
 function buildPolylinePoints(values: number[], width: number, height: number): string {
   if (values.length < 2) return ""
-  const max = values.reduce((m, v) => (v > m ? v : m), 1)
+  const max = Math.max(...values, 1)
   const step = width / (values.length - 1)
   return values
     .map((v, i) => {

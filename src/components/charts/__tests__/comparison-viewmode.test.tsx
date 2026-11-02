@@ -50,9 +50,9 @@ describe("ComparisonChart view mode (issue #156)", () => {
   it("does not present two different controls both labelled Per-Tracker", async () => {
     optionSpy.mockClear()
     render(
-      // biome-ignore lint/suspicious/noExplicitAny: fixture trimmed to what the chart reads
       <ComparisonChart
         metric="uploaded"
+        // biome-ignore lint/suspicious/noExplicitAny: fixture trimmed to what the chart reads
         trackerData={trackerData as any}
         enableStacked
         enableAverage

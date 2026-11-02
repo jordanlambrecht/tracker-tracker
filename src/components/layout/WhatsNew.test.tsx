@@ -99,8 +99,8 @@ describe("parseMissedReleases", () => {
     // carry a bullet are asserted on. Any of those parsing to nothing means a
     // marker the parser cannot read, which is what produced the fallback text.
     const unreadable = versions.slice(0, -1).filter((v, i) => {
-      const section = changelog.slice(changelog.indexOf("## " + v))
-      const body = section.slice(0, section.indexOf("## " + versions[i + 1]))
+      const section = changelog.slice(changelog.indexOf(`## ${v}`))
+      const body = section.slice(0, section.indexOf(`## ${versions[i + 1]}`))
       const hasBullets = /^[*+-]\s+/m.test(body)
       return hasBullets && parseMissedReleases(section, versions[i + 1]).length === 0
     })

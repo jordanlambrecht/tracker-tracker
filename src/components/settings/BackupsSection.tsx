@@ -125,7 +125,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     const tokens = Number(sessionStorage.getItem("restore_tokens_cleared"))
     const clients = Number(sessionStorage.getItem("restore_clients_cleared"))
     if (tokens > 0 || clients > 0) {
-      setClearedOnRestore({ tokens: tokens > 0 ? tokens : 0, clients: clients > 0 ? clients : 0 })
+      setClearedOnRestore({ tokens: Math.max(tokens, 0), clients: Math.max(clients, 0) })
     }
     sessionStorage.removeItem("restore_tokens_cleared")
     sessionStorage.removeItem("restore_clients_cleared")

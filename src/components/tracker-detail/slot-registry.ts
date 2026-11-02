@@ -527,7 +527,7 @@ const ggnParkedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 20,
   resolve(ctx) {
     const ggMeta = metaFor(ctx, "ggn")
-    if (!ggMeta || ggMeta.parked !== true) return null
+    if (ggMeta?.parked !== true) return null
     return { variant: "warn", label: "Parked" }
   },
 }
@@ -553,7 +553,7 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 22,
   resolve(ctx) {
     const ggMeta = metaFor(ctx, "ggn")
-    if (!ggMeta || ggMeta.onIRC !== true) return null
+    if (ggMeta?.onIRC !== true) return null
     const children = createElement(
       "span",
       { className: "inline-flex items-center gap-2" },
@@ -821,7 +821,7 @@ const avistazDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 12,
   resolve(ctx) {
     const avMeta = metaFor(ctx, "avistaz")
-    if (!avMeta || avMeta.canDownload !== false) return null
+    if (avMeta?.canDownload !== false) return null
     return { variant: "danger", label: "Downloads Disabled" }
   },
 }
@@ -833,7 +833,7 @@ const avistazUploadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 12,
   resolve(ctx) {
     const avMeta = metaFor(ctx, "avistaz")
-    if (!avMeta || avMeta.canUpload !== false) return null
+    if (avMeta?.canUpload !== false) return null
     return { variant: "danger", label: "Uploads Disabled" }
   },
 }
@@ -943,7 +943,7 @@ const dcDownloadBanBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 13,
   resolve(ctx) {
     const dcMeta = metaFor(ctx, "digitalcore")
-    if (!dcMeta || dcMeta.downloadBan !== true) return null
+    if (dcMeta?.downloadBan !== true) return null
     return { variant: "danger", label: "Download Ban" }
   },
 }
@@ -955,7 +955,7 @@ const dcUploadBanBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 13,
   resolve(ctx) {
     const dcMeta = metaFor(ctx, "digitalcore")
-    if (!dcMeta || dcMeta.uploadBan !== true) return null
+    if (dcMeta?.uploadBan !== true) return null
     return { variant: "danger", label: "Upload Ban" }
   },
 }
@@ -967,7 +967,7 @@ const dcHnrWarnedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 14,
   resolve(ctx) {
     const dcMeta = metaFor(ctx, "digitalcore")
-    if (!dcMeta || dcMeta.hnrWarned !== true) return null
+    if (dcMeta?.hnrWarned !== true) return null
     return { variant: "warn", label: "HnR Warned" }
   },
 }
@@ -979,7 +979,7 @@ const dcParkedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 20,
   resolve(ctx) {
     const dcMeta = metaFor(ctx, "digitalcore")
-    if (!dcMeta || dcMeta.parked !== true) return null
+    if (dcMeta?.parked !== true) return null
     return { variant: "warn", label: "Parked" }
   },
 }
@@ -991,7 +991,7 @@ const dcUnconnectableBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 20,
   resolve(ctx) {
     const dcMeta = metaFor(ctx, "digitalcore")
-    if (!dcMeta || dcMeta.connectable !== false) return null
+    if (dcMeta?.connectable !== false) return null
     return { variant: "warn", label: "Not Connectable" }
   },
 }
@@ -1003,7 +1003,7 @@ const dcSeedboxDonorBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   priority: 11,
   resolve(ctx) {
     const dcMeta = metaFor(ctx, "digitalcore")
-    if (!dcMeta || dcMeta.seedboxDonor !== true) return null
+    if (dcMeta?.seedboxDonor !== true) return null
     return { variant: "accent", label: "Seedbox Donor" }
   },
 }
