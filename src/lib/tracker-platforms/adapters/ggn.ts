@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/adapters/ggn.ts
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
+import { GGN_STATUS_ERROR } from "@/lib/error-utils"
 import type {
   DebugApiCall,
   FetchOptions,
@@ -89,7 +90,7 @@ function ggnUserUrl(apiPath: string, baseUrl: string, apiToken: string, userId: 
  * anchored rules look.
  */
 function statusError(data: { status: string; error?: string }): Error {
-  const failed = `GGn API returned status: ${data.status}`
+  const failed = `${GGN_STATUS_ERROR}: ${data.status}`
   const error = data.error?.trim()
   return new Error(error ? `${failed}: ${error}` : failed)
 }

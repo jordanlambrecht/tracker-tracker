@@ -492,7 +492,7 @@ export async function syncMaindata(
   const response = await qbtFetch(url, host, baseUrl, auth)
   const data: unknown = await readCappedJson<unknown>(response, host, QBT_RESPONSE_MAX_BYTES)
   if (!isQbtMaindataResponse(data)) {
-    throw new Error("Invalid maindata response from qBittorrent")
+    throw new Error("qBittorrent sent an unexpected maindata response")
   }
   return data
 }

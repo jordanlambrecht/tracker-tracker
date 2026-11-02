@@ -10,6 +10,7 @@ import {
   getTorrents,
   invalidateSession,
   login,
+  syncMaindata,
   withSessionRetry,
 } from "@/lib/download-clients/qbt/transport"
 import { clearAuthBlocks, isResponseTooLarge } from "@/lib/download-clients/transport"
@@ -241,7 +242,7 @@ describe("a login behind a URL path", () => {
   })
 })
 
-describe("getTorrents validates the body it was handed", () => {
+describe("getTorrents and syncMaindata validate the body they were handed", () => {
   // syncMaindata already shape-checks. getTorrents used to cast straight to
   // QbtTorrent[], so an object, or entries of the wrong shape, reached
   // mapQbtTorrent and then the store unchecked.
@@ -274,6 +275,20 @@ describe("getTorrents validates the body it was handed", () => {
     const torrents = await getTorrents(BASE, AUTH)
     expect(torrents).toHaveLength(1)
     expect(torrents[0].hash).toBe("a")
+  })
+
+  // qBittorrent answered, so the card must not read as a host that never did.
+  it("refuses a maindata body with no rid, worded as qBittorrent's answer", async () => {
+    respondWith({ torrents: {} })
+
+    const err = await syncMaindata(BASE, AUTH, 0)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("qBittorrent sent an unexpected maindata response")
+    const card = sanitizeNetworkError(err?.message ?? "")
+    expect(card).toBe("qBittorrent sent an unexpected response")
+    expect(isUnreachableMessage(card)).toBe(false)
   })
 })
 

@@ -133,14 +133,17 @@ matches on wording. Wording is an interface, not prose.
 - **A payload that could not be read** starts with `` `Unexpected response from ${host}: ` ``,
   naming the hostname. Documented at `unit3d.ts:187-189`. This is what makes the card say "Tracker
   returned an unexpected response" rather than "Poll failed". It applies to scrapers too.
-- **Never put the word "invalid" in a message unless it really is a credential problem.** The
-  sanitizer maps `/Credentials.*missing|invalid/i` to "Invalid credentials", so any message
-  containing "invalid" anywhere will send the user to re-enter a working key.
+- **A credential refusal uses a phrase from the sanitizer's credential list.** "Invalid
+  credentials" comes only from `CREDENTIAL_REFUSALS` in `error-utils.ts`, a list of the app's own
+  phrases anchored to the start of the message, such as `Invalid BTN API key`. A new refusal adds
+  its phrase there, with a test. The word "invalid" anywhere else classifies nothing, with one
+  exception: Gazelle, GGn, Hawke and BTN answer a bad key with a 200 envelope, so envelope text
+  saying "invalid" after their prefix constants reads as credentials too.
 - **Do not call `sanitizeNetworkError` yourself.** Throw the raw shape and let the caller classify.
 - **Do not classify by matching digits or words in a message.** Read `response.status`, or check
   the error type. `helpers/errors.ts` records why `SessionExpiredError` is a class rather than a
   recognisable string. Prefix any tracker-supplied string before throwing it, or a remote body
-  containing "invalid" decides the classification for you.
+  that opens with one of the sanitizer's anchored phrases decides the classification for you.
 - **A body that fails to parse is not a connection failure.** `classifyFetchError` applies only to
   an error thrown by `fetch`, and `classifyProxyFetchError` only to a `proxyFetch` rejection.
   Every `json()` from `adapterRequest` already goes through `readJson` in `helpers/adapter-fetch.ts`,
@@ -310,7 +313,7 @@ dashes.
 **Errors and credentials**
 
 - [ ] Every "could not read the payload" error begins with `Unexpected response from <host>: `.
-- [ ] No message contains "invalid" unless it is a credential fault.
+- [ ] A credential refusal uses a phrase on the sanitizer's credential list, or adds one there.
 - [ ] I do not call `sanitizeNetworkError` myself, and I classify on `response.status` or an error
       type, never on digits in a message.
 - [ ] `classifyFetchError` is applied only to a `fetch` rejection, and `classifyProxyFetchError`

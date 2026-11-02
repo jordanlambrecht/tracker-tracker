@@ -1453,8 +1453,8 @@ describe("DigitalCoreAdapter - stored userAgent", () => {
 })
 
 // sanitizeNetworkError picks a rule by matching the raw message. A body error
-// that says "invalid" without the "Unexpected response from" prefix falls into
-// the credentials rule and reaches the user as "Invalid credentials".
+// without the "Unexpected response from" prefix reaches the user as a bare
+// poll failure.
 describe("DigitalCore body errors classify as a tracker fault, not a credential one", () => {
   const adapter = new DigitalCoreAdapter()
   const validToken = JSON.stringify({ uid: "54321", pass: "abc123xyz" })

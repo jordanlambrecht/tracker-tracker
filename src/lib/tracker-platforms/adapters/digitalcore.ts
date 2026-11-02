@@ -221,8 +221,7 @@ interface DCUserResponse {
 // ---------------------------------------------------------------------------
 
 // Both messages open with "Unexpected response from" so sanitizeNetworkError
-// classifies them as a shape problem. Wording that contains "invalid" would
-// match its credentials rule instead.
+// classifies them as a shape problem.
 function parseJsonSafe<T>(text: string, pathname: string): T {
   try {
     return JSON.parse(text) as T

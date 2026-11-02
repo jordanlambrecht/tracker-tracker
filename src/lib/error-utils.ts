@@ -64,6 +64,27 @@ const PROXY_UNUSABLE = new RegExp(`^Failed to connect to \\S+ via proxy: ${PROXY
 // change, so it is never retried.
 export const PROXY_REQUIRED_ERROR = "Proxy is required but not set up"
 
+// The app's own credential refusals, each anchored to the start of the message,
+// where only the app puts these phrases, so a tracker's or a library's text
+// saying "invalid" can't read as one.
+const CREDENTIAL_REFUSALS: readonly RegExp[] = [
+  /^(?:API key is|Credentials are) missing or invalid for tracker "/,
+  /^Invalid (?:API token|username): /,
+  /^Invalid (?:TorrentLeech|Luminance) credentials$/,
+  /^Invalid BTN API key$/,
+  /^DigitalCore credentials: (?:uid|pass) contains invalid characters /,
+  /^MAM session cookie \(mam_id\) contains invalid characters /,
+]
+
+// How four adapters open the error of a reply that came back as a 200 envelope.
+export const GAZELLE_STATUS_ERROR = "Gazelle API returned status"
+export const GGN_STATUS_ERROR = "GGn API returned status"
+export const HAWKE_REQUEST_ERROR = "Hawke API request failed on"
+export const BTN_RPC_ERROR = "BTN API returned an error"
+const ENVELOPE_ERROR = new RegExp(
+  `^(?:${GAZELLE_STATUS_ERROR}: |${GGN_STATUS_ERROR}: |${HAWKE_REQUEST_ERROR} \\S+: |${BTN_RPC_ERROR}: )`
+)
+
 /**
  * Maps raw network/auth error messages to safe user-facing messages.
  * Raw errors go to server logs only, this produces the string stored in DB
@@ -79,6 +100,15 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // classifyProxyFetchError's wrapper around the refusing agent's failures.
   if (PROXY_PASSWORD_UNREADABLE.test(raw)) return PROXY_PASSWORD_UNREADABLE_ERROR
   if (PROXY_UNUSABLE.test(raw)) return PROXY_UNUSABLE_ERROR
+  // Ahead of every looser rule: the scheduler's wrappers quote the tracker's
+  // name, and a tracker called "Timeout Club" must not read as a timeout.
+  if (CREDENTIAL_REFUSALS.some((rule) => rule.test(raw))) return "Invalid credentials"
+  // The one place a tracker's text classifies. On these four platforms a bad key
+  // comes back as a 200 envelope whose text is the only signal, so envelope text
+  // saying "invalid" reads as credentials. A rare request error worded that way,
+  // such as "invalid id parameter", reads as credentials too.
+  const envelope = raw.match(ENVELOPE_ERROR)
+  if (envelope && /invalid/i.test(raw.slice(envelope[0].length))) return "Invalid credentials"
   // Transmission outcomes come next. Its credential and oversized messages
   // would match the qBittorrent rules below and name the wrong client, and the
   // rest would reach the fallback, which reads as unreachable. Each rule matches
@@ -135,13 +165,16 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/banned this IP/i.test(raw)) {
     return "Banned by qBittorrent after too many failed logins. It will clear on its own"
   }
-  // Three refusals the qBittorrent transport raises on a host that did answer.
-  // The fallback would read as unreachable to isUnreachableMessage.
+  // Refusals the qBittorrent transport raises on a host that did answer. The
+  // fallback would read as unreachable to isUnreachableMessage.
   if (/exceeded \d+ bytes and was refused/i.test(raw)) {
     return "qBittorrent returned an oversized response"
   }
   if (/session cookie contained an unsafe character/i.test(raw)) {
     return "qBittorrent sent an unsafe session cookie"
+  }
+  if (/^qBittorrent sent an unexpected maindata response$/.test(raw)) {
+    return "qBittorrent sent an unexpected response"
   }
   // `redirect: "manual"` surfaces a 3xx as a non-ok status rather than
   // following it, and the transport words every non-ok status the same way.
@@ -171,7 +204,7 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   }
   if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
   // Luminance login refusals, the same kind of static strings. A wrong password
-  // reaches the generic credentials rule below.
+  // reads "Invalid credentials" from the list at the top.
   if (/Luminance login refused: the account is disabled/i.test(raw)) {
     return "Account is disabled on the tracker. Log in on the site to see why"
   }
@@ -186,9 +219,6 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // response from <host>: ..." is the wording the adapters and the shared fetch
   // helpers use (issue #214); the other three are parseBytes rejecting a byte
   // string ("", "1,024.50 GiB").
-  // Matched before the generic rules on purpose: "Invalid byte format" and a
-  // key called "invalid" in a listed payload would otherwise both fall into
-  // the credential rule below and surface as "Invalid credentials".
   if (/Unexpected response from|Invalid byte format|Negative byte values|Unknown unit/i.test(raw)) {
     return "Tracker returned an unexpected response"
   }
@@ -225,7 +255,6 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   }
   if (/ip.*ban|ban.*ip|rate.?limit/i.test(raw)) return "IP temporarily banned by tracker"
   if (/Session expired/i.test(raw)) return "Session expired"
-  if (/Credentials.*missing|invalid/i.test(raw)) return "Invalid credentials"
   // pollTracker's refusal to send a useProxy tracker's request directly.
   if (/^Proxy required but not available/.test(raw)) return PROXY_REQUIRED_ERROR
   // classifyProxyFetchError's wrapper. A tracker's own text that mentions a

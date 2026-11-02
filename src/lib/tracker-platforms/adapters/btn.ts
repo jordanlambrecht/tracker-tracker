@@ -3,6 +3,7 @@
 // Functions: parseBtnBytes, mapBtnResult, callBtnUserInfo, readBtnUserInfo, BtnAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
+import { BTN_RPC_ERROR } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "../contract"
 import { adapterRequest } from "../helpers/adapter-fetch"
@@ -142,11 +143,7 @@ function readBtnUserInfo(data: BtnJsonRpcResponse): BtnUserInfoResult {
   if (data.error) {
     // The tracker's text never leads, where the sanitizer's anchored rules look.
     const message = data.error.message?.trim()
-    throw new Error(
-      message
-        ? `BTN API returned an error: ${message}`
-        : "BTN API returned an error with no message"
-    )
+    throw new Error(message ? `${BTN_RPC_ERROR}: ${message}` : `${BTN_RPC_ERROR} with no message`)
   }
   if (!data.result) {
     throw new Error(`Unexpected response from ${BTN_API_HOSTNAME}: missing result`)

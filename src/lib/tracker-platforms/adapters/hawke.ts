@@ -3,6 +3,7 @@
 // Functions: unwrapEnvelope, readProfile, HawkeAdapter
 
 import { computeBufferBytes, computeRatio, signedFloatBytesToBigInt } from "@/lib/data-transforms"
+import { HAWKE_REQUEST_ERROR } from "@/lib/error-utils"
 import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
   DebugApiCall,
@@ -62,7 +63,7 @@ interface HawkeEnvelope {
 function unwrapEnvelope(body: HawkeEnvelope, hostname: string): HawkeProfile {
   if (!body?.success) {
     // The tracker's text never leads, where the sanitizer's anchored rules look.
-    const failed = `Hawke API request failed on ${hostname}`
+    const failed = `${HAWKE_REQUEST_ERROR} ${hostname}`
     const message = body?.message?.trim()
     throw new Error(message ? `${failed}: ${message}` : failed)
   }

@@ -13,7 +13,7 @@ import { TRACKER_USERNAME_MAX } from "@/lib/limits"
  * returning it trimmed. Every snapshot stores it and the profile card shows
  * it, so a control character or an overlong paste is refused here. The errors
  * name the character by code point and never echo the value, and they open
- * with "Invalid", which the sanitizer reads as a credential fault.
+ * with "Invalid username: ", a phrase on the sanitizer's credential list.
  */
 export function validateTrackerUsername(raw: string): string {
   const username = raw.trim()

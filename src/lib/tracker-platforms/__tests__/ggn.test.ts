@@ -1,5 +1,6 @@
 // src/lib/tracker-platforms/__tests__/ggn.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { GGnAdapter } from "../adapters/ggn"
 
 function mockQuickUserResponse() {
@@ -204,6 +205,22 @@ describe("GGnAdapter", () => {
     await expect(
       adapter.fetchStats("https://gazellegames.net", "bad-key", "/api.php")
     ).rejects.toThrow("GGn API returned status: failure: Invalid API key")
+  })
+
+  // The refusal arrives as a 200 envelope, so its text is the card's only signal.
+  it("reads a refused key as invalid credentials on the card", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: "failure", error: "Invalid API key" }),
+    } as Response)
+
+    const err = await adapter
+      .fetchStats("https://gazellegames.net", "bad-key", "/api.php")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err).not.toBeNull()
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Invalid credentials")
   })
 
   it("throws on user API failure", async () => {

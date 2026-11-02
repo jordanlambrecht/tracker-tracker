@@ -224,6 +224,20 @@ describe("HawkeAdapter - envelope handling", () => {
     ).rejects.toThrow("Hawke API request failed on hawke.uno: Invalid API key.")
   })
 
+  it("reads a refused key as invalid credentials on the card", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      okResponse({ success: false, message: "Invalid API key." })
+    )
+
+    const err = await adapter
+      .fetchStats("https://hawke.uno", "bad-token", "/api/profile")
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err).not.toBeNull()
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Invalid credentials")
+  })
+
   // The sanitizer matches its stored-credential rule from the start of the
   // message, so tracker text there could tell the user to re-enter a key.
   it("never lets the envelope message lead the error", async () => {

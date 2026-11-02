@@ -12,7 +12,7 @@
  * working token, and left to the transport it either fails the request as a
  * connection error the user cannot act on or, for a TAB, goes out on the wire.
  * The errors name the character by code point and never echo the value, and
- * they open with "Invalid", which the sanitizer reads as a credential fault.
+ * they open with "Invalid API token: ", a phrase on the sanitizer's credential list.
  */
 export function validateHeaderToken(token: string): string {
   const trimmed = token.trim()

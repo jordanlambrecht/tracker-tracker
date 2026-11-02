@@ -164,8 +164,7 @@ describe("AnimeBytesAdapter - failures", () => {
   })
 
   it("surfaces the error when success is false, behind the unexpected-response prefix", async () => {
-    // Unprefixed, the sanitizer shows "Poll failed", or "Invalid credentials"
-    // for any text containing "invalid" (standard 2.4).
+    // Unprefixed, the sanitizer shows "Poll failed" (standard 2.4).
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       okResponse({ success: false, error: "The request requires valid user authentication." })
     )

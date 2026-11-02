@@ -1,6 +1,7 @@
 // src/lib/tracker-platforms/__tests__/btn.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { sanitizeNetworkError } from "@/lib/error-utils"
 import { BtnAdapter } from "../adapters/btn"
 
 /** Where BTN's API actually lives, the adapter owns this, callers cannot change it. */
@@ -261,6 +262,28 @@ describe("BtnAdapter", () => {
     expect(calls[0].error).toBeNull()
     // What BTN sent, not the mapped stats the Normalized tab already shows.
     expect(calls[0].data).toEqual(body)
+  })
+
+  // An error that arrives in a 200 reply and says invalid reads as credentials,
+  // as on the other envelope platforms.
+  it("reads a JSON-RPC error that says invalid as invalid credentials on the card", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        jsonrpc: "2.0",
+        id: 1,
+        error: { code: -32001, message: "Invalid key" },
+      }),
+    } as Response)
+
+    const err = await adapter
+      .fetchStats("https://broadcasthe.net", "fake-api-key", API_PATH)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err).not.toBeNull()
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe("Invalid credentials")
   })
 
   it.each([

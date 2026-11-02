@@ -3,6 +3,7 @@
 // Functions: gazelleAuthHeader, readIndex, profileFailure, GazelleAdapter
 
 import { computeBufferBytes, computeRatio, signedFloatBytesToBigInt } from "@/lib/data-transforms"
+import { GAZELLE_STATUS_ERROR } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { validateHeaderToken } from "@/lib/tracker-credentials/header-token"
 import type {
@@ -125,7 +126,7 @@ function readIndex(
 } {
   if (data.status !== "success") {
     // The tracker's text never leads, where the sanitizer's anchored rules look.
-    const failed = `Gazelle API returned status: ${data.status}`
+    const failed = `${GAZELLE_STATUS_ERROR}: ${data.status}`
     const error = data.error?.trim()
     throw new Error(error ? `${failed}: ${error}` : failed)
   }
@@ -150,7 +151,7 @@ function readIndex(
 /** Why a profile reply carries no profile, or null when it does. */
 function profileFailure(data: GazelleUserResponse, hostname: string): string | null {
   if (data.status !== "success") {
-    return data.error?.trim() || `Gazelle API returned status: ${data.status}`
+    return data.error?.trim() || `${GAZELLE_STATUS_ERROR}: ${data.status}`
   }
   return data.response ? null : `Unexpected response from ${hostname}: missing response`
 }

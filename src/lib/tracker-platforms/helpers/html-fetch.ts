@@ -197,8 +197,8 @@ async function followRedirectChain(
     }
     if (hop === maxHops) break
 
-    // new URL's own error says "Invalid URL", which the sanitizer would read as
-    // bad credentials.
+    // new URL's own error says only "Invalid URL", which reads as a bare poll
+    // failure rather than a tracker answer.
     let nextUrl: URL
     try {
       nextUrl = new URL(location, currentUrl)

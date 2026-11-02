@@ -3,8 +3,12 @@
 import { describe, expect, it } from "vitest"
 import { decrypt } from "@/lib/crypto"
 import {
+  BTN_RPC_ERROR,
   classifyFetchError,
   classifyProxyFetchError,
+  GAZELLE_STATUS_ERROR,
+  GGN_STATUS_ERROR,
+  HAWKE_REQUEST_ERROR,
   isDecryptionError,
   isUnreachableMessage,
   isUnreadableClientCredential,
@@ -12,6 +16,7 @@ import {
   PROXY_REQUIRED_ERROR,
   sanitizeNetworkError,
 } from "@/lib/error-utils"
+import { isRetryablePollError } from "@/lib/tracker-status"
 
 // ---------------------------------------------------------------------------
 // isDecryptionError
@@ -603,8 +608,7 @@ describe("isUnreadableClientCredential", () => {
 
 // ---------------------------------------------------------------------------
 // Adapter shape errors (issue #214) read "Unexpected response from <host>: ...".
-// They get their own message and must match before the credential rule, whose
-// /invalid/ would turn a key named "invalid" into "Invalid credentials".
+// They get their own message, whatever key names the payload lists.
 // ---------------------------------------------------------------------------
 
 describe("sanitizeNetworkError - unexpected response shape", () => {
@@ -617,7 +621,7 @@ describe("sanitizeNetworkError - unexpected response shape", () => {
     ).toBe("Tracker returned an unexpected response")
   })
 
-  it("wins over the credential rule when a reported key happens to say invalid", () => {
+  it("stays a shape error when a reported key happens to say invalid", () => {
     expect(
       sanitizeNetworkError(
         'Unexpected response from lst.gg: missing "buffer"; top-level keys: invalid'
@@ -631,9 +635,8 @@ describe("sanitizeNetworkError - unexpected response shape", () => {
     )
   })
 
-  // parseBytes' messages start with "Invalid", "Negative" and "Unknown".
-  // "Invalid" must not reach the credential rule, or a malformed uploaded field
-  // tells the user to rotate a key.
+  // parseBytes' messages start with "Invalid", "Negative" and "Unknown". A
+  // malformed uploaded field must not tell the user to rotate a key.
   it("maps a byte-string parse failure to the unexpected-response message, not to credentials", () => {
     expect(sanitizeNetworkError('Invalid byte format: ""', "Poll failed")).toBe(
       "Tracker returned an unexpected response"
@@ -687,6 +690,107 @@ describe("isUnreachableMessage", () => {
     "qBittorrent redirected the request",
     "Tracker returned an oversized response",
   ])("is false for %j", (message) => {
+    expect(isUnreachableMessage(message)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// "Invalid credentials" comes from the app's own refusal phrases, plus the one
+// envelope exception, never from "invalid" anywhere in a message.
+// ---------------------------------------------------------------------------
+
+describe("sanitizeNetworkError - credential refusals", () => {
+  it.each([
+    'API key is missing or invalid for tracker "LST": token is empty',
+    'Credentials are missing or invalid for tracker "TL"',
+    "Invalid API token: it contains a control character (U+000A) at position 3. Re-copy the token with no surrounding text.",
+    "Invalid username: it contains a control character (U+0000) at position 4.",
+    "Invalid TorrentLeech credentials",
+    "Invalid Luminance credentials",
+    "Invalid BTN API key",
+    "DigitalCore credentials: uid contains invalid characters (a semicolon or a control character)",
+    "DigitalCore credentials: pass contains invalid characters (a semicolon or a control character)",
+    "MAM session cookie (mam_id) contains invalid characters (a semicolon or a control character)",
+  ])("reads %j as invalid credentials, never retried", (raw) => {
+    const message = sanitizeNetworkError(raw, "Poll failed")
+
+    expect(message).toBe("Invalid credentials")
+    expect(isRetryablePollError(message)).toBe(false)
+  })
+
+  // The wrappers quote the tracker's name, which a looser rule further down
+  // would otherwise read first.
+  it.each([
+    ["Timeout Club", "a timeout"],
+    ["Zip Banana", "an IP ban"],
+    ["Unknown Unit", "a byte-string parse failure"],
+  ])("reads a credential refusal for %j as credentials, not %s", (name) => {
+    for (const raw of [
+      `API key is missing or invalid for tracker "${name}": token is empty`,
+      `Credentials are missing or invalid for tracker "${name}"`,
+    ]) {
+      expect(sanitizeNetworkError(raw, "Poll failed")).toBe("Invalid credentials")
+    }
+  })
+
+  it.each([
+    `${GAZELLE_STATUS_ERROR}: failure: Invalid API key`,
+    `${GGN_STATUS_ERROR}: failure: Invalid API key`,
+    `${HAWKE_REQUEST_ERROR} hawke.uno: Invalid API key.`,
+    `${BTN_RPC_ERROR}: Invalid API key`,
+  ])("reads the envelope %j as invalid credentials, never retried", (raw) => {
+    const message = sanitizeNetworkError(raw, "Poll failed")
+
+    expect(message).toBe("Invalid credentials")
+    expect(isRetryablePollError(message)).toBe(false)
+  })
+
+  it.each([
+    `${GAZELLE_STATUS_ERROR}: failure: bad credentials`,
+    `${GGN_STATUS_ERROR}: failure: bad id parameter`,
+    `${HAWKE_REQUEST_ERROR} hawke.uno: Too many requests.`,
+    `${BTN_RPC_ERROR}: API key not found`,
+    `${BTN_RPC_ERROR} with no message`,
+  ])("leaves the envelope %j that never says invalid to the fallback", (raw) => {
+    expect(sanitizeNetworkError(raw, "Poll failed")).toBe("Poll failed")
+  })
+
+  // A tracker's text, a library's message, or a log line saying "invalid"
+  // outside those places reads as whatever else it is.
+  it.each<[string, string | undefined, string]>([
+    [
+      'Tracker API error: 500 Credentials are missing or invalid for tracker "x"',
+      "Poll failed",
+      "API returned 500",
+    ],
+    ["Tracker API error: 400 Bad Request: invalid token", "Poll failed", "API returned 400"],
+    ["Tracker API error: 503 invalid upstream", "Poll failed", "API returned 503"],
+    ["Failed to connect to lst.gg: ERR_TLS_CERT_ALTNAME_INVALID", "Poll failed", "Poll failed"],
+    ["Failed to connect to qbt.lan: ERR_TLS_CERT_ALTNAME_INVALID", undefined, "Connection failed"],
+    ["Invalid time value", "Poll failed", "Poll failed"],
+    [
+      "Failed to connect to lst.gg via proxy: Received invalid Socks5 initial handshake (no accepted authentication type)",
+      "Poll failed",
+      "Proxy connection failed",
+    ],
+    [
+      'Failed to connect to lst.gg via proxy: Invalid header from proxy CONNECT response: "x"',
+      "Poll failed",
+      "Proxy connection failed",
+    ],
+    [
+      "TOTP verify rejected: invalid or expired pending token",
+      "TOTP verify rejected: invalid or expired pending token",
+      "TOTP verify rejected: invalid or expired pending token",
+    ],
+  ])("does not read %j as credentials", (raw, fallback, expected) => {
+    expect(sanitizeNetworkError(raw, fallback)).toBe(expected)
+  })
+
+  it("maps qBittorrent's unreadable maindata to its own message, not the unreachable fallback", () => {
+    const message = sanitizeNetworkError("qBittorrent sent an unexpected maindata response")
+
+    expect(message).toBe("qBittorrent sent an unexpected response")
     expect(isUnreachableMessage(message)).toBe(false)
   })
 })
