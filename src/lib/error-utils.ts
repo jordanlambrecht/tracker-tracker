@@ -9,16 +9,19 @@ export function errMsg(err: unknown): string {
 }
 
 /**
- * Returns true when an error originates from AES-256-GCM authentication failure
- * or key/ciphertext mismatch. authenticate() has already refused a stale
- * session, so the stored value was sealed under another key, which a restore or
- * a recover.cjs reset can leave. Logging in again never fixes that. Entering the
+ * Returns true when decrypt() could not read a stored value: an AES-256-GCM
+ * authentication failure, a key/ciphertext mismatch, or a ciphertext too short
+ * to hold its IV and tag. authenticate() has already refused a stale session, so
+ * the value was sealed under another key or cut short, which a restore or a
+ * recover.cjs reset can leave. Logging in again never fixes that. Entering the
  * credential again does. Run it over decrypt()'s own error only, since a TLS
  * ERR_SSL_DECRYPTION_FAILED code from a network call matches it too.
  */
 export function isDecryptionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  return /decrypt|authenticate\s*data|bad\s*decrypt|invalid\s*key|EVP_/i.test(error.message)
+  return /decrypt|authenticate\s*data|bad\s*decrypt|invalid\s*key|invalid\s*ciphertext|EVP_/i.test(
+    error.message
+  )
 }
 
 // The two wrappers credentials.ts puts around a decrypt() failure. Behind either

@@ -183,6 +183,21 @@ describe("pollTracker on a stored credential it cannot read", () => {
     expect(fetchStats).not.toHaveBeenCalled()
   })
 
+  // What decrypt() throws for a value cut short, as a bad restore can leave it.
+  it("asks for the credentials again when the stored token is too short to decrypt", async () => {
+    vi.mocked(decrypt).mockImplementationOnce(() => {
+      throw new Error("Invalid ciphertext: too short")
+    })
+    const sets = captureSets()
+
+    await pollTracker(42, KEY, false)
+
+    expect(sets.map((s) => s.lastError)).toContain(
+      "Stored credentials for this tracker can't be read. Enter them again in its settings"
+    )
+    expect(fetchStats).not.toHaveBeenCalled()
+  })
+
   it("keeps Invalid credentials for a token that decrypts to empty", async () => {
     vi.mocked(decrypt).mockReturnValueOnce("")
     const sets = captureSets()

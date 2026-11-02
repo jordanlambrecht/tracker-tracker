@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate, parseTrackerId } from "@/lib/api-helpers"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
+import { MOUSEHOLE_TOKEN_UNREADABLE_ERROR } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { GET, POST } from "./route"
 
@@ -234,18 +235,16 @@ describe("GET /api/trackers/[id]/mousehole", () => {
     expect(requested).toEqual([])
   })
 
-  it("returns 500 when the saved token is not ciphertext at all", async () => {
-    // Too short to hold an IV and auth tag, which decrypt() reports in words
-    // isDecryptionError does not key on, so this is not the wrong-key failure.
+  // Too short to hold an IV and auth tag, as a bad restore can leave it.
+  // Entering the token again fixes it, as it does a token sealed under another key.
+  it("asks for the token again when the saved one is too short to be ciphertext", async () => {
     mockTrackerRow({ encryptedMouseholeToken: "AAAA" })
 
     const response = await GET(new Request("http://localhost"), makeContext())
 
-    expect(response.status).toBe(500)
-    await expect(response.json()).resolves.toEqual({
-      error: "Failed to read the Mousehole API token",
-    })
-    expect(log.error).toHaveBeenCalled()
+    expect(response.status).toBe(422)
+    await expect(response.json()).resolves.toEqual({ error: MOUSEHOLE_TOKEN_UNREADABLE_ERROR })
+    expect(log.warn).toHaveBeenCalled()
     expect(requested).toEqual([])
   })
 

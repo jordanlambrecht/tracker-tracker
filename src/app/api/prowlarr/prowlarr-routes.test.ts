@@ -247,4 +247,19 @@ describe("POST /api/prowlarr/[id]/test", () => {
       "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
     )
   })
+
+  // Too short to hold an IV and auth tag, as a bad restore can leave it.
+  it("asks for a key cut short to be entered again", async () => {
+    const actual =
+      await vi.importActual<typeof import("@/lib/prowlarr/sync")>("@/lib/prowlarr/sync")
+    vi.mocked(testProwlarrInstance).mockImplementation(actual.testProwlarrInstance)
+    mockSelectRow({ url: "http://prowlarr.test:9696", encryptedApiKey: "AAAA" })
+
+    const res = await TEST(new Request("http://localhost/api/prowlarr/1/test"), params("1"))
+
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe(
+      "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+    )
+  })
 })

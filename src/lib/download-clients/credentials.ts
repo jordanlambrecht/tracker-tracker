@@ -20,8 +20,8 @@ export const CLIENT_CONNECTION_COLUMNS = {
 } as const
 
 function credentialError(clientName: string, err: unknown): Error {
-  // The "decrypt" prefix only for AES-GCM auth failures. Both prefixes are
-  // matched by isUnreadableClientCredential() and sanitizeNetworkError().
+  // The "decrypt" prefix for a stored value decrypt() can't read. Both prefixes
+  // are matched by isUnreadableClientCredential() and sanitizeNetworkError().
   const cause = err instanceof Error ? err.message : String(err)
   if (isDecryptionError(err)) {
     return new Error(`decrypt credentials failed for client "${clientName}": ${cause}`, {

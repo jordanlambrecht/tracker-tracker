@@ -1,6 +1,7 @@
 // src/lib/__tests__/error-utils.test.ts
 
 import { describe, expect, it } from "vitest"
+import { decrypt } from "@/lib/crypto"
 import {
   classifyFetchError,
   classifyProxyFetchError,
@@ -34,6 +35,18 @@ describe("isDecryptionError", () => {
 
   it("returns true for 'Invalid key length'", () => {
     expect(isDecryptionError(new Error("Invalid key length"))).toBe(true)
+  })
+
+  // A bad restore can leave a value too short to hold its IV and auth tag.
+  it("returns true for decrypt()'s own error on a value cut short", () => {
+    const error = (() => {
+      try {
+        decrypt("AAAA", Buffer.alloc(32, 1))
+      } catch (err) {
+        return err
+      }
+    })()
+    expect(isDecryptionError(error)).toBe(true)
   })
 
   it("returns true for messages containing 'EVP_' (OpenSSL error codes)", () => {

@@ -433,6 +433,18 @@ describe("pollProwlarrInstance", () => {
     )
   })
 
+  // Too short to hold an IV and auth tag, as a bad restore can leave it.
+  it("asks for a key cut short to be entered again", async () => {
+    mockSelects([instanceRow({ encryptedApiKey: "AAAA" })])
+    const sets = mockInstanceUpdate()
+
+    await pollProwlarrInstance(1, KEY)
+
+    expect(sets[0].lastError).toBe(
+      "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+    )
+  })
+
   // Prowlarr answered, so a TLS code that mentions decryption is a connection
   // fault and never the stored key.
   it("reports a TLS decryption failure as a connection fault", async () => {
