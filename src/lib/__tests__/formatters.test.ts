@@ -115,6 +115,17 @@ describe("computeDelta", () => {
 // ---------------------------------------------------------------------------
 
 describe("formatRatio", () => {
+  // A seed-only account reached 75,660,000 in production, shown ungrouped.
+  it("groups thousands like formatCount", () => {
+    expect(formatRatio(75660000)).toBe("75,660,000.00")
+    expect(formatRatio(1234.5, "x")).toBe("1,234.50x")
+  })
+
+  it("shows no minus sign on an exact -0, only on a real negative ratio", () => {
+    expect(formatRatio(-0)).toBe("0.00")
+    expect(formatRatio(-1.5)).toBe("-1.50")
+  })
+
   it("formats a ratio to 2 decimal places", () => {
     expect(formatRatio(1.5)).toBe("1.50")
     expect(formatRatio(0)).toBe("0.00")

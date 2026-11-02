@@ -68,14 +68,21 @@ export function formatBytesNum(bytes: number, binary = true): string {
   return `${sign}${val.toFixed(val >= 100 ? 0 : val >= 10 ? 1 : 2)} ${units[i]}`
 }
 
+// Built once, since toLocaleString with options builds a formatter per call.
+const RATIO_FORMAT = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
 /**
- * Formats a ratio number to 2 decimal places.
+ * Formats a ratio to 2 decimal places, grouped like formatCount.
  * Returns "—" for null/undefined.
  */
 export function formatRatio(ratio: number | null | undefined, suffix = ""): string {
   if (ratio === null || ratio === undefined) return "—"
   if (!Number.isFinite(ratio)) return `∞${suffix}`
-  return `${ratio.toFixed(2)}${suffix}`
+  // Intl prints an exact -0 as "-0.00", so it becomes 0 first.
+  return `${RATIO_FORMAT.format(ratio === 0 ? 0 : ratio)}${suffix}`
 }
 
 /**
