@@ -8,6 +8,7 @@ import { isRedirect } from "@/lib/network"
 import { proxyFetch } from "@/lib/tunnel"
 import { withDefaultUserAgent } from "@/lib/user-agent"
 import type { FetchOptions } from "../contract"
+import { isCloudflareChallengeResponse } from "./html-fetch"
 
 /**
  * The proxied and direct transports normalized to one shape. proxyFetch
@@ -134,6 +135,9 @@ async function adapterFetch<T>(
   const response = await adapterRequest(url, hostname, options, headers, init)
 
   if (!response.ok) {
+    if (await isCloudflareChallengeResponse(response)) {
+      throw new Error(`Cloudflare challenge detected on ${hostname}`)
+    }
     throw new Error(`Tracker API error: ${response.status} ${response.statusText}`)
   }
 

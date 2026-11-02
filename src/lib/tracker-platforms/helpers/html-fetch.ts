@@ -1,7 +1,7 @@
 // src/lib/tracker-platforms/helpers/html-fetch.ts
 //
-// Functions: buildHtmlHeaders, fetchFailure, failureBody, getHtmlViaProxy, getHtml,
-//            followRedirectChain, fetchTrackerHtml
+// Functions: buildHtmlHeaders, fetchFailure, failureBody, isCloudflareChallengeResponse,
+//            getHtmlViaProxy, getHtml, followRedirectChain, fetchTrackerHtml
 
 import { classifyFetchError, classifyProxyFetchError } from "@/lib/error-utils"
 import { ADAPTER_FETCH_TIMEOUT_MS } from "@/lib/limits"
@@ -90,12 +90,24 @@ type HtmlFetcher = (url: string) => Promise<HtmlResponse>
  * A failed response's body, or "" when it cannot be read, so the error falls
  * back to the status.
  */
-async function failureBody(response: HtmlResponse): Promise<string> {
+async function failureBody(response: Pick<HtmlResponse, "text">): Promise<string> {
   try {
     return await response.text()
   } catch {
     return ""
   }
+}
+
+/**
+ * A failed response that is Cloudflare's challenge. Cloudflare serves it with a
+ * 403 or a 503, and read by its status alone the 403 would show as rejected
+ * credentials and the 503 as an outage to retry.
+ */
+export async function isCloudflareChallengeResponse(
+  response: Pick<HtmlResponse, "status" | "text">
+): Promise<boolean> {
+  if (response.status !== 403 && response.status !== 503) return false
+  return isCloudflareChallenge(await failureBody(response))
 }
 
 async function getHtmlViaProxy(
@@ -237,12 +249,7 @@ export async function fetchTrackerHtml(request: TrackerHtmlRequest): Promise<str
   }
 
   if (!response.ok) {
-    // Cloudflare serves its challenge with a 403 or a 503. Read by its status
-    // alone, the 403 would show as rejected credentials.
-    if (
-      (response.status === 403 || response.status === 503) &&
-      isCloudflareChallenge(await failureBody(response))
-    ) {
+    if (await isCloudflareChallengeResponse(response)) {
       throw new Error(`Cloudflare challenge detected on ${label}`)
     }
     throw fetchFailure(response.status, response.statusText)

@@ -449,3 +449,44 @@ describe("adapterRequest - redirects", () => {
     vi.doUnmock("@/lib/tunnel")
   })
 })
+
+// ---------------------------------------------------------------------------
+// Cloudflare serves its challenge with a 403 or a 503. Read by status alone, a
+// JSON API's 503 is a gateway outage the scheduler retries, and its 403 a
+// rejected key.
+// ---------------------------------------------------------------------------
+
+describe("adapterFetch - a Cloudflare challenge", () => {
+  const CHALLENGE = "<html><head><title>Just a moment...</title></head><body></body></html>"
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each([
+    [503, "Service Unavailable"],
+    [403, "Forbidden"],
+  ])("names a challenge served as a %i", async (status, statusText) => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(CHALLENGE, { status, statusText }))
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Cloudflare challenge detected on tracker.example"
+    )
+    expect(sanitizeNetworkError("Cloudflare challenge detected on tracker.example")).toBe(
+      "Cloudflare challenge blocked the request"
+    )
+  })
+
+  it("keeps a plain 503 an outage", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("<html><body>Service Unavailable</body></html>", {
+        status: 503,
+        statusText: "Service Unavailable",
+      })
+    )
+
+    await expect(adapterFetch("https://tracker.example/api", "tracker.example")).rejects.toThrow(
+      "Tracker API error: 503 Service Unavailable"
+    )
+  })
+})
