@@ -1345,6 +1345,52 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect((await res.json()).orphanedRecordsSkipped).toBe(1)
   })
 
+  // A backup file is the user's to edit. One bad dismissal must not fail the
+  // restore inside its transaction.
+  it("skips a dismissed alert that is not an object, as it does a bad key", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    payload.dismissedAlerts = [
+      null,
+      "update-available-2.15.0",
+      {
+        id: 3,
+        alertKey: "update-available-2.15.0",
+        alertType: "update-available",
+        dismissedAt: ISO,
+      },
+    ] as unknown as Record<string, unknown>[]
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+
+    expect(res.status).toBe(200)
+    expect(onlyInsert(recorder, "dismissed_alerts").alertKey).toBe("update-available-2.15.0")
+    expect((await res.json()).orphanedRecordsSkipped).toBe(0)
+  })
+
+  // The real insert throws on an invalid Date, which would fail the restore.
+  it("dates a dismissed alert from now when its dismissedAt won't parse", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    payload.dismissedAlerts = [
+      {
+        id: 1,
+        alertKey: "update-available-2.15.0",
+        alertType: "update-available",
+        dismissedAt: "not a date",
+      },
+    ]
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+
+    expect(res.status).toBe(200)
+    const dismissedAt = onlyInsert(recorder, "dismissed_alerts").dismissedAt as Date
+    expect(dismissedAt).toBeInstanceOf(Date)
+    expect(Number.isNaN(dismissedAt.getTime())).toBe(false)
+  })
+
   // ─── 8. Scheduler lifecycle around the transaction ───────────────────────────
 
   it("restarts the scheduler it stopped once the restore succeeds", async () => {

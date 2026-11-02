@@ -884,6 +884,8 @@ export async function POST(request: Request) {
       if (Array.isArray(payload.dismissedAlerts) && payload.dismissedAlerts.length > 0) {
         const alertRows: { alertKey: string; alertType: string; dismissedAt: Date }[] = []
         for (const a of payload.dismissedAlerts) {
+          // A malformed entry is skipped, as one with a bad key type is.
+          if (a === null || typeof a !== "object") continue
           const fields = a as Record<string, unknown>
           if (typeof fields.alertKey !== "string" || typeof fields.alertType !== "string") continue
           const alertKey = remapAlertKey(fields.alertKey, fields.alertType, {
@@ -894,10 +896,13 @@ export async function POST(request: Request) {
             orphanedRecordsSkipped++
             continue
           }
+          // A missing or unparseable dismissedAt dates from now. The insert would
+          // throw on an invalid Date and fail the whole restore.
+          const parsed = fields.dismissedAt ? new Date(fields.dismissedAt as string) : null
           alertRows.push({
             alertKey,
             alertType: fields.alertType,
-            dismissedAt: fields.dismissedAt ? new Date(fields.dismissedAt as string) : new Date(),
+            dismissedAt: parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date(),
           })
         }
         for (let i = 0; i < alertRows.length; i += BATCH_SIZE) {
