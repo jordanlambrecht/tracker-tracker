@@ -155,21 +155,21 @@ export async function pollTracker(
   batchTimestamp?: Date,
   enabledTargets?: NotificationTargetRow[],
   isManual = false
-): Promise<void> {
+): Promise<boolean> {
   const [tracker] = await db
     .select(POLL_TRACKER_COLUMNS)
     .from(trackers)
     .where(eq(trackers.id, trackerId))
     .limit(1)
 
-  if (!tracker?.isActive) return
+  if (!tracker?.isActive) return false
   // The token only ever goes to an address from the tracker list.
   const site = trackerSiteFor(tracker)
   if (!site) {
     await pauseUnlinked(tracker)
-    return
+    return false
   }
-  if (site.entry.defunct) return
+  if (site.entry.defunct) return false
 
   const timestamp = batchTimestamp ?? new Date()
 
@@ -445,6 +445,7 @@ export async function pollTracker(
         "circuit breaker reset by successful poll"
       )
     }
+    return true
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"
     const message = sanitizeNetworkError(raw, "Poll failed")
@@ -530,7 +531,7 @@ export async function pollTracker(
     // A paused tracker's failures send nothing, except the retry that turns the
     // pause hard: the tracker answered, so waiting will not fix it.
     const notify = !tracker.pausedAt || (isRetryingPause(tracker) && !isRetryablePollError(message))
-    if (!notify) return
+    if (!notify) return false
 
     try {
       await dispatchNotifications(
@@ -569,6 +570,7 @@ export async function pollTracker(
         "Error-path notification dispatch failed"
       )
     }
+    return false
   }
 }
 

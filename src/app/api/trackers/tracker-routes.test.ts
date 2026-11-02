@@ -1513,6 +1513,7 @@ describe("DELETE /api/trackers/[id]", () => {
 })
 
 describe("POST /api/trackers/[id]/poll", () => {
+  const PREVIOUS_POLL = new Date("2026-11-01T10:00:00Z")
   let trackerRow: Record<string, unknown> | undefined
 
   beforeEach(() => {
@@ -1521,12 +1522,13 @@ describe("POST /api/trackers/[id]/poll", () => {
       encryptionKey: VALID_KEY,
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
-    trackerRow = { registrySlug: "aither" }
+    trackerRow = { registrySlug: "aither", lastPolledAt: PREVIOUS_POLL }
 
     // Poll route:
-    //   1. db.select({ registrySlug }).from(trackers).where(...).limit(1), the tracker
+    //   1. db.select({ registrySlug, lastPolledAt }).from(trackers).where(...).limit(1), the tracker
     //   2. db.update(trackers).set(...).where(...).returning(...), atomic cooldown claim
     //   3. db.select({...}).from(appSettings).limit(1), settings query
+    //   4. db.update(trackers).set(...).where(...), the claim given back after a poll that didn't succeed
     const mockReturning = vi.fn().mockResolvedValue([{ id: 1 }])
     const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockReturning })
     const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere })
@@ -1551,6 +1553,39 @@ describe("POST /api/trackers/[id]/poll", () => {
       const mockFrom = vi.fn().mockReturnValue({ limit: mockLimit })
       return { from: mockFrom }
     })
+  })
+
+  // A failed poll must not read as "last polled just now", or the scheduler
+  // would wait a full interval before trying again.
+  it.each<[string, () => void, number]>([
+    ["records a failure", () => vi.mocked(pollTracker).mockResolvedValue(false), 200],
+    ["throws", () => vi.mocked(pollTracker).mockRejectedValue(new Error("db down")), 500],
+  ])("gives the cooldown claim back when the poll %s", async (_case, arrange, status) => {
+    arrange()
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+
+    const response = await PollPOST(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(status)
+    // Both updates share the mocked chain: the claim is call 1, the give-back call 2.
+    expect(db.update).toHaveBeenCalledTimes(2)
+    const set = vi.mocked(db.update).mock.results[1]?.value.set as ReturnType<typeof vi.fn>
+    const claimedAt = set.mock.calls[0][0].lastPolledAt
+    expect(set).toHaveBeenNthCalledWith(2, { lastPolledAt: PREVIOUS_POLL })
+    // Only while the claim is still there, so a poll that succeeded meanwhile keeps its time.
+    expect(set.mock.results[1]?.value.where).toHaveBeenNthCalledWith(2, {
+      and: [{ eq: [trackersTable.id, 1] }, { eq: [trackersTable.lastPolledAt, claimedAt] }],
+    })
+  })
+
+  it("keeps the claim as the poll time when the poll succeeds", async () => {
+    vi.mocked(pollTracker).mockResolvedValue(true)
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+
+    const response = await PollPOST(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(200)
+    expect(db.update).toHaveBeenCalledTimes(1)
   })
 
   it("returns 200 on happy path", async () => {

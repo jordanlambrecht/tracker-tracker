@@ -241,7 +241,7 @@ describe("pollTracker: success path", () => {
     // db.insert for the snapshot
     mockInsertChain()
 
-    await pollTracker(1, MOCK_KEY, false, undefined)
+    await expect(pollTracker(1, MOCK_KEY, false, undefined)).resolves.toBe(true)
 
     // The final update must set consecutiveFailures: 0, pausedAt: null, lastErrorAt: null
     const setCalls = updateChain.set.mock.calls
@@ -319,7 +319,7 @@ describe("pollTracker: success path", () => {
       mockSelectOnce([makeTrackerRow({ isActive: false })])
     )
 
-    await pollTracker(1, MOCK_KEY, false, undefined)
+    await expect(pollTracker(1, MOCK_KEY, false, undefined)).resolves.toBe(false)
 
     expect(db.insert).not.toHaveBeenCalled()
     expect(db.update).not.toHaveBeenCalled()
@@ -354,7 +354,7 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
     // Simulate DB returning new count = 2 (below threshold), pausedAt still null
     const updateChain = mockUpdateChain([{ consecutiveFailures: 2, pausedAt: null }])
 
-    await pollTracker(1, MOCK_KEY, false, undefined)
+    await expect(pollTracker(1, MOCK_KEY, false, undefined)).resolves.toBe(false)
 
     // The failure update must use sql expressions for both consecutiveFailures and pausedAt,
     // not raw numbers or null. Find the set call that contains lastError.
@@ -502,7 +502,9 @@ describe("pollTracker: failure path — consecutiveFailures increment", () => {
       mockUpdateChain([{ consecutiveFailures: POLL_FAILURE_THRESHOLD + 1, pausedAt }])
       const { dispatchNotifications } = await import("@/lib/notifications/dispatch")
 
-      await pollTracker(1, MOCK_KEY, false, undefined, undefined, undefined, true)
+      await expect(
+        pollTracker(1, MOCK_KEY, false, undefined, undefined, undefined, true)
+      ).resolves.toBe(false)
 
       expect(dispatchNotifications).not.toHaveBeenCalled()
     })

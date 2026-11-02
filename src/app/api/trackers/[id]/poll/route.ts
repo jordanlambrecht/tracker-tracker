@@ -17,6 +17,22 @@ import { pollTracker } from "@/lib/tracker-scheduler"
 import { TRACKER_DEFUNCT_ERROR, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
 
+// The claim holds lastPolledAt only as a cooldown. A poll that didn't succeed
+// hands back the time it replaced, unless a poll that did has written it since.
+async function releaseClaim(trackerId: number, claimedAt: Date, previous: Date | null) {
+  try {
+    await db
+      .update(trackers)
+      .set({ lastPolledAt: previous })
+      .where(and(eq(trackers.id, trackerId), eq(trackers.lastPolledAt, claimedAt)))
+  } catch (error) {
+    log.error(
+      { route: "POST /api/trackers/[id]/poll", trackerId, error: String(error) },
+      "manual poll cooldown not released"
+    )
+  }
+}
+
 export async function POST(_request: Request, props: RouteContext) {
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
@@ -28,7 +44,7 @@ export async function POST(_request: Request, props: RouteContext) {
 
   // Refused before the claim, so a refusal never starts the cooldown.
   const [tracker] = await db
-    .select({ registrySlug: trackers.registrySlug })
+    .select({ registrySlug: trackers.registrySlug, lastPolledAt: trackers.lastPolledAt })
     .from(trackers)
     .where(eq(trackers.id, trackerId))
     .limit(1)
@@ -45,9 +61,10 @@ export async function POST(_request: Request, props: RouteContext) {
 
   // Atomically claim poll slot. Prevents TOCTOU race with multiple tabs
   const threshold = new Date(Date.now() - POLL_MANUAL_COOLDOWN_MS)
+  const claimedAt = new Date()
   const [claimed] = await db
     .update(trackers)
-    .set({ lastPolledAt: new Date() })
+    .set({ lastPolledAt: claimedAt })
     .where(
       and(
         eq(trackers.id, trackerId),
@@ -83,8 +100,9 @@ export async function POST(_request: Request, props: RouteContext) {
 
   // pollTracker records a failed poll on the row itself, so only a database
   // fault reaches the catch.
+  let polled = false
   try {
-    await pollTracker(trackerId, key, privacyMode, proxyAgent, undefined, undefined, true)
+    polled = await pollTracker(trackerId, key, privacyMode, proxyAgent, undefined, undefined, true)
     return NextResponse.json({ success: true })
   } catch (error) {
     log.error(
@@ -92,5 +110,7 @@ export async function POST(_request: Request, props: RouteContext) {
       "manual poll failed"
     )
     return NextResponse.json({ error: "Poll failed" }, { status: 500 })
+  } finally {
+    if (!polled) await releaseClaim(trackerId, claimedAt, tracker.lastPolledAt)
   }
 }
