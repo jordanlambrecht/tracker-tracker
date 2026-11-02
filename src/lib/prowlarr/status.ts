@@ -69,9 +69,12 @@ export function describeIndexerStatus(indexer: TrackerProwlarrIndexer): string {
   }
 }
 
-/** Prowlarr's own Indexers page, where a backed-off indexer can be tested or edited. */
+/**
+ * Prowlarr's indexer list, where a backed-off indexer can be tested or edited. It is
+ * Prowlarr's home page, under any URL base: Prowlarr has no /indexers route.
+ */
 export function prowlarrIndexersUrl(indexer: Pick<TrackerProwlarrIndexer, "instanceUrl">): string {
-  return `${indexer.instanceUrl.replace(/\/+$/, "")}/indexers`
+  return `${indexer.instanceUrl.replace(/\/+$/, "")}/`
 }
 
 /**

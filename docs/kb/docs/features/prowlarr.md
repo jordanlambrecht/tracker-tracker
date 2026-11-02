@@ -29,7 +29,7 @@ When the hosts differ, open the tracker's settings and pick the indexer under **
 
 ## What Is Shown
 
-The tracker's page gets a card for each matched indexer, beside the TrackerHub card and laid out the same way. Its header shows the indexer's status, collapses the details below it, and links to that Prowlarr's Indexers page. The link uses the instance's URL, so it opens only if your browser can reach that address too, which a Docker container name usually is not. The status is one of:
+The tracker's page gets a card for each matched indexer, beside the TrackerHub card and laid out the same way. Its header shows the indexer's status, collapses the details below it, and links to that Prowlarr's indexer list, its home page. The link uses the instance's URL, so it opens only if your browser can reach that address too, which a Docker container name usually is not. The status is one of:
 
 | Status         | Meaning                                                                                     |
 | -------------- | ------------------------------------------------------------------------------------------- |

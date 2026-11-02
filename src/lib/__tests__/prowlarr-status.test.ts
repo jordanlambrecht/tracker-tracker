@@ -117,10 +117,14 @@ describe("statsTotals", () => {
 })
 
 describe("prowlarrIndexersUrl", () => {
-  it("links to the Indexers page under any URL base", () => {
-    expect(prowlarrIndexersUrl({ instanceUrl: "http://host.test/prowlarr/" })).toBe(
-      "http://host.test/prowlarr/indexers"
-    )
+  // The indexer list is Prowlarr's home page. It has no /indexers route.
+  it.each([
+    ["http://prowlarr.test:9696", "http://prowlarr.test:9696/"],
+    ["http://prowlarr.test:9696/", "http://prowlarr.test:9696/"],
+    ["http://host.test/prowlarr", "http://host.test/prowlarr/"],
+    ["http://host.test/prowlarr//", "http://host.test/prowlarr/"],
+  ])("links %s to its indexer list at %s", (instanceUrl, url) => {
+    expect(prowlarrIndexersUrl({ instanceUrl })).toBe(url)
   })
 })
 
