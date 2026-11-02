@@ -1,6 +1,9 @@
 // src/components/ui/StatusDot.tsx
+"use client"
+
 import { cva } from "class-variance-authority"
 import clsx from "clsx"
+import { useLayoutEffect, useRef } from "react"
 
 type StatusDotTone = "accent" | "success" | "warn" | "danger" | "secondary" | "muted"
 type StatusDotSize = "sm" | "md"
@@ -44,10 +47,22 @@ const statusDot = cva("inline-block rounded-full shrink-0", {
 })
 
 function StatusDot({ tone, glow = false, size = "sm", color, label, className }: StatusDotProps) {
+  const ref = useRef<HTMLOutputElement & HTMLSpanElement>(null)
+
+  // Glowing dots pulse in step: each pulse counts from the document timeline's
+  // zero, not from when its dot mounted or began to glow. Where getAnimations is
+  // missing, the dots keep their own phase.
+  useLayoutEffect(() => {
+    if (!glow) return
+    for (const animation of ref.current?.getAnimations?.() ?? []) {
+      if ((animation as CSSAnimation).animationName === "pulse-glow") animation.startTime = 0
+    }
+  }, [glow])
+
   const classes = clsx(statusDot({ tone, glow, size }), className)
   const style = color ? { backgroundColor: color, color } : undefined
-  if (label) return <output aria-label={label} className={classes} style={style} />
-  return <span aria-hidden="true" className={classes} style={style} />
+  if (label) return <output ref={ref} aria-label={label} className={classes} style={style} />
+  return <span ref={ref} aria-hidden="true" className={classes} style={style} />
 }
 
 export type { StatusDotProps, StatusDotTone }

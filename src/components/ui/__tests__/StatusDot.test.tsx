@@ -1,7 +1,7 @@
 // src/components/ui/__tests__/StatusDot.test.tsx
 
 import { render } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { StatusDot } from "@/components/ui/StatusDot"
 import { getHealthDot } from "@/lib/tracker-status"
 
@@ -68,5 +68,42 @@ describe("StatusDot for tracker health", () => {
     const dot = getByRole("status")
     expect(dot).toHaveClass("bg-danger", "animate-pulse-glow")
     expect(dot).not.toHaveClass("opacity-50")
+  })
+})
+
+// Each dot's CSS pulse starts when it mounts or begins to glow, so a list of
+// dots drifts out of phase. jsdom has no getAnimations, so it is stubbed here.
+describe("StatusDot pulse phase", () => {
+  function stubAnimations() {
+    const pulse = { animationName: "pulse-glow", startTime: 1234 as number | null }
+    const other = { animationName: "jiggle", startTime: 50 as number | null }
+    Object.defineProperty(HTMLElement.prototype, "getAnimations", {
+      value: vi.fn(() => [pulse, other]),
+      configurable: true,
+    })
+    return { pulse, other }
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, "getAnimations")
+  })
+
+  it("starts a glowing dot's pulse at the document timeline's zero", () => {
+    const { pulse, other } = stubAnimations()
+
+    render(<StatusDot tone="success" glow />)
+
+    expect(pulse.startTime).toBe(0)
+    expect(other.startTime).toBe(50)
+  })
+
+  it("moves the pulse into step when a still dot begins to glow", () => {
+    const { pulse } = stubAnimations()
+    const { rerender } = render(<StatusDot tone="success" label="Healthy" />)
+    expect(pulse.startTime).toBe(1234)
+
+    rerender(<StatusDot tone="success" label="Healthy" glow />)
+
+    expect(pulse.startTime).toBe(0)
   })
 })
