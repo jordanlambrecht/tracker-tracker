@@ -57,7 +57,10 @@ async function pick(user: ReturnType<typeof userEvent.setup>, name: string) {
 }
 
 function requests() {
-  return fetchMock.mock.calls.map(([url, init]) => [url, JSON.parse(init.body)])
+  return fetchMock.mock.calls.map(([url, init]) => [
+    url,
+    init.body === undefined ? init.method : JSON.parse(init.body),
+  ])
 }
 
 describe("LinkTrackerDialog", () => {
@@ -86,7 +89,8 @@ describe("LinkTrackerDialog", () => {
     expect(screen.getByLabelText("Session Cookies")).toBeInTheDocument()
   })
 
-  it("tests the key on the picked tracker, then links with it", async () => {
+  // The first poll is fired and not waited on, as Add Tracker does after a create.
+  it("tests the key on the picked tracker, links with it, then starts a poll", async () => {
     const user = userEvent.setup()
     respond({
       "/api/trackers/test-connection": jsonResponse({ username: "someone", group: "User" }),
@@ -101,8 +105,26 @@ describe("LinkTrackerDialog", () => {
     expect(requests()).toEqual([
       ["/api/trackers/test-connection", { slug: "aither", apiToken: "fresh-token" }],
       ["/api/trackers/42/link", { slug: "aither", apiToken: "fresh-token" }],
+      ["/api/trackers/42/poll", "POST"],
     ])
     expect(onLinked).toHaveBeenCalledWith(LINKED_ROW)
+  })
+
+  it("starts no poll on a row the user paused", async () => {
+    const user = userEvent.setup()
+    const paused = { ...LINKED_ROW, userPausedAt: "2026-11-01T09:00:00.000Z" }
+    respond({
+      "/api/trackers/test-connection": jsonResponse({ username: "someone", group: "User" }),
+      "/api/trackers/42/link": jsonResponse(paused),
+    })
+    const { onLinked } = renderDialog()
+
+    await pick(user, "Aither")
+    await user.type(screen.getByLabelText("API Token"), "fresh-token")
+    await user.click(screen.getByRole("button", { name: "Link" }))
+
+    expect(onLinked).toHaveBeenCalledWith(paused)
+    expect(requests().map(([url]) => url)).not.toContain("/api/trackers/42/poll")
   })
 
   it("links nothing when the key fails its test, and says why under the key", async () => {

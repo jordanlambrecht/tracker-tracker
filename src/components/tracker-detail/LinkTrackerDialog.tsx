@@ -117,8 +117,14 @@ function LinkTrackerDialog({
         return
       }
 
+      const linked = linkData as TrackerSummary
+      // Fire-and-forget first poll, as Add Tracker does, unless the user paused it
+      if (!linked.userPausedAt) {
+        fetch(`/api/trackers/${trackerId}/poll`, { method: "POST" }).catch(() => {})
+      }
+
       resetForm()
-      onLinked(linkData as TrackerSummary)
+      onLinked(linked)
     } catch {
       setErrors({ form: "Network error. Please try again" })
     } finally {
