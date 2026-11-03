@@ -282,7 +282,7 @@ The backup/restore system (`src/lib/backup.ts`, `src/app/api/settings/backup/`) 
 
 - **Encrypted fields travel as ciphertext**: `encryptedApiToken`, `encryptedCredentials`, `encryptedMouseholeToken`, `totpSecret`, `encryptedProxyPassword`, `encryptedUsername`, `encryptedPassword`, `encryptedUrlPath`, `downloadClients[].encryptedApiKey`, `prowlarrInstances[].encryptedApiKey`, `encryptedConfig` are never decrypted during backup generation.
 - **Password hash excluded**: `app_settings.password_hash` is never included in backup files. The restoring user's current password is preserved.
-- **Encryption salt included**: required to re-derive the encryption key from the master password after restore.
+- **Encryption salt included**: the restore derives the backup's key from it and the master password to read the backup's encrypted fields, then re-encrypts them under this instance's own salt, which it never replaces.
 - **Failed login counter reset**: `failedLoginAttempts` is always set to 0 on restore, regardless of the backup's value.
 
 #### Authentication

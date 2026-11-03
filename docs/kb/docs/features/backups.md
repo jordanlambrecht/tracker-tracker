@@ -18,7 +18,7 @@ Tracker Tracker backs up your configuration and history. Back up manually whenev
 | Prowlarr instances                                              | ✓          | Encrypted (API key); indexer list is re-read    |
 | Tag groups & notification targets                               | ✓          | All destinations                                |
 | **Your login password**                                         | ✗          | Never exported; use current password to restore |
-| **Encryption salt**                                             | ✗          | Never backed up; stays on instance              |
+| **Encryption salt**                                             | ✓          | Used on restore; yours is never replaced        |
 | **Failed login counters**                                       | ✗          | Reset to zero on restore                        |
 | Transient state (last poll time, errors, cached torrents)       | ✗          | Not persisted                                   |
 | Today at a Glance daily history                                 | ✗          | Rebuilt from the restored snapshots             |
