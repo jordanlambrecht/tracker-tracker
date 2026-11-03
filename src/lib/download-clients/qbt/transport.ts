@@ -495,7 +495,12 @@ export async function getTransferInfo(baseUrl: string, auth: QbtAuth): Promise<Q
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, auth)
-  return readQbtJson<QbtTransferInfo>(response, host)
+  const info = await readQbtJson<Partial<QbtTransferInfo>>(response, host)
+  // qBittorrent always sends both, so a missing one is refused, never read as 0.
+  if (typeof info.up_info_speed !== "number" || typeof info.dl_info_speed !== "number") {
+    throw new Error("qBittorrent sent an unexpected transfer info response")
+  }
+  return info as QbtTransferInfo
 }
 
 export async function syncMaindata(

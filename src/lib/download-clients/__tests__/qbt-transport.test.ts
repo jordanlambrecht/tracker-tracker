@@ -328,6 +328,39 @@ describe("a body that is not JSON", () => {
   })
 })
 
+describe("transfer info", () => {
+  const AUTH = { mode: "apikey", key: "k", credentialKey: "apikey:k" } as const
+  const answer = (body: unknown) =>
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(body))))
+
+  it("reads both speeds", async () => {
+    answer({ up_info_speed: 5, dl_info_speed: 7 })
+
+    await expect(getTransferInfo(BASE, AUTH)).resolves.toMatchObject({
+      up_info_speed: 5,
+      dl_info_speed: 7,
+    })
+  })
+
+  // A missing speed would reach the speed chart as undefined, not as a reading.
+  it.each([
+    ["a missing upload speed", { dl_info_speed: 7 }],
+    ["a missing download speed", { up_info_speed: 5 }],
+    ["a speed sent as text", { up_info_speed: "5", dl_info_speed: 7 }],
+  ])("refuses %s, worded as qBittorrent's answer", async (_label, body) => {
+    answer(body)
+
+    const err = await getTransferInfo(BASE, AUTH)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("qBittorrent sent an unexpected transfer info response")
+    const card = sanitizeNetworkError(err?.message ?? "")
+    expect(card).toBe("qBittorrent sent an unexpected response")
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+})
+
 describe("the response body cap", () => {
   // A real ReadableStream, not the plain-object mocks above: those carry no
   // `body`, so they take the response.json() fallback and never reach the
