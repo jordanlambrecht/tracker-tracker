@@ -118,6 +118,48 @@ describe("BackupsSection restore", () => {
     expect(fetchMock.mock.calls.filter(([url]) => url === RESTORE_URL)).toHaveLength(1)
   })
 
+  describe("after a check comes back", () => {
+    const restoreCalls = () => fetchMock.mock.calls.filter(([url]) => url === RESTORE_URL)
+
+    async function checkOnce(status = 200) {
+      const respond = holdRestoreRequests()
+      const user = await openRestoreForm(backupFile(1024))
+      await enterPasswordAndPhrase(user)
+      respond(status === 200 ? ALL_RECOVERABLE : { error: "busy" }, status)
+      await waitFor(() =>
+        expect(screen.queryByText("Checking this backup…")).not.toBeInTheDocument()
+      )
+      return user
+    }
+
+    async function leaveThePasswordField(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByLabelText("Master password"))
+      await user.click(screen.getByLabelText("Type RESTORE ALL DATA to confirm"))
+    }
+
+    it("does not upload the file again when nothing changed", async () => {
+      const user = await checkOnce()
+      await leaveThePasswordField(user)
+
+      expect(restoreCalls()).toHaveLength(1)
+    })
+
+    it("checks again when the last check failed", async () => {
+      const user = await checkOnce(409)
+      await leaveThePasswordField(user)
+
+      expect(restoreCalls()).toHaveLength(2)
+    })
+
+    it("checks again once the password changes", async () => {
+      const user = await checkOnce()
+      await user.type(screen.getByLabelText("Master password"), "x")
+      await user.click(screen.getByLabelText("Type RESTORE ALL DATA to confirm"))
+
+      expect(restoreCalls()).toHaveLength(2)
+    })
+  })
+
   it("drops a check whose password changed while it ran", async () => {
     const respond = holdRestoreRequests()
     const user = await openRestoreForm(backupFile(1024))

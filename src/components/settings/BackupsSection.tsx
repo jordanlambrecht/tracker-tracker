@@ -119,6 +119,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const restoreInputRef = useRef<HTMLInputElement>(null)
   // Bumped when the file or a password changes, so a check of the old inputs is dropped.
   const preflightGeneration = useRef(0)
+  // The generation of the last check that came back, so a blur with nothing changed
+  // does not upload the whole file again.
+  const checkedGeneration = useRef(-1)
 
   const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
 
@@ -261,6 +264,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     // The server checks one backup at a time and would refuse a second.
     if (preflightLoading) return
     const generation = preflightGeneration.current
+    if (generation === checkedGeneration.current) return
     setPreflight(null)
     setPreflightLoading(true)
     try {
@@ -279,7 +283,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       })
       if (!res.ok) return
       const result = (await res.json()) as PreflightResult
-      if (generation === preflightGeneration.current) setPreflight(result)
+      if (generation === preflightGeneration.current) {
+        setPreflight(result)
+        checkedGeneration.current = generation
+      }
     } catch {
       // Silent: this is advisory. A failed check must not block a restore that the
       // user may be running precisely because things are broken.
