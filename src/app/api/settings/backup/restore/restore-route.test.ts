@@ -386,9 +386,18 @@ function createTx(): { tx: Record<string, unknown>; recorder: TxRecorder } {
   return { tx, recorder }
 }
 
-function mockCurrentSettings(overrides: Record<string, unknown> = {}) {
+/**
+ * The settings row the restore reads first, and `unlinkedNames` for the trackers it
+ * lists as still unlinked once the backfill has run. Returns that lookup's where().
+ */
+function mockCurrentSettings(
+  overrides: Record<string, unknown> = {},
+  unlinkedNames: string[] = []
+) {
+  const unlinkedWhere = vi.fn().mockResolvedValue(unlinkedNames.map((name) => ({ name })))
   ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({
     from: vi.fn().mockReturnValue({
+      where: unlinkedWhere,
       limit: vi.fn().mockResolvedValue([
         {
           id: 1,
@@ -403,6 +412,7 @@ function mockCurrentSettings(overrides: Record<string, unknown> = {}) {
       ]),
     }),
   })
+  return unlinkedWhere
 }
 
 function makeRequest(
@@ -1602,6 +1612,33 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const [named] = vi.mocked(backfillRegistrySlugs).mock.invocationCallOrder
     const [restarted] = vi.mocked(ensureSchedulerRunning).mock.invocationCallOrder
     expect(named).toBeLessThan(restarted)
+  })
+
+  it("names the trackers still unlinked, read after the backfill has linked what it can", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    const unlinkedWhere = mockCurrentSettings({ encryptionSalt: SALT_A }, ["Old Tracker", "Gone"])
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ unlinkedTrackers: ["Old Tracker", "Gone"] })
+    // Read before the backfill, the list would name rows it goes on to link.
+    const [listed] = unlinkedWhere.mock.invocationCallOrder
+    const [backfilled] = vi.mocked(backfillRegistrySlugs).mock.invocationCallOrder
+    expect(backfilled).toBeLessThan(listed)
+  })
+
+  it("still restores when the unlinked trackers can't be listed", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_A }).mockRejectedValueOnce(new Error("timeout"))
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toMatchObject({ unlinkedTrackers: [] })
+    expect(ensureSchedulerRunning).toHaveBeenCalled()
   })
 
   it("rebuilds Today at a Glance's history after the commit and before polling restarts", async () => {

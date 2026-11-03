@@ -58,6 +58,22 @@ function describeClearedCredentials(cleared: { tokens: number; clients: number }
   return parts.join(" and ")
 }
 
+// "A", "A and B", "A, B and C"
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ""
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
+}
+
+// The names handleRestore carried across its reload, or none if the value is not a list of names.
+function readUnlinkedNames(stored: string | null): string[] {
+  try {
+    const names: unknown = JSON.parse(stored ?? "[]")
+    return Array.isArray(names) && names.every((n) => typeof n === "string") ? names : []
+  } catch {
+    return []
+  }
+}
+
 const ENCRYPTED_START_RE = /^﻿?\s*\{\s*"format"\s*:\s*"tracker-tracker-encrypted-backup"/
 const PLAIN_START_RE = /^﻿?\s*\{\s*"manifest"\s*:/
 
@@ -137,6 +153,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [isDraggingRestore, setIsDraggingRestore] = useState(false)
   const [totpWasDisabled, setTotpWasDisabled] = useState(false)
   const [mouseholeWasCleared, setMouseholeWasCleared] = useState(false)
+  const [unlinkedOnRestore, setUnlinkedOnRestore] = useState<string[]>([])
   const [clearedOnRestore, setClearedOnRestore] = useState<{
     tokens: number
     clients: number
@@ -167,6 +184,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
     if (sessionStorage.getItem("restore_mousehole_cleared") === "1") setMouseholeWasCleared(true)
     sessionStorage.removeItem("restore_mousehole_cleared")
+
+    setUnlinkedOnRestore(readUnlinkedNames(sessionStorage.getItem("restore_unlinked_trackers")))
+    sessionStorage.removeItem("restore_unlinked_trackers")
   }, [])
 
   useEffect(() => {
@@ -362,6 +382,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       if (((data as { mouseholeCleared?: number }).mouseholeCleared ?? 0) > 0) {
         sessionStorage.setItem("restore_mousehole_cleared", "1")
       }
+      const { unlinkedTrackers = [] } = data as { unlinkedTrackers?: string[] }
+      if (unlinkedTrackers.length > 0) {
+        sessionStorage.setItem("restore_unlinked_trackers", JSON.stringify(unlinkedTrackers))
+      }
       setShowRestoreConfirm(false)
       setRestoreFile(null)
       setRestorePassword("")
@@ -516,6 +540,14 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         <Notice variant="warn" className="mb-4" header="Mousehole not restored">
           Mousehole settings were not restored from an unencrypted backup. Re-enter them in the
           tracker&apos;s settings.
+        </Notice>
+      )}
+
+      {unlinkedOnRestore.length > 0 && (
+        <Notice variant="warn" className="mb-4" header="Some trackers need checking">
+          {unlinkedOnRestore.length === 1
+            ? `${unlinkedOnRestore[0]} came back paused, because its address could not be matched to a tracker in the list. Check it before resuming it.`
+            : `${joinNames(unlinkedOnRestore)} came back paused, because their addresses could not be matched to a tracker in the list. Check each one before resuming it.`}
         </Notice>
       )}
 

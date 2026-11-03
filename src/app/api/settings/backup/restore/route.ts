@@ -1211,6 +1211,23 @@ async function runRestore(request: Request, auth: { encryptionKey: string }) {
     )
   }
 
+  // Taken after the backfill, which lifts the reason from every row it links, so
+  // only the rows still waiting for a check are named. Every row now comes from
+  // the backup.
+  let unlinkedTrackers: string[] = []
+  try {
+    const rows = await db
+      .select({ name: trackers.name })
+      .from(trackers)
+      .where(eq(trackers.lastError, UNLINKED_RESTORE_ERROR))
+    unlinkedTrackers = rows.map((row) => row.name)
+  } catch (err) {
+    log.error(
+      { event: "restore_unlinked_lookup_failed", error: errMsg(err) },
+      "Could not list the trackers the restore left unlinked"
+    )
+  }
+
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
   // Restarting here means a direct API caller does not depend on a page load to
   // revive polling.
@@ -1249,6 +1266,7 @@ async function runRestore(request: Request, auth: { encryptionKey: string }) {
     mouseholeCleared,
     totpDisabledOnRestore,
     orphanedRecordsSkipped,
+    unlinkedTrackers,
     requiresRelogin: false,
   })
 }

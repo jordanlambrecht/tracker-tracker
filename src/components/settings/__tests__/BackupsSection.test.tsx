@@ -278,3 +278,58 @@ describe("BackupsSection backup kind", () => {
     expect(readWhole).toHaveBeenCalled()
   })
 })
+
+describe("BackupsSection unlinked trackers after a restore", () => {
+  const KEY = "restore_unlinked_trackers"
+
+  afterEach(() => {
+    sessionStorage.clear()
+  })
+
+  it("names every tracker the restore left unlinked, once", async () => {
+    sessionStorage.setItem(KEY, JSON.stringify(["Old Tracker", "Gone", "Third"]))
+    render(<BackupsSection initialConfig={INITIAL_CONFIG} />)
+
+    expect(await screen.findByText("Some trackers need checking")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Old Tracker, Gone and Third came back paused, because their addresses could not be matched to a tracker in the list. Check each one before resuming it."
+      )
+    ).toBeInTheDocument()
+    expect(sessionStorage.getItem(KEY)).toBeNull()
+  })
+
+  it("speaks of one tracker in the singular", async () => {
+    sessionStorage.setItem(KEY, JSON.stringify(["Old Tracker"]))
+    render(<BackupsSection initialConfig={INITIAL_CONFIG} />)
+
+    expect(
+      await screen.findByText(
+        "Old Tracker came back paused, because its address could not be matched to a tracker in the list. Check it before resuming it."
+      )
+    ).toBeInTheDocument()
+  })
+
+  it("shows nothing for a stored value that is not a list of names", async () => {
+    sessionStorage.setItem(KEY, JSON.stringify({ names: ["Old Tracker"] }))
+    render(<BackupsSection initialConfig={INITIAL_CONFIG} />)
+
+    await screen.findByRole("region", { name: "Restore" })
+    expect(screen.queryByText("Some trackers need checking")).not.toBeInTheDocument()
+  })
+
+  it("carries the names the restore answered with across its reload", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === RESTORE_URL
+        ? new Response(JSON.stringify({ success: true, unlinkedTrackers: ["Old Tracker"] }))
+        : new Response("[]")
+    )
+    const user = await openRestoreForm(backupFile(1024))
+    await enterPasswordAndPhrase(user)
+    const confirm = screen.getByRole("button", { name: "Confirm Restore" })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    await user.click(confirm)
+
+    await waitFor(() => expect(sessionStorage.getItem(KEY)).toBe(JSON.stringify(["Old Tracker"])))
+  })
+})
