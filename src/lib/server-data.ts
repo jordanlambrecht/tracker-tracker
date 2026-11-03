@@ -367,8 +367,8 @@ export async function getTrackerListForDashboard(): Promise<TrackerSummary[]> {
   ])
 
   // Enforce masking at response time
-  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do not change to false.
+  // Fallback true = "store usernames" = no masking. Matches the column default
+  // when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
 
   const snapshotByTracker = new Map(latestSnapshots.map((s) => [s.trackerId, s]))
@@ -431,8 +431,8 @@ export async function getTrackerForClient(id: number): Promise<TrackerSummary | 
 
   if (!tracker) return null
 
-  // Fallback true = "store usernames" = no masking. Matches createPrivacyMask()
-  // behavior when no settings row exists. Do not change to false.
+  // Fallback true = "store usernames" = no masking. Matches the column default
+  // when no settings row exists. Do not change to false.
   const mask = createPrivacyMaskSync(privacySettings?.storeUsernames ?? true)
   const prowlarr = (await loadTrackerProwlarrStates([tracker])).get(tracker.id) ?? null
   const entry = storedAddressEntry(tracker)

@@ -200,7 +200,6 @@ vi.mock("@/lib/download-clients", () => ({
 }))
 
 vi.mock("@/lib/privacy-db", () => ({
-  createPrivacyMask: vi.fn(async () => (v: string | null | undefined) => v ?? null),
   createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 

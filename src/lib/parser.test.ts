@@ -1,6 +1,6 @@
 // src/lib/parser.test.ts
 import { describe, expect, it } from "vitest"
-import { formatBytes, parseBytes, parseSignedBytes } from "./parser"
+import { parseBytes, parseSignedBytes } from "./parser"
 
 describe("parseBytes", () => {
   it("parses GiB values", () => {
@@ -47,24 +47,6 @@ describe("parseBytes", () => {
   it("parses a petabyte total, which a long-standing account on a big tracker reaches", () => {
     expect(parseBytes("1.5 PiB")).toBe(BigInt(1_688_849_860_263_936))
     expect(parseBytes("2 PB")).toBe(BigInt(2_000_000_000_000_000))
-  })
-})
-
-describe("formatBytes", () => {
-  it("formats bytes to GiB", () => {
-    expect(formatBytes(BigInt(537_137_266_278))).toBe("500.25 GiB")
-  })
-
-  it("formats large values to TiB", () => {
-    expect(formatBytes(BigInt(1_099_511_627_776))).toBe("1.00 TiB")
-  })
-
-  it("formats small values to MiB", () => {
-    expect(formatBytes(BigInt(104_857_600))).toBe("100.00 MiB")
-  })
-
-  it("formats zero", () => {
-    expect(formatBytes(BigInt(0))).toBe("0 B")
   })
 })
 

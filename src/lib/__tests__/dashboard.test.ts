@@ -16,7 +16,6 @@ import {
   computeAggregateStats,
   computeAlerts,
   computeSystemAlerts,
-  deleteAllDismissed,
   detectRankChanges,
   fetchDismissedKeys,
   postDismissAlert,
@@ -1019,7 +1018,7 @@ describe("computeAlerts on a row the tracker list doesn't carry", () => {
 // API dismissal helpers
 // ---------------------------------------------------------------------------
 
-describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
+describe("fetchDismissedKeys / postDismissAlert", () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -1067,21 +1066,6 @@ describe("fetchDismissedKeys / postDismissAlert / deleteAllDismissed", () => {
   it("postDismissAlert returns false on fetch error (best-effort)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
     await expect(postDismissAlert("some-key", "error")).resolves.toBe(false)
-  })
-
-  it("deleteAllDismissed sends DELETE request", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true })
-    vi.stubGlobal("fetch", mockFetch)
-    await deleteAllDismissed()
-    expect(mockFetch).toHaveBeenCalledWith(
-      "/api/alerts/dismissed",
-      expect.objectContaining({ method: "DELETE" })
-    )
-  })
-
-  it("deleteAllDismissed returns false on fetch error (best-effort)", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")))
-    await expect(deleteAllDismissed()).resolves.toBe(false)
   })
 })
 

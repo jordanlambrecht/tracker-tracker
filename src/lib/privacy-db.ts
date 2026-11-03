@@ -1,45 +1,20 @@
 // src/lib/privacy-db.ts
 //
-// Functions: createPrivacyMask, createPrivacyMaskSync, scrubSnapshotUsernames
+// Functions: createPrivacyMaskSync, scrubSnapshotUsernames
 //
 // DB-aware privacy operations. Pure helpers (maskUsername, isRedacted) live
 // in privacy.ts to keep that module free of I/O dependencies.
 
 import { sql } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { appSettings } from "@/lib/db/schema"
-import { isRedacted, maskUsername, REDACTED_PREFIX } from "@/lib/privacy"
+import { maskUsername, REDACTED_PREFIX } from "@/lib/privacy"
 
 /**
- * Fetches the current privacy setting and returns a masking function.
- * When privacy mode is on (storeUsernames=false), the returned function
- * replaces plaintext values with redacted markers. When off, values
- * pass through unchanged. Already-redacted values are never double-masked.
- */
-export async function createPrivacyMask(): Promise<
-  (value: string | null | undefined) => string | null
-> {
-  const [settings] = await db
-    .select({ storeUsernames: appSettings.storeUsernames })
-    .from(appSettings)
-    .limit(1)
-  const privacyMode = settings ? !settings.storeUsernames : false
-
-  return (value: string | null | undefined): string | null => {
-    if (!value) return null
-    if (!privacyMode || isRedacted(value)) return value
-    return maskUsername(value)
-  }
-}
-
-/**
- * Synchronous variant. Accepts a pre-fetched storeUsernames boolean instead of
- * querying the DB. Use when the caller already has appSettings in scope so the
- * DB round-trip can be avoided.
+ * Returns a masking function for a pre-fetched storeUsernames boolean, so a
+ * caller that already has appSettings in scope skips the DB round-trip.
  *
  * Fallback convention: pass `true` (store usernames = no masking) when the
- * settings row does not exist, which matches the default column value and the
- * existing createPrivacyMask() behavior.
+ * settings row does not exist, which matches the default column value.
  */
 export function createPrivacyMaskSync(
   storeUsernames: boolean

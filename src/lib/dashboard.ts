@@ -1,7 +1,7 @@
 // src/lib/dashboard.ts
 //
 // Functions: remapAlertKey, computeAggregateStats, computeAlerts, detectRankChanges,
-// fetchDismissedKeys, postDismissAlert, deleteAllDismissed, computeSystemAlerts
+// fetchDismissedKeys, postDismissAlert, computeSystemAlerts
 
 import { formatDateTime, formatRatio, formatTimeAgo } from "@/lib/formatters"
 import { isRedacted } from "@/lib/privacy"
@@ -372,18 +372,6 @@ export async function postDismissAlert(key: string, type: string): Promise<boole
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, type }),
-      signal: AbortSignal.timeout(5000),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}
-
-export async function deleteAllDismissed(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/alerts/dismissed", {
-      method: "DELETE",
       signal: AbortSignal.timeout(5000),
     })
     return res.ok

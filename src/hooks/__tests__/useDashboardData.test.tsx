@@ -18,7 +18,6 @@ vi.mock("@/lib/dashboard", () => ({
   computeSystemAlerts: vi.fn().mockReturnValue([]),
   fetchDismissedKeys: vi.fn().mockResolvedValue(new Set()),
   postDismissAlert: vi.fn(),
-  deleteAllDismissed: vi.fn(),
 }))
 
 // Mock update check hook

@@ -1,6 +1,6 @@
 // src/lib/parser.ts
 //
-// Functions: parseBytes, parseSignedBytes, formatBytes
+// Functions: parseBytes, parseSignedBytes
 
 const BINARY_UNITS: Record<string, bigint> = {
   B: BigInt(1),
@@ -98,32 +98,4 @@ export function parseSignedBytes(formatted: string): bigint {
     return -parseBytes(trimmed.slice(1))
   }
   return parseBytes(trimmed)
-}
-
-const FORMAT_THRESHOLDS: Array<{
-  unit: string
-  threshold: bigint
-  divisor: number
-}> = [
-  {
-    unit: "TiB",
-    threshold: BigInt(2) ** BigInt(40),
-    divisor: Number(BigInt(2) ** BigInt(40)),
-  },
-  { unit: "GiB", threshold: BigInt(1024 ** 3), divisor: 1024 ** 3 },
-  { unit: "MiB", threshold: BigInt(1024 ** 2), divisor: 1024 ** 2 },
-  { unit: "KiB", threshold: BigInt(1024), divisor: 1024 },
-]
-
-export function formatBytes(bytes: bigint): string {
-  if (bytes === BigInt(0)) return "0 B"
-
-  for (const { unit, threshold, divisor } of FORMAT_THRESHOLDS) {
-    if (bytes >= threshold) {
-      const value = Number(bytes) / divisor
-      return `${value.toFixed(2)} ${unit}`
-    }
-  }
-
-  return `${bytes} B`
 }
