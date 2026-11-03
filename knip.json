@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "rules": {
     "files": "warn",
     "dependencies": "warn",
@@ -11,14 +11,19 @@
     "enumMembers": "warn",
     "duplicates": "warn"
   },
-  "entry": ["src/app/**/*.{ts,tsx}", "scripts/**/*.ts"],
-  "project": ["src/**/*.{ts,tsx,css}", "scripts/**/*.ts"],
+  "entry": ["scripts/{recover,backfill-buffer}.cjs!"],
+  "project": [
+    "src/**/*.{ts,tsx,css}!",
+    "!src/test/**!",
+    "!src/data/tracker-validation-rules.ts!",
+    "scripts/**/*.{ts,cjs,mjs}"
+  ],
   "ignoreFiles": ["src/data/trackers/_template.ts"],
-  "ignoreDependencies": ["conventional-changelog"],
+  "ignoreDependencies": ["conventional-changelog", "drizzle-kit!"],
   "next": true,
   "typescript": true,
   "biome": true,
   "eslint": false,
   "drizzle": false,
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": { "interface": true, "type": true }
 }
