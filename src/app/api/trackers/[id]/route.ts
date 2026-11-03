@@ -177,7 +177,10 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (joinedAtErr) return joinedAtErr
       updates.joinedAt = body.joinedAt
     } else {
-      return NextResponse.json({ error: "joinedAt must be YYYY-MM-DD or null" }, { status: 400 })
+      return NextResponse.json(
+        { error: "joinedAt must be a valid YYYY-MM-DD date or null" },
+        { status: 400 }
+      )
     }
   }
 
@@ -190,7 +193,7 @@ export async function PATCH(request: Request, props: RouteContext) {
       updates.lastAccessAt = body.lastAccessAt
     } else {
       return NextResponse.json(
-        { error: "lastAccessAt must be YYYY-MM-DD or null" },
+        { error: "lastAccessAt must be a valid YYYY-MM-DD date or null" },
         { status: 400 }
       )
     }

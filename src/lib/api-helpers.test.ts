@@ -6,6 +6,7 @@ import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import {
   validateClientHost,
   validateHttpUrl,
+  validateJoinedAt,
   validateLastAccessAt,
   validateMouseholeToken,
   validateMouseholeUrl,
@@ -276,6 +277,22 @@ describe("validateClientHost", () => {
   })
 })
 
+// Both columns are Postgres dates, which refuse each of these and failed the save with a 500.
+describe("a day that does not exist", () => {
+  it.each(["2024-02-30", "2023-02-29", "2024-04-31"])("is refused as %s", async (value) => {
+    for (const [check, field] of [
+      [validateJoinedAt, "joinedAt"],
+      [validateLastAccessAt, "lastAccessAt"],
+    ] as const) {
+      const response = check(value)
+      expect(response?.status, field).toBe(400)
+      await expect(response?.json()).resolves.toEqual({
+        error: `${field} must be a valid YYYY-MM-DD date`,
+      })
+    }
+  })
+})
+
 describe("validateLastAccessAt", () => {
   it("accepts a valid past date", () => {
     expect(validateLastAccessAt("2020-01-01")).toBeNull()
@@ -289,7 +306,7 @@ describe("validateLastAccessAt", () => {
     const response = validateLastAccessAt("not-a-date")
     expect(response?.status).toBe(400)
     await expect(response?.json()).resolves.toEqual({
-      error: "lastAccessAt must be YYYY-MM-DD",
+      error: "lastAccessAt must be a valid YYYY-MM-DD date",
     })
   })
 

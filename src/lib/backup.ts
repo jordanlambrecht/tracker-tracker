@@ -339,12 +339,7 @@ function assertBigIntString(value: unknown, label: string): void {
 // A Postgres date refuses 2024-02-30, which new Date() rolls into March.
 function assertValidDate(value: unknown, label: string): void {
   assertString(value, label)
-  const parsed = new Date(`${value}T00:00:00Z`)
-  if (
-    !DATE_RE.test(value) ||
-    Number.isNaN(parsed.getTime()) ||
-    parsed.toISOString().slice(0, 10) !== value
-  ) {
+  if (!DATE_RE.test(value) || !isRealCalendarDate(value)) {
     throw new Error(`Backup validation: ${label} must be a valid YYYY-MM-DD date`)
   }
 }

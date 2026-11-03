@@ -15,7 +15,7 @@ import { clientSupportsApiKey, VALID_AUTH_METHODS } from "@/lib/download-clients
 import { localDateStr } from "@/lib/formatters"
 import { CREDENTIAL_MAX, URL_PATH_MAX } from "@/lib/limits"
 import { isOutboundDisabled, isUnsafeNetworkHost, OUTBOUND_DISABLED_ERROR } from "@/lib/network"
-import { DATE_RE, isValidHex, isValidPort } from "@/lib/validators"
+import { DATE_RE, isRealCalendarDate, isValidHex, isValidPort } from "@/lib/validators"
 
 /** Shared route handler context for dynamic [id] segments */
 export type RouteContext<P = { id: string }> = {
@@ -161,8 +161,9 @@ export function validatePort(port: number): NextResponse | null {
  * configured TZ rather than the server's UTC clock.
  */
 function validatePastDate(value: string, field: string, label: string): NextResponse | null {
-  if (!DATE_RE.test(value)) {
-    return NextResponse.json({ error: `${field} must be YYYY-MM-DD` }, { status: 400 })
+  // The column is a Postgres date, which refuses 2026-02-30 and fails the save.
+  if (!DATE_RE.test(value) || !isRealCalendarDate(value)) {
+    return NextResponse.json({ error: `${field} must be a valid YYYY-MM-DD date` }, { status: 400 })
   }
   if (value > localDateStr()) {
     return NextResponse.json({ error: `${label} cannot be in the future` }, { status: 400 })

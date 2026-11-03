@@ -1101,7 +1101,7 @@ describe("PATCH /api/trackers/[id]", () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe("lastAccessAt must be YYYY-MM-DD")
+    expect(data.error).toBe("lastAccessAt must be a valid YYYY-MM-DD date")
   })
 
   it("returns 400 for a future lastAccessAt date", async () => {
@@ -1133,7 +1133,18 @@ describe("PATCH /api/trackers/[id]", () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe("lastAccessAt must be YYYY-MM-DD or null")
+    expect(data.error).toBe("lastAccessAt must be a valid YYYY-MM-DD date or null")
+  })
+
+  it("returns 400 when joinedAt is neither a string nor null", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ joinedAt: 12345 })
+
+    const request = makeRequest("http://localhost/api/trackers/1", { joinedAt: 12345 }, "PATCH")
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe("joinedAt must be a valid YYYY-MM-DD date or null")
   })
 
   it("sets userPausedAt when pollingPaused is true", async () => {
