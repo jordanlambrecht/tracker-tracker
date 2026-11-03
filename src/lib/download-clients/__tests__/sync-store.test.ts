@@ -1,7 +1,6 @@
 // src/lib/download-clients/__tests__/sync-store.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
-import type { DeltaSyncResponse } from "@/lib/download-clients"
 import { SYNC_STORE_MAX_TORRENTS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import {
@@ -14,6 +13,7 @@ import {
   replaceStoreTorrents,
   resetStore,
 } from "../sync-store"
+import type { DeltaSyncResponse } from "../types"
 
 afterEach(() => {
   clearAllStores()

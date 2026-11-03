@@ -149,7 +149,6 @@ vi.mock("../transport", () => ({
 // ---------------------------------------------------------------------------
 
 import { DEFAULT_TRACKER_COLOR } from "@/lib/constants"
-import type { TorrentRecord } from "@/lib/download-clients"
 import { parseTorrentTags } from "@/lib/fleet"
 import { computeFleetAggregation } from "@/lib/fleet-aggregation"
 import { log } from "@/lib/logger"
@@ -167,6 +166,7 @@ import { parseCachedTorrents } from "../qbt/transport"
 import { getFilteredTorrents, isStoreFresh } from "../sync-store"
 import { slimTorrentForCache } from "../transforms"
 import { buildBaseUrl } from "../transport"
+import type { TorrentRecord } from "../types"
 
 // ---------------------------------------------------------------------------
 // Fixtures

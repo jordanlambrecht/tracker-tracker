@@ -1,8 +1,6 @@
 // src/lib/download-clients/index.ts
 
-export { QbtClientAdapter } from "./adapters/qbt"
 export { aggregateByTag } from "./aggregator"
-export type { FleetAggregationResponse } from "./coordinator"
 export {
   fetchFleetAggregation,
   fetchFleetTorrents,
@@ -10,45 +8,18 @@ export {
   fetchTrackerTorrentsCached,
   testClientConnection,
 } from "./coordinator"
-export { CLIENT_CONNECTION_COLUMNS, decryptClientCredentials } from "./credentials"
+export { CLIENT_CONNECTION_COLUMNS } from "./credentials"
 export { createAdapterForClient, disposeClient } from "./factory"
-export type { MergedResult } from "./fetch"
-export { fetchAndMergeTorrents, stripSensitiveTorrentFields } from "./fetch"
-export { mapQbtDelta, mapQbtTorrent } from "./field-map"
-export type { RawTorrent } from "./merge"
-export { aggregateCrossSeedTags, mergeTorrentLists, stampClientNames } from "./merge"
-export type { QbtAuth } from "./qbt/transport"
+export { stripSensitiveTorrentFields } from "./fetch"
 export { clearAllSessions, parseCachedTorrents } from "./qbt/transport"
-export type { ClientStats, TagStats } from "./qbt/types"
-export type { SpeedSnapshot } from "./speed-cache"
 export { clearSpeedCache, getSpeedSnapshots, pushSpeedSnapshot } from "./speed-cache"
 export {
   applyMaindataUpdate,
-  clearAllStores,
   getFilteredTorrents,
-  getStoredTorrents,
   getStoreRevision,
-  isStoreFresh,
   isStoreInitialized,
   replaceStoreTorrents,
-  resetStore,
-  STORE_MAX_AGE_MS,
 } from "./sync-store"
-export type { SlimTorrent } from "./transforms"
 export { slimTorrentForCache } from "./transforms"
-export type {
-  AuthMethod,
-  ClientAdapter,
-  ClientCredentials,
-  ClientType,
-  DeltaSyncResponse,
-  TorrentRecord,
-  TransferStats,
-} from "./types"
-export {
-  assertAuthMethod,
-  assertClientType,
-  DEFAULT_CLIENT_PORTS,
-  VALID_AUTH_METHODS,
-  VALID_CLIENT_TYPES,
-} from "./types"
+export type { AuthMethod, ClientType } from "./types"
+export { DEFAULT_CLIENT_PORTS, VALID_CLIENT_TYPES } from "./types"

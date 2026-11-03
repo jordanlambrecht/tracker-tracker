@@ -6,9 +6,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { encrypt } from "@/lib/crypto"
-import type { TorrentRecord } from "@/lib/download-clients"
 import { fetchAndMergeTorrents } from "../fetch"
-import type { DownloadClientRow } from "../types"
+import type { DownloadClientRow, TorrentRecord } from "../types"
 
 // ---------------------------------------------------------------------------
 // Module mocks

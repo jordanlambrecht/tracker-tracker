@@ -51,7 +51,6 @@ describe("download-clients barrel exports", () => {
   it("exports safety-critical functions", async () => {
     const barrel = await import("../index")
     expect(typeof barrel.stripSensitiveTorrentFields).toBe("function")
-    expect(typeof barrel.assertClientType).toBe("function")
     expect(typeof barrel.createAdapterForClient).toBe("function")
   })
 })

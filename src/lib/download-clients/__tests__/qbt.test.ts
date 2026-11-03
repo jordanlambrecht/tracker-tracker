@@ -1,6 +1,5 @@
 // src/lib/download-clients/__tests__/qbt.test.ts
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { TorrentRecord } from "@/lib/download-clients"
 import { aggregateByTag } from "../aggregator"
 import {
   clearAllSessions,
@@ -12,6 +11,7 @@ import {
 } from "../qbt/transport"
 import type { QbtTorrent } from "../qbt/types"
 import { buildBaseUrl, clearAuthBlocks } from "../transport"
+import type { TorrentRecord } from "../types"
 
 /** Stands in for the stored ciphertext's credentialKey: one value per saved credential. */
 function saved(username: string, password: string): string {
