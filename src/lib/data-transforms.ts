@@ -4,7 +4,7 @@
 //            compareBigIntDesc, computePctChange,
 //            floatBytesToBigInt, signedFloatBytesToBigInt, computeBufferBytes,
 //            computeRatio, isUnixTimestampOnDate,
-//            sanitizeHost, stripTrailingSlash, normalizeUrl
+//            sanitizeHost, stripTrailingSlash
 
 import type { TrendDirection } from "@/components/ui/StatCard"
 import { localDateStr } from "@/lib/formatters"
@@ -157,14 +157,9 @@ export function sanitizeHost(host: string): string {
 /**
  * For a base URL on its way into storage. Adapters both concatenate onto it and
  * feed it to `new URL`, and a stored trailing slash gives the first form a
- * doubled separator. Deliberately not normalizeUrl, which also lowercases: a
- * base URL is later joined with encoded usernames and case-sensitive paths.
+ * doubled separator. It keeps case, since a base URL is later joined with
+ * encoded usernames and case-sensitive paths.
  */
 export function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "")
-}
-
-/** stripTrailingSlash plus case folding, for comparing two URLs for sameness. */
-export function normalizeUrl(url: string): string {
-  return stripTrailingSlash(url).toLowerCase()
 }

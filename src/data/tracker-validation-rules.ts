@@ -5,6 +5,7 @@
 
 import { isIP } from "node:net"
 import { registryHostname, type TrackerRegistryEntry } from "@/data/tracker-registry"
+import { stripTrailingSlash } from "@/lib/data-transforms"
 import { isUnsafeNetworkHost } from "@/lib/network"
 import { trackerHostKey } from "@/lib/tracker-matching"
 
@@ -214,4 +215,10 @@ export function validateTrackerUrl(url: string): string[] {
     : [`URL must be exactly its origin (got "${url}", expected "${expected}")`]
 }
 
-export { normalizeUrl as normalizeTrackerUrl } from "@/lib/data-transforms"
+/**
+ * stripTrailingSlash plus case folding, for comparing two registry URLs for
+ * sameness. Never for a stored base URL, which must keep its case.
+ */
+export function normalizeTrackerUrl(url: string): string {
+  return stripTrailingSlash(url).toLowerCase()
+}

@@ -6,7 +6,6 @@ import {
   computeDelta,
   computePctChange,
   isUnixTimestampOnDate,
-  normalizeUrl,
   ratioTrend24h,
   sanitizeHost,
   stripTrailingSlash,
@@ -40,28 +39,6 @@ describe("sanitizeHost", () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// normalizeUrl
-// ---------------------------------------------------------------------------
-
-describe("normalizeUrl", () => {
-  it("lowercases the URL", () => {
-    expect(normalizeUrl("HTTPS://FOO.COM")).toBe("https://foo.com")
-  })
-
-  it("strips a single trailing slash", () => {
-    expect(normalizeUrl("https://Example.com/")).toBe("https://example.com")
-  })
-
-  it("strips multiple trailing slashes", () => {
-    expect(normalizeUrl("https://example.com///")).toBe("https://example.com")
-  })
-
-  it("returns the URL unchanged when already normalized", () => {
-    expect(normalizeUrl("https://example.com")).toBe("https://example.com")
-  })
-})
-
 describe("stripTrailingSlash", () => {
   it("strips one slash and several", () => {
     expect(stripTrailingSlash("https://example.com/")).toBe("https://example.com")
@@ -73,7 +50,7 @@ describe("stripTrailingSlash", () => {
     expect(stripTrailingSlash("https://example.com/tracker")).toBe("https://example.com/tracker")
   })
 
-  it("keeps case, unlike normalizeUrl, because base URLs are joined with case-sensitive paths", () => {
+  it("keeps case, because base URLs are joined with case-sensitive paths", () => {
     expect(stripTrailingSlash("https://Example.com/Tracker/")).toBe("https://Example.com/Tracker")
   })
 })

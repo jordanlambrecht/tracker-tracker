@@ -8,11 +8,13 @@
 //   - describe("previous hosts validation")
 //   - describe("shared hosts")
 //   - describe("url validation")
+//   - describe("url normalization")
 
 import { describe, expect, it } from "vitest"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import {
   findSharedHosts,
+  normalizeTrackerUrl,
   validateAnnounceHosts,
   validateDefunct,
   validatePreviousHosts,
@@ -467,5 +469,23 @@ describe("url validation", () => {
     ["a home network address", "https://192.168.1.1"],
   ])("%s produces the private address error", (_form, url) => {
     expect(validateTrackerUrl(url)).toEqual(["URL must not be a private or local address"])
+  })
+})
+
+describe("url normalization", () => {
+  it("lowercases the URL", () => {
+    expect(normalizeTrackerUrl("HTTPS://FOO.COM")).toBe("https://foo.com")
+  })
+
+  it("strips a single trailing slash", () => {
+    expect(normalizeTrackerUrl("https://Example.com/")).toBe("https://example.com")
+  })
+
+  it("strips multiple trailing slashes", () => {
+    expect(normalizeTrackerUrl("https://example.com///")).toBe("https://example.com")
+  })
+
+  it("returns the URL unchanged when already normalized", () => {
+    expect(normalizeTrackerUrl("https://example.com")).toBe("https://example.com")
   })
 })
