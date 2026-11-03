@@ -1,7 +1,7 @@
 // src/lib/__tests__/error-utils.test.ts
 
 import { describe, expect, it } from "vitest"
-import { decrypt } from "@/lib/crypto"
+import { decrypt, encrypt } from "@/lib/crypto"
 import {
   BTN_RPC_ERROR,
   classifyFetchError,
@@ -39,8 +39,32 @@ describe("isDecryptionError", () => {
     expect(isDecryptionError(new Error("Bad Decrypt"))).toBe(true)
   })
 
-  it("returns true for 'Invalid key length'", () => {
-    expect(isDecryptionError(new Error("Invalid key length"))).toBe(true)
+  // The key is the wrong size, not the stored value unreadable, so asking for the
+  // credential again would not help.
+  it("returns false for decrypt()'s error on a key of the wrong size", () => {
+    const sealed = encrypt("secret", Buffer.alloc(32, 1))
+    const error = (() => {
+      try {
+        decrypt(sealed, Buffer.alloc(16, 1))
+      } catch (err) {
+        return err
+      }
+    })()
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toMatch(/Invalid key length/i)
+    expect(isDecryptionError(error)).toBe(false)
+  })
+
+  it("returns true for decrypt()'s error under another key of the right size", () => {
+    const sealed = encrypt("secret", Buffer.alloc(32, 1))
+    const error = (() => {
+      try {
+        decrypt(sealed, Buffer.alloc(32, 2))
+      } catch (err) {
+        return err
+      }
+    })()
+    expect(isDecryptionError(error)).toBe(true)
   })
 
   // A bad restore can leave a value too short to hold its IV and auth tag.
@@ -75,8 +99,8 @@ describe("isDecryptionError", () => {
     expect(isDecryptionError(new Error("DECRYPT failed"))).toBe(true)
   })
 
-  it("is case-insensitive for 'INVALID KEY'", () => {
-    expect(isDecryptionError(new Error("INVALID KEY supplied"))).toBe(true)
+  it("is case-insensitive for 'INVALID CIPHERTEXT'", () => {
+    expect(isDecryptionError(new Error("INVALID CIPHERTEXT: too short"))).toBe(true)
   })
 
   // Negative cases, errors unrelated to decryption

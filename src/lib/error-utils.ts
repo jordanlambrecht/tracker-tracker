@@ -15,13 +15,13 @@ export function errMsg(err: unknown): string {
  * the value was sealed under another key or cut short, which a restore or a
  * recover.cjs reset can leave. Logging in again never fixes that. Entering the
  * credential again does. Run it over decrypt()'s own error only, since a TLS
- * ERR_SSL_DECRYPTION_FAILED code from a network call matches it too.
+ * ERR_SSL_DECRYPTION_FAILED code from a network call matches it too. A key of the
+ * wrong size ("Invalid key length") is not one: the fault is the key, and entering
+ * the credential again would fail the same way.
  */
 export function isDecryptionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  return /decrypt|authenticate\s*data|bad\s*decrypt|invalid\s*key|invalid\s*ciphertext|EVP_/i.test(
-    error.message
-  )
+  return /decrypt|authenticate\s*data|bad\s*decrypt|invalid\s*ciphertext|EVP_/i.test(error.message)
 }
 
 // The two wrappers credentials.ts puts around a decrypt() failure. Behind either
