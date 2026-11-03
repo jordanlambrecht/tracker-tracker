@@ -582,8 +582,8 @@ function NotificationTargets() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <H2 className="flex items-center gap-2">
+    <section aria-labelledby="webhooks-heading" className="flex flex-col gap-6">
+      <H2 id="webhooks-heading" className="flex items-center gap-2">
         Webhooks
         <InfoTip
           content="Get alerts when something happens on your trackers."
@@ -632,7 +632,7 @@ function NotificationTargets() {
           )}
         </>
       )}
-    </div>
+    </section>
   )
 }
 
