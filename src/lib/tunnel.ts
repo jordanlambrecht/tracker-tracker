@@ -1,7 +1,7 @@
 // src/lib/tunnel.ts
 //
 // Functions: buildProxyUrl, createProxyAgent, decodeBody, isZlibWrapped, proxyFetch,
-//            buildProxyAgentFromSettings
+//            makesProxyAgent, buildProxyAgentFromSettings
 // Classes: RefusingAgent
 // Exports: VALID_PROXY_TYPES, PROXY_HOST_PATTERN, ProxyType, ProxyConfig, ProxyFetchResult, ProxySettings
 
@@ -295,7 +295,7 @@ type ProxyEndpoint = Omit<ProxySettings, "encryptedProxyPassword">
 // The agent config the settings make, password aside, or null when no agent
 // builds from them: no host, an unknown type, or a host the proxy URL can't
 // hold, such as one with a port typed into it.
-function endpointConfig(settings: ProxyEndpoint): ProxyConfig | null {
+function endpointConfig(settings: Omit<ProxyEndpoint, "proxyEnabled">): ProxyConfig | null {
   if (!settings.proxyHost) return null
   const config: ProxyConfig = {
     type: settings.proxyType as ProxyType,
@@ -318,6 +318,11 @@ function endpointConfig(settings: ProxyEndpoint): ProxyConfig | null {
  */
 export function isProxyUsable(settings: ProxyEndpoint): boolean {
   return settings.proxyEnabled && endpointConfig(settings) !== null
+}
+
+/** Whether the settings make an agent, on or off. The settings save checks it. */
+export function makesProxyAgent(settings: Omit<ProxyEndpoint, "proxyEnabled">): boolean {
+  return endpointConfig(settings) !== null
 }
 
 // The unusable settings last logged. Agents are built per request, an avatar on

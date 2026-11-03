@@ -18,7 +18,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { QBITMANAGE_KEYS } from "@/lib/download-clients/qbt/qbitmanage-defaults"
-import { errMsg } from "@/lib/error-utils"
+import { errMsg, PROXY_HOST_UNUSABLE_ERROR } from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
   BACKUP_RETENTION_MAX,
@@ -44,7 +44,7 @@ import {
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
-import { PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/tunnel"
+import { makesProxyAgent, PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/tunnel"
 import { isValidPort } from "@/lib/validators"
 
 export async function GET() {
@@ -279,6 +279,24 @@ export async function PATCH(request: Request) {
       updates.encryptedProxyPassword = encrypt(body.proxyPassword, key)
     } else {
       return NextResponse.json({ error: "Invalid proxy password" }, { status: 400 })
+    }
+  }
+
+  // The pattern passes hosts the agent build then refuses, such as one with a port
+  // in it or a bare IPv6 address, and every proxied request would fail. Checked
+  // against what the row will hold, since the proxy type decides whether some fit,
+  // and only when that row has the proxy on. A save that leaves it off goes through
+  // whatever the host, so a broken proxy can always be switched off, and turning it
+  // on later is checked then.
+  if (
+    body.proxyEnabled === true ||
+    body.proxyType !== undefined ||
+    body.proxyHost !== undefined ||
+    body.proxyPort !== undefined
+  ) {
+    const endpoint = { ...settings, ...updates }
+    if (endpoint.proxyEnabled && endpoint.proxyHost && !makesProxyAgent(endpoint)) {
+      return NextResponse.json({ error: PROXY_HOST_UNUSABLE_ERROR }, { status: 400 })
     }
   }
 

@@ -322,6 +322,135 @@ describe("PATCH /api/settings route validation", () => {
     expect(response.status).toBe(200)
   })
 
+  // ─── Proxy host ──────────────────────────────────────
+
+  const HOST_REFUSAL =
+    "Proxy host can't be used. Enter a hostname or IP address without a port (use the Port field), and write an IPv6 address in brackets, like [::1]"
+
+  // The host pattern passes each of these, and the agent build then refused
+  // every proxied request.
+  it.each<[string, Record<string, unknown>, Record<string, unknown>]>([
+    ["a port typed into the host", {}, { proxyHost: "proxy.example.test:1080" }],
+    ["a bare IPv6 address", {}, { proxyHost: "::1" }],
+    [
+      "a switch to http under a host only socks5 can hold",
+      { proxyHost: "999.1.1.1" },
+      { proxyType: "http" },
+    ],
+  ])("refuses to save %s", async (_case, stored, body) => {
+    mockSettingsSelect(stored)
+    const set = vi.fn()
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ proxyEnabled: true, ...body })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: HOST_REFUSAL })
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it.each(["proxy.example.test", "[::1]"])("saves %s as the proxy host", async (proxyHost) => {
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      proxyEnabled: true,
+      proxyHost,
+    })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ proxyHost }))
+  })
+
+  // A row saved before the check must not block saving anything else.
+  it("saves a change to another setting over a stored host it can't use", async () => {
+    mockSettingsSelect({ proxyHost: "proxy.example.test:1080" })
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ username: "joe" })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+  })
+
+  // Turning the proxy on puts the stored host back in use.
+  it("refuses turning the proxy on over a stored host it can't use", async () => {
+    mockSettingsSelect({ proxyHost: "proxy.example.test:1080" })
+    const set = vi.fn()
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ proxyEnabled: true })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: HOST_REFUSAL })
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  // Or a broken proxy could never be switched off.
+  it("saves turning the proxy off over a stored host it can't use", async () => {
+    mockSettingsSelect({ proxyEnabled: true, proxyHost: "proxy.example.test:1080" })
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ proxyEnabled: false })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ proxyEnabled: false }))
+  })
+
+  // The shape ProxySection saves, which sends type, host and port with the toggle.
+  function formSave(proxyEnabled: boolean) {
+    return {
+      proxyEnabled,
+      proxyType: "socks5",
+      proxyHost: "proxy.example.test:1080",
+      proxyPort: 1080,
+    }
+  }
+
+  it("saves the proxy form turning the proxy off over a host it can't use", async () => {
+    mockSettingsSelect({ proxyEnabled: true, proxyHost: "proxy.example.test:1080" })
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(formSave(false))
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ proxyEnabled: false }))
+  })
+
+  it("refuses the proxy form keeping the proxy on over a host it can't use", async () => {
+    mockSettingsSelect({ proxyEnabled: true, proxyHost: "proxy.example.test:1080" })
+    const set = vi.fn()
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(formSave(true))
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: HOST_REFUSAL })
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it("checks a host edit while the proxy is already on", async () => {
+    mockSettingsSelect({ proxyEnabled: true, proxyHost: "proxy.example.test" })
+    const set = vi.fn()
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ proxyHost: "::1" })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: HOST_REFUSAL })
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
