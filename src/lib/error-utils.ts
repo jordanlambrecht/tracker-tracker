@@ -100,6 +100,11 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // Ahead of every looser rule: the scheduler's wrappers quote the tracker's
   // name, and a tracker called "Timeout Club" must not read as a timeout.
   if (CREDENTIAL_REFUSALS.some((rule) => rule.test(raw))) return "Invalid credentials"
+  // validateCookieHeader's refusal, raised by the cookie adapters before any
+  // request. Its own text is long and matches no rule, so it read "Poll failed".
+  if (/^Cookie string contains a control character /.test(raw)) {
+    return "Stored cookie contains a control character. Paste the full Cookie value again in this tracker's settings"
+  }
   // The one place a tracker's text classifies. On these four platforms a bad key
   // comes back as a 200 envelope whose text is the only signal, so envelope text
   // saying "invalid" reads as credentials. A rare request error worded that way,

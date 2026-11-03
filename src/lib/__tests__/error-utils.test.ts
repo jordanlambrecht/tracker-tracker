@@ -15,6 +15,7 @@ import {
   PROXY_AUTH_REQUIRED_CAUSE,
   sanitizeNetworkError,
 } from "@/lib/error-utils"
+import { validateCookieHeader } from "@/lib/tracker-credentials/cookie-header"
 import { isRetryablePollError } from "@/lib/tracker-status"
 
 // ---------------------------------------------------------------------------
@@ -574,6 +575,42 @@ describe("sanitizeNetworkError unreadable stored credentials", () => {
     expect(card).toBe(
       "Stored credentials or URL path can't be read. Enter them again in this client's settings"
     )
+  })
+})
+
+describe("sanitizeNetworkError cookie control characters", () => {
+  // The validator's own message, so the rule cannot drift from what a poll throws.
+  it("asks for the Cookie value again instead of Poll failed", () => {
+    let raw = ""
+    try {
+      validateCookieHeader("session=CANARY\nHost: tracker.example", { example: "session=abc" })
+    } catch (error) {
+      raw = error instanceof Error ? error.message : ""
+    }
+    expect(raw).not.toBe("")
+
+    const card = sanitizeNetworkError(raw, "Poll failed")
+    expect(card).toBe(
+      "Stored cookie contains a control character. Paste the full Cookie value again in this tracker's settings"
+    )
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+
+  // Anchored, so a tracker's own answer that quotes one of these phrases reads as
+  // the tracker's, never as a cookie to paste again.
+  it.each<[string, string, string[]]>([
+    ["a control character", "session=CANARY\nHost: tracker.example", []],
+  ])("leaves %s quoted in a tracker's answer to the status", (_case, cookies, required) => {
+    let raw = ""
+    try {
+      validateCookieHeader(cookies, { example: "session=abc", requiredCookieNames: required })
+    } catch (error) {
+      raw = error instanceof Error ? error.message : ""
+    }
+    expect(raw).not.toBe("")
+
+    const quoted = `Tracker API error: 500 Internal Server Error: ${raw}`
+    expect(sanitizeNetworkError(quoted, "Poll failed")).toBe("API returned 500")
   })
 })
 
