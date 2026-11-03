@@ -70,7 +70,8 @@ async function loadAuth() {
 
 const TEST_SECRET_A = crypto.randomBytes(32).toString("hex") // 64 hex chars
 const TEST_SECRET_B = crypto.randomBytes(32).toString("hex")
-const SAMPLE_KEY = "a]3$kF9!mZq2vR7xLp0wN5sT8yU1eH4j" // 32-char encryption key
+// 32 bytes as 64 hex characters, the shape login stores. readSession refuses any other.
+const SAMPLE_KEY = "a3f9".repeat(16)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -98,6 +99,21 @@ describe("auth JWE real crypto", () => {
     const session = await getSession()
     expect(session).not.toBeNull()
     expect(session?.encryptionKey).toBe(SAMPLE_KEY)
+  })
+
+  // Every decrypt would throw "Invalid key length" and read as unreadable credentials.
+  it("refuses a session whose key is not 32 bytes, as stale, and logs it", async () => {
+    const { createSession, getSession, readSession } = await loadAuth()
+    const { log } = await import("@/lib/logger")
+
+    await createSession("a3f9".repeat(8), FP, 30)
+
+    expect(await readSession()).toEqual({ status: "stale" })
+    expect(await getSession()).toBeNull()
+    expect(log.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "session_key_malformed" }),
+      expect.any(String)
+    )
   })
 
   it("should round-trip with default maxAge when timeoutMinutes is null", async () => {

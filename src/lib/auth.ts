@@ -102,6 +102,17 @@ export async function readSession(): Promise<SessionRead> {
   }
   if (payload.purpose) return null // reject pending/setup tokens
 
+  // Login writes deriveKey's 32 bytes as 64 hex characters, so anything else is a code
+  // fault. Refused as stale, it sends the user to log in again for a good key, rather
+  // than reaching every decrypt and reading as unreadable credentials.
+  if (typeof payload.ek !== "string" || !/^[0-9a-f]{64}$/i.test(payload.ek)) {
+    log.error(
+      { event: "session_key_malformed" },
+      "Session refused: its encryption key is not 32 bytes"
+    )
+    return { status: "stale" }
+  }
+
   // Outside the try, so a database error is a 500 and never a silent sign-out.
   const [settings] = await db
     .select({ passwordHash: appSettings.passwordHash, encryptionSalt: appSettings.encryptionSalt })

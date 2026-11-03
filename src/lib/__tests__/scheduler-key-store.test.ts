@@ -108,6 +108,24 @@ describe("scheduler-key-store", () => {
       expect(loaded).not.toBeNull()
       expect(loaded?.equals(key)).toBe(true)
     })
+
+    // Any other length would fail every decrypt the scheduler makes.
+    it("returns null for a stored key that is not 32 bytes", async () => {
+      let stored: string | null = null
+      const persistChain = {
+        set: vi.fn((v: { encryptedSchedulerKey: string }) => {
+          stored = v.encryptedSchedulerKey
+          return persistChain
+        }),
+        where: vi.fn().mockResolvedValue(undefined),
+      }
+      mockUpdate.mockReturnValue(persistChain)
+      await persistSchedulerKey(Buffer.alloc(16, 7), 1)
+
+      mockSelect.mockReturnValue(mockDbChain([{ encryptedSchedulerKey: stored }]))
+
+      expect(await loadSchedulerKey()).toBeNull()
+    })
   })
 
   describe("clearSchedulerKey", () => {

@@ -44,7 +44,14 @@ export async function loadSchedulerKey(): Promise<Buffer | null> {
 
     const wrappingKey = deriveWrappingKey()
     const keyHex = decrypt(settings.encryptedSchedulerKey, wrappingKey)
-    return Buffer.from(keyHex, "hex")
+    const key = Buffer.from(keyHex, "hex")
+    // The key is always 32 bytes. Any other length would fail every decrypt, so the
+    // scheduler waits for the next login, as it does when the key can't be unwrapped.
+    if (key.length !== 32) {
+      log.error("Stored scheduler key is not 32 bytes, will start after next login")
+      return null
+    }
+    return key
   } catch (err) {
     log.warn({ err }, "Could not unwrap scheduler key, will start after next login")
     return null
