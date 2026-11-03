@@ -40,6 +40,7 @@ vitest.config.*
 # CI / tooling config
 .github
 .claude
+.omc
 .serena
 .interface-design
 .biomeignore
