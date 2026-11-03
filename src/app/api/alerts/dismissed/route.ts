@@ -1,8 +1,7 @@
 // src/app/api/alerts/dismissed/route.ts
 //
-// Functions: GET, POST, DELETE
+// Functions: GET, POST
 
-import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody, validateMaxLength } from "@/lib/api-helpers"
@@ -62,22 +61,6 @@ export async function POST(request: Request) {
     .insert(dismissedAlerts)
     .values({ alertKey: normalizedKey, alertType: normalizedType })
     .onConflictDoNothing()
-
-  return NextResponse.json({ success: true })
-}
-
-export async function DELETE(request: Request) {
-  const auth = await authenticate()
-  if (auth instanceof NextResponse) return auth
-
-  const { searchParams } = new URL(request.url)
-  const key = searchParams.get("key")
-
-  if (key !== null) {
-    await db.delete(dismissedAlerts).where(eq(dismissedAlerts.alertKey, key))
-  } else {
-    await db.delete(dismissedAlerts)
-  }
 
   return NextResponse.json({ success: true })
 }

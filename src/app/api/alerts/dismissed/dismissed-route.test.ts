@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NON_DISMISSIBLE_ALERT_TYPES, pruneDismissedAlerts } from "@/lib/alert-pruning"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
-import { DELETE, GET, POST } from "./route"
+import { GET, POST } from "./route"
 
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
@@ -21,7 +21,6 @@ vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(),
     insert: vi.fn(),
-    delete: vi.fn(),
   },
 }))
 
@@ -333,66 +332,5 @@ describe("POST /api/alerts/dismissed — non-dismissible rejection", () => {
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toBe("Unknown alert type")
-  })
-})
-
-describe("DELETE /api/alerts/dismissed", () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockAuthSuccess()
-  })
-
-  it("returns 401 when not authenticated", async () => {
-    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
-      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    )
-
-    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
-    const res = await DELETE(req)
-    expect(res.status).toBe(401)
-  })
-
-  it("deletes a specific alert when ?key is provided", async () => {
-    const mockWhere = vi.fn().mockResolvedValue(undefined)
-    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: mockWhere })
-
-    const req = makeRequest(
-      "http://localhost/api/alerts/dismissed?key=some-alert-key",
-      undefined,
-      "DELETE"
-    )
-    const res = await DELETE(req)
-    const data = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(db.delete).toHaveBeenCalledTimes(1)
-    expect(mockWhere).toHaveBeenCalledTimes(1)
-  })
-
-  it("deletes all alerts when no ?key is provided", async () => {
-    ;(db.delete as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
-
-    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
-    const res = await DELETE(req)
-    const data = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(db.delete).toHaveBeenCalledTimes(1)
-  })
-
-  it("does not call .where() when no key param is present", async () => {
-    const mockWhere = vi.fn().mockResolvedValue(undefined)
-    // Return an object with a where method, but the route should NOT call it
-    ;(db.delete as ReturnType<typeof vi.fn>).mockReturnValue({ where: mockWhere })
-
-    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
-    await DELETE(req)
-
-    // The route calls db.delete(dismissedAlerts) without .where() when key is null
-    // Since db.delete is called and returns the mock, but .where is not chained,
-    // we verify .where was not invoked
-    expect(mockWhere).not.toHaveBeenCalled()
   })
 })

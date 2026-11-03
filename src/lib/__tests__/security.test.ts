@@ -245,7 +245,6 @@ vi.mock("@/lib/notifications/deliver", () => ({
 // ---------------------------------------------------------------------------
 
 import {
-  DELETE as AlertDismissedDELETE,
   GET as AlertDismissedGET,
   POST as AlertDismissedPOST,
 } from "@/app/api/alerts/dismissed/route"
@@ -748,12 +747,6 @@ describe("Auth enforcement: every protected route returns 401 without valid sess
       "POST"
     )
     const res = await AlertDismissedPOST(req)
-    expect(res.status).toBe(401)
-  })
-
-  it("DELETE /api/alerts/dismissed returns 401", async () => {
-    const req = makeRequest("http://localhost/api/alerts/dismissed", undefined, "DELETE")
-    const res = await AlertDismissedDELETE(req)
     expect(res.status).toBe(401)
   })
 
