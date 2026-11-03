@@ -1188,6 +1188,8 @@ describe("heartbeat failure logging", () => {
     await heartbeatTick()
     expect(vi.mocked(log.error)).toHaveBeenCalledTimes(1)
 
+    // The failures stored errorSince, which the next heartbeat reads back.
+    heartbeatRow = { ...HEARTBEAT_ROW, errorSince: new Date() }
     mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
     await heartbeatTick()
 
@@ -1299,6 +1301,22 @@ describe("heartbeat failure logging", () => {
     expect(mockSet).toHaveBeenCalledWith(
       expect.objectContaining({ lastError: null, errorSince: null })
     )
+  })
+
+  // The unreadable credential opened no outage, so its end is not logged as one.
+  it("logs no outage clearing when an unreadable credential reads again", async () => {
+    vi.mocked(createAdapterForClient).mockImplementationOnce(() => {
+      throw new Error('decrypt credentials failed for client "Qbittorrent - PC": bad decrypt')
+    })
+    mockDbUpdateClient()
+
+    startClientScheduler(makeEncryptionKey())
+    await flushAsync()
+    mockAdapter.getTransferInfo.mockResolvedValue({ uploadSpeed: 0, downloadSpeed: 0 })
+    await heartbeatTick()
+
+    const infoMessages = vi.mocked(log.info).mock.calls.map((call) => call[1])
+    expect(infoMessages).not.toContain("client outage cleared by successful heartbeat")
   })
 
   // The client was contacted, so a TLS code that mentions decryption is an outage.

@@ -186,7 +186,9 @@ async function heartbeatClient(
     // memory-backed, so it must clear even when errorSince already reads null.
     // For a healthy client this is one Map lookup that returns null.
     const recovered = noteSuccess(client.id, "heartbeat")
-    if (recovered) {
+    // An unreadable credential opens no outage (errorSince stays null), so its end
+    // is not an outage clearing.
+    if (recovered && client.errorSince !== null) {
       log.info(
         {
           clientId: client.id,
