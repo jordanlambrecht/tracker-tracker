@@ -7,6 +7,7 @@
 
 import net from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { encrypt } from "@/lib/crypto"
 import { PROXY_UNUSABLE_ERROR, sanitizeNetworkError } from "@/lib/error-utils"
 import { log } from "@/lib/logger"
 import { OUTBOUND_DISABLED_ERROR } from "@/lib/network"
@@ -90,6 +91,27 @@ describe("buildProxyAgentFromSettings and settings it can't use", () => {
     buildProxyAgentFromSettings(SETTINGS, KEY)
     buildProxyAgentFromSettings(bareIpv6, KEY)
     expect(error).toHaveBeenCalledTimes(3)
+  })
+
+  // The same state as the settings above, so moving from one refusal to the
+  // other logs, and only an agent that builds clears it.
+  it("logs an unreadable password once, and again once a working one breaks", () => {
+    const error = vi.spyOn(log, "error").mockImplementation(() => undefined)
+    const working = { ...SETTINGS, encryptedProxyPassword: encrypt("CANARY-proxy-password", KEY) }
+    const unreadable = { ...SETTINGS, encryptedProxyPassword: "not-ciphertext" }
+    buildProxyAgentFromSettings(working, KEY)
+
+    buildProxyAgentFromSettings(unreadable, KEY)
+    buildProxyAgentFromSettings(unreadable, KEY)
+    expect(error).toHaveBeenCalledTimes(1)
+
+    buildProxyAgentFromSettings({ ...unreadable, proxyHost: "::1" }, KEY)
+    buildProxyAgentFromSettings(unreadable, KEY)
+    expect(error).toHaveBeenCalledTimes(3)
+
+    buildProxyAgentFromSettings(working, KEY)
+    buildProxyAgentFromSettings(unreadable, KEY)
+    expect(error).toHaveBeenCalledTimes(4)
   })
 
   it("builds no agent while the proxy is off, whatever its settings", () => {
