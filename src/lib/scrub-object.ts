@@ -3,7 +3,7 @@
 // Functions: scrubObject
 // Redacts sensitive keys from raw API response objects before sending to clients.
 
-export const SCRUB_KEYS = new Set([
+const SCRUB_KEYS = new Set([
   "authkey",
   "passkey",
   "ip",

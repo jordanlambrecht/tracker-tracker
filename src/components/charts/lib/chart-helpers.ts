@@ -49,7 +49,7 @@ export function formatDateLabel(isoDate: string): string {
 }
 
 /** Compute Y-axis padding so data doesn't press against chart edges */
-export function yAxisPad(value: { min: number; max: number }): number {
+function yAxisPad(value: { min: number; max: number }): number {
   const range = value.max - value.min
   return Math.max(range * 0.15, (value.max || 1) * 0.001)
 }

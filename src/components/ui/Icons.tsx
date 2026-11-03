@@ -955,7 +955,6 @@ export {
   GridIcon,
   HamburgerIcon,
   HeartIcon,
-  InfinityIcon,
   InfinitySign,
   InfoIcon,
   LeechingIcon,

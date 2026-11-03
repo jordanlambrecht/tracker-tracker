@@ -58,7 +58,7 @@ export function requestProwlarrPoll(
   return poll
 }
 
-export async function pollAllProwlarrInstances(encryptionKey: Buffer): Promise<void> {
+async function pollAllProwlarrInstances(encryptionKey: Buffer): Promise<void> {
   const instances = await db
     .select({ id: prowlarrInstances.id })
     .from(prowlarrInstances)

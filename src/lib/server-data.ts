@@ -160,7 +160,7 @@ export async function getSettingsForClient() {
  * ciphertext never enters server process memory. Also excludes cachedTorrents
  * (potentially large JSONB) and cachedTorrentsAt (internal scheduler state).
  */
-export const clientColumns = {
+const clientColumns = {
   id: downloadClients.id,
   name: downloadClients.name,
   type: downloadClients.type,
@@ -719,7 +719,7 @@ export async function getDatabaseSize(): Promise<string> {
 
 /** Returns database size in bytes as a bigint */
 // security-audit-ignore: read-only PostgreSQL system function, no user input
-export async function getDatabaseSizeBytes(): Promise<bigint> {
+async function getDatabaseSizeBytes(): Promise<bigint> {
   const rows = await db.execute(sql`SELECT pg_database_size(current_database()) as size_bytes`)
   const raw = (rows as unknown as Array<{ size_bytes: string }>)[0]?.size_bytes
   return raw ? BigInt(raw) : 0n

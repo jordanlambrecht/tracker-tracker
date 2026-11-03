@@ -85,4 +85,4 @@ function ChartShimmer({
 }
 
 export type { ShimmerProps }
-export { ChartShimmer, Shimmer, shimmerVariants }
+export { ChartShimmer, Shimmer }

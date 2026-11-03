@@ -33,7 +33,7 @@ export const VALID_PROXY_TYPES = new Set<string>(["socks5", "http", "https"])
 // Shared hostname validation: alphanumeric, dots, hyphens, colons/brackets (IPv6)
 export const PROXY_HOST_PATTERN = /^[\w.\-:[\]]+$/
 
-export function buildProxyUrl(config: ProxyConfig): string {
+function buildProxyUrl(config: ProxyConfig): string {
   if (!VALID_PROXY_TYPES.has(config.type)) {
     throw new Error(`Invalid proxy type: ${config.type}`)
   }

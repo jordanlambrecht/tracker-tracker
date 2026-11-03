@@ -33,7 +33,7 @@ export function getIndexerStatus(indexer: IndexerStatusInput): IndexerStatus {
   return "ok"
 }
 
-export function isIndexerFailing(indexer: IndexerStatusInput): boolean {
+function isIndexerFailing(indexer: IndexerStatusInput): boolean {
   return getIndexerStatus(indexer) === "failing"
 }
 

@@ -7,7 +7,7 @@
 import { isIP } from "node:net"
 import { log } from "@/lib/logger"
 
-export const OUTBOUND_DISABLED_ENV = "DISABLE_OUTBOUND_REQUESTS"
+const OUTBOUND_DISABLED_ENV = "DISABLE_OUTBOUND_REQUESTS"
 export const OUTBOUND_DISABLED_ERROR = `Outbound requests are turned off on this instance (${OUTBOUND_DISABLED_ENV})`
 
 // Compared after trim and lowercase. Only these leave outbound requests on.

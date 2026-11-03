@@ -29,20 +29,20 @@ export interface LayoutConfig {
 }
 
 // Tailwind v4 safe: static class mappings
-export const ROW_SPAN_CLASSES = {
+const ROW_SPAN_CLASSES = {
   1: "row-span-1",
   2: "row-span-2",
   3: "row-span-3",
 } as const
 
-export const COL_START_CLASSES = {
+const COL_START_CLASSES = {
   1: "col-start-1",
   2: "col-start-2",
   3: "col-start-3",
   4: "col-start-4",
 } as const
 
-export const ROW_START_CLASSES = {
+const ROW_START_CLASSES = {
   1: "row-start-1",
   2: "row-start-2",
   3: "row-start-3",

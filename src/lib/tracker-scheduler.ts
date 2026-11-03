@@ -591,7 +591,7 @@ export async function pruneOldSnapshots(retentionDays: number): Promise<number> 
   return deleted.length
 }
 
-export async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
+async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
   const cutoffDate = localDateStr(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
 
   const [deletedTracker, deletedTorrent] = await Promise.all([

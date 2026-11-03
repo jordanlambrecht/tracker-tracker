@@ -32,7 +32,6 @@ vi.mock("@/lib/db/schema", () => ({
 vi.mock("@/lib/alert-pruning", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/alert-pruning")>()
   return {
-    EXPIRING_ALERT_TYPES: actual.EXPIRING_ALERT_TYPES,
     NON_DISMISSIBLE_ALERT_TYPES: actual.NON_DISMISSIBLE_ALERT_TYPES,
     ALERT_EXPIRY_MS: actual.ALERT_EXPIRY_MS,
     pruneDismissedAlerts: vi.fn().mockResolvedValue(undefined),

@@ -107,4 +107,4 @@ function TorrentTabSkeleton() {
   )
 }
 
-export { CardListSkeleton, CardSkeleton, ChartGridSkeleton, EventLogSkeleton, TorrentTabSkeleton }
+export { CardListSkeleton, ChartGridSkeleton, EventLogSkeleton, TorrentTabSkeleton }

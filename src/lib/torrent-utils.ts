@@ -17,7 +17,7 @@ export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
  * cross-seed has a finite ratio. Storage keeps -1 because JSONB cannot hold
  * Infinity, so read a ratio through torrentRatioValue.
  */
-export const INFINITE_TORRENT_RATIO = -1
+const INFINITE_TORRENT_RATIO = -1
 
 export function isInfiniteTorrentRatio(ratio: number): boolean {
   return ratio === INFINITE_TORRENT_RATIO

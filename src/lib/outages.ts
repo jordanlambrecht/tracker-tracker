@@ -138,7 +138,7 @@ export function mergeIntervals(list: Interval[]): Interval[] {
 }
 
 /** Overlapping portions of two interval lists. Both are merged first. */
-export function intersectIntervals(a: Interval[], b: Interval[]): Interval[] {
+function intersectIntervals(a: Interval[], b: Interval[]): Interval[] {
   const left = mergeIntervals(a)
   const right = mergeIntervals(b)
   const out: Interval[] = []

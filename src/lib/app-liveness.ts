@@ -53,7 +53,7 @@ export const LIVENESS_WRITE_THROTTLE_MS = 30 * 1000
  * the chart refuses to draw is an invisible row, and a threshold that drifts
  * between the two is a silent behaviour change.
  */
-export const MIN_GAP_RECORD_MS = MIN_BAND_MS
+const MIN_GAP_RECORD_MS = MIN_BAND_MS
 
 /** Values of app_coverage_gaps.reason. Diagnostic only, all draw identically. */
 export type CoverageGapReason = "shutdown" | "unclean" | "stalled"

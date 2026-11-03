@@ -130,7 +130,7 @@ export const BACKUP_CLIENT_COLUMNS = {
  * Columns included in a backup for each Prowlarr instance. Poll state is left
  * out, and prowlarr_indexers is a cache rebuilt by the first poll after a restore.
  */
-export const BACKUP_PROWLARR_COLUMNS = {
+const BACKUP_PROWLARR_COLUMNS = {
   id: prowlarrInstances.id,
   name: prowlarrInstances.name,
   url: prowlarrInstances.url,

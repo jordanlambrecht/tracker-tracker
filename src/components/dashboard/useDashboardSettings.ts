@@ -16,7 +16,7 @@ const DEFAULTS = DASHBOARD_SETTINGS_DEFAULTS
  * toggle in the sheet updated the sheet's copy and left every other copy stale
  * until a reload, so a user could turn something off and watch it stay on.
  */
-export const DASHBOARD_SETTINGS_CHANGED_EVENT = "tracker-tracker:dashboard-settings-changed"
+const DASHBOARD_SETTINGS_CHANGED_EVENT = "tracker-tracker:dashboard-settings-changed"
 
 function useDashboardSettings() {
   const [settings, setSettings] = useState<DashboardSettings>(DEFAULTS)

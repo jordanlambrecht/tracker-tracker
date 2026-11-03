@@ -18,7 +18,7 @@ import { Notice, Toggle } from "@/components/ui"
 import { usePatchSettings } from "@/hooks/usePatchSettings"
 
 /** The section's id. `SettingsSection` derives the heading's DOM id from it. */
-export const CREDENTIAL_VAULT_SECTION_ID = "credential-vault"
+const CREDENTIAL_VAULT_SECTION_ID = "credential-vault"
 
 /**
  * Deep link to this toggle, for the sheet's opt-in gate.

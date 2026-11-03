@@ -17,10 +17,10 @@ export const PLACEHOLDER_RE = /^TODO$/i
  * tracker row's `joinedAt`, so it renders through `formatJoinedDate()`. A free-form
  * display string ("May 2026") would parse to Invalid Date there.
  */
-export const DEFUNCT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const DEFUNCT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /** A bare lowercase hostname: no scheme, port, path or query. */
-export const ANNOUNCE_HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/
+const ANNOUNCE_HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/
 
 export const VALID_CONTENT_CATEGORIES = new Set([
   "Movies",

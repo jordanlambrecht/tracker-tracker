@@ -295,4 +295,4 @@ function RankTenureChart({ trackerData, height = 300 }: RankTenureChartProps) {
 }
 
 export type { RankTenureChartProps }
-export { computeRankPeriods, RankTenureChart }
+export { RankTenureChart }

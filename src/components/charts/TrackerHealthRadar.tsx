@@ -125,4 +125,4 @@ function TrackerHealthRadar({ metrics, height = 360 }: TrackerHealthRadarProps) 
 }
 
 export type { TrackerHealthRadarProps }
-export { normalizeMetrics, TrackerHealthRadar }
+export { TrackerHealthRadar }

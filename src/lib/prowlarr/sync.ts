@@ -70,7 +70,7 @@ function describeFailure(err: unknown): string {
 }
 
 /** An unreadable key throws ProwlarrKeyUnreadableError, which a request route answers with 422. */
-export function decryptInstanceKey(instance: KeyedInstance, key: Buffer): ProwlarrConnection {
+function decryptInstanceKey(instance: KeyedInstance, key: Buffer): ProwlarrConnection {
   if (!instance.encryptedApiKey) {
     throw new ProwlarrSetupError()
   }

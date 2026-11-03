@@ -139,7 +139,7 @@ export function outageBandFill(kind: OutageBandKind): EChartsPattern | string {
   patternCache.set(kind, pattern)
   return pattern
 }
-export const OUTAGE_BAND_SERIES_ID_PREFIX = "tt-outage-band-"
+const OUTAGE_BAND_SERIES_ID_PREFIX = "tt-outage-band-"
 
 export function isOutageBandSeries(series: unknown): boolean {
   if (typeof series !== "object" || series === null) return false

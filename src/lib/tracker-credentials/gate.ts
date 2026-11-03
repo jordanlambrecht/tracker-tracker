@@ -20,7 +20,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 
-export const CREDENTIAL_VAULT_DISABLED_ERROR =
+const CREDENTIAL_VAULT_DISABLED_ERROR =
   "The credential vault is disabled. Enable it in Settings to store tracker credentials."
 
 /**

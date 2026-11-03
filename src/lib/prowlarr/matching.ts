@@ -46,7 +46,7 @@ interface MatchableIndexer {
 }
 
 /** The tracker's configured URL plus its registry URL, which can differ after a domain move. */
-export function trackerHosts(tracker: MatchableTracker): string[] {
+function trackerHosts(tracker: MatchableTracker): string[] {
   return hostsFromUrls([tracker.baseUrl, registryEntryFor(tracker)?.url])
 }
 
