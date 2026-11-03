@@ -88,10 +88,12 @@ export async function POST() {
 
       const promises = trackersToPoll.map(async (t) => {
         try {
-          await pollTracker(t.id, key, privacyMode, proxyAgent, batchTimestamp)
-          polled++
+          // pollTracker records a failed poll on the row and resolves false.
+          const ok = await pollTracker(t.id, key, privacyMode, proxyAgent, batchTimestamp)
+          if (ok) polled++
+          else failed++
           try {
-            controller.enqueue(encoder.encode(`${JSON.stringify({ trackerId: t.id, ok: true })}\n`))
+            controller.enqueue(encoder.encode(`${JSON.stringify({ trackerId: t.id, ok })}\n`))
           } catch {
             /* security-audit-ignore: stream closed by client disconnect. Nothing to recover */
           }

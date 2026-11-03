@@ -1738,7 +1738,7 @@ describe("POST /api/trackers/poll-all", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: VALID_KEY })
-    ;(pollTracker as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockResolvedValue(true)
   })
 
   function mockActiveTrackers(rows: Record<string, unknown>[]) {
@@ -1776,6 +1776,26 @@ describe("POST /api/trackers/poll-all", () => {
     expect((pollTracker as ReturnType<typeof vi.fn>).mock.calls.map(([id]) => id)).toEqual([3, 4])
     expect(lines[0]).toEqual({ total: 2 })
     expect(lines.at(-1)).toEqual({ done: true, polled: 2, failed: 0 })
+  })
+
+  // pollTracker records a failure on the row and resolves false, so the button
+  // read "All Polled" over a tracker that had just failed.
+  it("counts a poll that recorded a failure as failed", async () => {
+    vi.mocked(pollTracker).mockImplementation(async (id) => id !== 3)
+    mockActiveTrackers([
+      { ...healthy, id: 3 },
+      { ...healthy, id: 4 },
+    ])
+
+    const response = await PollAllPOST()
+    const lines = (await response.text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line))
+
+    expect(lines).toContainEqual({ trackerId: 3, ok: false })
+    expect(lines).toContainEqual({ trackerId: 4, ok: true })
+    expect(lines.at(-1)).toEqual({ done: true, polled: 1, failed: 1 })
   })
 
   it("polls nothing when every active tracker is paused by the user", async () => {
