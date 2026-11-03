@@ -824,7 +824,10 @@ export function isTrackerPollingRunning(): boolean {
   return getSchedulerTask() !== null
 }
 
-/** Exposed for testing. Returns the raw schedulerKey buffer reference. */
+/**
+ * Exposed for testing. Returns the raw schedulerKey buffer reference.
+ * @internal
+ */
 export function _getSchedulerKeyForTest(): Buffer | null {
   return getSchedulerKey()
 }

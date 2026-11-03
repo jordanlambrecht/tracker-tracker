@@ -65,7 +65,10 @@ export function consumeRevealToken(now: number = Date.now()): number | null {
   return null
 }
 
-/** Exported for tests. Never called by the app. */
+/**
+ * Exported for tests. Never called by the app.
+ * @internal
+ */
 export function resetRevealLimit(): void {
   const g = globalThis as unknown as Record<string, RevealWindow | undefined>
   g[STATE_KEY] = undefined

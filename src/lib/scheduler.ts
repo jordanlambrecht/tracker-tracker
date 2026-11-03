@@ -74,7 +74,10 @@ export function ensureSchedulerRunning(encryptionKeyHex: string): void {
   })
 }
 
-/** Exposed for testing. Clears the flag the SIGTERM handler sets. */
+/**
+ * Exposed for testing. Clears the flag the SIGTERM handler sets.
+ * @internal
+ */
 export function _resetShutdownForTest(): void {
   shuttingDown = false
 }
