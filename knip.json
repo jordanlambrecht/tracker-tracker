@@ -12,7 +12,9 @@
     "duplicates": "warn"
   },
   "entry": ["src/app/**/*.{ts,tsx}", "scripts/**/*.ts"],
-  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
+  "project": ["src/**/*.{ts,tsx,css}", "scripts/**/*.ts"],
+  "ignoreFiles": ["src/data/trackers/_template.ts"],
+  "ignoreDependencies": ["conventional-changelog"],
   "next": true,
   "typescript": true,
   "biome": true,
