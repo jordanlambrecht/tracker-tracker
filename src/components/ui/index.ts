@@ -2,9 +2,7 @@
 
 // ── Components ─────────────────────────────────────────────────────
 export type { CopyButtonProps, DownloadButtonProps } from "./ActionButtons"
-export { CopyButton, DownloadButton } from "./ActionButtons"
 export type { BackToTopProps } from "./BackToTop"
-export { BackToTop } from "./BackToTop"
 export type { BadgeProps, BadgeVariant } from "./Badge"
 export { Badge } from "./Badge"
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./Button"
@@ -23,61 +21,15 @@ export { ConfirmRemove } from "./ConfirmRemove"
 export type { DialogProps, DialogSize } from "./Dialog"
 export { Dialog } from "./Dialog"
 export { Divider } from "./Divider"
-export { ErrorDisplay } from "./ErrorDisplay"
 export type { FilterPillInactive, FilterPillProps, FilterPillSize } from "./FilterPill"
 export { FilterPill } from "./FilterPill"
-export {
-  ActivityIcon,
-  BookIcon,
-  BoxIcon,
-  BugIcon,
-  CheckIcon,
-  CheckLargeIcon,
-  ChevronDownSmallIcon,
-  ChevronUpIcon,
-  ChevronUpSmallIcon,
-  ClockIcon,
-  CopyIcon,
-  DownloadArrowIcon,
-  ExternalLinkIcon,
-  ExternalLinkSmallIcon,
-  EyeIcon,
-  EyeOffIcon,
-  GearIcon,
-  GitHubIcon,
-  GridIcon,
-  HamburgerIcon,
-  HeartIcon,
-  InfoIcon,
-  LeechingIcon,
-  PauseIcon,
-  PlayIcon,
-  PlusIcon,
-  QuestionIcon,
-  RatioIcon,
-  RefreshIcon,
-  RequiredRatioIcon,
-  SeedingIcon,
-  ServerIcon,
-  ShareScoreIcon,
-  ShieldIcon,
-  SpinnerIcon,
-  StarIcon,
-  TagIcon,
-  TransitPapersIcon,
-  TrashIcon,
-  TriangleWarningIcon,
-  UploadArrowIcon,
-  UserIcon,
-  XIcon,
-} from "./Icons"
+export { ClockIcon, GearIcon, HeartIcon } from "./Icons"
 export type { InfoTipIcon, InfoTipProps } from "./InfoTip"
 export { InfoTip } from "./InfoTip"
 export type { InputProps } from "./Input"
 export { Input } from "./Input"
 export type { LazySectionProps } from "./LazySection"
 export { LazySection } from "./LazySection"
-export { MarqueeText } from "./MarqueeText"
 export { MaskedSecret } from "./MaskedSecret"
 export type { NoticeProps, NoticeVariant } from "./Notice"
 export { Notice } from "./Notice"
@@ -86,34 +38,23 @@ export { NumberInput } from "./NumberInput"
 export type { PillTagProps } from "./PillTag"
 export { PillTag } from "./PillTag"
 export type { ProgressBarProps, ProgressBarSize } from "./ProgressBar"
-export { ProgressBar } from "./ProgressBar"
 export type { ProgressWidgetProps } from "./ProgressWidget"
-export { ProgressWidget } from "./ProgressWidget"
-export { QBT_TAG_WARN_PATTERN, QbtTagWarning } from "./QbtTagWarning"
+export { QbtTagWarning } from "./QbtTagWarning"
 export { RedactedText } from "./RedactedText"
 export type { SaveDiscardBarProps } from "./SaveDiscardBar"
 export { SaveDiscardBar } from "./SaveDiscardBar"
 export type { SectionToggleProps } from "./SectionToggle"
-export { SectionToggle } from "./SectionToggle"
 export type { SelectOption, SelectProps, SelectSize } from "./Select"
 export { Select } from "./Select"
 export type { SheetProps } from "./Sheet"
 export { Sheet } from "./Sheet"
 export type { ShimmerProps } from "./Shimmer"
-export { ChartShimmer, Shimmer, shimmerVariants } from "./Shimmer"
+export { ChartShimmer, Shimmer } from "./Shimmer"
 export type { SparklineProps } from "./Sparkline"
-export { Sparkline } from "./Sparkline"
 export type { AlertLevel, StatCardProps } from "./StatCard"
-export { StatCard } from "./StatCard"
 export type { StatusDotProps, StatusDotTone } from "./StatusDot"
 export { StatusDot } from "./StatusDot"
-export {
-  CardListSkeleton,
-  CardSkeleton,
-  ChartGridSkeleton,
-  EventLogSkeleton,
-  TorrentTabSkeleton,
-} from "./skeletons"
+export { CardListSkeleton, TorrentTabSkeleton } from "./skeletons"
 export type { TabBarProps } from "./TabBar"
 export { TabBar } from "./TabBar"
 export type { Column, SortDirection, TableProps } from "./Table"
