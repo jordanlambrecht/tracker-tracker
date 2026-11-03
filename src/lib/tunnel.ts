@@ -320,6 +320,11 @@ export function isProxyUsable(settings: ProxyEndpoint): boolean {
   return settings.proxyEnabled && endpointConfig(settings) !== null
 }
 
+// The unusable settings last logged. Agents are built per request, an avatar on
+// every page load included, so the error is logged once per settings state. On
+// globalThis so the scheduler and every route share it.
+const g = globalThis as typeof globalThis & { __unusableProxyLogged?: string }
+
 // Undefined only when the proxy is off. A proxy that is on but can't be used
 // gets an agent that refuses every request, so no caller can fall back to direct.
 export function buildProxyAgentFromSettings(
@@ -330,12 +335,18 @@ export function buildProxyAgentFromSettings(
 
   const config = endpointConfig(settings)
   if (!config) {
-    log.error(
-      { proxyType: settings.proxyType, hasHost: Boolean(settings.proxyHost) },
-      "Proxy settings can't make an agent, so every proxied request is refused"
-    )
+    const state = JSON.stringify([settings.proxyType, settings.proxyHost, settings.proxyPort])
+    if (g.__unusableProxyLogged !== state) {
+      g.__unusableProxyLogged = state
+      log.error(
+        { proxyType: settings.proxyType, hasHost: Boolean(settings.proxyHost) },
+        "Proxy settings can't make an agent, so every proxied request is refused"
+      )
+    }
     return new RefusingAgent(PROXY_UNUSABLE_CAUSE)
   }
+  // Settings that work end the state, so breaking them again logs again.
+  g.__unusableProxyLogged = undefined
 
   let password: string | null = null
   if (settings.encryptedProxyPassword) {

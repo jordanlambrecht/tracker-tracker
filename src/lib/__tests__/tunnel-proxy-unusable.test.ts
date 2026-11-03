@@ -8,6 +8,7 @@
 import net from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { PROXY_UNUSABLE_ERROR, sanitizeNetworkError } from "@/lib/error-utils"
+import { log } from "@/lib/logger"
 import { OUTBOUND_DISABLED_ERROR } from "@/lib/network"
 import { adapterFetch } from "@/lib/tracker-platforms/helpers/adapter-fetch"
 import { isRetryablePollError } from "@/lib/tracker-status"
@@ -70,6 +71,25 @@ describe("buildProxyAgentFromSettings and settings it can't use", () => {
 
     expect(err?.message).toBe(OUTBOUND_DISABLED_ERROR)
     expect(connect).not.toHaveBeenCalled()
+  })
+
+  // Agents are built per request, an avatar on every page load included.
+  it("logs the settings once per state, and again once fixed settings break", () => {
+    const error = vi.spyOn(log, "error").mockImplementation(() => undefined)
+    const portInHost = { ...SETTINGS, proxyHost: "proxy.example.test:1080" }
+    const bareIpv6 = { ...SETTINGS, proxyHost: "::1" }
+    buildProxyAgentFromSettings(SETTINGS, KEY)
+
+    buildProxyAgentFromSettings(portInHost, KEY)
+    buildProxyAgentFromSettings(portInHost, KEY)
+    expect(error).toHaveBeenCalledTimes(1)
+
+    buildProxyAgentFromSettings(bareIpv6, KEY)
+    expect(error).toHaveBeenCalledTimes(2)
+
+    buildProxyAgentFromSettings(SETTINGS, KEY)
+    buildProxyAgentFromSettings(bareIpv6, KEY)
+    expect(error).toHaveBeenCalledTimes(3)
   })
 
   it("builds no agent while the proxy is off, whatever its settings", () => {
