@@ -1,6 +1,6 @@
 // src/components/settings/__tests__/BackupsSection.test.tsx
 
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { BackupsSection } from "@/components/settings/BackupsSection"
@@ -190,6 +190,53 @@ describe("BackupsSection restore", () => {
     await enterPasswordAndPhrase(user)
 
     expect(timeout).toHaveBeenCalledWith(272_000)
+  })
+})
+
+describe("BackupsSection errors", () => {
+  it("shows a restore refusal once, in the Restore card", async () => {
+    await openRestoreForm(backupFile(BACKUP_RESTORE_MAX_BYTES + 1))
+    const message = "Backup file exceeds maximum size of 400 MB"
+
+    const restore = screen.getByRole("region", { name: "Restore" })
+    expect(await within(restore).findByText(message)).toBeInTheDocument()
+    expect(screen.getAllByText(message)).toHaveLength(1)
+  })
+
+  it("shows an export refusal once, in the Export card", async () => {
+    const user = userEvent.setup()
+    render(<BackupsSection initialConfig={{ ...INITIAL_CONFIG, encryptBackups: true }} />)
+    await user.click(screen.getByRole("button", { name: "Backup Now" }))
+    const message = "Set a backup password in Configuration before exporting"
+
+    const exportCard = screen.getByRole("region", { name: /^Export/ })
+    expect(within(exportCard).getByText(message)).toBeInTheDocument()
+    expect(screen.getAllByText(message)).toHaveLength(1)
+  })
+
+  it("shows a failed download once, in Recent Backups", async () => {
+    const backup = {
+      id: 1,
+      createdAt: "2026-11-01T03:00:00.000Z",
+      sizeBytes: 10,
+      encrypted: false,
+      frequency: null,
+      status: "completed",
+      hasStoredFile: true,
+      notes: null,
+    }
+    fetchMock.mockImplementation(async (url: string) =>
+      url === "/api/settings/backup/history"
+        ? new Response(JSON.stringify([backup]))
+        : new Response(JSON.stringify({ error: "Backup file not found" }), { status: 404 })
+    )
+    const user = userEvent.setup()
+    render(<BackupsSection initialConfig={INITIAL_CONFIG} />)
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+
+    const history = screen.getByRole("region", { name: "Recent Backups" })
+    expect(await within(history).findByText("Backup file not found")).toBeInTheDocument()
+    expect(screen.getAllByText("Backup file not found")).toHaveLength(1)
   })
 })
 

@@ -111,7 +111,13 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [backupHistory, setBackupHistory] = useState<BackupRecord[]>([])
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState(false)
-  const [backupError, setBackupError] = useState<string | null>(null)
+  // One error at a time, shown in the card whose action failed.
+  const [backupError, setBackupError] = useState<{
+    section: "export" | "config" | "restore" | "history"
+    message: string
+  } | null>(null)
+  const errorIn = (section: NonNullable<typeof backupError>["section"]) =>
+    backupError?.section === section ? backupError.message : null
   const [savedBackupConfig, setSavedBackupConfig] = useState({
     encryptBackups: initialConfig.encryptBackups,
     scheduleEnabled: initialConfig.scheduleEnabled,
@@ -181,7 +187,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
   async function handleBackupNow() {
     if (encryptBackups && !hasStoredPassword) {
-      setBackupError("Set a backup password in Configuration before exporting")
+      setBackupError({
+        section: "export",
+        message: "Set a backup password in Configuration before exporting",
+      })
       return
     }
     setBackingUp(true)
@@ -203,7 +212,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       const histRes = await fetch("/api/settings/backup/history")
       if (histRes.ok) setBackupHistory(await histRes.json())
     } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Export failed")
+      setBackupError({
+        section: "export",
+        message: err instanceof Error ? err.message : "Export failed",
+      })
     } finally {
       setBackingUp(false)
     }
@@ -215,7 +227,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     setBackupError(null)
     const result = await patchSettings({ backupPassword: newBackupPassword })
     if (!result.ok) {
-      setBackupError(result.error)
+      setBackupError({ section: "config", message: result.error })
     } else {
       setHasStoredPassword(true)
       setNewBackupPassword("")
@@ -228,7 +240,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     setBackupError(null)
     const result = await patchSettings({ backupPassword: null })
     if (!result.ok) {
-      setBackupError(result.error)
+      setBackupError({ section: "config", message: result.error })
     } else {
       setHasStoredPassword(false)
       setNewBackupPassword("")
@@ -248,7 +260,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
 
   async function prepareRestoreFile(file: File | null) {
     if (file && file.size > BACKUP_RESTORE_MAX_BYTES) {
-      setBackupError(BACKUP_RESTORE_TOO_LARGE_ERROR)
+      setBackupError({ section: "restore", message: BACKUP_RESTORE_TOO_LARGE_ERROR })
       return
     }
     setRestoreFile(file)
@@ -357,7 +369,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       setRestoreConfirmPhrase("")
       window.location.reload()
     } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Restore failed")
+      setBackupError({
+        section: "restore",
+        message: err instanceof Error ? err.message : "Restore failed",
+      })
     } finally {
       setRestoring(false)
     }
@@ -371,7 +386,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       }
       await downloadResponseBlob(res, `tracker-tracker-backup-${id}.json`)
     } catch (err) {
-      setBackupError(err instanceof Error ? err.message : "Download failed")
+      setBackupError({
+        section: "history",
+        message: err instanceof Error ? err.message : "Download failed",
+      })
     }
   }, [])
 
@@ -380,12 +398,12 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     try {
       const res = await fetch(`/api/settings/backup/${id}`, { method: "DELETE" })
       if (!res.ok && res.status !== 204) {
-        setBackupError("Failed to delete backup")
+        setBackupError({ section: "history", message: "Failed to delete backup" })
         return
       }
       setBackupHistory((prev) => prev.filter((b) => b.id !== id))
     } catch {
-      setBackupError("Failed to delete backup")
+      setBackupError({ section: "history", message: "Failed to delete backup" })
     } finally {
       setDeletingBackupId(null)
     }
@@ -534,7 +552,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             {backupStoragePath ? `Saved to ${backupStoragePath}.` : "Downloaded to your browser."}
           </Paragraph>
 
-          <Notice message={backupError} />
+          <Notice message={errorIn("export")} />
         </Card>
       </section>
 
@@ -565,7 +583,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               if (file && (file.name.endsWith(".json") || file.name.endsWith(".ttbak"))) {
                 await prepareRestoreFile(file)
               } else {
-                setBackupError("Invalid file type. Expected .json or .ttbak")
+                setBackupError({
+                  section: "restore",
+                  message: "Invalid file type. Expected .json or .ttbak",
+                })
               }
             }}
             onClick={() => restoreInputRef.current?.click()}
@@ -583,7 +604,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
             <span className="text-xs text-tertiary">.json or .ttbak</span>
           </button>
 
-          <Notice message={backupError} />
+          <Notice message={errorIn("restore")} />
         </Card>
       </section>
 
@@ -819,6 +840,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               text={savingBackupConfig ? "Saving…" : "Save Configuration"}
             />
           </div>
+
+          <Notice message={errorIn("config")} />
         </Card>
       </section>
 
@@ -834,6 +857,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
           keyExtractor={(b) => b.id}
           emptyMessage="No backups yet"
         />
+        <Notice className="mt-4" message={errorIn("history")} />
       </section>
     </>
   )
