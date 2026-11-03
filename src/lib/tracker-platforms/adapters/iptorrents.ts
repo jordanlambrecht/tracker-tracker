@@ -29,6 +29,7 @@ export interface IptCredentials {
   userAgent: string
 }
 
+/** @internal Used by tests. */
 export function parseIptCredentials(apiToken: string): IptCredentials {
   const { cookies, userAgent } = parseCredentialJson(apiToken, "IPTorrents", [
     "cookies",
@@ -121,6 +122,7 @@ function profileDate(doc: ParsedElement, label: string): string | undefined {
  * Reads the stats bar, which every signed-in page carries. The badge, dates and
  * stat cards are read only when the page is `profileId`'s profile and that is
  * the signed-in member, since another member's profile shows their own.
+ * @internal
  */
 export function parseIptProfile(html: string, hostname: string, profileId?: number): TrackerStats {
   if (html.includes("/auth/login")) {

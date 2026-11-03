@@ -9,7 +9,10 @@
 import { registryEntryFor } from "@/data/tracker-registry"
 import { trackerHostKey } from "@/lib/tracker-matching"
 
-/** Lowercased hostname without a trailing dot or a leading "www.", or null if unparseable. */
+/**
+ * Lowercased hostname without a trailing dot or a leading "www.", or null if unparseable.
+ * @internal
+ */
 export function normalizeHost(input: string | null | undefined): string | null {
   const raw = (input ?? "").trim()
   if (!raw) return null

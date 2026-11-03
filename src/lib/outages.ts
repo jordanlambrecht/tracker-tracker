@@ -122,6 +122,7 @@ function isUsable(i: Interval): boolean {
 /**
  * Sort, drop empty/invalid spans, and coalesce anything that overlaps
  * touches
+ * @internal
  */
 export function mergeIntervals(list: Interval[]): Interval[] {
   const usable = list.filter(isUsable).sort((a, b) => a.start - b.start)
@@ -158,6 +159,7 @@ function intersectIntervals(a: Interval[], b: Interval[]): Interval[] {
  * Intersection across every list. An empty outer list yields nothing rather than
  * everything, so with zero enabled clients nothing was collecting, so nothing is
  * known, so nothing is drawn.
+ * @internal
  */
 export function intersectAll(lists: Interval[][]): Interval[] {
   if (lists.length === 0) return []
@@ -169,7 +171,10 @@ export function intersectAll(lists: Interval[][]): Interval[] {
   return acc
 }
 
-/** Used to remove app gaps from qBT evidence. */
+/**
+ * Used to remove app gaps from qBT evidence.
+ * @internal
+ */
 export function subtractIntervals(base: Interval[], cut: Interval[]): Interval[] {
   const holes = mergeIntervals(cut)
   const out: Interval[] = []
@@ -187,7 +192,10 @@ export function subtractIntervals(base: Interval[], cut: Interval[]): Interval[]
   return out
 }
 
-/** Crop every interval to `bound`, dropping anything outside it. */
+/**
+ * Crop every interval to `bound`, dropping anything outside it.
+ * @internal
+ */
 export function clampIntervals(list: Interval[], bound: Interval): Interval[] {
   const out: Interval[] = []
   for (const i of mergeIntervals(list)) {
@@ -198,13 +206,17 @@ export function clampIntervals(list: Interval[], bound: Interval): Interval[] {
   return out
 }
 
-/** Drop bands shorter than `minMs`. */
+/**
+ * Drop bands shorter than `minMs`.
+ * @internal
+ */
 export function filterMinDuration(list: Interval[], minMs: number): Interval[] {
   return list.filter((i) => i.end - i.start >= minMs)
 }
 
 /**
  * Down spans implied by a client's buckets
+ * @internal
  */
 export function bucketsToDownIntervals(buckets: UptimeBucket[]): Interval[] {
   const down: Interval[] = []

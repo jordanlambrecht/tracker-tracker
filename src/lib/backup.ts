@@ -45,6 +45,7 @@ import {
 } from "@/lib/validators"
 import packageJson from "../../package.json"
 
+/** @internal Used by tests. */
 export const CURRENT_BACKUP_VERSION = 1
 
 export interface BackupManifest {
@@ -104,6 +105,7 @@ function serializeRow(row: Record<string, unknown>): Record<string, unknown> {
 
 /**
  * Columns a backup carries for each download client
+ * @internal
  */
 export const BACKUP_CLIENT_COLUMNS = {
   id: downloadClients.id,

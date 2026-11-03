@@ -52,7 +52,8 @@ interface RankProgressProps {
 
 // ── Helpers ──
 
-function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
+/** @internal Used by tests. */
+export function extractRankHistory(snapshots: Snapshot[]): RankChange[] {
   const changes: RankChange[] = []
   for (let i = 1; i < snapshots.length; i++) {
     const prev = snapshots[i - 1]
@@ -267,4 +268,4 @@ function RankProgress({
 }
 
 export type { RankChange, RankProgressProps, TimelineEvent }
-export { extractRankHistory, RankProgress }
+export { RankProgress }

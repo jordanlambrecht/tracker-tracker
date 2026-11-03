@@ -223,6 +223,7 @@ export async function dispatchNotifications(
   }
 }
 
+/** @internal Used by tests. */
 export function detectEvents(
   ctx: SnapshotContext,
   target: NotificationTargetRow
@@ -343,6 +344,7 @@ export function detectEvents(
   return events
 }
 
+/** @internal Used by tests. */
 export function buildEventData(
   event: NotificationEventType,
   ctx: SnapshotContext,

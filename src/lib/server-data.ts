@@ -69,6 +69,7 @@ import type {
  *
  * The has* entries select encrypted columns so serializeSettingsResponse() can
  * reduce them to booleans before anything leaves the server.
+ * @internal
  */
 export const settingsColumns = {
   storeUsernames: appSettings.storeUsernames,
@@ -210,7 +211,10 @@ export function serializeDownloadClientResponse(row: DownloadClientListRow) {
 // Prowlarr instances
 // ---------------------------------------------------------------------------
 
-/** Reduces the API key to a presence boolean in SQL, like clientColumns. */
+/**
+ * Reduces the API key to a presence boolean in SQL, like clientColumns.
+ * @internal
+ */
 export const prowlarrInstanceColumns = {
   id: prowlarrInstances.id,
   name: prowlarrInstances.name,
@@ -258,6 +262,7 @@ export function serializeProwlarrInstance(row: ProwlarrInstanceListRow): SafePro
  * Explicit column projection for notificationTargets. Excludes encryptedConfig
  * at the query level via a SQL boolean expression so the ciphertext never
  * enters server process memory.
+ * @internal
  */
 export const notificationTargetColumns = {
   id: notificationTargets.id,
@@ -314,6 +319,7 @@ export function serializeNotificationTarget(row: NotificationTargetRow) {
  * reduces encryptedMouseholeToken to a boolean in SQL for the same reason. Also
  * excludes avatarData (potentially large base64) since the serializer
  * doesn't include it. Avatars are served via a dedicated API route.
+ * @internal
  */
 export const trackerColumns = {
   id: trackers.id,

@@ -94,6 +94,7 @@ export function WhatsNew() {
  * version and the last version the user saw. If lastSeen is null (i.e.
  * localStorage was cleared or first install), only show the latest release
  * to avoid dumping the entire history.
+ * @internal
  */
 export function parseMissedReleases(content: string, lastSeen: string | null): string[] {
   const lines = content.split("\n")

@@ -9,6 +9,7 @@ import { dismissedAlerts } from "@/lib/db/schema"
 // would also hide every later failure on that client.
 const EXPIRING_ALERT_TYPES: AlertType[] = ["stale-data", "zero-seeding", "client-warning"]
 export const NON_DISMISSIBLE_ALERT_TYPES = new Set<AlertType>(["client-error", "poll-paused"])
+/** @internal Used by tests. */
 export const ALERT_EXPIRY_MS = 24 * 60 * 60 * 1000
 
 export async function pruneDismissedAlerts(): Promise<void> {

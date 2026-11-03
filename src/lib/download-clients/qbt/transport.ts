@@ -72,7 +72,10 @@ const gSid = globalThis as typeof globalThis & {
 if (!gSid.__qbtSidCache) gSid.__qbtSidCache = new Map()
 const sidCache = gSid.__qbtSidCache
 
-/** Get a cached session cookie or perform a fresh login. */
+/**
+ * Get a cached session cookie or perform a fresh login.
+ * @internal
+ */
 export async function getSession(
   host: string,
   port: number,

@@ -59,6 +59,7 @@ const allChartIds = FLEET_CHARTS.map((c) => c.id)
 
 // Stable select: narrows ["clients"] cache to {id, name} so lastPolledAt
 // changes from the sidebar's 10s poll don't trigger re-renders here.
+/** @internal Used by tests. */
 export const selectClientIdName = (data: { id: number; name: string }[]) =>
   data.map(({ id, name }) => ({ id, name }))
 

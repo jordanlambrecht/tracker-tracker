@@ -41,6 +41,7 @@ export interface RetrotoonCredentials {
   userAgent: string
 }
 
+/** @internal Used by tests. */
 export function parseRetrotoonCredentials(apiToken: string): RetrotoonCredentials {
   const { cookies, userAgent } = parseCredentialJson(apiToken, "RetroToon World", [
     "cookies",
@@ -87,6 +88,7 @@ function assertAuthenticated(html: string, page: string): void {
 const HEADER_GREETING =
   /Hello:[\s\S]{0,600}?userdetails\.php\?id=(\d+)[^>]*>\s*(?:<[^>]+>\s*)*([^<]+)/i
 
+/** @internal Used by tests. */
 export function extractOwnUserId(html: string): number | undefined {
   const match = html.match(HEADER_GREETING)
   if (!match) return undefined
@@ -108,6 +110,7 @@ function extractUsername(html: string, doc: ReturnType<typeof parseHtml>): strin
 // always comes from the header greeting.
 // ---------------------------------------------------------------------------
 
+/** @internal Used by tests. */
 export function parseRetrotoonProfile(html: string, hostname: string): TrackerStats {
   assertAuthenticated(html, "profile")
 
@@ -222,6 +225,7 @@ export interface RetrotoonBonusSummary {
   bonusPerHour?: number
 }
 
+/** @internal Used by tests. */
 export function parseRetrotoonBonus(html: string): RetrotoonBonusSummary {
   assertAuthenticated(html, "bonus shop")
 
@@ -251,6 +255,7 @@ export function parseRetrotoonBonus(html: string): RetrotoonBonusSummary {
 // returns null, meaning unknown.
 // ---------------------------------------------------------------------------
 
+/** @internal Used by tests. */
 export function parseRetrotoonHitAndRuns(html: string): number | null {
   assertAuthenticated(html, "hit and run")
 
@@ -267,7 +272,10 @@ export function parseRetrotoonHitAndRuns(html: string): number | null {
   return null
 }
 
-/** H&R cleanup tokens, read from the same page ("0 tokens available."). */
+/**
+ * H&R cleanup tokens, read from the same page ("0 tokens available.").
+ * @internal
+ */
 export function parseRetrotoonHnrTokens(html: string): number | undefined {
   const doc = parseHtml(html)
   const match = normalizeWhitespace(doc.textContent ?? "").match(/([\d,]+)\s+tokens?\s+available/i)

@@ -49,7 +49,8 @@ function getStatNumericValue(stats: TrackerLatestStats | null, mode: StatMode): 
   }
 }
 
-function sortTrackers(
+/** @internal Used by tests. */
+export function sortTrackers(
   trackers: TrackerSummary[],
   mode: SortMode,
   statMode?: StatMode
@@ -239,4 +240,4 @@ function useTrackerList({
 }
 
 export type { SortMode, UseTrackerListParams, UseTrackerListReturn }
-export { sortTrackers, useTrackerList }
+export { useTrackerList }

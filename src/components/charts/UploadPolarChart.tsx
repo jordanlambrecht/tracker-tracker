@@ -29,7 +29,8 @@ interface UploadPolarChartProps {
 
 // ── Data computation ──
 
-function computeHourlyAverages(snapshots: Snapshot[], mode: PolarMode): HourDayBucket[] {
+/** @internal Used by tests. */
+export function computeHourlyAverages(snapshots: Snapshot[], mode: PolarMode): HourDayBucket[] {
   if (snapshots.length < 2) return []
 
   const sorted = [...snapshots].sort(
@@ -267,4 +268,4 @@ function UploadPolarChart({
 }
 
 export type { HourDayBucket, PolarMode, UploadPolarChartProps }
-export { computeHourlyAverages, UploadPolarChart }
+export { UploadPolarChart }

@@ -31,6 +31,7 @@ import type { TrackerCredentialFieldDefinition } from "@/lib/tracker-credentials
 /**
  * The near-universal field. Almost every private tracker issues some per-user API
  * key, so this is what an unrecognised or `custom` platform starts with.
+ * @internal
  */
 export const UNIVERSAL_CREDENTIAL_FIELDS: readonly TrackerCredentialFieldDefinition[] = [
   { id: "api_key", label: "API key" },
@@ -53,6 +54,7 @@ const IRC_FIELDS: readonly TrackerCredentialFieldDefinition[] = [
   { id: "irc_nickserv", label: "NickServ password" },
 ]
 
+/** @internal Used by tests. */
 export const PLATFORM_CREDENTIAL_FIELDS: Partial<
   Record<PlatformType, readonly TrackerCredentialFieldDefinition[]>
 > = {

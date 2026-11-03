@@ -31,7 +31,8 @@ interface OutageBandsValue {
 
 const EMPTY_VALUE: OutageBandsValue = { enabled: false, app: [], allDown: [], tracker: [] }
 
-const OutageBandsContext = createContext<OutageBandsValue>(EMPTY_VALUE)
+/** @internal Used by tests. */
+export const OutageBandsContext = createContext<OutageBandsValue>(EMPTY_VALUE)
 
 interface OutagesResponse {
   app?: Interval[]
@@ -170,4 +171,4 @@ function useOutageBands(source: ChartDataSource): ChartOutageBands {
 }
 
 export type { OutageBandsProviderProps, OutageBandsValue }
-export { OutageBandsContext, OutageBandsProvider, useOutageBands }
+export { OutageBandsProvider, useOutageBands }

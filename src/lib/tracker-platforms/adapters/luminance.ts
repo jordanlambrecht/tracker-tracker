@@ -33,6 +33,7 @@ import { type LoginResponse, loginRequest, withLoginSession } from "../helpers/l
 export type LuminanceCredentials =
   { username: string; password: string } | { username: string; cookies: string; userAgent: string }
 
+/** @internal Used by tests. */
 export function parseLuminanceCredentials(apiToken: string): LuminanceCredentials {
   const { username, password, cookies, userAgent } = parseCredentialJson(
     apiToken,
@@ -69,6 +70,7 @@ export function parseLuminanceCredentials(apiToken: string): LuminanceCredential
 const SESSION_EXPIRED =
   "Session expired. Check the stored Luminance username and password if this persists"
 
+/** @internal Used by tests. */
 export function parseLuminanceLoginToken(html: string): string | null {
   return parseHtml(html).querySelector('input[name="token"]')?.getAttribute("value") || null
 }
@@ -78,6 +80,7 @@ function isLoginForm(doc: ParsedElement): boolean {
   return doc.querySelector("form#login_form") !== null
 }
 
+/** @internal Used by tests. */
 export function parseLuminanceUserId(html: string, hostname: string): number {
   const doc = parseHtml(html)
   if (isLoginForm(doc)) throw new SessionExpiredError(SESSION_EXPIRED)
@@ -121,6 +124,7 @@ function requiredBytes(doc: ParsedElement, label: string, hostname: string): big
   return bytes
 }
 
+/** @internal Used by tests. */
 export function parseLuminanceProfile(
   html: string,
   hostname: string,
@@ -187,7 +191,10 @@ function cookieHeader(jar: Map<string, string>): string {
   return [...jar].map(([name, value]) => `${name}=${value}`).join("; ")
 }
 
-/** The flashes cookie is rawurlencoded JSON, an array of `{ message, severity }`. */
+/**
+ * The flashes cookie is rawurlencoded JSON, an array of `{ message, severity }`.
+ * @internal
+ */
 export function flashMessages(encoded: string | undefined): string[] {
   if (!encoded) return []
   let flashes: unknown

@@ -23,10 +23,12 @@ import type {
   TrackerSummary,
 } from "@/types/api"
 
+/** @internal Used by tests. */
 export function selectActiveTrackers(trackers: TrackerSummary[]) {
   return trackers.filter((t) => t.isActive)
 }
 
+/** @internal Used by tests. */
 export function selectClientsForAlerts(clients: SafeDownloadClient[]) {
   return clients.map(({ id, name, enabled, lastError, errorSince }) => ({
     id,

@@ -25,6 +25,7 @@ interface TransmissionStateInput {
  * map to running states, so everything else counts as inactive. The stalled
  * split comes from the transfer rate, because Transmission's own `isStalled`
  * follows the idle-seeding preference and is always false when that is off.
+ * @internal
  */
 export function mapTransmissionState(status: number, torrent: TransmissionStateInput): string {
   const done = torrent.leftUntilDone === 0
@@ -52,6 +53,7 @@ export function mapTransmissionState(status: number, torrent: TransmissionStateI
  * port when it is the scheme's default. It drops the path, query and userinfo,
  * which is where a passkey sits, and keeps a udp:// tracker's host. "" for
  * anything it cannot parse.
+ * @internal
  */
 export function announceHost(announce: unknown): string {
   if (typeof announce !== "string") return ""
@@ -66,6 +68,7 @@ export function announceHost(announce: unknown): string {
  * The announce-list head, by (tier, id). It is the site's primary announce and
  * stays put when the site fails over, where the tracker currently working
  * would change.
+ * @internal
  */
 export function canonicalTrackerHost(trackers: TransmissionTracker[]): string {
   if (trackers.length === 0) return ""

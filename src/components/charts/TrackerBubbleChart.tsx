@@ -55,8 +55,12 @@ function computeBubbleSize(seedingCount: number, maxSeedingCount: number): numbe
 
 /**
  * Builds the ECharts option for the bubble chart.
+ * @internal
  */
-function buildBubbleOption(trackers: ValidTrackerData[], forceLog: boolean | null): EChartsOption {
+export function buildBubbleOption(
+  trackers: ValidTrackerData[],
+  forceLog: boolean | null
+): EChartsOption {
   // Convert bytes to GiB for all trackers
   const allGiB = trackers.map((t) => ({
     tracker: t,
@@ -276,4 +280,4 @@ function TrackerBubbleChart({ trackers, height = 360 }: TrackerBubbleChartProps)
 }
 
 export type { TrackerBubbleChartProps, TrackerBubbleData }
-export { buildBubbleOption, TrackerBubbleChart }
+export { TrackerBubbleChart }

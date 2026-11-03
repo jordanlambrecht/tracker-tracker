@@ -26,6 +26,7 @@ type TrackerRow = Omit<
   | "avatarRemoteUrl"
 > & { hasMouseholeToken: boolean }
 
+/** @internal Used by tests. */
 export function parsePlatformMeta(raw: string | null): PlatformMeta | null {
   if (!raw) return null
   try {

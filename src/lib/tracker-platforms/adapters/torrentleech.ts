@@ -33,6 +33,7 @@ export interface TlCredentials {
   alt2FAToken?: string
 }
 
+/** @internal Used by tests. */
 export function parseTlCredentials(apiToken: string): TlCredentials {
   const optional = parseCredentialJson(
     apiToken,
@@ -198,6 +199,7 @@ function trailingCount(text: string): number | null {
   return parseInt(matches[matches.length - 1].replace(/,/g, ""), 10)
 }
 
+/** @internal Used by tests. */
 export function parseTlProfile(html: string, username: string, hostname: string): TrackerStats {
   if (html.includes("/user/account/login")) {
     throw new SessionExpiredError("Session expired. TorrentLeech cookies need to be refreshed")

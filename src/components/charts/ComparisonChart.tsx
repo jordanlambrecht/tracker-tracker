@@ -160,7 +160,8 @@ function buildAverageSeries(
   ]
 }
 
-function buildComparisonOption(
+/** @internal Used by tests. */
+export function buildComparisonOption(
   metric: ChartMetric,
   trackerData: TrackerSnapshotSeries[],
   opts?: { logScale?: boolean; averageMode?: boolean; stacked?: boolean; totalOnly?: boolean }
@@ -478,4 +479,4 @@ function ComparisonChart({
 }
 
 export type { ChartMetric, ComparisonChartProps }
-export { buildComparisonOption, ComparisonChart }
+export { ComparisonChart }

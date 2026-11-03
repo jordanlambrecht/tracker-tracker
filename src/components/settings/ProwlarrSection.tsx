@@ -337,8 +337,11 @@ function AddInstanceForm({ onCreated, onCancel }: { onCreated: () => void; onCan
   )
 }
 
-/** An enabled instance whose first poll has neither finished nor failed yet. */
-function awaitingFirstPoll(instances: SafeProwlarrInstance[] | undefined): boolean {
+/**
+ * An enabled instance whose first poll has neither finished nor failed yet.
+ * @internal
+ */
+export function awaitingFirstPoll(instances: SafeProwlarrInstance[] | undefined): boolean {
   return instances?.some((i) => i.enabled && !i.lastPolledAt && !i.lastError) ?? false
 }
 
@@ -432,4 +435,4 @@ function ProwlarrSection() {
   )
 }
 
-export { awaitingFirstPoll, ProwlarrSection }
+export { ProwlarrSection }

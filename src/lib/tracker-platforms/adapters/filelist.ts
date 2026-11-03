@@ -40,6 +40,7 @@ export interface FilelistCredentials {
   userAgent: string
 }
 
+/** @internal Used by tests. */
 export function parseFilelistCredentials(apiToken: string): FilelistCredentials {
   const { cookies, userAgent } = parseCredentialJson(apiToken, "FileList", [
     "cookies",
@@ -82,6 +83,7 @@ function assertAuthenticated(html: string): void {
   }
 }
 
+/** @internal Used by tests. */
 export function parseFilelistProfile(html: string, hostname: string): TrackerStats {
   assertAuthenticated(html)
 

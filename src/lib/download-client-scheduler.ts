@@ -84,7 +84,10 @@ import { isOutboundDisabled } from "@/lib/network"
 import { announceHostKeySet, createTrackedTorrentPredicate } from "@/lib/tracker-matching"
 import { clearUptimeAccumulator, flushCompletedBuckets, recordHeartbeat } from "@/lib/uptime"
 
-/** Needed by heartbeatClient. Excludes large blobs like cachedTorrents */
+/**
+ * Needed by heartbeatClient. Excludes large blobs like cachedTorrents
+ * @internal
+ */
 export const HEARTBEAT_COLUMNS = {
   id: downloadClients.id,
   enabled: downloadClients.enabled,
@@ -103,7 +106,10 @@ export const HEARTBEAT_COLUMNS = {
   lastError: downloadClients.lastError,
 } as const
 
-/** Needed by deepPollClient. Heartbeat fields + poll config */
+/**
+ * Needed by deepPollClient. Heartbeat fields + poll config
+ * @internal
+ */
 export const DEEP_POLL_COLUMNS = {
   ...HEARTBEAT_COLUMNS,
   pollIntervalSeconds: downloadClients.pollIntervalSeconds,
@@ -330,6 +336,7 @@ class SyncStoreRefusedError extends Error {
   }
 }
 
+/** @internal Used by tests. */
 export async function deepPollClient(
   clientId: number,
   encryptionKey: Buffer,
@@ -661,7 +668,10 @@ async function deepPollAllClients(encryptionKey: Buffer): Promise<void> {
 // Scheduler lifecycle
 // ---------------------------------------------------------------------------
 
-/** True only when both loops are registered. Half-started is not running. */
+/**
+ * True only when both loops are registered. Half-started is not running.
+ * @internal
+ */
 export function isClientSchedulerRunning(): boolean {
   return getHeartbeatTask() !== null && getDeepPollTask() !== null
 }

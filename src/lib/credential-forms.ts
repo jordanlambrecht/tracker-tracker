@@ -383,6 +383,7 @@ export function credentialFormFor(entry: {
  * For a stored row. The column is unconstrained and a backup restore can carry
  * a platform this build does not know, so an unknown value gets the plain
  * token form rather than a crash.
+ * @internal
  */
 export function credentialFormForPlatform(platform: string): CredentialForm {
   // hasOwn, not `??`: "constructor" or "__proto__" would resolve to an

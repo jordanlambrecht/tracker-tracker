@@ -119,12 +119,16 @@ function unexpected(what: string): Error {
   return new Error(`Prowlarr sent an unexpected ${what} response`)
 }
 
+/** @internal Used by tests. */
 export function parseSystemStatus(body: unknown): { version: string | null } {
   if (!isRecord(body)) throw unexpected("system status")
   return { version: stringOrNull(body.version) }
 }
 
-/** Entries without a usable id or name are skipped rather than failing the whole list. */
+/**
+ * Entries without a usable id or name are skipped rather than failing the whole list.
+ * @internal
+ */
 export function parseIndexers(body: unknown): ParsedIndexer[] {
   if (!Array.isArray(body)) throw unexpected("indexer")
   const out: ParsedIndexer[] = []
@@ -146,6 +150,7 @@ export function parseIndexers(body: unknown): ParsedIndexer[] {
   return out
 }
 
+/** @internal Used by tests. */
 export function parseIndexerStatuses(body: unknown): ParsedIndexerStatus[] {
   if (!Array.isArray(body)) throw unexpected("indexer status")
   const out: ParsedIndexerStatus[] = []
@@ -161,6 +166,7 @@ export function parseIndexerStatuses(body: unknown): ParsedIndexerStatus[] {
   return out
 }
 
+/** @internal Used by tests. */
 export function parseIndexerStats(body: unknown): Map<number, ProwlarrIndexerStats> {
   if (!isRecord(body) || !Array.isArray(body.indexers)) throw unexpected("indexer stats")
   const out = new Map<number, ProwlarrIndexerStats>()

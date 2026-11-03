@@ -91,6 +91,7 @@ const patternCache = new Map<OutageBandKind, EChartsPattern | string>()
 
 /**
  * Fill for a band
+ * @internal
  */
 export function outageBandFill(kind: OutageBandKind): EChartsPattern | string {
   const cached = patternCache.get(kind)

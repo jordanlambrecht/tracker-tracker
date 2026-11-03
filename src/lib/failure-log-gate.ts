@@ -21,10 +21,16 @@
 // Functions: noteFailure, noteSuccess, retainFailureLogClients,
 //            clearFailureLogKeysForClient, clearFailureLogGate
 
-/** How long an ongoing outage may go unmentioned in the log. */
+/**
+ * How long an ongoing outage may go unmentioned in the log.
+ * @internal
+ */
 export const OUTAGE_REMINDER_INTERVAL_MS = 15 * 60 * 1000
 
-/** Floor between two emitted lines for the same key, for cause changes only. */
+/**
+ * Floor between two emitted lines for the same key, for cause changes only.
+ * @internal
+ */
 export const MIN_TRANSITION_LOG_INTERVAL_MS = 60_000
 
 export type ClientLoopOperation = "heartbeat" | "deep-poll"

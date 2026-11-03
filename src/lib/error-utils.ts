@@ -37,6 +37,7 @@ export function isUnreadableClientCredential(error: unknown): boolean {
 
 // What an unreadable stored credential shows, one line per kind. credentials.ts
 // wraps a client's URL path the same way as its password or API key.
+/** @internal Used by tests. */
 export const TRACKER_CREDENTIALS_UNREADABLE_ERROR =
   "Stored credentials for this tracker can't be read. Enter them again in its settings"
 export const CLIENT_CREDENTIALS_UNREADABLE_ERROR =
@@ -49,6 +50,7 @@ export const MOUSEHOLE_TOKEN_UNREADABLE_ERROR =
   "Stored Mousehole API token can't be read. Enter it again in this tracker's settings"
 export const PROXY_PASSWORD_UNREADABLE_ERROR =
   "Stored proxy password can't be read. Enter it again in the proxy settings"
+/** @internal Used by tests. */
 export const PROXY_UNUSABLE_ERROR =
   "Proxy settings can't be used. Check the proxy type, host and port in Settings"
 // What a proxy save or test answers for a host the agent build refuses. Worded

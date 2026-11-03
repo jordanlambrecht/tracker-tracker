@@ -44,8 +44,9 @@ interface CandlestickResult {
  * Groups snapshots by local calendar day (YYYY-MM-DD, per TZ) and computes
  * open/high/low/close buffer values in GiB. Returns the day labels
  * and OHLC array in ECharts candlestick format [open, close, low, high].
+ * @internal
  */
-function computeCandlestickData(snapshots: Snapshot[], divisor: number): CandlestickResult {
+export function computeCandlestickData(snapshots: Snapshot[], divisor: number): CandlestickResult {
   if (snapshots.length === 0) return { days: [], ohlc: [] }
 
   const sorted = [...snapshots].sort(
@@ -336,4 +337,4 @@ function BufferCandlestickChart({ trackerData, height = 360 }: BufferCandlestick
 }
 
 export type { BufferCandlestickChartProps }
-export { BufferCandlestickChart, computeCandlestickData }
+export { BufferCandlestickChart }

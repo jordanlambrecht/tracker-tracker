@@ -15,7 +15,10 @@
 
 import "server-only"
 
-/** Length of the fixed window. */
+/**
+ * Length of the fixed window.
+ * @internal
+ */
 export const REVEAL_WINDOW_MS = 60_000
 
 /**
@@ -24,6 +27,7 @@ export const REVEAL_WINDOW_MS = 60_000
  * A human clicking show/copy in a sheet does a handful per minute; the vault
  * itself is capped at MAX_FIELDS_PER_VAULT (100) fields, so 30 is comfortably
  * above real use while still being below "drain one whole vault in a window".
+ * @internal
  */
 export const REVEAL_MAX_PER_WINDOW = 30
 

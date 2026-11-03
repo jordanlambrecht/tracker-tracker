@@ -66,6 +66,7 @@ export function createProxyAgent(config: ProxyConfig): HttpAgent {
  * Output is capped while inflating rather than measured afterwards, since a
  * small compressed body can expand to gigabytes and measuring the result would
  * already have allocated it. zlib stops at maxOutput and throws.
+ * @internal
  */
 export function decodeBody(
   raw: Buffer,

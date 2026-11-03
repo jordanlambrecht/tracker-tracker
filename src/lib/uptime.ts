@@ -40,7 +40,10 @@ function getFlushQueue(): FlushEntry[] {
   return g.__uptimeFlushQueue
 }
 
-/** Floor a Date to the nearest 5-minute boundary. */
+/**
+ * Floor a Date to the nearest 5-minute boundary.
+ * @internal
+ */
 export function floorToFiveMin(date: Date): Date {
   const ms = date.getTime()
   return new Date(ms - (ms % BUCKET_MS))

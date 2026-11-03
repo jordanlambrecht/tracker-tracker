@@ -98,6 +98,7 @@ export function stopProwlarrScheduler(): void {
   g.__prowlarrTask = null
 }
 
+/** @internal Used by tests. */
 export function isProwlarrSchedulerRunning(): boolean {
   return (g.__prowlarrTask ?? null) !== null
 }

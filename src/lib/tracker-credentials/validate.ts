@@ -30,6 +30,7 @@ import {
  * Max sections per vault. Sections are user-invented groupings ("IRC", "RSS",
  * "autodl"); a real tracker has a handful. 20 is far past any real layout while
  * still bounding the render loop and the per-section id-uniqueness scan.
+ * @internal
  */
 export const MAX_SECTIONS = 20
 
@@ -37,6 +38,7 @@ export const MAX_SECTIONS = 20
  * Max fields across the WHOLE vault, not per section. The reveal endpoint looks
  * fields up by id alone, so the vault-wide count is what bounds that lookup and
  * what bounds the number of reveal round-trips a single sheet can trigger.
+ * @internal
  */
 export const MAX_FIELDS_PER_VAULT = 100
 
@@ -44,6 +46,7 @@ export const MAX_FIELDS_PER_VAULT = 100
  * Max length of a field label or a section title. These are UI strings shown in
  * a side sheet; 100 chars already overflows the column. Capped because they ride
  * inside the same encrypted blob as the secrets and so share its DoS surface.
+ * @internal
  */
 export const MAX_LABEL_LENGTH = 100
 
@@ -52,6 +55,7 @@ export const MAX_LABEL_LENGTH = 100
  * or a full announce URL list is genuinely multi-kilobyte, so a tight cap would
  * break the exact use case the feature exists for. 10 KB holds all of those and
  * still keeps a maxed-out vault well under the total cap below.
+ * @internal
  */
 export const MAX_VALUE_LENGTH = 10_000
 
@@ -67,6 +71,7 @@ export const MAX_ID_LENGTH = 64
  * the number that actually decides how much work one decrypt/re-encrypt cycle
  * takes. This includes the change-password loop over every tracker row. 64 KiB of
  * plaintext is roughly 88 KB of base64 ciphertext per tracker.
+ * @internal
  */
 export const MAX_SERIALIZED_BYTES = 64 * 1024
 
@@ -96,7 +101,10 @@ function quoteId(id: string): string {
   return id.length > 80 ? `${id.slice(0, 80)}…` : id
 }
 
-/** UTF-8 byte length of the serialized vault. TextEncoder exists in Node and the browser. */
+/**
+ * UTF-8 byte length of the serialized vault. TextEncoder exists in Node and the browser.
+ * @internal
+ */
 export function serializedVaultBytes(vault: TrackerCredentialVault): number {
   return new TextEncoder().encode(JSON.stringify(vault)).length
 }

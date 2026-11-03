@@ -20,7 +20,10 @@ interface CheveretoResponse {
   error?: { message: string }
 }
 
-/** Convert seconds to an ISO 8601 duration string */
+/**
+ * Convert seconds to an ISO 8601 duration string
+ * @internal
+ */
 export function secondsToIsoDuration(seconds: number): string {
   if (seconds >= 86400 && seconds % 86400 === 0) return `P${seconds / 86400}D`
   if (seconds >= 3600 && seconds % 3600 === 0) return `PT${seconds / 3600}H`

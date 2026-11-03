@@ -76,7 +76,8 @@ interface MetricChartProps {
 
 // ── Metric configuration map ──
 
-const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
+/** @internal Used by tests. */
+export const METRIC_CONFIGS: Record<Exclude<Metric, "dailyDelta">, MetricConfig> = {
   shareScore: {
     label: "Share Score",
     unit: "pts",
@@ -498,4 +499,4 @@ function MetricChart({
 }
 
 export type { Metric, MetricChartProps, MetricConfig }
-export { METRIC_CONFIGS, MetricChart }
+export { MetricChart }

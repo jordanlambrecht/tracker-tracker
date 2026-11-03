@@ -17,6 +17,7 @@ import packageJson from "../../package.json"
  * accounts across trackers, defeating the point of one shared proxy.
  */
 const [major = "0", minor = "0"] = packageJson.version.split(".")
+/** @internal Used by tests. */
 export const DEFAULT_USER_AGENT = `tracker-tracker/${major}.${minor}`
 
 /**

@@ -85,6 +85,7 @@ function nextKey(prefix: string): string {
  * callers MUST handle that. See the `field_N` fallback in assignIds(). Returning
  * an empty string rather than inventing something here keeps the "is this
  * usable?" decision at the one place that knows what to count from.
+ * @internal
  */
 export function slugifyCredentialId(text: string): string {
   const slug = text

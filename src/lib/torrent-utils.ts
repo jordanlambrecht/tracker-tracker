@@ -19,6 +19,7 @@ export { LEECHING_STATES, parseTorrentTags, SEEDING_STATES }
  */
 const INFINITE_TORRENT_RATIO = -1
 
+/** @internal Used by tests. */
 export function isInfiniteTorrentRatio(ratio: number): boolean {
   return ratio === INFINITE_TORRENT_RATIO
 }

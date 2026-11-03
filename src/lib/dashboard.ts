@@ -56,6 +56,7 @@ export type AlertType = typeof VALID_ALERT_TYPES extends Set<infer T> ? T : neve
 
 // The id an alert's key carries right after `${type}-`, so a restore can move it
 // to the restored row's id. A new alert type has to name one here.
+/** @internal Used by tests. */
 export const ALERT_KEY_ID: Record<AlertType, "tracker" | "client" | null> = {
   error: "tracker",
   "poll-paused": "tracker",

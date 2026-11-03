@@ -117,7 +117,10 @@ export function announceHostKeySet(rows: readonly AnnounceSource[]): Set<string>
   return new Set(rows.flatMap((r) => trackerAnnounceKeys(r)))
 }
 
-/** True when a torrent's announce URL points at the same site as a tracker. */
+/**
+ * True when a torrent's announce URL points at the same site as a tracker.
+ * @internal
+ */
 export function announceMatchesTracker(
   announceUrl: string | null | undefined,
   tracker: AnnounceSource

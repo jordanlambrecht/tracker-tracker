@@ -23,10 +23,12 @@ function getCircuits(): Map<number, CircuitState> {
 const MAX_FAILURES = 3
 const DEFAULT_COOLDOWN_MS = 60_000
 
+/** @internal Used by tests. */
 export function getCircuitState(targetId: number): CircuitState {
   return getCircuits().get(targetId) ?? { failures: 0, openUntil: null }
 }
 
+/** @internal Used by tests. */
 export function resetCircuitBreaker(targetId: number): void {
   getCircuits().delete(targetId)
 }

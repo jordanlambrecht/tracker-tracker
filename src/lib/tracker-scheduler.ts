@@ -574,6 +574,7 @@ export async function pollTracker(
   }
 }
 
+/** @internal Used by tests. */
 export async function pruneOldSnapshots(retentionDays: number): Promise<number> {
   const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
   const deleted = await db
@@ -608,6 +609,7 @@ async function pruneOldCheckpoints(retentionDays: number): Promise<number> {
   return deletedTracker.length + deletedTorrent.length
 }
 
+/** @internal Used by tests. */
 export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   // Query settings first; global interval is needed for overdue filtering
   const [settings] = await db

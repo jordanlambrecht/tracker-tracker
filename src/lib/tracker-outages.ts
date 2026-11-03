@@ -23,11 +23,16 @@ export interface TrackerOutage {
 /**
  * How many poll intervals may separate two failures before they count as
  * seperate outages
+ * @internal
  */
 export const OUTAGE_STITCH_INTERVALS = 2
+/** @internal Used by tests. */
 export const OUTAGE_STITCH_TOLERANCE_MS = 60_000
 
-/** Longest silence between two failures that still counts as one outage. */
+/**
+ * Longest silence between two failures that still counts as one outage.
+ * @internal
+ */
 export function trackerOutageStitchWindowMs(pollIntervalMinutes: number): number {
   return pollIntervalMinutes * 60_000 * OUTAGE_STITCH_INTERVALS + OUTAGE_STITCH_TOLERANCE_MS
 }

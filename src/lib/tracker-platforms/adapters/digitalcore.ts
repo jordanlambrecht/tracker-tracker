@@ -31,6 +31,7 @@ export interface DigitalCoreCredentials {
   userAgent?: string
 }
 
+/** @internal Used by tests. */
 export function parseDigitalCoreCredentials(apiToken: string): DigitalCoreCredentials {
   let parsed: unknown
   try {

@@ -70,6 +70,7 @@ function keeperOrder(a: LinkRow, b: LinkRow): number {
  * Which rows with no slug to link, and to which entry. A slug another row holds,
  * archived or not, is never given out, and of several rows on one tracker only
  * the first in keeper order gets it.
+ * @internal
  */
 export function planRegistryLinks(rows: readonly LinkRow[]): LinkPlan {
   const held = new Set(rows.flatMap((row) => (row.registrySlug ? [row.registrySlug] : [])))

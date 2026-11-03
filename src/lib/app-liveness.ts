@@ -44,6 +44,7 @@ import { MIN_BAND_MS } from "@/lib/outages"
  * unexplained.
  *
  * This throttle applies ONLY to the write. Gap DETECTION runs on every touch.
+ * @internal
  */
 export const LIVENESS_WRITE_THROTTLE_MS = 30 * 1000
 

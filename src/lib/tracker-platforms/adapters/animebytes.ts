@@ -41,6 +41,7 @@ interface AnimeBytesPersonalStats {
 /**
  * The API token, and the username the API never reports, which the credential
  * form asks for alongside it.
+ * @internal
  */
 export function parseAnimeBytesCredentials(apiToken: string): { token: string; username: string } {
   const { token, username } = parseCredentialJson(apiToken, "AnimeBytes", [

@@ -31,6 +31,7 @@ export interface AvistazCredentials {
   username: string
 }
 
+/** @internal Used by tests. */
 export function parseAvistazCredentials(apiToken: string): AvistazCredentials {
   const { cookies, userAgent, username } = parseCredentialJson(apiToken, "AvistaZ", [
     "cookies",
@@ -121,6 +122,7 @@ function extractRatioBarValue(items: ParsedElement[], labelRegex: RegExp): strin
 // Profile page parser
 // ---------------------------------------------------------------------------
 
+/** @internal Used by tests. */
 export function parseAvistazProfile(
   html: string,
   username: string,

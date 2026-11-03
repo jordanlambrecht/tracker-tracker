@@ -226,7 +226,10 @@ export function computeDailyGrid(trackerData: TrackerSnapshotSeries[]): {
   return { days, trackerNames, trackerColors, uploadGrid, downloadGrid }
 }
 
-/** Assign each YYYY-MM-DD to a bucket key based on granularity. */
+/**
+ * Assign each YYYY-MM-DD to a bucket key based on granularity.
+ * @internal
+ */
 export function getBucketKey(day: string, granularity: "day" | "week" | "month"): string {
   if (granularity === "day") return day
   if (granularity === "month") return day.slice(0, 7) // "YYYY-MM"

@@ -58,4 +58,4 @@ function InfoTip({ content, docs, icon = "info", size, className }: InfoTipProps
 }
 
 export type { InfoTipIcon, InfoTipProps }
-export { InfoTip, infoTipVariants }
+export { InfoTip }

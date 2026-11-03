@@ -18,6 +18,7 @@ interface PollingIntervals {
 const DEFAULT_TRACKER_MS = 60_000
 const DEFAULT_CLIENT_MS = 5 * 60 * 1000
 
+/** @internal Used by tests. */
 export function selectMinPollInterval(clients: SafeDownloadClient[]): number | null {
   const enabled = clients.filter((c) => c.enabled)
   if (enabled.length === 0) return null
