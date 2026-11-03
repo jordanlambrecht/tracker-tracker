@@ -179,7 +179,7 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/session cookie contained an unsafe character/i.test(raw)) {
     return "qBittorrent sent an unsafe session cookie"
   }
-  if (/^qBittorrent sent an unexpected (?:maindata|torrent list) response$/.test(raw)) {
+  if (/^qBittorrent sent an unexpected (?:maindata|torrent list|non-JSON) response$/.test(raw)) {
     return "qBittorrent sent an unexpected response"
   }
   // `redirect: "manual"` surfaces a 3xx as a non-ok status rather than

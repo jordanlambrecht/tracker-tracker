@@ -8,6 +8,7 @@ import {
   clearAllSessions,
   getSession,
   getTorrents,
+  getTransferInfo,
   invalidateSession,
   login,
   syncMaindata,
@@ -295,6 +296,32 @@ describe("getTorrents and syncMaindata validate the body they were handed", () =
       .catch((e: unknown) => (e instanceof Error ? e : null))
 
     expect(err?.message).toBe("qBittorrent sent an unexpected maindata response")
+    const card = sanitizeNetworkError(err?.message ?? "")
+    expect(card).toBe("qBittorrent sent an unexpected response")
+    expect(isUnreachableMessage(card)).toBe(false)
+  })
+})
+
+describe("a body that is not JSON", () => {
+  // A login page or a proxy's HTML page answering a 200. The parser's own error
+  // matched no sanitizer rule and read as a host that never answered.
+  const AUTH = { mode: "apikey", key: "k", credentialKey: "apikey:k" } as const
+
+  it.each<[string, () => Promise<unknown>]>([
+    ["syncMaindata", () => syncMaindata(BASE, AUTH, 0)],
+    ["getTransferInfo", () => getTransferInfo(BASE, AUTH)],
+    ["getTorrents", () => getTorrents(BASE, AUTH)],
+  ])("%s names qBittorrent's answer", async (_name, call) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("<html><title>Sign in</title></html>"))
+    )
+
+    const err = await call()
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("qBittorrent sent an unexpected non-JSON response")
     const card = sanitizeNetworkError(err?.message ?? "")
     expect(card).toBe("qBittorrent sent an unexpected response")
     expect(isUnreachableMessage(card)).toBe(false)

@@ -403,6 +403,22 @@ async function qbtFetch(
 }
 
 /**
+ * A capped JSON read that names qBittorrent when the body is not JSON. A login
+ * page or a proxy's HTML page is the usual cause, and the host answered, so the
+ * parser's message, which also quotes the body, must not reach the sanitizer.
+ */
+async function readQbtJson<T>(response: Response, host: string): Promise<T> {
+  try {
+    return await readCappedJson<T>(response, host, QBT_RESPONSE_MAX_BYTES)
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      throw new Error("qBittorrent sent an unexpected non-JSON response")
+    }
+    throw err
+  }
+}
+
+/**
  * Parses the cachedTorrents JSONB column
  */
 export function parseCachedTorrents(raw: unknown): SlimTorrent[] {
@@ -461,7 +477,7 @@ export async function getTorrents(
   const response = await qbtFetch(url, host, baseUrl, auth, signal)
   // Shape-checked like syncMaindata's body, so an object or a wrongly shaped
   // entry never reaches mapQbtTorrent.
-  const data = await readCappedJson<unknown>(response, host, QBT_RESPONSE_MAX_BYTES)
+  const data = await readQbtJson<unknown>(response, host)
   if (!Array.isArray(data)) {
     throw new Error("qBittorrent sent an unexpected torrent list response")
   }
@@ -479,7 +495,7 @@ export async function getTransferInfo(baseUrl: string, auth: QbtAuth): Promise<Q
   const url = `${baseUrl}/api/v2/transfer/info`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, auth)
-  return readCappedJson<QbtTransferInfo>(response, host, QBT_RESPONSE_MAX_BYTES)
+  return readQbtJson<QbtTransferInfo>(response, host)
 }
 
 export async function syncMaindata(
@@ -490,7 +506,7 @@ export async function syncMaindata(
   const url = `${baseUrl}/api/v2/sync/maindata?rid=${rid}`
   const host = new URL(baseUrl).hostname
   const response = await qbtFetch(url, host, baseUrl, auth)
-  const data: unknown = await readCappedJson<unknown>(response, host, QBT_RESPONSE_MAX_BYTES)
+  const data: unknown = await readQbtJson<unknown>(response, host)
   if (!isQbtMaindataResponse(data)) {
     throw new Error("qBittorrent sent an unexpected maindata response")
   }
