@@ -1,6 +1,6 @@
 // src/lib/constants.ts
 //
-// Available: DEFAULT_LOG_FILE, DOCS_URL, DOCS, DocsEntry
+// Available: DEFAULT_LOG_FILE, DOCS_URL, DOCS, DocsEntry, USE_PROXY_DESCRIPTION
 
 export const DEFAULT_LOG_FILE = "/data/logs/tracker-tracker.log"
 export const DEV_LOG_FILE = ".next/tracker-tracker.log"
@@ -99,3 +99,8 @@ export const DOCS = {
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 export const DEFAULT_TRACKER_COLOR = "#00d4ff"
+
+// The Use proxy toggle's description while the proxy can be used, in Add Tracker
+// and in the tracker settings sheet.
+export const USE_PROXY_DESCRIPTION =
+  "Route API requests for this tracker through the global proxy configured in Settings."

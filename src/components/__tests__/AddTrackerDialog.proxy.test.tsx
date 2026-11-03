@@ -60,7 +60,12 @@ describe("AddTrackerDialog proxy choice", () => {
     serveSettings(Promise.resolve(jsonResponse({ proxyUsable: true })))
     renderDialog()
 
-    expect(await screen.findByRole("switch", { name: "Use proxy" })).toBeChecked()
+    const toggle = await screen.findByRole("switch", { name: "Use proxy" })
+    expect(toggle).toBeChecked()
+    // Worded as in the tracker settings sheet.
+    expect(toggle).toHaveAccessibleDescription(
+      "Route API requests for this tracker through the global proxy configured in Settings."
+    )
     await addAither(user)
 
     await waitFor(() => expect(sentBodies()["/api/trackers"]).toBeDefined())

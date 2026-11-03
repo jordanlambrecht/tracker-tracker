@@ -23,6 +23,7 @@ import { ColorPicker } from "@/components/ui/ColorPicker"
 
 import { registryEntryFor } from "@/data/tracker-registry"
 import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
+import { USE_PROXY_DESCRIPTION } from "@/lib/constants"
 import {
   buildCredentialBlob,
   type CredentialValues,
@@ -517,7 +518,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             disabled={!proxyAvailable || proxyAvailable === null}
             description={
               proxyAvailable
-                ? "Route API requests for this tracker through the global proxy configured in Settings."
+                ? USE_PROXY_DESCRIPTION
                 : proxyAvailable === false && form.useProxy
                   ? "The proxy is off in Settings, so this tracker polls directly. It uses the proxy again once the proxy is back on."
                   : "No proxy configured. Enable a proxy in Settings first."

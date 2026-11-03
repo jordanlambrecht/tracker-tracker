@@ -16,6 +16,7 @@ import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
 import { Toggle } from "@/components/ui/Toggle"
 import { TRACKER_REGISTRY } from "@/data/tracker-registry"
+import { USE_PROXY_DESCRIPTION } from "@/lib/constants"
 import {
   buildCredentialBlob,
   CREDENTIAL_FORMS,
@@ -355,7 +356,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
             label="Use proxy"
             checked={useProxy}
             onChange={setUseProxy}
-            description="Route API requests for this tracker through the global proxy configured in Settings."
+            description={USE_PROXY_DESCRIPTION}
           />
         )}
 
