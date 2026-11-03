@@ -216,11 +216,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
       busy={loading}
       footer={
         <div className="flex gap-3">
-          <Button
-            type="submit"
-            disabled={loading}
-            text={loading ? "Connecting..." : "Add Tracker"}
-          />
+          <Button type="submit" disabled={loading} text={loading ? "Connecting…" : "Add Tracker"} />
           <Button variant="ghost" onClick={handleDialogClose} text="Cancel" />
         </div>
       }

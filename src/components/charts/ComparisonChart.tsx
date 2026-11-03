@@ -405,7 +405,7 @@ function ComparisonChart({
 
   if (!hasData) {
     return (
-      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first polls..." />
+      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first polls…" />
     )
   }
 

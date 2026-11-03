@@ -252,7 +252,7 @@ function UnlinkedCard({
         <ConfirmRemove
           label="Delete"
           confirmLabel="Confirm Delete"
-          busyLabel="Deleting..."
+          busyLabel="Deleting…"
           busy={deleting}
           disabled={archiving || deleting}
           onConfirm={handleDelete}

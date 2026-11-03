@@ -37,7 +37,7 @@ beforeEach(() => {
  * first hit for a short query is not always the tracker meant here.
  */
 async function pick(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.type(screen.getByPlaceholderText("Search trackers..."), name)
+  await user.type(screen.getByPlaceholderText("Search trackers…"), name)
   await user.click(
     screen.getByRole("option", { name: (accessible) => accessible.startsWith(name) })
   )

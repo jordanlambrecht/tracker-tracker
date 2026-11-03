@@ -166,7 +166,7 @@ export function TrackerDetailHeader({
                 size="sm"
                 onClick={onPollNow}
                 disabled={polling}
-                text={polling ? "Polling..." : "Poll Now"}
+                text={polling ? "Polling…" : "Poll Now"}
               />
             </>
           )}

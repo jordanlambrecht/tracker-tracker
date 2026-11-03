@@ -27,7 +27,7 @@ function renderDialog(heldSlugs = NONE_HELD) {
 }
 
 async function search(user: ReturnType<typeof userEvent.setup>, text: string) {
-  const input = screen.getByPlaceholderText("Search trackers...")
+  const input = screen.getByPlaceholderText("Search trackers…")
   await user.clear(input)
   await user.type(input, text)
 }

@@ -569,7 +569,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             <Button
               type="submit"
               disabled={saving || archiving}
-              text={saving ? "Saving..." : "Save Changes"}
+              text={saving ? "Saving…" : "Save Changes"}
             />
           </div>
         </form>
@@ -593,7 +593,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
             <ConfirmRemove
               label="Delete"
               confirmLabel="Confirm Delete"
-              busyLabel="Deleting..."
+              busyLabel="Deleting…"
               busy={deleting}
               disabled={archiving || deleting}
               onConfirm={handleDelete}

@@ -190,7 +190,7 @@ function UploadDownloadChart({
 
   if (snapshots.length === 0) {
     return (
-      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll..." />
+      <ChartEmptyState height={height} message="No snapshot data yet. Waiting for first poll…" />
     )
   }
 

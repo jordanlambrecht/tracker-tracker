@@ -393,7 +393,7 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     renderBanner(makeTracker({ ...UNLINKED, ...AUTO_PAUSED, useProxy: true }))
 
     await user.click(screen.getByRole("button", { name: "Link to a tracker" }))
-    await user.type(screen.getByPlaceholderText("Search trackers..."), "Aither")
+    await user.type(screen.getByPlaceholderText("Search trackers…"), "Aither")
     await user.keyboard("{Enter}")
     await user.type(screen.getByLabelText("API Token"), "fresh-token")
     await user.click(screen.getByRole("button", { name: "Link" }))
@@ -438,7 +438,7 @@ describe("TrackerStatusBanner on a row the tracker list doesn't carry", () => {
     const { queryClient, onLinked } = renderBanner(row)
 
     await user.click(screen.getByRole("button", { name: "Link to a tracker" }))
-    await user.type(screen.getByPlaceholderText("Search trackers..."), "Aither")
+    await user.type(screen.getByPlaceholderText("Search trackers…"), "Aither")
     await user.keyboard("{Enter}")
     await user.type(screen.getByLabelText("API Token"), "fresh-token")
     await user.click(screen.getByRole("button", { name: "Link" }))

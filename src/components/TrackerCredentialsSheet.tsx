@@ -323,7 +323,7 @@ export function TrackerCredentialsSheet({
             onClick={handleSave}
             disabled={saving || !dirty}
             loading={saving}
-            text={saving ? "Saving..." : "Save"}
+            text={saving ? "Saving…" : "Save"}
           />
         </div>
       </div>

@@ -69,11 +69,11 @@ describe("LinkTrackerDialog", () => {
     const user = userEvent.setup()
     renderDialog(new Map([["aither", false]]))
 
-    await user.type(screen.getByPlaceholderText("Search trackers..."), DEFUNCT.name)
+    await user.type(screen.getByPlaceholderText("Search trackers…"), DEFUNCT.name)
     expect(screen.getByText("No matches")).toBeInTheDocument()
 
-    await user.clear(screen.getByPlaceholderText("Search trackers..."))
-    await user.type(screen.getByPlaceholderText("Search trackers..."), "Aither")
+    await user.clear(screen.getByPlaceholderText("Search trackers…"))
+    await user.type(screen.getByPlaceholderText("Search trackers…"), "Aither")
     expect(screen.getByRole("option", { name: startsWith("Aither") })).toBeDisabled()
   })
 

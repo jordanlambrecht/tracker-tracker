@@ -148,7 +148,7 @@ function LinkTrackerDialog({
       busy={loading}
       footer={
         <div className="flex gap-3">
-          <Button type="submit" disabled={loading} text={loading ? "Linking..." : "Link"} />
+          <Button type="submit" disabled={loading} text={loading ? "Linking…" : "Link"} />
           <Button variant="ghost" onClick={handleClose} text="Cancel" />
         </div>
       }

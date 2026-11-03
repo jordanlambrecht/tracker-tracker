@@ -331,7 +331,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
                 size="sm"
                 disabled={checking}
                 onClick={handleCheckNow}
-                text={checking ? "Checking..." : "Check Now"}
+                text={checking ? "Checking…" : "Check Now"}
               />
             </div>
           </div>

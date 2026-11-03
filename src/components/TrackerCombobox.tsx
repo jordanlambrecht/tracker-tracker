@@ -125,7 +125,7 @@ function TrackerCombobox({ presets, held, value, onChange }: TrackerComboboxProp
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
-            placeholder={selectedEntry ? selectedEntry.name : "Search trackers..."}
+            placeholder={selectedEntry ? selectedEntry.name : "Search trackers…"}
             className="flex-1 bg-transparent outline-none text-primary placeholder:text-muted font-mono text-sm min-w-0"
             autoComplete="off"
             data-1p-ignore

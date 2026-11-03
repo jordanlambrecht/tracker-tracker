@@ -119,7 +119,7 @@ function UsernamePromptDialog({ onSaved, onSkipped }: UsernamePromptDialogProps)
         <Input
           label="Username"
           autoComplete="username"
-          placeholder={`${USERNAME_MIN}–${USERNAME_MAX} characters`}
+          placeholder={`${USERNAME_MIN} to ${USERNAME_MAX} characters`}
           value={username}
           onChange={(e) => {
             setUsername(e.target.value)

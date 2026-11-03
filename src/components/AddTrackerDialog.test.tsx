@@ -47,7 +47,7 @@ beforeEach(() => {
 })
 
 async function pickDigitalCore(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText("Search trackers..."), "DigitalCore")
+  await user.type(screen.getByPlaceholderText("Search trackers…"), "DigitalCore")
   await user.keyboard("{Enter}")
 }
 
@@ -86,7 +86,7 @@ describe("AddTrackerDialog digitalcore credentials", () => {
 })
 
 async function pickTorrentLeech(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText("Search trackers..."), "TorrentLeech")
+  await user.type(screen.getByPlaceholderText("Search trackers…"), "TorrentLeech")
   await user.keyboard("{Enter}")
 }
 
@@ -157,7 +157,7 @@ describe("AddTrackerDialog luminance credentials", () => {
     const user = userEvent.setup()
     render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
-    await user.type(screen.getByPlaceholderText("Search trackers..."), "Cathode")
+    await user.type(screen.getByPlaceholderText("Search trackers…"), "Cathode")
     await user.keyboard("{Enter}")
     await user.type(screen.getByLabelText("Cathode-Ray.Tube Username"), "bob")
     await user.type(screen.getByLabelText("Session Cookie (2FA accounts)"), "sid=abc123")
@@ -171,7 +171,7 @@ describe("AddTrackerDialog luminance credentials", () => {
     const user = userEvent.setup()
     render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
 
-    await user.type(screen.getByPlaceholderText("Search trackers..."), "Cathode")
+    await user.type(screen.getByPlaceholderText("Search trackers…"), "Cathode")
     await user.keyboard("{Enter}")
     await user.type(screen.getByLabelText("Session Cookie (2FA accounts)"), "cid=1")
     await user.click(screen.getByRole("button", { name: "Add Tracker" }))
@@ -193,7 +193,7 @@ describe("AddTrackerDialog luminance credentials", () => {
 })
 
 async function pickRetroToon(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText("Search trackers..."), "RetroToon")
+  await user.type(screen.getByPlaceholderText("Search trackers…"), "RetroToon")
   await user.keyboard("{Enter}")
 }
 
@@ -252,7 +252,7 @@ async function paste(user: ReturnType<typeof userEvent.setup>, field: HTMLElemen
 async function pickPreset(user: ReturnType<typeof userEvent.setup>, name: string) {
   const clear = screen.queryByRole("button", { name: "Clear selection" })
   if (clear) await user.click(clear)
-  await paste(user, screen.getByPlaceholderText("Search trackers..."), name)
+  await paste(user, screen.getByPlaceholderText("Search trackers…"), name)
   await user.keyboard("{Enter}")
 }
 

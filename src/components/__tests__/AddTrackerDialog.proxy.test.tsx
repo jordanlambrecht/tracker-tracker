@@ -44,7 +44,7 @@ beforeEach(() => {
 })
 
 async function addAither(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText("Search trackers..."), "Aither")
+  await user.type(screen.getByPlaceholderText("Search trackers…"), "Aither")
   await user.keyboard("{Enter}")
   await user.type(screen.getByLabelText("API Token"), "fresh-token")
   await user.click(screen.getByRole("button", { name: "Add Tracker" }))
