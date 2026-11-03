@@ -99,11 +99,12 @@ export async function POST(_request: Request, props: RouteContext) {
   const proxyAgent = settings ? buildProxyAgentFromSettings(settings, key) : undefined
 
   // pollTracker records a failed poll on the row itself, so only a database
-  // fault reaches the catch.
+  // fault reaches the catch. A recorded failure still answers 200, which makes
+  // Poll Now refetch the row and show its error, with success saying which it was.
   let polled = false
   try {
     polled = await pollTracker(trackerId, key, privacyMode, proxyAgent, undefined, undefined, true)
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: polled })
   } catch (error) {
     log.error(
       { route: "POST /api/trackers/[id]/poll", trackerId, error: String(error) },

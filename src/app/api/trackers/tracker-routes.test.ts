@@ -1589,7 +1589,7 @@ describe("POST /api/trackers/[id]/poll", () => {
   })
 
   it("returns 200 on happy path", async () => {
-    ;(pollTracker as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+    ;(pollTracker as ReturnType<typeof vi.fn>).mockResolvedValue(true)
 
     const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
     const params = Promise.resolve({ id: "1" })
@@ -1598,6 +1598,17 @@ describe("POST /api/trackers/[id]/poll", () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
+  })
+
+  // Still 200, so Poll Now refetches the row and shows the error it recorded.
+  it("answers success false for a poll that recorded a failure", async () => {
+    vi.mocked(pollTracker).mockResolvedValue(false)
+
+    const request = makeRequest("http://localhost/api/trackers/1/poll", undefined, "POST")
+    const response = await PollPOST(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ success: false })
   })
 
   it("returns 500 with generic message when poll fails", async () => {
