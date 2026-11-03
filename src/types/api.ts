@@ -1,13 +1,9 @@
 // src/types/api.ts
 
 export type {
-  AvistazPlatformMeta,
-  DigitalCorePlatformMeta,
   GazellePlatformMeta,
   GazelleRanks,
   GGnPlatformMeta,
-  MamPlatformMeta,
-  NebulancePlatformMeta,
   PlatformMeta,
 } from "@/types/tracker-stats"
 

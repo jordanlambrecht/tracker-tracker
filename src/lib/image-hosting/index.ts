@@ -17,4 +17,4 @@ export function getImageHostAdapter(host: ImageHostId): ImageHostAdapter {
   return adapter
 }
 
-export type { ImageHostId, UploadOptions, UploadResult } from "./types"
+export type { ImageHostId } from "./types"

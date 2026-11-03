@@ -147,5 +147,4 @@ function useDashboardSettings() {
   return { settings, loaded, update }
 }
 
-export type { DashboardSettings } from "@/types/api"
 export { useDashboardSettings }
