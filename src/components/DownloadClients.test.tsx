@@ -166,7 +166,9 @@ describe("section header", () => {
     renderClients()
 
     const section = await screen.findByRole("region", { name: "Download Clients" })
-    await user.hover(within(section).getByRole("button", { name: "More info" }))
+    await user.hover(
+      within(section).getByRole("button", { name: "More info, opens documentation" })
+    )
 
     expect(await screen.findByRole("link", { name: "Documentation →" })).toHaveAttribute(
       "href",

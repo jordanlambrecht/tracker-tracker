@@ -1,5 +1,7 @@
 // src/components/ui/InfoTip.tsx
 
+"use client"
+
 import { InfoIcon, QuestionIcon } from "@icons"
 import { cva, type VariantProps } from "class-variance-authority"
 import type { ReactNode } from "react"
@@ -38,10 +40,17 @@ const iconMap: Record<InfoTipIcon, typeof InfoIcon> = {
 
 function InfoTip({ content, docs, icon = "info", size, className }: InfoTipProps) {
   const Icon = iconMap[icon]
+  const href = docs?.href
 
   return (
     <Tooltip content={content} docs={docs}>
-      <button type="button" className={infoTipVariants({ size, className })} aria-label="More info">
+      {/* Tab cannot reach the tip's own link, which sits in a portal, so the icon opens it too. */}
+      <button
+        type="button"
+        className={infoTipVariants({ size, className })}
+        aria-label={href ? "More info, opens documentation" : "More info"}
+        onClick={href ? () => window.open(href, "_blank", "noopener,noreferrer") : undefined}
+      >
         <Icon />
       </button>
     </Tooltip>

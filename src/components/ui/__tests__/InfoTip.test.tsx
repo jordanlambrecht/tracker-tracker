@@ -2,8 +2,53 @@
 
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { InfoTip } from "@/components/ui/InfoTip"
+
+// The tip's own link sits in a portal that Tab cannot reach, so the icon opens it.
+describe("InfoTip docs link", () => {
+  const docs = { href: "https://docs.test/features/backups/" }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each([
+    ["Enter", "[Enter]"],
+    ["Space", "[Space]"],
+  ])("opens the docs on %s from the keyboard", async (_key, keys) => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null)
+    const user = userEvent.setup()
+    render(<InfoTip content="Help" docs={docs} />)
+
+    await user.tab()
+    expect(screen.getByRole("button", { name: "More info, opens documentation" })).toHaveFocus()
+    await user.keyboard(keys)
+
+    expect(open).toHaveBeenCalledWith(docs.href, "_blank", "noopener,noreferrer")
+  })
+
+  it("opens the docs on a click", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null)
+    const user = userEvent.setup()
+    render(<InfoTip content="Help" docs={docs} />)
+
+    await user.click(screen.getByRole("button", { name: "More info, opens documentation" }))
+
+    expect(open).toHaveBeenCalledWith(docs.href, "_blank", "noopener,noreferrer")
+  })
+
+  it("leaves a tip without a docs link as it was", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null)
+    const user = userEvent.setup()
+    render(<InfoTip content="Help" docs={{ description: "Only words" }} />)
+
+    await user.click(screen.getByRole("button", { name: "More info" }))
+    await user.keyboard("[Enter]")
+
+    expect(open).not.toHaveBeenCalled()
+  })
+})
 
 // ---------------------------------------------------------------------------
 // icon variant renders the correct SVG
