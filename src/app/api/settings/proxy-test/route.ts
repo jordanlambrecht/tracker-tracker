@@ -14,11 +14,12 @@ import {
 import { decrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
-import { PROXY_PASSWORD_UNREADABLE_ERROR } from "@/lib/error-utils"
+import { PROXY_HOST_UNUSABLE_ERROR, PROXY_PASSWORD_UNREADABLE_ERROR } from "@/lib/error-utils"
 import { CREDENTIAL_MAX, HOST_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import {
   createProxyAgent,
+  makesProxyAgent,
   PROXY_HOST_PATTERN,
   type ProxyType,
   proxyFetch,
@@ -78,6 +79,13 @@ export async function POST(request: Request) {
   const port = typeof proxyPort === "number" ? proxyPort : 1080
   const portErr = validatePort(port)
   if (portErr) return portErr
+
+  // The settings save's check. A host the agent build refuses would otherwise
+  // throw inside the try below and read only "Proxy test failed".
+  const endpoint = { proxyType, proxyHost, proxyPort: port, proxyUsername: proxyUsername || null }
+  if (!makesProxyAgent(endpoint)) {
+    return NextResponse.json({ error: PROXY_HOST_UNUSABLE_ERROR }, { status: 400 })
+  }
 
   // Resolve password: use stored encrypted password or client-provided plaintext
   let resolvedPassword: string | null = proxyPassword || null

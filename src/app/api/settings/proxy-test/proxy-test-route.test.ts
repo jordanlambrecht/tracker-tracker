@@ -50,6 +50,27 @@ beforeEach(() => {
   vi.mocked(authenticate).mockResolvedValue({ encryptionKey: VALID_KEY })
 })
 
+describe("POST /api/settings/proxy-test with a host the agent build refuses", () => {
+  // The host pattern passes these. The agent build then threw inside the test's
+  // try, and the answer was only "Proxy test failed".
+  it.each(["proxy.example.test:1080", "::1"])("names the host for %s", async (proxyHost) => {
+    const res = await POST(
+      new Request("http://localhost/api/settings/proxy-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proxyType: "socks5", proxyHost, proxyPort: 1080 }),
+      })
+    )
+
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({
+      error:
+        "Proxy host can't be used. Enter a hostname or IP address without a port (use the Port field), and write an IPv6 address in brackets, like [::1]",
+    })
+    expect(proxyFetch).not.toHaveBeenCalled()
+  })
+})
+
 describe("POST /api/settings/proxy-test with the stored password", () => {
   it("asks for a password that won't decrypt to be entered again", async () => {
     storedPassword(encrypt("CANARY-proxy-password", Buffer.alloc(32, 9)))

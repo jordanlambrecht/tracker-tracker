@@ -51,8 +51,9 @@ export const PROXY_PASSWORD_UNREADABLE_ERROR =
   "Stored proxy password can't be read. Enter it again in the proxy settings"
 export const PROXY_UNUSABLE_ERROR =
   "Proxy settings can't be used. Check the proxy type, host and port in Settings"
-// What a proxy save answers for a host the agent build refuses. Worded to fit a
-// port in the host, a bare IPv6 address and an address the type can't parse alike.
+// What a proxy save or test answers for a host the agent build refuses. Worded
+// to fit a port in the host, a bare IPv6 address and an address the type can't
+// parse alike.
 export const PROXY_HOST_UNUSABLE_ERROR =
   "Proxy host can't be used. Enter a hostname or IP address without a port (use the Port field), and write an IPv6 address in brackets, like [::1]"
 // What tunnel.ts's refusing agent fails every proxied request with, one per fault.
