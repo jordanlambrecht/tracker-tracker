@@ -58,6 +58,25 @@ function describeClearedCredentials(cleared: { tokens: number; clients: number }
   return parts.join(" and ")
 }
 
+const ENCRYPTED_START_RE = /^﻿?\s*\{\s*"format"\s*:\s*"tracker-tracker-encrypted-backup"/
+const PLAIN_START_RE = /^﻿?\s*\{\s*"manifest"\s*:/
+
+/**
+ * Exports write compact JSON with the encrypted envelope's "format" key first and a
+ * plain backup's "manifest" first, so the opening bytes tell them apart without
+ * reading a file of hundreds of MB. One that opens with neither is read whole.
+ */
+async function isEncryptedBackupFile(file: File): Promise<boolean> {
+  const head = await file.slice(0, 256).text()
+  if (ENCRYPTED_START_RE.test(head)) return true
+  if (PLAIN_START_RE.test(head)) return false
+  try {
+    return JSON.parse(await file.text()).format === "tracker-tracker-encrypted-backup"
+  } catch {
+    return false
+  }
+}
+
 /** What a restore WOULD do, from the restore endpoint's dryRun mode. */
 interface PreflightResult {
   sameSalt: boolean
@@ -236,10 +255,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     invalidatePreflight()
     if (file) {
       try {
-        const text = await file.text()
-        const json = JSON.parse(text)
-        const isEncrypted = json.format === "tracker-tracker-encrypted-backup"
-        setIsEncryptedBackup(isEncrypted)
+        setIsEncryptedBackup(await isEncryptedBackupFile(file))
       } catch {
         setIsEncryptedBackup(false)
       }

@@ -192,3 +192,42 @@ describe("BackupsSection restore", () => {
     expect(timeout).toHaveBeenCalledWith(272_000)
   })
 })
+
+describe("BackupsSection backup kind", () => {
+  const ENVELOPE_REST = '"version":1,"createdAt":"x","encryptionSalt":"s","ciphertext":"c"}'
+
+  async function openWith(content: string) {
+    const file = new File([content], "backup.json", { type: "application/json" })
+    const readWhole = vi.spyOn(file, "text")
+    await openRestoreForm(file)
+    await screen.findByRole("heading", { name: "Confirm Restore" })
+    return readWhole
+  }
+
+  it.each([
+    ["as exported", `{"format":"tracker-tracker-encrypted-backup",${ENVELOPE_REST}`],
+    ["pretty-printed", `{\n  "format": "tracker-tracker-encrypted-backup",\n  ${ENVELOPE_REST}`],
+  ])(
+    "asks for the backup password of an encrypted backup %s without reading it whole",
+    async (_, content) => {
+      const readWhole = await openWith(content)
+
+      expect(screen.getByLabelText("Backup password")).toBeInTheDocument()
+      expect(readWhole).not.toHaveBeenCalled()
+    }
+  )
+
+  it("asks for no backup password for a plain backup, without reading it whole", async () => {
+    const readWhole = await openWith('{"manifest":{"version":1},"settings":{}}')
+
+    expect(screen.queryByLabelText("Backup password")).not.toBeInTheDocument()
+    expect(readWhole).not.toHaveBeenCalled()
+  })
+
+  it("reads a file that opens with neither key in full", async () => {
+    const readWhole = await openWith(`{"version":1,"format":"tracker-tracker-encrypted-backup"}`)
+
+    expect(screen.getByLabelText("Backup password")).toBeInTheDocument()
+    expect(readWhole).toHaveBeenCalled()
+  })
+})
