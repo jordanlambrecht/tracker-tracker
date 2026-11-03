@@ -64,6 +64,24 @@ export async function PATCH(request: Request, props: RouteContext) {
   const body = await parseJsonBody(request)
   if (body instanceof NextResponse) return body
 
+  // Read before anything is encrypted, so a missing row answers 404 rather than an
+  // update that writes nothing and reports success. PATCH never changes the slug.
+  let existing: { registrySlug: string | null; mouseholeUrl: string | null } | undefined
+  try {
+    ;[existing] = await db
+      .select({ registrySlug: trackers.registrySlug, mouseholeUrl: trackers.mouseholeUrl })
+      .from(trackers)
+      .where(eq(trackers.id, trackerId))
+      .limit(1)
+  } catch (err) {
+    log.error(
+      { route: "PATCH /api/trackers/[id]", trackerId, error: errMsg(err) },
+      "Failed to fetch tracker"
+    )
+    return NextResponse.json({ error: "Failed to load tracker" }, { status: 500 })
+  }
+  if (!existing) return NextResponse.json({ error: "Tracker not found" }, { status: 404 })
+
   const updates: Record<string, unknown> = { updatedAt: new Date() }
 
   if (typeof body.name === "string") {
@@ -106,15 +124,8 @@ export async function PATCH(request: Request, props: RouteContext) {
       const mouseholeTokenErr = validateMouseholeToken(trimmedMouseholeToken)
       if (mouseholeTokenErr) return mouseholeTokenErr
       // A token is only sent to the saved URL, so a token without one is refused.
-      let mouseholeUrl = typeof body.mouseholeUrl === "string" ? body.mouseholeUrl.trim() : null
-      if (mouseholeUrl === null) {
-        const [row] = await db
-          .select({ mouseholeUrl: trackers.mouseholeUrl })
-          .from(trackers)
-          .where(eq(trackers.id, trackerId))
-          .limit(1)
-        mouseholeUrl = row?.mouseholeUrl ?? ""
-      }
+      const mouseholeUrl =
+        typeof body.mouseholeUrl === "string" ? body.mouseholeUrl.trim() : existing.mouseholeUrl
       if (!mouseholeUrl) {
         return NextResponse.json(
           { error: "Mousehole API token needs a Mousehole URL" },
@@ -201,15 +212,10 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   if (typeof body.apiToken === "string") {
     const trimmedToken = (body.apiToken as string).trim()
-    const [tracker] = await db
-      .select({ registrySlug: trackers.registrySlug })
-      .from(trackers)
-      .where(eq(trackers.id, trackerId))
-      .limit(1)
-    const site = tracker ? trackerSiteFor(tracker) : null
+    const site = trackerSiteFor(existing)
     // A key reaches an unlinked row only by linking it, which tests the key on
     // the tracker picked. Saved here, it would belong to no tracker.
-    if (tracker && !site) {
+    if (!site) {
       return NextResponse.json({ error: TRACKER_UNLINKED_ERROR }, { status: 400 })
     }
     const maxTokenLength = maxTokenLengthFor(site?.platform)
@@ -222,17 +228,10 @@ export async function PATCH(request: Request, props: RouteContext) {
 
   try {
     await db.update(trackers).set(updates).where(eq(trackers.id, trackerId))
-    if (body.pollingPaused === false) {
-      // The auto-pause comes off a linked row only. An unlinked one stays paused
-      // with its reason, since nothing may poll it.
-      const [row] = await db
-        .select({ registrySlug: trackers.registrySlug })
-        .from(trackers)
-        .where(eq(trackers.id, trackerId))
-        .limit(1)
-      if (row && trackerSiteFor(row)) {
-        await db.update(trackers).set(PAUSE_RESET).where(eq(trackers.id, trackerId))
-      }
+    // The auto-pause comes off a linked row only. An unlinked one stays paused with
+    // its reason, since nothing may poll it.
+    if (body.pollingPaused === false && trackerSiteFor(existing)) {
+      await db.update(trackers).set(PAUSE_RESET).where(eq(trackers.id, trackerId))
     }
     const updated = await getTrackerForClient(trackerId)
     return NextResponse.json(updated ?? { success: true })

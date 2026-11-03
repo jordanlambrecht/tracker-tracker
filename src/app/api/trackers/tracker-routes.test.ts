@@ -729,12 +729,72 @@ describe("POST /api/trackers", () => {
 })
 
 describe("PATCH /api/trackers/[id]", () => {
+  /** The row PATCH reads first, before it encrypts or writes anything. */
+  function mockExistingRow(rows: Record<string, unknown>[]) {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(rows) }),
+      }),
+    })
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
       encryptionKey: VALID_KEY,
     })
     ;(parseTrackerId as ReturnType<typeof vi.fn>).mockResolvedValue(1)
+    // A linked row, for the tests that queue no select of their own.
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([{ registrySlug: "aither", mouseholeUrl: null }]),
+        }),
+      }),
+    })
+  })
+
+  afterEach(() => {
+    ;(db.select as ReturnType<typeof vi.fn>).mockReset()
+  })
+
+  it("answers its own 500 when reading the tracker fails, before encrypting anything", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: "CANARY-token" })
+    ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockRejectedValue(new Error("connection refused")),
+        }),
+      }),
+    })
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { apiToken: "CANARY-token" },
+      "PATCH"
+    )
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: "Failed to load tracker" })
+    expect(encrypt).not.toHaveBeenCalled()
+  })
+
+  it("answers 404 for a missing tracker before encrypting or writing anything", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({ apiToken: "CANARY-token" })
+    mockExistingRow([])
+
+    const request = makeRequest(
+      "http://localhost/api/trackers/1",
+      { apiToken: "CANARY-token" },
+      "PATCH"
+    )
+    const response = await PATCH(request, { params: Promise.resolve({ id: "1" }) })
+
+    expect(response.status).toBe(404)
+    await expect(response.json()).resolves.toEqual({ error: "Tracker not found" })
+    expect(encrypt).not.toHaveBeenCalled()
+    expect(db.update).not.toHaveBeenCalled()
   })
 
   it("returns 200 on happy path", async () => {
@@ -803,6 +863,7 @@ describe("PATCH /api/trackers/[id]", () => {
   })
 
   function mockPinInstance(rows: { id: number }[]) {
+    mockExistingRow([{ registrySlug: "aither", mouseholeUrl: null }])
     ;(db.select as ReturnType<typeof vi.fn>).mockReturnValueOnce({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(rows) }),
@@ -1372,11 +1433,13 @@ describe("PATCH /api/trackers/[id]", () => {
     expect(updates).toHaveProperty("encryptedMouseholeToken", null)
   })
 
-  it("saves a URL and token sent together without reading the row", async () => {
+  it("saves a URL and token sent together, checking the token against the body's URL", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       mouseholeUrl: "http://mousehole-test:5010",
       mouseholeToken: "fake-mousehole-token-7f3a",
     })
+    // No URL is stored, so only the one in the body can let the token through.
+    mockExistingRow([{ registrySlug: "aither", mouseholeUrl: null }])
 
     const mockWhere = vi.fn().mockResolvedValue([])
     const mockSet = vi.fn().mockReturnValue({ where: mockWhere })
@@ -1391,7 +1454,6 @@ describe("PATCH /api/trackers/[id]", () => {
     const response = await PATCH(request, { params })
 
     expect(response.status).toBe(200)
-    expect(db.select).not.toHaveBeenCalled()
     expect(encrypt).toHaveBeenCalledWith("fake-mousehole-token-7f3a", expect.any(Buffer))
     const updates = mockSet.mock.calls[0]?.[0]
     expect(updates.mouseholeUrl).toBe("http://mousehole-test:5010")
