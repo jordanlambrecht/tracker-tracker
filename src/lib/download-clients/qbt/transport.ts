@@ -463,7 +463,7 @@ export async function getTorrents(
   // entry never reaches mapQbtTorrent.
   const data = await readCappedJson<unknown>(response, host, QBT_RESPONSE_MAX_BYTES)
   if (!Array.isArray(data)) {
-    throw new Error(`Unexpected response from ${host}: torrent list was not an array`)
+    throw new Error("qBittorrent sent an unexpected torrent list response")
   }
   const valid = data.filter(isQbtTorrent)
   if (valid.length !== data.length) {

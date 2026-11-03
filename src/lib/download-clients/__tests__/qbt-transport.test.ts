@@ -260,9 +260,18 @@ describe("getTorrents and syncMaindata validate the body they were handed", () =
     )
   }
 
-  it("refuses a body that is not an array", async () => {
+  // Same reason as maindata below. The adapters' wording would read as a tracker.
+  it("refuses a body that is not an array, worded as qBittorrent's answer", async () => {
     respondWith({ not: "an array" })
-    await expect(getTorrents(BASE, AUTH)).rejects.toThrow("was not an array")
+
+    const err = await getTorrents(BASE, AUTH)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err?.message).toBe("qBittorrent sent an unexpected torrent list response")
+    const card = sanitizeNetworkError(err?.message ?? "")
+    expect(card).toBe("qBittorrent sent an unexpected response")
+    expect(isUnreachableMessage(card)).toBe(false)
   })
 
   it("drops entries that fail the shape check and keeps the rest", async () => {
