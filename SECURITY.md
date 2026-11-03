@@ -124,7 +124,7 @@ The scheduler key (used to decrypt API tokens during background polling) is wrap
 
 Authentication is enforced at three independent levels:
 
-1. **Proxy** (`src/proxy.ts`): Checks for `tt_session` cookie on all non-public routes. Returns 401 for API routes; redirects to `/login` for pages.
+1. **Proxy** (`src/proxy.ts`): Checks for `tt_session` cookie on all non-public routes. Returns 401 for API routes; redirects to `/login` for pages. It skips one protected route, backup restore, because the proxy buffers a request body only up to 10 MB and would cut a larger backup short. That route calls `authenticate()` before it reads the body.
 2. **Route handlers**: Each API route calls `authenticate()` from `src/lib/api-helpers.ts`, which decrypts the full JWE token and refuses it unless its fingerprint matches the current password hash and salt. A refused stale session gets its cookie cleared.
 3. **Layout guard** (`src/app/(auth)/layout.tsx`): Server Component calls `getSession()` before rendering any authenticated page.
 

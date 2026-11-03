@@ -1,8 +1,9 @@
 // src/proxy.test.ts
 
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server"
 import { NextRequest } from "next/server"
 import { describe, expect, it, vi } from "vitest"
-import { proxy } from "./proxy"
+import { config, proxy } from "./proxy"
 
 vi.mock("@/lib/cookie-security", () => ({
   shouldSecureCookies: () => false,
@@ -81,5 +82,28 @@ describe("auth middleware", () => {
   it("allows health check without authentication", () => {
     const response = proxy(new NextRequest("http://localhost/api/health"))
     expect(response.status).toBe(200)
+  })
+})
+
+describe("proxy matcher", () => {
+  const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url })
+
+  it("skips the restore route, whose upload the proxy would cut short", () => {
+    expect(runsOn("/api/settings/backup/restore")).toBe(false)
+  })
+
+  it.each([
+    "/api/settings/backup",
+    "/api/settings/backup/export",
+    "/api/settings/backup/history",
+    "/api/settings/backup/1",
+    "/api/settings/backup/restorex",
+    "/api/settings/backup/restore/x",
+    // The exclusion is exact: no trailing slash, and case-sensitive.
+    "/api/settings/backup/restore/",
+    "/API/settings/backup/restore",
+    "/settings",
+  ])("still runs on %s", (url) => {
+    expect(runsOn(url)).toBe(true)
   })
 })

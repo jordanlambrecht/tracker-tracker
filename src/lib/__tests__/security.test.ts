@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { getTrackerBySlug } from "@/data/tracker-registry"
+import { BACKUP_RESTORE_MAX_BYTES, BACKUP_RESTORE_TOO_LARGE_ERROR } from "@/lib/limits"
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -1459,12 +1460,12 @@ describe("Backup restore authenticated flows", () => {
     backupPassword?: string,
     fileSize?: number
   ): Request {
-    const blob = fileSize
-      ? new Blob(["x".repeat(fileSize)], { type: "application/json" })
-      : new Blob([fileContent], { type: "application/json" })
+    const file = new File([fileContent], "backup.json", { type: "application/json" })
+    // Reports the size without holding it, so a file over the cap allocates nothing.
+    if (fileSize !== undefined) Object.defineProperty(file, "size", { value: fileSize })
 
     const formData = new FormData()
-    formData.append("file", blob, "backup.json")
+    formData.append("file", file)
     formData.append("masterPassword", masterPassword)
     if (backupPassword !== undefined) {
       formData.append("backupPassword", backupPassword)
@@ -1472,6 +1473,7 @@ describe("Backup restore authenticated flows", () => {
 
     const req = new Request("http://localhost/api/settings/backup/restore", {
       method: "POST",
+      headers: { "content-length": String(file.size) },
     })
 
     // Mock formData() method to return our FormData since Node.js Request doesn't support it natively
@@ -1660,13 +1662,17 @@ describe("Backup restore authenticated flows", () => {
       encryptionKey: "a".repeat(64),
     })
 
-    // Create a file larger than 50MB
-    const req = createRestoreRequest("", "correct_password", undefined, 51 * 1024 * 1024)
+    const req = createRestoreRequest(
+      "",
+      "correct_password",
+      undefined,
+      BACKUP_RESTORE_MAX_BYTES + 1
+    )
     const res = await POST(req)
 
     expect(res.status).toBe(400)
     const data = await res.json()
-    expect(data.error).toContain("exceeds maximum size")
+    expect(data.error).toBe(BACKUP_RESTORE_TOO_LARGE_ERROR)
   })
 })
 
@@ -1711,6 +1717,7 @@ describe("Backup restore: new notify* column round-trip", () => {
 
     const req = new Request("http://localhost/api/settings/backup/restore", {
       method: "POST",
+      headers: { "content-length": String(blob.size) },
     })
     req.formData = vi.fn().mockResolvedValue(formData)
     return req
@@ -2098,6 +2105,7 @@ describe("Backup restore security hardening", () => {
 
     const req = new Request("http://localhost/api/settings/backup/restore", {
       method: "POST",
+      headers: { "content-length": String(blob.size) },
     })
     req.formData = vi.fn().mockResolvedValue(formData)
     return req

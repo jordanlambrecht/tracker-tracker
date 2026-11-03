@@ -64,6 +64,14 @@ Set a retention count from 1 to 365 (default 14). Once exceeded, the oldest back
 - Your **current login password** (for confirmation)
 - For `.ttbak` encrypted backups, the backup password
 
+### Size limit
+
+Restore takes backup files up to 400 MB. A reverse proxy in front of the app can have its own upload limit, so set it a little above 400 MB to leave room for the rest of the form. Nginx allows 1 MB unless you set `client_max_body_size`, as the [Nginx example](../getting-started/docker-config.md#reverse-proxy-examples) does.
+
+The app stops receiving an upload after five minutes, so restore a large backup from a computer on the same network as the server. Behind Nginx this limit doesn't apply, because Nginx receives the whole upload before passing it on.
+
+Restoring needs free memory of about nine times the backup's size, so about 3.6 GB for a 400 MB backup.
+
 ### What happens during restore
 
 1. Backup file is validated

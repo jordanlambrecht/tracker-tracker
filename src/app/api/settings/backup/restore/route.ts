@@ -1,7 +1,7 @@
 // src/app/api/settings/backup/restore/route.ts
 //
-// Functions: backupCiphertexts, batchInsert, POST, firstBackupCiphertext, hashFileName,
-// reencryptField, prowlarrPinFields, restoredApiPath
+// Functions: backupCiphertexts, batchInsert, POST, runRestore, firstBackupCiphertext,
+// hashFileName, reencryptField, prowlarrPinFields, restoredApiPath
 
 import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
@@ -43,6 +43,7 @@ import { errMsg } from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
   BACKUP_RESTORE_MAX_BYTES,
+  BACKUP_RESTORE_TOO_LARGE_ERROR,
   LOCKOUT_DURATION_DEFAULT,
   LOCKOUT_THRESHOLD_DEFAULT,
   PASSWORD_MAX,
@@ -56,6 +57,15 @@ import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
 import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 
 const BATCH_SIZE = 500
+// Room for the multipart boundaries, part headers and passwords around the file.
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024
+const RESTORE_RUNNING_ERROR =
+  "A restore or backup check is already running. Try again when it finishes."
+const CONTENT_LENGTH_REQUIRED_ERROR =
+  "Restore needs the upload's size (the Content-Length header). If a reverse proxy sits in front of the app, let it pass that header through."
+
+// One restore or dry run at a time, since each holds the backup in memory several times over.
+const g = globalThis as typeof globalThis & { __restoreRunning?: boolean }
 
 type TxType = Parameters<typeof db.transaction>[0] extends (tx: infer T) => unknown ? T : never
 
@@ -183,10 +193,32 @@ function prowlarrPinFields(fields: Record<string, unknown>, instanceIdMap: Map<n
 }
 
 export async function POST(request: Request) {
-  // Step 1: Authenticate
+  // Step 1: Authenticate. The proxy skips this route, so nothing may read the body first.
   const auth = await authenticate()
   if (auth instanceof NextResponse) return auth
 
+  // Without a Content-Length, formData() would buffer the whole body before any size check.
+  // When the header is there, Node's parser has already made sure it is a plain decimal.
+  const declaredBytes = request.headers.get("content-length")
+  if (declaredBytes === null) {
+    return NextResponse.json({ error: CONTENT_LENGTH_REQUIRED_ERROR }, { status: 411 })
+  }
+  if (Number(declaredBytes) > BACKUP_RESTORE_MAX_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json({ error: BACKUP_RESTORE_TOO_LARGE_ERROR }, { status: 400 })
+  }
+
+  if (g.__restoreRunning) {
+    return NextResponse.json({ error: RESTORE_RUNNING_ERROR }, { status: 409 })
+  }
+  g.__restoreRunning = true
+  try {
+    return await runRestore(request, auth)
+  } finally {
+    g.__restoreRunning = false
+  }
+}
+
+async function runRestore(request: Request, auth: { encryptionKey: string }) {
   // Step 2: Parse multipart form data
   let formData: FormData
   try {
@@ -207,10 +239,7 @@ export async function POST(request: Request) {
   }
 
   if (file.size > BACKUP_RESTORE_MAX_BYTES) {
-    return NextResponse.json(
-      { error: "Backup file exceeds maximum size of 50 MB" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: BACKUP_RESTORE_TOO_LARGE_ERROR }, { status: 400 })
   }
 
   // Step 3: Verify master password is present before parsing the backup payload.

@@ -54,6 +54,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.png|tracker-logos|trackerHub_logo|trackerTracker_logo).*)",
+    // Restore is left out because the proxy buffers a request body only up to 10 MB and
+    // would cut a backup short. The route authenticates before it reads the body.
+    "/((?!_next/static|_next/image|favicon.png|tracker-logos|trackerHub_logo|trackerTracker_logo|api/settings/backup/restore$).*)",
   ],
 }

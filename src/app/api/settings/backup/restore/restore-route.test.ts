@@ -19,6 +19,7 @@ import { type BackupPayload, encryptBackupPayload } from "@/lib/backup"
 import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { backfillRegistrySlugs } from "@/lib/db/backfill-registry-slug"
+import { BACKUP_RESTORE_MAX_BYTES, BACKUP_RESTORE_TOO_LARGE_ERROR } from "@/lib/limits"
 import { checkLockout } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
@@ -408,17 +409,18 @@ function makeRequest(
   backupPassword?: string,
   dryRun?: boolean
 ): Request {
+  const json = JSON.stringify(payload)
   const formData = new FormData()
-  formData.append(
-    "file",
-    new Blob([JSON.stringify(payload)], { type: "application/json" }),
-    "backup.json"
-  )
+  formData.append("file", new Blob([json], { type: "application/json" }), "backup.json")
   formData.append("masterPassword", masterPassword)
   if (backupPassword !== undefined) formData.append("backupPassword", backupPassword)
   if (dryRun !== undefined) formData.append("dryRun", String(dryRun))
 
-  const req = new Request("http://localhost/api/settings/backup/restore", { method: "POST" })
+  // A browser always sends the body's size, and the route refuses a request without one.
+  const req = new Request("http://localhost/api/settings/backup/restore", {
+    method: "POST",
+    headers: { "content-length": String(json.length) },
+  })
   // Node's Request has no working formData() here, same trick as security.test.ts.
   req.formData = vi.fn().mockResolvedValue(formData)
   return req
@@ -1720,16 +1722,159 @@ describe("POST /api/settings/backup/restore — auth gate", () => {
     vi.clearAllMocks()
   })
 
-  it("returns the authenticate() response without touching the DB", async () => {
+  it("returns the authenticate() response without reading the body or touching the DB", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     )
 
-    const res = await POST(makeRequest({}, PASSWORD))
+    const req = makeRequest({}, PASSWORD)
+    const res = await POST(req)
 
     expect(res.status).toBe(401)
+    // The proxy skips this route, so a body read here would buffer a logged-out upload.
+    expect(req.formData).not.toHaveBeenCalled()
     expect(db.select).not.toHaveBeenCalled()
     expect(db.transaction).not.toHaveBeenCalled()
+  })
+})
+
+// ─── Upload size and one restore at a time ───────────────────────────────────
+
+/** A restore request whose file reports `size` bytes without holding them. */
+function requestWithFileSize(size: number, masterPassword: string): Request {
+  const file = new File(["{}"], "backup.json", { type: "application/json" })
+  Object.defineProperty(file, "size", { value: size })
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("masterPassword", masterPassword)
+  const req = new Request("http://localhost/api/settings/backup/restore", {
+    method: "POST",
+    headers: { "content-length": String(size) },
+  })
+  req.formData = vi.fn().mockResolvedValue(formData)
+  return req
+}
+
+function withContentLength(req: Request, bytes: number): Request {
+  req.headers.set("content-length", String(bytes))
+  return req
+}
+
+describe("POST /api/settings/backup/restore upload size", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "ab".repeat(32),
+    })
+  })
+
+  it("refuses a file over the cap", async () => {
+    const res = await POST(requestWithFileSize(BACKUP_RESTORE_MAX_BYTES + 1, PASSWORD))
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: BACKUP_RESTORE_TOO_LARGE_ERROR })
+  })
+
+  it("takes a file at the cap past the size check", async () => {
+    // With no master password, the check after the size check is the one that answers.
+    const res = await POST(requestWithFileSize(BACKUP_RESTORE_MAX_BYTES, ""))
+
+    await expect(res.json()).resolves.toEqual({
+      error: "Master password is required to restore backups",
+    })
+  })
+
+  it("refuses a body without a Content-Length without reading it", async () => {
+    // Chunked through a reverse proxy, it would otherwise be buffered whole before any size check.
+    const req = makeRequest({}, PASSWORD)
+    req.headers.delete("content-length")
+    const res = await POST(req)
+
+    expect(res.status).toBe(411)
+    await expect(res.json()).resolves.toEqual({
+      error:
+        "Restore needs the upload's size (the Content-Length header). If a reverse proxy sits in front of the app, let it pass that header through.",
+    })
+    expect(req.formData).not.toHaveBeenCalled()
+  })
+
+  it("refuses a body declared over the cap and the multipart allowance without reading it", async () => {
+    const req = withContentLength(
+      makeRequest({}, PASSWORD),
+      BACKUP_RESTORE_MAX_BYTES + 64 * 1024 + 1
+    )
+    const res = await POST(req)
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: BACKUP_RESTORE_TOO_LARGE_ERROR })
+    expect(req.formData).not.toHaveBeenCalled()
+  })
+
+  it("reads a body declared at the cap plus the multipart allowance", async () => {
+    const req = withContentLength(makeRequest({}, PASSWORD), BACKUP_RESTORE_MAX_BYTES + 64 * 1024)
+    await POST(req)
+
+    expect(req.formData).toHaveBeenCalled()
+  })
+})
+
+describe("POST /api/settings/backup/restore runs one at a time", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({
+      encryptionKey: "ab".repeat(32),
+    })
+  })
+
+  it("refuses a second restore while one is reading its upload, then takes the next", async () => {
+    let releaseFirst: (form: FormData) => void = () => {}
+    const first = makeRequest({}, PASSWORD)
+    first.formData = vi.fn(
+      () =>
+        new Promise<FormData>((resolve) => {
+          releaseFirst = resolve
+        })
+    )
+    const running = POST(first)
+    try {
+      await vi.waitFor(() => expect(first.formData).toHaveBeenCalled())
+
+      const second = makeRequest({}, PASSWORD)
+      const res = await POST(second)
+      expect(res.status).toBe(409)
+      await expect(res.json()).resolves.toEqual({
+        error: "A restore or backup check is already running. Try again when it finishes.",
+      })
+      expect(second.formData).not.toHaveBeenCalled()
+
+      // A logged-out request still gets its 401, not the busy answer.
+      ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      )
+      expect(await POST(makeRequest({}, PASSWORD))).toHaveProperty("status", 401)
+    } finally {
+      // An empty form ends the first request early, with "Backup file is required".
+      releaseFirst(new FormData())
+      await running
+    }
+
+    const next = makeRequest({}, PASSWORD)
+    await POST(next)
+    expect(next.formData).toHaveBeenCalled()
+  })
+
+  it("takes the next restore after one throws", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    ;(db.select as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      throw new Error("connection refused")
+    })
+
+    await expect(POST(makeRequest(payload, PASSWORD))).rejects.toThrow("connection refused")
+
+    const next = makeRequest({}, PASSWORD)
+    await POST(next)
+    expect(next.formData).toHaveBeenCalled()
   })
 })
 

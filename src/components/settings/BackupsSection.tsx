@@ -25,7 +25,12 @@ import { DOCS } from "@/lib/constants"
 import { downloadResponseBlob } from "@/lib/download"
 import { extractApiError } from "@/lib/extract-api-error"
 import { formatBytesNum, formatDateTime } from "@/lib/formatters"
-import { BACKUP_RETENTION_MAX, BACKUP_RETENTION_MIN } from "@/lib/limits"
+import {
+  BACKUP_RESTORE_MAX_BYTES,
+  BACKUP_RESTORE_TOO_LARGE_ERROR,
+  BACKUP_RETENTION_MAX,
+  BACKUP_RETENTION_MIN,
+} from "@/lib/limits"
 
 export interface BackupRecord {
   id: number
@@ -112,6 +117,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     clients: number
   } | null>(null)
   const restoreInputRef = useRef<HTMLInputElement>(null)
+  // Bumped when the file or a password changes, so a check of the old inputs is dropped.
+  const preflightGeneration = useRef(0)
 
   const { saving: savingBackupConfig, patch: patchSettings } = usePatchSettings()
 
@@ -212,8 +219,18 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     await prepareRestoreFile(file)
   }
 
+  function invalidatePreflight() {
+    preflightGeneration.current += 1
+    setPreflight(null)
+  }
+
   async function prepareRestoreFile(file: File | null) {
+    if (file && file.size > BACKUP_RESTORE_MAX_BYTES) {
+      setBackupError(BACKUP_RESTORE_TOO_LARGE_ERROR)
+      return
+    }
     setRestoreFile(file)
+    invalidatePreflight()
     if (file) {
       try {
         const text = await file.text()
@@ -241,6 +258,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   async function runPreflight() {
     if (!restoreFile || !restorePassword) return
     if (isEncryptedBackup && !backupPassword) return
+    // The server checks one backup at a time and would refuse a second.
+    if (preflightLoading) return
+    const generation = preflightGeneration.current
     setPreflight(null)
     setPreflightLoading(true)
     try {
@@ -254,10 +274,12 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       const res = await fetch("/api/settings/backup/restore", {
         method: "POST",
         body: formData,
-        signal: AbortSignal.timeout(30_000),
+        // The dry run reads the whole file, so allow a second per MB for a slow link or a NAS.
+        signal: AbortSignal.timeout(30_000 + Math.ceil(restoreFile.size / (1024 * 1024)) * 1000),
       })
       if (!res.ok) return
-      setPreflight((await res.json()) as PreflightResult)
+      const result = (await res.json()) as PreflightResult
+      if (generation === preflightGeneration.current) setPreflight(result)
     } catch {
       // Silent: this is advisory. A failed check must not block a restore that the
       // user may be running precisely because things are broken.
@@ -566,7 +588,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
               label="Master password"
               type="password"
               value={restorePassword}
-              onChange={(e) => setRestorePassword(e.target.value)}
+              onChange={(e) => {
+                setRestorePassword(e.target.value)
+                invalidatePreflight()
+              }}
               onBlur={runPreflight}
               data-1p-ignore
               autoComplete="off"
@@ -577,7 +602,10 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 label="Backup password"
                 type="password"
                 value={backupPassword}
-                onChange={(e) => setBackupPassword(e.target.value)}
+                onChange={(e) => {
+                  setBackupPassword(e.target.value)
+                  invalidatePreflight()
+                }}
                 onBlur={runPreflight}
                 data-1p-ignore
                 autoComplete="off"
@@ -619,6 +647,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 onClick={handleRestore}
                 disabled={
                   restoring ||
+                  preflightLoading ||
                   !restorePassword ||
                   (isEncryptedBackup && !backupPassword) ||
                   restoreConfirmPhrase !== "RESTORE ALL DATA"

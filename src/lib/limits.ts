@@ -130,7 +130,9 @@ export const PROWLARR_STALE_MS = 30 * 60 * 1000
 
 // ─── File Sizes ───────────────────────────────────────────────────────────────
 export const UPLOAD_IMAGE_MAX_BYTES = 32 * 1024 * 1024
-export const BACKUP_RESTORE_MAX_BYTES = 50 * 1024 * 1024
+const BACKUP_RESTORE_MAX_MB = 400
+export const BACKUP_RESTORE_MAX_BYTES = BACKUP_RESTORE_MAX_MB * 1024 * 1024
+export const BACKUP_RESTORE_TOO_LARGE_ERROR = `Backup file exceeds maximum size of ${BACKUP_RESTORE_MAX_MB} MB`
 export const AVATAR_FETCH_MAX_BYTES = 5 * 1024 * 1024
 
 /**

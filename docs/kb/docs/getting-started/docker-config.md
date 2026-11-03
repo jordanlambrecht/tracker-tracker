@@ -98,6 +98,10 @@ PORT=8080
         proxy_buffering off;
         proxy_cache off;
 
+        # Lets a 400 MB backup and the rest of its form through for restore
+        # (nginx allows 1 MB by default)
+        client_max_body_size 401m;
+
         location / {
             proxy_pass         http://127.0.0.1:3000;
             proxy_http_version 1.1;
