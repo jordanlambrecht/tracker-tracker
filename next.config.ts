@@ -27,17 +27,10 @@ if (process.env.BASE_URL) {
 const nextConfig: NextConfig = {
   output: "standalone",
   // Do NOT add "postgres" here to make scripts/recover.cjs work. That was tried
-  // and measured against a real build of the production image, and it does not
-  // do what it looks like it does:
-  //
-  //   - postgres.js is `"type": "module"` with its CommonJS build at
-  //     cjs/src/index.js. Marking it external makes the tracer copy only the
-  //     ESM files the server bundle actually imported, so the traced package in
-  //     the image has src/ and no cjs/ at all.
-  //   - The tracer also emits no top-level node_modules/postgres symlink for a
-  //     config-listed package the way it does for builtin externals like argon2,
-  //     so a bare require("postgres") cannot even find the package, and after
-  //     hand-linking it, require() resolves to the missing cjs/ build and fails.
+  // with postgres.js 3 and measured against a real build of the production
+  // image: the tracer emitted no top-level node_modules/postgres symlink for a
+  // config-listed package the way it does for builtin externals like argon2, so
+  // a bare require("postgres") could not even find the package.
   //
   // The CLI gets a complete, self-contained copy of postgres.js copied straight
   // into /app/node_modules by the Dockerfile instead. That leaves the server's

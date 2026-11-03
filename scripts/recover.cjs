@@ -58,14 +58,14 @@
 //             entry at all, which is the "Cannot find module 'postgres'" that
 //             broke this rescue twice. The Dockerfile copies the complete
 //             package from the deps stage into /app/node_modules/postgres for
-//             this script alone. Do NOT "fix" it by adding postgres to
-//             serverExternalPackages; that ships an ESM-only subset with no
-//             cjs/ build and no top-level entry, and require() still fails.
-//             The comment in next.config.ts records the measurements.
+//             the CLIs alone. Do NOT "fix" it by adding postgres to
+//             serverExternalPackages; the comment in next.config.ts records
+//             why.
 //
 // Both requires are at module scope so that `tt-recover --help` fails loudly if
-// either ever stops resolving. That is what the smoke step in
-// .github/workflows/docker.yml asserts on every pull request.
+// either ever stops resolving, or if postgres stops exporting a function. That
+// is what the smoke step in .github/workflows/docker.yml asserts on every pull
+// request.
 //
 // ─── CONSOLIDATION NOTE ─────────────────────────────────────────────────────
 //
@@ -87,7 +87,14 @@ const {
 
 // Deliberately at module scope. See "WHY THIS FILE IS PLAIN COMMONJS" above.
 const argon2 = require("argon2")
-const postgres = require("postgres")
+// postgres.js 4 is ES module only, so require() returns its namespace and the
+// client is the default export.
+const postgres = require("postgres").default
+if (typeof postgres !== "function") {
+  throw new Error(
+    "postgres.js default export is not a function, so the installed postgres package changed shape"
+  )
+}
 
 // ─── crypto: a byte-for-byte mirror of src/lib/crypto.ts ────────────────────
 // Duplicated rather than imported because src/ is TypeScript with "@/" path

@@ -110,9 +110,10 @@
 // and has no /app/node_modules entry of its own, so the Dockerfile copies the
 // complete package in for the CLIs, and the comment there records why. It is at
 // module scope so `tt-backfill-buffer --help` fails loudly if that ever stops
-// resolving; the smoke step in .github/workflows/docker.yml asserts it on every
-// pull request. Unlike recover.cjs this needs no argon2 and no crypto at all:
-// buffer_bytes is not encrypted, which is what makes this the simpler tool.
+// resolving or stops exporting a function; the smoke step in
+// .github/workflows/docker.yml asserts it on every pull request. Unlike
+// recover.cjs this needs no argon2 and no crypto at all: buffer_bytes is not
+// encrypted, which is what makes this the simpler tool.
 //
 // ─── CONSOLIDATION NOTE ─────────────────────────────────────────────────────
 //
@@ -126,7 +127,14 @@
 "use strict"
 
 // Deliberately at module scope. See "WHY THIS FILE IS PLAIN COMMONJS" above.
-const postgres = require("postgres")
+// postgres.js 4 is ES module only, so require() returns its namespace and the
+// client is the default export.
+const postgres = require("postgres").default
+if (typeof postgres !== "function") {
+  throw new Error(
+    "postgres.js default export is not a function, so the installed postgres package changed shape"
+  )
+}
 
 // ─── pure core: platform classification ─────────────────────────────────────
 

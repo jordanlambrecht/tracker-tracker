@@ -100,8 +100,9 @@ RUN chmod +x docker-entrypoint.sh
 # /app/node_modules; that is the "Cannot find module 'postgres'".
 #
 # COPY dereferences pnpm's symlink into a directory, and postgres.js has
-# zero runtime dependencies, so this one directory is the whole package
-# including the cjs/ build that require() needs. The app server
+# zero runtime dependencies, so this one directory is the whole package.
+# Since v4 it is ES module only: the scripts take require("postgres").default,
+# which works on Node 20.19 and 22.12 or later. The app server
 # uses its bundled copy and never resolves this one.
 COPY --from=deps /app/node_modules/postgres /app/node_modules/postgres
 COPY --chown=nextjs:nodejs scripts/recover.cjs /app/scripts/recover.cjs
