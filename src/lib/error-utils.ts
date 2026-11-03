@@ -105,10 +105,24 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // Ahead of every looser rule: the scheduler's wrappers quote the tracker's
   // name, and a tracker called "Timeout Club" must not read as a timeout.
   if (CREDENTIAL_REFUSALS.some((rule) => rule.test(raw))) return "Invalid credentials"
-  // validateCookieHeader's refusal, raised by the cookie adapters before any
-  // request. Its own text is long and matches no rule, so it read "Poll failed".
+  // validateCookieHeader's refusals, raised by the cookie adapters before any
+  // request. Their own text is long and matches no rule, so each read "Poll failed".
   if (/^Cookie string contains a control character /.test(raw)) {
     return "Stored cookie contains a control character. Paste the full Cookie value again in this tracker's settings"
+  }
+  if (/^Cookie string contains a non-ASCII character /.test(raw)) {
+    return "Stored cookie contains a non-ASCII character, usually a truncation mark. Paste the full Cookie value again in this tracker's settings"
+  }
+  if (/^It looks like you pasted a cookie name \(/.test(raw)) {
+    return "Stored cookie is a cookie name, not the Cookie value. Paste the full Cookie value again in this tracker's settings"
+  }
+  if (/^Cookie string doesn't look right\. It should contain key=value pairs /.test(raw)) {
+    return "Stored cookie has no name=value pairs. Paste the full Cookie value again in this tracker's settings"
+  }
+  // The name comes from the adapter's own list, never from the stored value.
+  const missingCookie = raw.match(/^Cookie string has no ([\w.-]+) cookie\. /)
+  if (missingCookie) {
+    return `Stored cookie has no ${missingCookie[1]} cookie. Paste the full Cookie value again in this tracker's settings`
   }
   // The one place a tracker's text classifies. On these four platforms a bad key
   // comes back as a 200 envelope whose text is the only signal, so envelope text

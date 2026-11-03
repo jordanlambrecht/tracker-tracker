@@ -596,10 +596,60 @@ describe("sanitizeNetworkError cookie control characters", () => {
     expect(isUnreachableMessage(card)).toBe(false)
   })
 
+  // The validator's other refusals, each run for real for the same reason.
+  it.each<[string, string, string[], string]>([
+    [
+      "a cookie name on its own",
+      "cf_clearance",
+      [],
+      "Stored cookie is a cookie name, not the Cookie value. Paste the full Cookie value again in this tracker's settings",
+    ],
+    [
+      "no name=value pair",
+      "CANARY",
+      [],
+      "Stored cookie has no name=value pairs. Paste the full Cookie value again in this tracker's settings",
+    ],
+    [
+      "a non-ASCII character",
+      "session=CANARY…",
+      [],
+      "Stored cookie contains a non-ASCII character, usually a truncation mark. Paste the full Cookie value again in this tracker's settings",
+    ],
+    [
+      "a required cookie missing",
+      "other=CANARY",
+      ["sid"],
+      "Stored cookie has no sid cookie. Paste the full Cookie value again in this tracker's settings",
+    ],
+    [
+      "a required cookie with a hyphen in its name missing",
+      "other=CANARY",
+      ["XSRF-TOKEN"],
+      "Stored cookie has no XSRF-TOKEN cookie. Paste the full Cookie value again in this tracker's settings",
+    ],
+  ])("asks for the Cookie value again for %s", (_case, cookies, requiredCookieNames, expected) => {
+    let raw = ""
+    try {
+      validateCookieHeader(cookies, { example: "session=abc", requiredCookieNames })
+    } catch (error) {
+      raw = error instanceof Error ? error.message : ""
+    }
+    expect(raw).not.toBe("")
+
+    const card = sanitizeNetworkError(raw, "Poll failed")
+    expect(card).toBe(expected)
+    expect(card).not.toContain("CANARY")
+  })
+
   // Anchored, so a tracker's own answer that quotes one of these phrases reads as
   // the tracker's, never as a cookie to paste again.
   it.each<[string, string, string[]]>([
     ["a control character", "session=CANARY\nHost: tracker.example", []],
+    ["a non-ASCII character", "session=CANARY…", []],
+    ["a cookie name on its own", "cf_clearance", []],
+    ["no name=value pair", "CANARY", []],
+    ["a required cookie missing", "other=CANARY", ["sid"]],
   ])("leaves %s quoted in a tracker's answer to the status", (_case, cookies, required) => {
     let raw = ""
     try {
