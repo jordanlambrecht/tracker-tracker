@@ -177,24 +177,13 @@ vi.mock("@/lib/download-clients", () => ({
   getSpeedSnapshots: vi.fn().mockReturnValue([]),
   pushSpeedSnapshot: vi.fn(),
   clearSpeedCache: vi.fn(),
-  mergeTorrentLists: vi.fn().mockReturnValue([]),
-  aggregateCrossSeedTags: vi.fn().mockReturnValue([]),
-  fetchAndMergeTorrents: vi.fn().mockResolvedValue({
-    torrents: [],
-    crossSeedTags: [],
-    clientErrors: [],
-    clientCount: 0,
-  }),
   stripSensitiveTorrentFields: vi.fn((t: Record<string, unknown>) => {
     const { tracker: _t, content_path: _cp, save_path: _sp, ...rest } = t
     return rest
   }),
   CLIENT_CONNECTION_COLUMNS: {},
-  decryptClientCredentials: vi.fn().mockReturnValue({ username: "admin", password: "pass" }),
   slimTorrentForCache: vi.fn((t: Record<string, unknown>) => t),
   parseCachedTorrents: vi.fn().mockReturnValue([]),
-  STORE_MAX_AGE_MS: 600000,
-  isStoreFresh: vi.fn().mockReturnValue(false),
   getFilteredTorrents: vi.fn().mockReturnValue([]),
   VALID_CLIENT_TYPES: ["qbittorrent"],
 }))

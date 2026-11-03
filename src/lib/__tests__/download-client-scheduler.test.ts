@@ -79,9 +79,7 @@ vi.mock("@/lib/download-clients", () => ({
   getFilteredTorrents: vi.fn(),
   getStoreRevision: vi.fn(),
   replaceStoreTorrents: vi.fn(),
-  clearAllStores: vi.fn(),
   isStoreInitialized: vi.fn(),
-  resetStore: vi.fn(),
   CLIENT_CONNECTION_COLUMNS: {},
 }))
 

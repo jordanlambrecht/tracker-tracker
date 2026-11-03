@@ -77,9 +77,6 @@ vi.mock("@/lib/privacy", () => ({
 }))
 
 vi.mock("@/lib/privacy-db", () => ({
-  createPrivacyMask: vi
-    .fn()
-    .mockResolvedValue((v: string | null | undefined) => (v ? `▓${v.length}` : null)),
   createPrivacyMaskSync: vi.fn().mockReturnValue((v: string | null | undefined) => v ?? null),
 }))
 

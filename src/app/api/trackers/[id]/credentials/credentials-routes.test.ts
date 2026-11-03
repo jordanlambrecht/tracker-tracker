@@ -54,7 +54,6 @@ vi.mock("@/lib/logger", () => ({
 // src/lib/__tests__/tracker-credential-gate.test.ts.
 vi.mock("@/lib/tracker-credentials/gate", () => ({
   requireCredentialVaultEnabled: vi.fn(),
-  CREDENTIAL_VAULT_DISABLED_ERROR: "The credential vault is disabled.",
 }))
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
