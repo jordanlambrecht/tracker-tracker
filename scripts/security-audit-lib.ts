@@ -185,9 +185,14 @@ export function extractHandlerBodies(
 ): Array<{ method: string; startLine: number; body: string }> {
   const HANDLER_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS)\b/g
   const results: Array<{ method: string; startLine: number; body: string }> = []
-  let handlerMatch: RegExpExecArray | null = HANDLER_RE.exec(content)
 
-  while (handlerMatch !== null) {
+  // The for loop advances on every continue, so a handler with no parameter list or
+  // no body is skipped rather than matched again forever.
+  for (
+    let handlerMatch = HANDLER_RE.exec(content);
+    handlerMatch !== null;
+    handlerMatch = HANDLER_RE.exec(content)
+  ) {
     const method = handlerMatch[1]
     const startLine = content.slice(0, handlerMatch.index).split("\n").length
 
@@ -228,7 +233,6 @@ export function extractHandlerBodies(
       startLine,
       body: content.slice(openBrace, end + 1),
     })
-    handlerMatch = HANDLER_RE.exec(content)
   }
 
   return results

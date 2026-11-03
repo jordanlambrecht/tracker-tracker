@@ -13,14 +13,17 @@
 //   - describe("encrypt assignment recognizer")
 //   - describe("proxy matcher exclusions")
 //   - describe("authenticate before body read")
+//   - describe("handler extractor")
 
 import fs from "node:fs"
 import path from "node:path"
+import { Worker } from "node:worker_threads"
 import { describe, expect, it } from "vitest"
 import {
   authenticatesBeforeBodyRead,
   CATCH_BODY_MAX_LINES,
   catchBodyLines,
+  extractHandlerBodies,
   FETCH_WINDOW_MAX_LINES,
   fetchWindowEnd,
   gatesAuthResult,
@@ -399,4 +402,57 @@ describe("authenticate before body read", () => {
   ])("fails %s", (_, source) => {
     expect(authenticatesBeforeBodyRead(source)).toBe(false)
   })
+})
+
+describe("handler extractor", () => {
+  // Room for a loaded machine. When nothing is wrong the worker answers in milliseconds.
+  const WORKER_KILL_MS = 4_000
+  const WORKER_TEST_TIMEOUT_MS = 10_000
+
+  // A scan that never ends blocks the thread, so no test timeout could stop it here.
+  // In a worker it can be ended, and the test fails instead of hanging the suite.
+  function extractInWorker(content: string): Promise<unknown> {
+    const worker = new Worker(
+      `const { parentPort, workerData } = require("node:worker_threads")
+       const extract = ${extractHandlerBodies.toString()}
+       parentPort.postMessage(extract(workerData))`,
+      { eval: true, workerData: content }
+    )
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        void worker.terminate()
+        reject(new Error(`the scan did not finish within ${WORKER_KILL_MS} ms`))
+      }, WORKER_KILL_MS)
+      worker.once("message", (result) => {
+        clearTimeout(timer)
+        void worker.terminate()
+        resolve(result)
+      })
+      worker.once("error", (err) => {
+        clearTimeout(timer)
+        reject(err)
+      })
+    })
+  }
+
+  it(
+    "reads a handler in the worker the way it does in the test",
+    async () => {
+      const content = "export async function GET() {\n  return 1\n}\n"
+
+      await expect(extractInWorker(content)).resolves.toEqual(extractHandlerBodies(content))
+    },
+    WORKER_TEST_TIMEOUT_MS
+  )
+
+  it.each([
+    ["no parameter list", "export function GET"],
+    ["no body", "export function GET()"],
+  ])(
+    "returns no handler for one with %s at the end of the file",
+    async (_, content) => {
+      await expect(extractInWorker(content)).resolves.toEqual([])
+    },
+    WORKER_TEST_TIMEOUT_MS
+  )
 })
