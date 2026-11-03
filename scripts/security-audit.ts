@@ -4,7 +4,7 @@
 // Outputs JSON to stdout: { results: CheckResult[], summary: { ... } }
 //
 // Functions: walkFiles, relativePath, findAllLineNumbers, routePathFromFile, isTestFile,
-//   getCachedLines, filterIgnoredFindings, extractHandlerBodies,
+//   getCachedLines, filterIgnoredFindings,
 //   checkAuthEnforcement, checkDangerousFunctions, checkHardcodedSecrets,
 //   checkSecurityHeaders, checkCookieSecurity, checkSensitiveFieldExposure,
 //   checkEnvFiles, checkConsoleLogInRoutes, checkTodoInSecurityFiles,
@@ -21,8 +21,9 @@
 //   checkClientEnvLeak, checkAdapterCookieInjection, checkAdapterCredentialLogging,
 //   runAudit
 //
-// The recognizers behind checks 6, 12, 17, 29, 37 and 38 live in scripts/security-audit-lib.ts,
-// which has no CLI entry so a test can import them.
+// The recognizers behind checks 6, 12, 17, 19, 29, 37 and 38, and the handler extractor
+// checks 1, 19 and 29 share, live in scripts/security-audit-lib.ts, which has no CLI
+// entry so a test can import them.
 //
 // Usage: npx tsx scripts/security-audit.ts [--changed-only file1 file2 ...]
 // If --changed-only is provided, only those files are scanned for
@@ -35,12 +36,15 @@ import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
 import {
+  authenticatesBeforeBodyRead,
   CATCH_RE,
+  extractHandlerBodies,
   FETCH_RE,
   fetchWindowEnd,
   gatesAuthResult,
   hasInjectionGuard,
   logsCredential,
+  matcherSkippedApiRoutes,
   stripEncryptAssignment,
   swallowsError,
 } from "./security-audit-lib"
@@ -303,68 +307,6 @@ function filterIgnoredFindings(results: CheckResult[]): CheckResult[] {
 }
 
 // ── Check 1: Auth enforcement (per-handler) ─────────────────────────────
-
-/**
- * Extract the body of each exported handler function.
- * Returns an array of { method, startLine, body } for each handler.
- *
- * Handles typed parameters like `(request: Request, props: { params: Promise<{ id: string }> })`
- * by first skipping past the parameter list via paren-counting, then finding the
- * function body's opening brace.
- */
-function extractHandlerBodies(
-  content: string
-): Array<{ method: string; startLine: number; body: string }> {
-  const HANDLER_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE)\b/g
-  const results: Array<{ method: string; startLine: number; body: string }> = []
-  let handlerMatch: RegExpExecArray | null = HANDLER_RE.exec(content)
-
-  while (handlerMatch !== null) {
-    const method = handlerMatch[1]
-    const startLine = content.slice(0, handlerMatch.index).split("\n").length
-
-    // Step 1: find opening paren of parameter list
-    const openParen = content.indexOf("(", handlerMatch.index + handlerMatch[0].length)
-    if (openParen === -1) continue
-
-    // Step 2: count parens to find the closing paren of the parameter list
-    let parenDepth = 0
-    let closeParen = openParen
-    for (let i = openParen; i < content.length; i++) {
-      if (content[i] === "(") parenDepth++
-      if (content[i] === ")") parenDepth--
-      if (parenDepth === 0) {
-        closeParen = i
-        break
-      }
-    }
-
-    // Step 3: find the function body's opening brace after the parameter list
-    const openBrace = content.indexOf("{", closeParen + 1)
-    if (openBrace === -1) continue
-
-    // Step 4: count braces to find the matching close
-    let braceDepth = 0
-    let end = openBrace
-    for (let i = openBrace; i < content.length; i++) {
-      if (content[i] === "{") braceDepth++
-      if (content[i] === "}") braceDepth--
-      if (braceDepth === 0) {
-        end = i
-        break
-      }
-    }
-
-    results.push({
-      method,
-      startLine,
-      body: content.slice(openBrace, end + 1),
-    })
-    handlerMatch = HANDLER_RE.exec(content)
-  }
-
-  return results
-}
 
 function checkAuthEnforcement(): CheckResult {
   const findings: Finding[] = []
@@ -1220,6 +1162,7 @@ function checkDockerfileNonRoot(): CheckResult {
 }
 
 // ── Check 19: Public routes match proxy allowlist (critical) ─────────────
+// Also: every API route the matcher skips authenticates before reading the body.
 
 /** Strip leading slashes for consistent comparison. */
 function normalizeRoute(r: string): string {
@@ -1290,6 +1233,30 @@ function checkProxyAllowlistSync(): CheckResult {
       findings.push({
         file: "src/proxy.ts",
         detail: `Proxy allowlist contains exact route "/${route}" but it is absent from NO_AUTH_ROUTES in security-audit.ts. Verify it is intentionally public and add it to NO_AUTH_ROUTES`,
+      })
+    }
+  }
+
+  // An API route the matcher leaves out has no proxy in front of it.
+  const skipped = matcherSkippedApiRoutes(proxyContent)
+  for (const entry of skipped.unaudited) {
+    findings.push({
+      file: "src/proxy.ts",
+      detail: `Proxy matcher exclusion "${entry}" is too complex to audit. Leave out each API route as a plain path ending in $`,
+    })
+  }
+  for (const route of skipped.routes) {
+    const routeRel = `src/app/${route}/route.ts`
+    const routeFile = path.join(ROOT, routeRel)
+    if (!fs.existsSync(routeFile)) {
+      findings.push({
+        file: "src/proxy.ts",
+        detail: `The proxy matcher leaves out "/${route}", but ${routeRel} does not exist`,
+      })
+    } else if (!authenticatesBeforeBodyRead(fs.readFileSync(routeFile, "utf8"))) {
+      findings.push({
+        file: routeRel,
+        detail: `The proxy matcher leaves out "/${route}", so every handler in it must gate on authenticate() before it reads the request body`,
       })
     }
   }

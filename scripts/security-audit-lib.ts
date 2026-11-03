@@ -5,7 +5,8 @@
 // its CLI entry and still runs every check on load.
 //
 // Functions: fetchWindowEnd, catchBodyLines, swallowsError, hasInjectionGuard, logsCredential,
-//            gatesAuthResult, stripEncryptAssignment
+//            gatesAuthResult, stripEncryptAssignment, extractHandlerBodies,
+//            matcherSkippedApiRoutes, authenticatesBeforeBodyRead
 
 export const FETCH_RE = /\bfetch\s*\(/
 
@@ -169,4 +170,154 @@ const ENCRYPT_ASSIGNMENT_RE =
 
 export function stripEncryptAssignment(line: string): string {
   return line.replace(ENCRYPT_ASSIGNMENT_RE, "")
+}
+
+/**
+ * Extract the body of each exported handler function.
+ * Returns an array of { method, startLine, body } for each handler.
+ *
+ * Handles typed parameters like `(request: Request, props: { params: Promise<{ id: string }> })`
+ * by first skipping past the parameter list via paren-counting, then finding the
+ * function body's opening brace.
+ */
+export function extractHandlerBodies(
+  content: string
+): Array<{ method: string; startLine: number; body: string }> {
+  const HANDLER_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS)\b/g
+  const results: Array<{ method: string; startLine: number; body: string }> = []
+  let handlerMatch: RegExpExecArray | null = HANDLER_RE.exec(content)
+
+  while (handlerMatch !== null) {
+    const method = handlerMatch[1]
+    const startLine = content.slice(0, handlerMatch.index).split("\n").length
+
+    // Step 1: find opening paren of parameter list
+    const openParen = content.indexOf("(", handlerMatch.index + handlerMatch[0].length)
+    if (openParen === -1) continue
+
+    // Step 2: count parens to find the closing paren of the parameter list
+    let parenDepth = 0
+    let closeParen = openParen
+    for (let i = openParen; i < content.length; i++) {
+      if (content[i] === "(") parenDepth++
+      if (content[i] === ")") parenDepth--
+      if (parenDepth === 0) {
+        closeParen = i
+        break
+      }
+    }
+
+    // Step 3: find the function body's opening brace after the parameter list
+    const openBrace = content.indexOf("{", closeParen + 1)
+    if (openBrace === -1) continue
+
+    // Step 4: count braces to find the matching close
+    let braceDepth = 0
+    let end = openBrace
+    for (let i = openBrace; i < content.length; i++) {
+      if (content[i] === "{") braceDepth++
+      if (content[i] === "}") braceDepth--
+      if (braceDepth === 0) {
+        end = i
+        break
+      }
+    }
+
+    results.push({
+      method,
+      startLine,
+      body: content.slice(openBrace, end + 1),
+    })
+    handlerMatch = HANDLER_RE.exec(content)
+  }
+
+  return results
+}
+
+// Comments and string literals in one pass, so a // inside a string stays in the string.
+const COMMENT_OR_STRING_RE =
+  /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\[\s\S]|[^`\\])*`/g
+
+// Each alternative of every negative lookahead in the source, split on the lookahead's
+// own | only, so a nested group stays whole and the scan does not stop at its ")".
+// Comments go first, so one that mentions a lookahead adds nothing. Strings stay,
+// since the matcher is one.
+function lookaheadEntries(source: string): string[] {
+  const code = source.replace(COMMENT_OR_STRING_RE, (m) => (m.startsWith("/") ? " " : m))
+  const entries: string[] = []
+  for (let start = code.indexOf("(?!"); start !== -1; start = code.indexOf("(?!", start + 3)) {
+    let depth = 0
+    let entry = ""
+    for (let i = start + 3; i < code.length; i++) {
+      const ch = code[i]
+      if (ch === ")" && depth === 0) break
+      if (ch === "|" && depth === 0) {
+        entries.push(entry)
+        entry = ""
+        continue
+      }
+      if (ch === "(") depth++
+      if (ch === ")") depth--
+      entry += ch
+    }
+    entries.push(entry)
+  }
+  return entries
+}
+
+// A plain path, optionally ending in $. Anything else is a pattern the audit cannot
+// map to one route file.
+const PLAIN_EXCLUSION_RE = /^[\w\-./]+\$?$/
+
+/**
+ * The API routes the proxy matcher leaves out, as "api/..." paths, and the exclusions
+ * the audit cannot check. An exclusion is unaudited when it is not a plain path, or
+ * when it reaches API routes without ending in $, since it then leaves out a whole
+ * prefix. "." in a plain path still matches any character, so "ap." reaches them too.
+ */
+export function matcherSkippedApiRoutes(proxySource: string): {
+  routes: string[]
+  unaudited: string[]
+} {
+  const routes: string[] = []
+  const unaudited: string[] = []
+  for (const entry of lookaheadEntries(proxySource)) {
+    const route = entry.replace(/\$$/, "")
+    const plain = PLAIN_EXCLUSION_RE.test(entry)
+    const reachesApi = plain && new RegExp(`^${route.slice(0, 4)}`).test("api/")
+    if (!plain || (reachesApi && !entry.endsWith("$"))) unaudited.push(entry)
+    else if (reachesApi) routes.push(route)
+  }
+  return { routes, unaudited }
+}
+
+// The gate on authenticate()'s own result, as routes write it. A gate on another
+// NextResponse, such as parseRouteId's, is not an auth gate.
+const AUTH_GATE_RE =
+  /\bconst\s+(\w+)\s*=\s*await\s+authenticate\s*\(\s*\)\s*;?\s*if\s*\(\s*\1\s+instanceof\s+NextResponse\s*\)\s*\{?\s*return\b/
+
+// A member read of the body on any object, a destructured one, or parseJsonBody().
+const BODY_READ_RE =
+  /\.(?:formData|json|text|arrayBuffer|blob|body)\b|\{[^{}]*\b(?:formData|json|text|arrayBuffer|blob|body)\b[^{}]*\}\s*=(?!=)|\bparseJsonBody\s*\(/
+
+/**
+ * A route the proxy skips has nothing in front of it, so every exported handler must
+ * gate on authenticate() before anything reads the body. A file with no handler the
+ * extractor can see fails, rather than passing with nothing checked. Not seen: a read
+ * in a helper called before the gate, a read inside a template's ${}, and code after a
+ * regex literal holding //, which reads as a comment.
+ */
+export function authenticatesBeforeBodyRead(routeSource: string): boolean {
+  // Comments become a space and strings an empty pair, so neither can hold a call or a
+  // read, and a brace inside a string cannot throw off the handler extraction.
+  const code = routeSource.replace(COMMENT_OR_STRING_RE, (m) => (m.startsWith("/") ? " " : '""'))
+  const handlers = extractHandlerBodies(code)
+  return (
+    handlers.length > 0 &&
+    handlers.every(({ body }) => {
+      const gateAt = body.search(AUTH_GATE_RE)
+      const readAt = body.search(BODY_READ_RE)
+      return gateAt !== -1 && (readAt === -1 || gateAt < readAt)
+    })
+  )
 }

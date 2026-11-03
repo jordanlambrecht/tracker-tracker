@@ -394,7 +394,7 @@ The security audit (`scripts/security-audit.ts`) performs 38 automated checks on
 | 11  | No raw migrations        | Critical | No SQL migration files, which enforces the schema-first Drizzle approach              |
 | 12  | Fetch timeout            | Critical | All external HTTP requests in adapters/clients have `AbortSignal.timeout`             |
 | 13  | Dockerfile non-root      | Critical | Docker container runs as non-root user with explicit `USER` directive                 |
-| 14  | Proxy allowlist sync     | Critical | Public routes in proxy allowlist match `NO_AUTH_ROUTES` bidirectionally               |
+| 14  | Proxy allowlist sync     | Critical | Allowlist and `NO_AUTH_ROUTES` match; API routes the proxy skips authenticate first   |
 | 15  | Console in routes        | Warning  | No `console.log/debug/info` in API route handlers                                     |
 | 16  | TODO in security files   | Warning  | No `TODO`/`FIXME` in security-critical source files                                   |
 | 17  | JSON.parse safety        | Warning  | `JSON.parse()` calls wrapped in try-catch                                             |

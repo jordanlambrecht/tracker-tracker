@@ -1,8 +1,8 @@
 // src/lib/__tests__/security-audit-recognizers.test.ts
 //
-// Tests the recognizers scripts/security-audit.ts uses for checks 6, 12, 17, 29,
-// 37 and 38. They live in scripts/security-audit-lib.ts so this suite can import
-// them without the audit script's CLI entry running.
+// Tests the recognizers scripts/security-audit.ts uses for checks 6, 12, 17, 19,
+// 29, 37 and 38. They live in scripts/security-audit-lib.ts so this suite can
+// import them without the audit script's CLI entry running.
 //
 // Functions:
 //   - describe("fetch argument window")
@@ -11,11 +11,14 @@
 //   - describe("adapter credential logging detector")
 //   - describe("auth result gate recognizer")
 //   - describe("encrypt assignment recognizer")
+//   - describe("proxy matcher exclusions")
+//   - describe("authenticate before body read")
 
 import fs from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 import {
+  authenticatesBeforeBodyRead,
   CATCH_BODY_MAX_LINES,
   catchBodyLines,
   FETCH_WINDOW_MAX_LINES,
@@ -23,6 +26,7 @@ import {
   gatesAuthResult,
   hasInjectionGuard,
   logsCredential,
+  matcherSkippedApiRoutes,
   stripEncryptAssignment,
   swallowsError,
 } from "../../../scripts/security-audit-lib"
@@ -253,5 +257,146 @@ describe("encrypt assignment recognizer", () => {
     const line = "      encryptedConfig: encrypt(JSON.stringify(config), key),"
 
     expect(stripEncryptAssignment(line)).toBe(line)
+  })
+})
+
+describe("proxy matcher exclusions", () => {
+  const matcher = (entries: string) => `matcher: ["/((?!${entries}).*)"]`
+
+  it("reads the plain API routes of every lookahead", () => {
+    const proxy = `${matcher("_next/static|api/a$")}\nother: ["/((?!favicon.png|api/b/c$).*)"]`
+
+    expect(matcherSkippedApiRoutes(proxy)).toEqual({ routes: ["api/a", "api/b/c"], unaudited: [] })
+  })
+
+  it("leaves out only the restore route in the matcher the repo ships", () => {
+    const proxy = fs.readFileSync(path.join(REPO_ROOT, "src/proxy.ts"), "utf8")
+
+    expect(matcherSkippedApiRoutes(proxy)).toEqual({
+      routes: ["api/settings/backup/restore"],
+      unaudited: [],
+    })
+  })
+
+  it("keeps a nested group whole instead of stopping at its parenthesis", () => {
+    expect(matcherSkippedApiRoutes(matcher("api/(a|b)$|api/c$"))).toEqual({
+      routes: ["api/c"],
+      unaudited: ["api/(a|b)$"],
+    })
+  })
+
+  it("adds nothing for a lookahead that only a comment mentions", () => {
+    const proxy = `// a lookahead such as (?!.*foo) leaves paths out\n/* (?!api) too */\n${matcher("api/a$")}`
+
+    expect(matcherSkippedApiRoutes(proxy)).toEqual({ routes: ["api/a"], unaudited: [] })
+  })
+
+  it.each([
+    ["a group", "api/(?:a|b)$"],
+    ["a wildcard pattern", ".*restore$"],
+    ["an API prefix without $", "api/settings"],
+    ["a prefix of every API route", "api"],
+    ["a dot standing in for a letter", "ap."],
+    ["an empty alternative", ""],
+  ])("reports %s as too complex to audit", (_, entry) => {
+    expect(matcherSkippedApiRoutes(matcher(`_next/static|${entry}`)).unaudited).toEqual([entry])
+  })
+})
+
+describe("authenticate before body read", () => {
+  const GATE =
+    "  const auth = await authenticate()\n  if (auth instanceof NextResponse) return auth\n"
+  const handler = (body: string, method = "POST", param = "request") =>
+    `export async function ${method}(${param}: Request) {\n${body}}\n`
+
+  it("passes the restore route, whose handler gates before runRestore reads the body", () => {
+    const route = fs.readFileSync(
+      path.join(REPO_ROOT, "src/app/api/settings/backup/restore/route.ts"),
+      "utf8"
+    )
+
+    expect(authenticatesBeforeBodyRead(route)).toBe(true)
+  })
+
+  it.each([
+    ["gates, then reads the body", `${GATE}  const form = await request.formData()\n`],
+    ["gates and never reads the body", `${GATE}  return NextResponse.json({})\n`],
+    [
+      "gates with braces",
+      "  const auth = await authenticate()\n  if (auth instanceof NextResponse) {\n    return auth\n  }\n  await request.json()\n",
+    ],
+  ])("passes a handler that %s", (_, body) => {
+    expect(authenticatesBeforeBodyRead(handler(body))).toBe(true)
+  })
+
+  it.each([
+    [
+      "a GET that gates while POST reads first",
+      handler(GATE, "GET") + handler(`  await request.formData()\n${GATE}`),
+    ],
+    [
+      "authenticate() in a helper called after the read",
+      handler(
+        "  await request.formData()\n  const auth = await requireAuth()\n  if (auth instanceof NextResponse) return auth\n"
+      ),
+    ],
+    [
+      "the call before the read but the gate after it",
+      handler(
+        "  const p = authenticate()\n  await request.formData()\n  const auth = await p\n  if (auth instanceof NextResponse) return auth\n"
+      ),
+    ],
+    [
+      "the gate inside a string",
+      handler(
+        '  log("const auth = await authenticate(); if (auth instanceof NextResponse) return auth")\n  await request.formData()\n'
+      ),
+    ],
+    [
+      "the gate inside a template literal",
+      handler(
+        "  log(`const auth = await authenticate(); if (auth instanceof NextResponse) return auth`)\n  await request.formData()\n"
+      ),
+    ],
+    [
+      "the gate inside a comment",
+      handler(
+        "  // const auth = await authenticate(); if (auth instanceof NextResponse) return auth\n  await request.formData()\n"
+      ),
+    ],
+    ["request.clone().json()", handler(`  await request.clone().json()\n${GATE}`)],
+    [
+      "(request as NextRequest).json()",
+      handler(`  await (request as NextRequest).json()\n${GATE}`),
+    ],
+    ["request?.json()", handler(`  await request?.json()\n${GATE}`)],
+    ["another parameter name", handler(`  await incoming.formData()\n${GATE}`, "POST", "incoming")],
+    ["a destructured body", handler(`  const { body } = request\n${GATE}`)],
+    ["parseJsonBody()", handler(`  const data = await parseJsonBody(request)\n${GATE}`)],
+    [
+      "a parseRouteId gate before the read",
+      handler(
+        `  const id = await parseRouteId(params, "tracker")\n  if (id instanceof NextResponse) return id\n  await request.json()\n${GATE}`
+      ),
+    ],
+    [
+      "a URL string on the line of the read",
+      handler(`  const origin = "http://localhost"; await request.formData()\n${GATE}`),
+    ],
+    ["no gate at all", handler("  return NextResponse.json({})\n")],
+    [
+      "no handler the extractor can see",
+      `export const POST = async (request: Request) => {\n${GATE}}\n`,
+    ],
+    [
+      "an OPTIONS that reads before its gate beside a gated POST",
+      handler(GATE) + handler(`  await request.formData()\n${GATE}`, "OPTIONS"),
+    ],
+    [
+      "a HEAD that reads before its gate beside a gated POST",
+      handler(GATE) + handler(`  await request.text()\n${GATE}`, "HEAD"),
+    ],
+  ])("fails %s", (_, source) => {
+    expect(authenticatesBeforeBodyRead(source)).toBe(false)
   })
 })
