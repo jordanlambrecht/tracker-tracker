@@ -35,7 +35,14 @@ import { isUnsafeNetworkHost } from "@/lib/network"
 import { VALID_NOTIFICATION_TYPES } from "@/lib/notifications/types"
 import { prowlarrUrlError } from "@/lib/prowlarr/client"
 import { PROXY_HOST_PATTERN } from "@/lib/tunnel"
-import { DATE_RE, HEX_64_RE, ISO_8601_RE, isValidHex, isValidPort } from "@/lib/validators"
+import {
+  DATE_RE,
+  HEX_64_RE,
+  ISO_8601_RE,
+  isRealCalendarDate,
+  isValidHex,
+  isValidPort,
+} from "@/lib/validators"
 import packageJson from "../../package.json"
 
 export const CURRENT_BACKUP_VERSION = 1
@@ -310,12 +317,7 @@ function assertValidIso(value: unknown, label: string): void {
   assertString(value, label)
   // The pattern alone passes month 13 or hour 25, an Invalid Date the insert throws
   // on, and Date rolls February 30 into March, so the restore would store another day.
-  const parsed = new Date(value)
-  if (
-    !ISO_8601_RE.test(value) ||
-    Number.isNaN(parsed.getTime()) ||
-    parsed.toISOString().slice(0, 10) !== value.slice(0, 10)
-  ) {
+  if (!ISO_8601_RE.test(value) || !isRealCalendarDate(value)) {
     throw new Error(`Backup validation: ${label} must be a valid ISO 8601 string`)
   }
 }

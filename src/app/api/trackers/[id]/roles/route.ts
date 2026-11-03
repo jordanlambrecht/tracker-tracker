@@ -12,6 +12,7 @@ import { db } from "@/lib/db"
 import { trackerRoles } from "@/lib/db/schema"
 import { TRACKER_NOTES_MAX, TRACKER_ROLE_NAME_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { DATE_RE, ISO_8601_RE, isRealCalendarDate } from "@/lib/validators"
 
 export async function GET(_request: Request, props: RouteContext) {
   const auth = await authenticate()
@@ -58,7 +59,13 @@ export async function POST(request: Request, props: RouteContext) {
   if (roleNameErr) return roleNameErr
 
   if (achievedAt !== undefined) {
-    if (typeof achievedAt !== "string" || Number.isNaN(new Date(achievedAt).getTime())) {
+    // Only the shapes the calendar check reads soundly. Date takes 2026-02-30
+    // and would store March 2.
+    if (
+      typeof achievedAt !== "string" ||
+      !(DATE_RE.test(achievedAt) || ISO_8601_RE.test(achievedAt)) ||
+      !isRealCalendarDate(achievedAt)
+    ) {
       return NextResponse.json({ error: "Invalid date format for achievedAt" }, { status: 400 })
     }
   }

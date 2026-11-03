@@ -1323,6 +1323,43 @@ describe("Input validation: additional field constraints", () => {
     expect(data.error).toMatch(/date/i)
   })
 
+  // Date parses each of these and rolls the day into March.
+  it.each(["2026-02-30", "2026-02-29", "2026-02-31T10:00:00.000Z"])(
+    "rejects achievedAt %s, a day that does not exist",
+    async (achievedAt) => {
+      ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+        roleName: "Member",
+        achievedAt,
+      })
+      const mockValues = vi.fn()
+      ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+      const req = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+      const res = await RolesPOST(req, { params: MOCK_PARAMS })
+      expect(res.status).toBe(400)
+      expect(mockValues).not.toHaveBeenCalled()
+    }
+  )
+
+  // The shape GET answers with, so a role read back can be posted again.
+  it("accepts a UTC timestamp for achievedAt and stores that instant", async () => {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      roleName: "Member",
+      achievedAt: "2024-02-29T10:30:00.000Z",
+    })
+    const role = { id: 1, trackerId: 1, roleName: "Member", achievedAt: new Date(), notes: null }
+    const mockReturning = vi.fn().mockResolvedValue([role])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    ;(db.insert as ReturnType<typeof vi.fn>).mockReturnValue({ values: mockValues })
+
+    const req = makeRequest("http://localhost/api/trackers/1/roles", {}, "POST")
+    const res = await RolesPOST(req, { params: MOCK_PARAMS })
+    expect(res.status).toBe(201)
+    expect(mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({ achievedAt: new Date("2024-02-29T10:30:00.000Z") })
+    )
+  })
+
   it("accepts valid achievedAt date", async () => {
     ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
       roleName: "Member",
