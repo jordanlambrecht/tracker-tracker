@@ -21,6 +21,8 @@ Tracker Tracker backs up your configuration and history. Back up manually whenev
 | **Encryption salt**                                             | ✗          | Never backed up; stays on instance              |
 | **Failed login counters**                                       | ✗          | Reset to zero on restore                        |
 | Transient state (last poll time, errors, cached torrents)       | ✗          | Not persisted                                   |
+| Today at a Glance daily history                                 | ✗          | Rebuilt from the restored snapshots             |
+| Today at a Glance top uploaders and downloaders                 | ✗          | Per-torrent history, so it starts fresh         |
 | Notification delivery history                                   | ✗          | Not included                                    |
 
 Sensitive values (API tokens, client credentials, proxy passwords, webhook URLs, TOTP secrets) remain encrypted in the backup file.

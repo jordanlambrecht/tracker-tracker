@@ -62,6 +62,9 @@ vi.mock("@/lib/scheduler", () => ({
   ensureSchedulerRunning: vi.fn(),
 }))
 
+// The restore rebuilds its daily checkpoints through query chains the db mock does not model.
+vi.mock("@/lib/today", () => ({ backfillTrackerCheckpoints: vi.fn() }))
+
 vi.mock("@/lib/image-hosting", () => ({
   getImageHostAdapter: vi.fn().mockReturnValue({
     upload: vi.fn().mockResolvedValue({ url: "https://example.com/image.png" }),

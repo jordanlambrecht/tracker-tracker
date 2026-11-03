@@ -54,6 +54,7 @@ import { checkLockout, recordFailedAttempt, resetFailedAttempts } from "@/lib/lo
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
+import { backfillTrackerCheckpoints } from "@/lib/today"
 import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 
 const BATCH_SIZE = 500
@@ -1198,6 +1199,17 @@ async function runRestore(request: Request, auth: { encryptionKey: string }) {
   // a backup older than registry_slug would stay unlinked and never poll. Each
   // row it links also loses the pause and marker the insert gave it.
   await backfillRegistrySlugs({ force: true })
+
+  // Deleting the trackers cascaded to Today at a Glance's daily checkpoints. The backfill
+  // skips a table with any row, and the first poll writes today's, so rebuild before polling.
+  try {
+    await backfillTrackerCheckpoints()
+  } catch (err) {
+    log.error(
+      { event: "restore_checkpoints_failed", error: errMsg(err) },
+      "Today at a Glance history was not rebuilt after the restore"
+    )
+  }
 
   // Restart the scheduler we stopped in Step 7, mirroring the failure path above.
   // Restarting here means a direct API caller does not depend on a page load to

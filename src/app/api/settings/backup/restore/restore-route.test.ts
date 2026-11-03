@@ -24,6 +24,7 @@ import { checkLockout } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
 import { ensureSchedulerRunning, stopScheduler } from "@/lib/scheduler"
+import { backfillTrackerCheckpoints } from "@/lib/today"
 import { UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
 import { POST } from "./route"
 
@@ -89,6 +90,7 @@ vi.mock("@/lib/scheduler", () => ({
 // It reads the database through its own query chain, which the db mock above
 // does not model.
 vi.mock("@/lib/db/backfill-registry-slug", () => ({ backfillRegistrySlugs: vi.fn() }))
+vi.mock("@/lib/today", () => ({ backfillTrackerCheckpoints: vi.fn() }))
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -1602,6 +1604,53 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(named).toBeLessThan(restarted)
   })
 
+  it("rebuilds Today at a Glance's history after the commit and before polling restarts", async () => {
+    // Deleting the trackers empties tracker_daily_checkpoints. The backfill skips
+    // a table with any row, and the restarted scheduler polls at once and writes
+    // today's, so a rebuild left to the next Today request would find nothing to do.
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+    const created = createTx()
+    recorder = created.recorder
+    let committed = false
+    ;(db.transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => {
+        const result = await fn(created.tx)
+        committed = true
+        return result
+      }
+    )
+    const committedAtEachCall: boolean[] = []
+    vi.mocked(backfillTrackerCheckpoints).mockImplementation(async () => {
+      committedAtEachCall.push(committed)
+      return 0
+    })
+
+    expect(await POST(makeRequest(payload, PASSWORD))).toHaveProperty("status", 200)
+
+    expect(committedAtEachCall).toEqual([true])
+    const [rebuilt] = vi.mocked(backfillTrackerCheckpoints).mock.invocationCallOrder
+    const [restarted] = vi.mocked(ensureSchedulerRunning).mock.invocationCallOrder
+    expect(rebuilt).toBeLessThan(restarted)
+  })
+
+  it("still restores when rebuilding Today at a Glance's history fails", async () => {
+    const backupKey = await deriveKey(PASSWORD, SALT_A)
+    const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
+    mockCurrentSettings({ encryptionSalt: SALT_A })
+    vi.mocked(backfillTrackerCheckpoints).mockRejectedValueOnce(new Error("statement timeout"))
+
+    const res = await POST(makeRequest(payload, PASSWORD))
+
+    expect(res.status).toBe(200)
+    expect(ensureSchedulerRunning).toHaveBeenCalledWith("ab".repeat(32))
+    expect(log.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "restore_checkpoints_failed" }),
+      expect.any(String)
+    )
+  })
+
   it("rolls back and restarts the scheduler when the transaction throws", async () => {
     const backupKey = await deriveKey(PASSWORD, SALT_A)
     const payload = makeBackupPayload(SALT_A, encryptAll(backupKey))
@@ -1613,6 +1662,8 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     expect(res.status).toBe(500)
     await expect(res.json()).resolves.toEqual({ error: "Backup restore failed" })
     expect(ensureSchedulerRunning).toHaveBeenCalledWith("ab".repeat(32))
+    // Nothing was deleted, so the checkpoints are still there.
+    expect(backfillTrackerCheckpoints).not.toHaveBeenCalled()
   })
 
   // ─── 9. Never overwrite the credentials that gate access ─────────────────────
@@ -1915,6 +1966,7 @@ describe("POST /api/settings/backup/restore — dry run", () => {
 
     // The whole point: a preview must not be destructive.
     expect(stopScheduler).not.toHaveBeenCalled()
+    expect(backfillTrackerCheckpoints).not.toHaveBeenCalled()
     expect(recorder.deletes).toHaveLength(0)
     expect(recorder.inserts).toHaveLength(0)
     expect(recorder.settingsUpdate).toBeNull()
