@@ -3,7 +3,7 @@
 // Functions: parseBtnBytes, mapBtnResult, callBtnUserInfo, readBtnUserInfo, BtnAdapter
 
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
-import { BTN_RPC_ERROR } from "@/lib/error-utils"
+import { BTN_RATE_LIMITED_CAUSE, BTN_RPC_ERROR } from "@/lib/error-utils"
 import { localDateStr } from "@/lib/formatters"
 import type { DebugApiCall, FetchOptions, TrackerAdapter, TrackerStats } from "../contract"
 import { adapterRequest } from "../helpers/adapter-fetch"
@@ -130,7 +130,7 @@ async function callBtnUserInfo(
   }
 
   if (response.status === 401) throw new Error("Invalid BTN API key")
-  if (response.status === 503) throw new Error("BTN API rate limited (150 calls/hour)")
+  if (response.status === 503) throw new Error(BTN_RATE_LIMITED_CAUSE)
   if (!response.ok) {
     throw new Error(`Tracker API error: ${response.status} ${response.statusText}`)
   }

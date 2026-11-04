@@ -85,6 +85,12 @@ export const GAZELLE_STATUS_ERROR = "Gazelle API returned status"
 export const GGN_STATUS_ERROR = "GGn API returned status"
 export const HAWKE_REQUEST_ERROR = "Hawke API request failed on"
 export const BTN_RPC_ERROR = "BTN API returned an error"
+// What the BTN adapter throws on a 503, BTN's answer once a key passes 150 calls
+// an hour, and what the card shows for it.
+export const BTN_RATE_LIMITED_CAUSE = "BTN API rate limited (150 calls/hour)"
+/** @internal Used by tests. */
+export const BTN_RATE_LIMITED_ERROR =
+  "BTN is rate limiting API calls (150 an hour). If it keeps happening, polling pauses until you resume it"
 const ENVELOPE_ERROR = new RegExp(
   `^(?:${GAZELLE_STATUS_ERROR}: |${GGN_STATUS_ERROR}: |${HAWKE_REQUEST_ERROR} \\S+: |${BTN_RPC_ERROR}: )`
 )
@@ -241,6 +247,8 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   if (/Luminance login refused: the account uses two-factor login/i.test(raw)) {
     return "Two-factor login is on for this account. Add a session cookie from a browser login to the tracker's credentials"
   }
+  // Ahead of the ban rule, which would read its "rate limited" as an IP ban.
+  if (raw.startsWith(BTN_RATE_LIMITED_CAUSE)) return BTN_RATE_LIMITED_ERROR
   // A tracker answer the adapter could not use, such as a 2xx body it could
   // not read or a scraper's redirect with no readable Location. "Unexpected
   // response from <host>: ..." is the wording the adapters and the shared fetch

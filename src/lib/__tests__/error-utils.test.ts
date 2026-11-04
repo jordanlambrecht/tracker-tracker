@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest"
 import { decrypt, encrypt } from "@/lib/crypto"
 import {
+  BTN_RATE_LIMITED_CAUSE,
+  BTN_RATE_LIMITED_ERROR,
   BTN_RPC_ERROR,
   classifyFetchError,
   classifyProxyFetchError,
@@ -216,6 +218,10 @@ describe("sanitizeNetworkError", () => {
 
   it("maps 'ip ban' to IP ban message", () => {
     expect(sanitizeNetworkError("ip ban detected")).toBe("IP temporarily banned by tracker")
+  })
+
+  it("maps BTN's rate limit to its own message, not the IP ban one", () => {
+    expect(sanitizeNetworkError(BTN_RATE_LIMITED_CAUSE, "Poll failed")).toBe(BTN_RATE_LIMITED_ERROR)
   })
 
   // The qBittorrent auth outcomes below each need different user action, so

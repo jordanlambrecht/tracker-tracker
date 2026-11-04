@@ -1,7 +1,7 @@
 // src/lib/tracker-platforms/__tests__/btn.test.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { BTN_RATE_LIMITED_ERROR, sanitizeNetworkError } from "@/lib/error-utils"
 import { BtnAdapter } from "../adapters/btn"
 
 /** Where BTN's API actually lives, the adapter owns this, callers cannot change it. */
@@ -348,6 +348,22 @@ describe("BtnAdapter", () => {
     await expect(
       adapter.fetchStats("https://broadcasthe.net", "fake-key", API_PATH)
     ).rejects.toThrow("rate limited")
+  })
+
+  it("reads a 503 on the card as BTN limiting requests, not as an IP ban", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      statusText: "Service Unavailable",
+    } as Response)
+
+    const err = await adapter
+      .fetchStats("https://broadcasthe.net", "fake-key", API_PATH)
+      .then(() => null)
+      .catch((e: unknown) => (e instanceof Error ? e : null))
+
+    expect(err).not.toBeNull()
+    expect(sanitizeNetworkError(err?.message ?? "", "Poll failed")).toBe(BTN_RATE_LIMITED_ERROR)
   })
 
   it("extracts message from a JSON-RPC error body", async () => {

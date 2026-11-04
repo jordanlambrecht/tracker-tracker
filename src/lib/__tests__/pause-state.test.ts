@@ -1,6 +1,11 @@
 // src/lib/__tests__/pause-state.test.ts
 import { describe, expect, it } from "vitest"
-import { sanitizeNetworkError, TRACKER_CREDENTIALS_UNREADABLE_ERROR } from "@/lib/error-utils"
+import {
+  BTN_RATE_LIMITED_CAUSE,
+  BTN_RATE_LIMITED_ERROR,
+  sanitizeNetworkError,
+  TRACKER_CREDENTIALS_UNREADABLE_ERROR,
+} from "@/lib/error-utils"
 import {
   getPauseState,
   isRetryablePollError,
@@ -59,9 +64,9 @@ describe("isRetryablePollError", () => {
     expect(isRetryablePollError("Request timed out")).toBe(true)
   })
 
-  it("does not retry BTN's rate limit, which is stored as a ban", () => {
-    const message = sanitizeNetworkError("BTN API rate limited (150 calls/hour)", "Poll failed")
-    expect(message).toBe("IP temporarily banned by tracker")
+  it("does not retry BTN's rate limit", () => {
+    const message = sanitizeNetworkError(BTN_RATE_LIMITED_CAUSE, "Poll failed")
+    expect(message).toBe(BTN_RATE_LIMITED_ERROR)
     expect(isRetryablePollError(message)).toBe(false)
   })
 
