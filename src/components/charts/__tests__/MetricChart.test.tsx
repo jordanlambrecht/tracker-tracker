@@ -104,6 +104,26 @@ describe("MetricChart — ratio", () => {
     expect(minimumLine(0)).toBeUndefined()
     expect(minimumLine(undefined)).toBeUndefined()
   })
+
+  // The same two places as the Req. Ratio card beside it.
+  it.each([
+    ["Min: 1.00", 1],
+    ["Min: 0.60", 0.6],
+    ["Min: 0.33", 1 / 3],
+  ])("labels the minimum line %j", (label, baselineValue) => {
+    render(
+      <MetricChart
+        metric="ratio"
+        snapshots={[snap()]}
+        accentColor="#22c55e"
+        baselineValue={baselineValue}
+      />
+    )
+    const option = optionSpy.mock.calls.at(-1)?.[0] as {
+      series: Array<{ markLine?: { label?: { formatter?: unknown } } }>
+    }
+    expect(option.series[0].markLine?.label?.formatter).toBe(label)
+  })
 })
 
 describe("MetricChart seedbonus naming", () => {

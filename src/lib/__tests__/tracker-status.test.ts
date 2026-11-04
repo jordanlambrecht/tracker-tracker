@@ -333,33 +333,39 @@ describe("getHealthDescription — per-tracker numbers", () => {
   it("names the requirement on the critical band", () => {
     mockRegistryMinimum(0.6)
     const tracker = trackerWith({ ratio: 0.5 })
-    expect(getHealthDescription("critical", tracker)).toBe("Ratio below the 0.6 requirement")
+    expect(getHealthDescription("critical", tracker)).toBe("Ratio below the 0.60 requirement")
   })
 
   it("names both band edges on the middle tier", () => {
     mockRegistryMinimum(0.6)
     const tracker = trackerWith({ ratio: 0.8 })
-    expect(getHealthDescription("warning", tracker)).toBe("Ratio between 0.6 and 1.2")
+    expect(getHealthDescription("warning", tracker)).toBe("Ratio between 0.60 and 1.20")
   })
 
   it("names the healthy line and the requirement behind it", () => {
     mockRegistryMinimum(0.6)
     const tracker = trackerWith({ ratio: 1.5 })
     expect(getHealthDescription("healthy", tracker)).toBe(
-      "Ratio 1.2 or higher (2x the 0.6 requirement)"
+      "Ratio 1.20 or higher (2x the 0.60 requirement)"
     )
+  })
+
+  // The Req. Ratio card shows the same figure through formatRatio.
+  it("rounds a live requirement to two places, as the card does", () => {
+    const tracker = trackerWith({ ratio: 0.2, requiredRatio: 1 / 3 })
+    expect(getHealthDescription("critical", tracker)).toBe("Ratio below the 0.33 requirement")
   })
 
   it("says when the bands are assumed rather than known", () => {
     const tracker = trackerWith({ ratio: 1.5 })
     expect(getHealthDescription("warning", tracker)).toBe(
-      "Ratio between 1.0 and 2.0 (no requirement on record)"
+      "Ratio between 1.00 and 2.00 (no requirement on record)"
     )
     expect(getHealthDescription("critical", trackerWith({ ratio: 0.5 }))).toBe(
-      "Ratio below 1.0 (no requirement on record)"
+      "Ratio below 1.00 (no requirement on record)"
     )
     expect(getHealthDescription("healthy", trackerWith({ ratio: 2.5 }))).toBe(
-      "Ratio 2.0 or higher (no requirement on record)"
+      "Ratio 2.00 or higher (no requirement on record)"
     )
   })
 

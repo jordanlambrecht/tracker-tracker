@@ -11,6 +11,7 @@ import type { BadgeVariant } from "@/components/ui/Badge"
 import type { StatusDotProps, StatusDotTone } from "@/components/ui/StatusDot"
 import { registryEntryFor } from "@/data/tracker-registry"
 import { isUnreachableMessage } from "@/lib/error-utils"
+import { formatRatio } from "@/lib/formatters"
 import {
   PAUSE_RETRY_MAX_MS,
   POLL_BATCH_TOLERANCE_MS,
@@ -310,13 +311,6 @@ function getHealthLabel(status: TrackerHealth): string {
   return HEALTH_META[status].label
 }
 
-// Requirement values come from registry literals and adapter figures, so plain
-// interpolation is enough; the trailing-zero pad only keeps whole numbers
-// reading as ratios ("1.0", not "1").
-function formatRequirement(value: number): string {
-  return Number.isInteger(value) ? value.toFixed(1) : String(value)
-}
-
 // With a tracker, the ratio-band descriptions carry that tracker's actual
 // numbers and say when the bands are assumed. Without one, the static wording
 // applies. The warned check comes first: a warned account is "critical"
@@ -333,8 +327,8 @@ function getHealthDescription(status: TrackerHealth, tracker?: TrackerSummary): 
   }
   const requirement = resolveRequiredRatio(tracker.latestStats?.requiredRatio, tracker)
   if (requirement === 0) return "No ratio requirement on this tracker"
-  const minimum = formatRequirement(requirement ?? 1)
-  const healthyLine = formatRequirement((requirement ?? 1) * 2)
+  const minimum = formatRatio(requirement ?? 1)
+  const healthyLine = formatRatio((requirement ?? 1) * 2)
   if (requirement === null) {
     if (status === "healthy") return `Ratio ${healthyLine} or higher (no requirement on record)`
     if (status === "warning")

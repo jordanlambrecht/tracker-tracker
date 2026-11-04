@@ -5,7 +5,7 @@ import type { EChartsOption } from "echarts"
 import { useState } from "react"
 import { TabBar } from "@/components/ui/TabBar"
 import { getComplementaryColor } from "@/lib/color-utils"
-import { bytesToGiB, formatCount } from "@/lib/formatters"
+import { bytesToGiB, formatCount, formatRatio } from "@/lib/formatters"
 import { isValidHex } from "@/lib/validators"
 import type { Snapshot } from "@/types/api"
 import { ChartECharts } from "./lib/ChartECharts"
@@ -241,7 +241,7 @@ function buildLineOption(
                 lineStyle: { color: CHART_THEME.danger, type: "dashed", width: 1.5 },
                 label: {
                   show: true,
-                  formatter: `Min: ${baselineValue}`,
+                  formatter: `Min: ${formatRatio(baselineValue)}`,
                   position: "insideEndTop",
                   color: CHART_THEME.danger,
                   fontSize: CHART_THEME.fontSizeCompact,
