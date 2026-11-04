@@ -4,7 +4,7 @@
 
 import { access, mkdir } from "node:fs/promises"
 import path from "node:path"
-import { eq } from "drizzle-orm"
+import { and, eq, isNotNull } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import {
   authenticate,
@@ -16,9 +16,14 @@ import {
 import { VALID_BACKUP_FREQUENCIES } from "@/lib/backup"
 import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { appSettings } from "@/lib/db/schema"
+import { appSettings, trackers } from "@/lib/db/schema"
 import { QBITMANAGE_KEYS } from "@/lib/download-clients/qbt/qbitmanage-defaults"
-import { errMsg, PROXY_HOST_REQUIRED_ERROR, PROXY_HOST_UNUSABLE_ERROR } from "@/lib/error-utils"
+import {
+  errMsg,
+  PROXY_HOST_REQUIRED_ERROR,
+  PROXY_HOST_UNUSABLE_ERROR,
+  PROXY_PASSWORD_UNREADABLE_ERROR,
+} from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
   BACKUP_RETENTION_MAX,
@@ -44,6 +49,7 @@ import {
 import { log } from "@/lib/logger"
 import { scrubSnapshotUsernames } from "@/lib/privacy-db"
 import { fetchSettings, serializeSettingsResponse } from "@/lib/server-data"
+import { PAUSE_RESET } from "@/lib/tracker-status"
 import { makesProxyAgent, PROXY_HOST_PATTERN, VALID_PROXY_TYPES } from "@/lib/tunnel"
 import { isValidPort } from "@/lib/validators"
 
@@ -532,7 +538,22 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    await db.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
+    await db.transaction(async (tx) => {
+      await tx.update(appSettings).set(updates).where(eq(appSettings.id, settings.id))
+      // A password saved here decrypts, so the trackers paused because the stored
+      // one wouldn't can poll again. A user's own pause stays.
+      if (updates.encryptedProxyPassword) {
+        await tx
+          .update(trackers)
+          .set({ ...PAUSE_RESET, updatedAt: new Date() })
+          .where(
+            and(
+              isNotNull(trackers.pausedAt),
+              eq(trackers.lastError, PROXY_PASSWORD_UNREADABLE_ERROR)
+            )
+          )
+      }
+    })
     log.info({ route: "PATCH /api/settings", fields: Object.keys(updates) }, "settings updated")
 
     // Re-fetch to return current state

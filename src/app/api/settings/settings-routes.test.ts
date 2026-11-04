@@ -4,7 +4,17 @@ import { NextResponse } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate, parseJsonBody } from "@/lib/api-helpers"
 import { db } from "@/lib/db"
+import { appSettings as appSettingsTable, trackers as trackersTable } from "@/lib/db/schema"
+import { PROXY_PASSWORD_UNREADABLE_ERROR } from "@/lib/error-utils"
 import { GET, PATCH } from "./route"
+
+// Conditions as data, so a test can tell which tracker rows an update reaches.
+vi.mock("drizzle-orm", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("drizzle-orm")>()),
+  and: (...conditions: unknown[]) => ({ and: conditions }),
+  eq: (column: unknown, value: unknown) => ({ eq: [column, value] }),
+  isNotNull: (column: unknown) => ({ isNotNull: column }),
+}))
 
 vi.mock("@/lib/api-helpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api-helpers")>()
@@ -16,12 +26,23 @@ vi.mock("@/lib/api-helpers", async (importOriginal) => {
   }
 })
 
-vi.mock("@/lib/db", () => ({
-  db: {
+// A transaction's tx writes through the same update mock, and marks each write
+// it starts, so a test can tell a write through tx from one straight on db.
+const throughTx = { value: false }
+vi.mock("@/lib/db", () => {
+  const db = {
     select: vi.fn(),
     update: vi.fn(),
-  },
-}))
+    transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        update: (table: unknown) => {
+          throughTx.value = true
+          return db.update(table)
+        },
+      }),
+  }
+  return { db }
+})
 
 vi.mock("@/lib/db/schema", () => ({
   appSettings: {},
@@ -506,5 +527,125 @@ describe("PATCH /api/settings route validation", () => {
     const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
 
     expect(response.status).toBe(401)
+  })
+})
+
+type Condition = { and: Condition[] } | { eq: [unknown, unknown] } | { isNotNull: unknown }
+
+function trackerColumn(column: unknown): string {
+  const entry = Object.entries(trackersTable).find(([, c]) => c === column)
+  if (!entry) throw new Error("not a trackers column")
+  return entry[0]
+}
+
+/** SQL three-valued logic: null is unknown, and only true matches a row. */
+function holds(cond: Condition, row: Record<string, unknown>): boolean | null {
+  if ("and" in cond) {
+    const results = cond.and.map((c) => holds(c, row))
+    return results.includes(false) ? false : results.includes(null) ? null : true
+  }
+  if ("isNotNull" in cond) return row[trackerColumn(cond.isNotNull)] !== null
+  const [column, value] = cond.eq
+  const stored = row[trackerColumn(column)]
+  return stored === null ? null : stored === value
+}
+
+// A tracker that hit the refusing agent's unreadable password four times.
+const PAUSED_AT = new Date("2026-11-01T10:00:00Z")
+function trackerRow(overrides: Record<string, unknown> = {}) {
+  return {
+    pausedAt: PAUSED_AT,
+    userPausedAt: null,
+    lastError: PROXY_PASSWORD_UNREADABLE_ERROR,
+    lastErrorAt: PAUSED_AT,
+    consecutiveFailures: 4,
+    ...overrides,
+  }
+}
+
+describe("PATCH /api/settings proxy password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue({ encryptionKey: "a".repeat(64) })
+    mockSettingsSelect({ proxyEnabled: true, proxyHost: "proxy.example.test" })
+  })
+
+  // Applies each tracker update the save makes to the given rows.
+  // Every write the save makes, and whether it ran inside the transaction.
+  let writes: { table: unknown; inTransaction: boolean }[] = []
+
+  async function saveOver(body: Record<string, unknown>, rows: Record<string, unknown>[]) {
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+    const trackerUpdates: { values: Record<string, unknown>; where: Condition }[] = []
+    writes = []
+    ;(db.update as ReturnType<typeof vi.fn>).mockImplementation((table: unknown) => ({
+      set: (values: Record<string, unknown>) => ({
+        where: (where: Condition) => {
+          writes.push({ table, inTransaction: throughTx.value })
+          throughTx.value = false
+          if (table === trackersTable) trackerUpdates.push({ values, where })
+          return Promise.resolve([])
+        },
+      }),
+    }))
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+    for (const { values, where } of trackerUpdates) {
+      for (const row of rows) if (holds(where, row) === true) Object.assign(row, values)
+    }
+    return response
+  }
+
+  it("resumes the trackers paused because the stored password wouldn't decrypt", async () => {
+    const row = trackerRow()
+
+    const response = await saveOver({ proxyPassword: "new-password" }, [row])
+
+    expect(response.status).toBe(200)
+    expect(row).toMatchObject({
+      pausedAt: null,
+      lastError: null,
+      lastErrorAt: null,
+      consecutiveFailures: 0,
+    })
+  })
+
+  it("keeps the user's own pause on a tracker it resumes", async () => {
+    const row = trackerRow({ userPausedAt: PAUSED_AT })
+
+    await saveOver({ proxyPassword: "new-password" }, [row])
+
+    expect(row.userPausedAt).toBe(PAUSED_AT)
+  })
+
+  it.each<[string, Record<string, unknown>]>([
+    ["paused for another reason", { lastError: "Invalid credentials" }],
+    ["not paused yet", { pausedAt: null, consecutiveFailures: 2 }],
+  ])("leaves a tracker %s as it was", async (_case, overrides) => {
+    const row = trackerRow(overrides)
+    const before = { ...row }
+
+    await saveOver({ proxyPassword: "new-password" }, [row])
+
+    expect(row).toEqual(before)
+  })
+
+  it("resumes nothing on a save that clears the password", async () => {
+    const row = trackerRow()
+    const before = { ...row }
+
+    await saveOver({ proxyPassword: "" }, [row])
+
+    expect(row).toEqual(before)
+  })
+
+  // A resume that fails must not leave the new password saved with the trackers
+  // still paused.
+  it("saves the password and resumes the trackers in one transaction", async () => {
+    await saveOver({ proxyPassword: "new-password" }, [trackerRow()])
+
+    expect(writes).toEqual([
+      { table: appSettingsTable, inTransaction: true },
+      { table: trackersTable, inTransaction: true },
+    ])
   })
 })
