@@ -65,8 +65,8 @@ describe("formatBytesFromString MiB/GiB threshold", () => {
   const GiB = 1024 * 1024 * 1024
   const TiB = 1024 * 1024 * 1024 * 1024
 
-  it("returns '0 MiB' (zero padded rounds to 0) for 0 bytes", () => {
-    expect(formatBytesFromString("0")).toBe("0 MiB")
+  it("returns '0 B' for 0 bytes, as formatBytesNum does", () => {
+    expect(formatBytesFromString("0")).toBe("0 B")
   })
 
   it("500 MiB (under 1 GiB) displays as MiB, not GiB", () => {

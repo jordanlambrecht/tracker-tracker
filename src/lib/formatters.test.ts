@@ -30,10 +30,20 @@ describe("formatBytesFromString", () => {
     expect(formatBytesFromString(String(-5 * 1024 ** 2))).toBe("-5 MiB")
   })
 
-  it("never renders a negative sign on a value that rounds to zero", () => {
-    // -0.5 KiB scales to -0.0 MiB; "-0 MiB" reads as a deficit that isn't there.
-    expect(formatBytesFromString("-512")).toBe("0 MiB")
-    expect(formatBytesFromString("0")).toBe("0 MiB")
+  // Under half a MiB used to round to "0 MiB", hiding a real amount.
+  it("steps down to KiB and B under a MiB, like formatBytesNum", () => {
+    expect(formatBytesFromString(String(300 * 1024))).toBe("300 KiB")
+    expect(formatBytesFromString(String(-300 * 1024))).toBe("-300 KiB")
+    expect(formatBytesFromString("512")).toBe("512 B")
+    expect(formatBytesFromString("-512")).toBe("-512 B")
+    expect(formatBytesFromString("0")).toBe("0 B")
+  })
+
+  it("moves up a unit at each whole KiB and MiB", () => {
+    expect(formatBytesFromString(String(1024 - 1))).toBe("1023 B")
+    expect(formatBytesFromString(String(1024))).toBe("1 KiB")
+    expect(formatBytesFromString(String(1024 ** 2 - 1024))).toBe("1023 KiB")
+    expect(formatBytesFromString(String(1024 ** 2))).toBe("1 MiB")
   })
 
   it("leaves positive output unchanged (uploaded/downloaded share this path)", () => {

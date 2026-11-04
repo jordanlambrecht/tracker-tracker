@@ -11,8 +11,8 @@ import type { TrendDirection } from "@/components/ui/StatCard"
 import type { TrackerLatestStats } from "@/types/api"
 
 /**
- * Formats a bigint byte string (from API) to human-readable GiB/TiB.
- * Returns "—" for null/undefined/empty values.
+ * Formats a bigint byte string (from API) to human-readable B, KiB, MiB, GiB
+ * or TiB, on formatBytesNum's steps. Returns "—" for null/undefined/empty values.
  *
  * Scales on the magnitude and re-attaches the sign, the way formatBytesNum
  * does: buffer is signed, and a negative never passes a `>= 1` check.
@@ -27,9 +27,9 @@ export function formatBytesFromString(bytesStr: string | null | undefined): stri
     if (tib >= 1) return `${sign}${tib.toFixed(2)} TiB`
     const gib = abs / 1024 ** 3
     if (gib >= 1) return `${sign}${gib.toFixed(2)} GiB`
-    const mib = Math.round(abs / 1024 ** 2)
-    // A negative under half a MiB rounds to zero; emit "0 MiB", never "-0 MiB".
-    return mib === 0 ? "0 MiB" : `${sign}${mib} MiB`
+    if (abs >= 1024 ** 2) return `${sign}${Math.round(abs / 1024 ** 2)} MiB`
+    if (abs >= 1024) return `${sign}${Math.round(abs / 1024)} KiB`
+    return `${sign}${abs} B`
   } catch {
     return "—"
   }
