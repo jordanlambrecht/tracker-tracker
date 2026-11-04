@@ -5,13 +5,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2, H3, Paragraph, Subtext } from "@typography"
 import { useCallback, useState } from "react"
 import {
+  SettingsSectionHeading,
+  settingsHeadingId,
+} from "@/components/settings/SettingsSectionHeading"
+import {
   Badge,
   Button,
   Card,
   CardListSkeleton,
   CollapsibleCard,
   ConfirmRemove,
-  InfoTip,
   Input,
   MaskedSecret,
   Notice,
@@ -911,14 +914,16 @@ function DownloadClients() {
   }
 
   return (
-    <section aria-labelledby="download-clients-heading" className="flex flex-col gap-6">
-      <H2 id="download-clients-heading" className="flex items-center gap-2">
-        Download Clients
-        <InfoTip
-          content="Connect qBittorrent or Transmission to see your torrents per tracker."
-          docs={DOCS.DOWNLOAD_CLIENTS}
-        />
-      </H2>
+    <section
+      aria-labelledby={settingsHeadingId("download-clients")}
+      className="flex flex-col gap-6"
+    >
+      <SettingsSectionHeading
+        id="download-clients"
+        title="Download Clients"
+        tooltip="Connect qBittorrent or Transmission to see your torrents per tracker."
+        docs={DOCS.DOWNLOAD_CLIENTS}
+      />
       {clients.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
           <span className="text-2xl" aria-hidden="true">

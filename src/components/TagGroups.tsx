@@ -13,9 +13,13 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { H2, H3, Paragraph } from "@typography"
+import { H2, H3 } from "@typography"
 import clsx from "clsx"
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
+import {
+  SettingsSectionHeading,
+  settingsHeadingId,
+} from "@/components/settings/SettingsSectionHeading"
 import {
   Button,
   Card,
@@ -23,7 +27,6 @@ import {
   CollapsibleCard,
   ConfirmRemove,
   FilterPill,
-  InfoTip,
   Input,
   Notice,
   Toggle,
@@ -617,29 +620,25 @@ function TagGroups() {
   }
 
   return (
-    <section aria-labelledby="tag-groups-heading">
-      <div className="flex items-center justify-between mb-2">
-        <H2 id="tag-groups-heading" className="flex items-center gap-2">
-          Tag Groups
-          <InfoTip
-            content="Create tag groups to visualize your client tags as charts."
-            docs={DOCS.TAG_GROUPS}
-          />
-        </H2>
-        {!showAddForm && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setShowAddForm(true)}
-            text="+ New Group"
-          />
-        )}
-      </div>
-
-      <Paragraph className="mb-6">
-        Bundle client tags into named groups for breakdown charts on each tracker&apos;s Torrents
-        tab.
-      </Paragraph>
+    <section aria-labelledby={settingsHeadingId("tag-groups")}>
+      <SettingsSectionHeading
+        id="tag-groups"
+        title="Tag Groups"
+        tooltip="Create tag groups to visualize your client tags as charts."
+        docs={DOCS.TAG_GROUPS}
+        description="Bundle client tags into named groups for breakdown charts on each tracker's Torrents tab."
+        action={
+          !showAddForm && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setShowAddForm(true)}
+              text="+ New Group"
+            />
+          )
+        }
+        className="mb-6"
+      />
 
       {showAddForm && (
         <AddTagGroupForm onCreated={handleCreated} onCancel={() => setShowAddForm(false)} />

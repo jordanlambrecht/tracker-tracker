@@ -6,6 +6,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { H2, H3, Paragraph } from "@typography"
 import { useCallback, useState } from "react"
+import {
+  SettingsSectionHeading,
+  settingsHeadingId,
+} from "@/components/settings/SettingsSectionHeading"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
@@ -582,14 +586,13 @@ function NotificationTargets() {
   }
 
   return (
-    <section aria-labelledby="webhooks-heading" className="flex flex-col gap-6">
-      <H2 id="webhooks-heading" className="flex items-center gap-2">
-        Webhooks
-        <InfoTip
-          content="Get alerts when something happens on your trackers."
-          docs={DOCS.WEBHOOKS}
-        />
-      </H2>
+    <section aria-labelledby={settingsHeadingId("webhooks")} className="flex flex-col gap-6">
+      <SettingsSectionHeading
+        id="webhooks"
+        title="Webhooks"
+        tooltip="Get alerts when something happens on your trackers."
+        docs={DOCS.WEBHOOKS}
+      />
       {targets.length === 0 && !showAddForm ? (
         <Card elevation="raised" className="flex flex-col items-center gap-4 py-10">
           <span className="text-2xl" aria-hidden="true">

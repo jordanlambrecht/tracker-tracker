@@ -2,8 +2,12 @@
 "use client"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { H2, H3, Paragraph, Subtext } from "@typography"
+import { H2, H3, Subtext } from "@typography"
 import { useCallback, useState } from "react"
+import {
+  SettingsSectionHeading,
+  settingsHeadingId,
+} from "@/components/settings/SettingsSectionHeading"
 import {
   Badge,
   Button,
@@ -11,7 +15,6 @@ import {
   CardListSkeleton,
   CollapsibleCard,
   ConfirmRemove,
-  InfoTip,
   Input,
   MaskedSecret,
   Notice,
@@ -392,20 +395,14 @@ function ProwlarrSection() {
   if (isLoading) return <CardListSkeleton count={1} />
 
   return (
-    <section aria-labelledby="prowlarr-heading" className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <H2 id="prowlarr-heading" className="flex items-center gap-2">
-          Prowlarr
-          <InfoTip
-            content="Show each tracker's indexer status from Prowlarr. Only read requests are made."
-            docs={DOCS.PROWLARR}
-          />
-        </H2>
-        <Paragraph>
-          Indexers are matched to trackers by hostname, or you pick one in each tracker&apos;s
-          settings. The indexer list is read when an instance is saved and every six hours.
-        </Paragraph>
-      </div>
+    <section aria-labelledby={settingsHeadingId("prowlarr")} className="flex flex-col gap-6">
+      <SettingsSectionHeading
+        id="prowlarr"
+        title="Prowlarr"
+        tooltip="Show each tracker's indexer status from Prowlarr. Only read requests are made."
+        docs={DOCS.PROWLARR}
+        description="Indexers are matched to trackers by hostname, or you pick one in each tracker's settings. The indexer list is read when an instance is saved and every six hours."
+      />
       {instances.map((instance) => (
         <InstanceCard
           key={instance.id}

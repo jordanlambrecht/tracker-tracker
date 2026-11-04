@@ -1,10 +1,11 @@
 // src/components/settings/SettingsSection.tsx
 
-import { H2 } from "@typography"
-import clsx from "clsx"
 import type { ReactNode } from "react"
+import {
+  SettingsSectionHeading,
+  settingsHeadingId,
+} from "@/components/settings/SettingsSectionHeading"
 import { Card } from "@/components/ui/Card"
-import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
 
 interface SettingsSectionProps {
@@ -29,11 +30,15 @@ export function SettingsSection({
   children,
 }: SettingsSectionProps) {
   return (
-    <section aria-labelledby={`${id}-heading`}>
-      <H2 id={`${id}-heading`} className={clsx("mb-4 flex items-center gap-2", headingClassName)}>
-        {title}
-        {tooltip && <InfoTip content={tooltip} docs={docs} />}
-      </H2>
+    <section aria-labelledby={settingsHeadingId(id)}>
+      <SettingsSectionHeading
+        id={id}
+        title={title}
+        tooltip={tooltip}
+        docs={docs}
+        className="mb-4"
+        headingClassName={headingClassName}
+      />
       {notice && (
         <div className="mb-4">
           <Notice variant="warn" box header={notice.label} message={notice.message} />
