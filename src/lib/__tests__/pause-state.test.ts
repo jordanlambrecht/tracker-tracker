@@ -11,6 +11,7 @@ import {
   isRetryablePollError,
   isRetryingPause,
   pauseRetryDueAt,
+  pauseRetryRunsAt,
   UNLINKED_RESTORE_ERROR,
 } from "@/lib/tracker-status"
 
@@ -183,5 +184,31 @@ describe("pauseRetryDueAt", () => {
       15
     )
     expect(fromDate).toEqual(minutesAfter(30))
+  })
+})
+
+// Checks run on the five-minute marks and take in a retry due within a minute.
+describe("pauseRetryRunsAt", () => {
+  const runsAt = (lastErrorAt: string | null, intervalMinutes = 60) =>
+    pauseRetryRunsAt({ lastErrorAt, consecutiveFailures: 4 }, intervalMinutes)
+
+  it("names the check a few seconds ahead of a due time just past a mark", () => {
+    expect(runsAt("2026-11-01T11:00:05Z")).toEqual(new Date("2026-11-01T12:00:00Z"))
+  })
+
+  it("names the next check after a manual poll that failed between marks", () => {
+    expect(runsAt("2026-11-01T11:02:30Z")).toEqual(new Date("2026-11-01T12:05:00Z"))
+  })
+
+  it("names the next check on an interval that isn't a multiple of five minutes", () => {
+    expect(runsAt("2026-11-01T11:00:05Z", 17)).toEqual(new Date("2026-11-01T11:20:00Z"))
+  })
+
+  it("names the check its pickup time falls exactly on", () => {
+    expect(runsAt("2026-11-01T11:01:00Z")).toEqual(new Date("2026-11-01T12:00:00Z"))
+  })
+
+  it("has no time without a failure time", () => {
+    expect(runsAt(null)).toBeNull()
   })
 })

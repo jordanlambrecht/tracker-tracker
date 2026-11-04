@@ -13,7 +13,7 @@ import { usePollingIntervals } from "@/hooks/usePollingIntervals"
 import { useTrackerArchiveDelete } from "@/hooks/useTrackerArchiveDelete"
 import { DOCS } from "@/lib/constants"
 import { formatDateTime } from "@/lib/formatters"
-import { canLink, getPauseState, isRetryingPause, pauseRetryDueAt } from "@/lib/tracker-status"
+import { canLink, getPauseState, isRetryingPause, pauseRetryRunsAt } from "@/lib/tracker-status"
 import type { TrackerSummary } from "@/types/api"
 
 interface TrackerStatusBannerProps {
@@ -170,7 +170,7 @@ function NextRetry({ tracker }: { tracker: TrackerSummary }) {
   const retryAt =
     trackerPollIntervalMinutes === null
       ? null
-      : pauseRetryDueAt(tracker, trackerPollIntervalMinutes)
+      : pauseRetryRunsAt(tracker, trackerPollIntervalMinutes)
   if (!retryAt || retryAt.getTime() <= Date.now()) return null
   return (
     <p className="text-xs font-mono text-secondary mb-2">

@@ -64,6 +64,13 @@ export const POLL_MANUAL_COOLDOWN_MS = 10_000
 export const POLL_FAILURE_THRESHOLD = 4
 /** The longest a tracker paused while unreachable waits between retries. */
 export const PAUSE_RETRY_MAX_MS = 6 * 60 * 60 * 1000
+/** Minutes between the tracker scheduler's checks for trackers that are due. */
+export const POLL_TICK_MINUTES = 5
+/**
+ * A check also polls trackers that come due within this window of it, so a
+ * manual poll or a missed check can't keep a tracker one check behind forever.
+ */
+export const POLL_BATCH_TOLERANCE_MS = 60_000
 export const CLIENT_POLL_INTERVAL_MIN = 60
 export const CLIENT_POLL_INTERVAL_MAX = 86400
 export const CLIENT_POLL_INTERVAL_DEFAULT = 300

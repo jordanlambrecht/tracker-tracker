@@ -1,6 +1,6 @@
 // src/lib/tracker-status.ts
 //
-// Functions: getPauseState, isRetryablePollError, isRetryingPause, pauseRetryDueAt, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthDot
+// Functions: getPauseState, isRetryablePollError, isRetryingPause, pauseRetryDueAt, pauseRetryPickupAt, pauseRetryRunsAt, resolveRequiredRatio, getTrackerHealth, getHealthBadgeVariant, getHealthLabel, getHealthDescription, getHealthDot
 //
 // Single source of truth for tracker health status. Includes type, derivation
 // logic, and all visual mappings (StatusDot tone and glow, Badge variant,
@@ -11,7 +11,12 @@ import type { BadgeVariant } from "@/components/ui/Badge"
 import type { StatusDotProps, StatusDotTone } from "@/components/ui/StatusDot"
 import { registryEntryFor } from "@/data/tracker-registry"
 import { isUnreachableMessage } from "@/lib/error-utils"
-import { PAUSE_RETRY_MAX_MS, POLL_FAILURE_THRESHOLD } from "@/lib/limits"
+import {
+  PAUSE_RETRY_MAX_MS,
+  POLL_BATCH_TOLERANCE_MS,
+  POLL_FAILURE_THRESHOLD,
+  POLL_TICK_MINUTES,
+} from "@/lib/limits"
 import type { TrackerSummary } from "@/types/api"
 
 // Ordered loosely by severity, ascending. "warning" and "no-seeds" are
@@ -143,11 +148,12 @@ function isRetryingPause(tracker: {
   return tracker.lastError !== null && isRetryablePollError(tracker.lastError)
 }
 
-// When a retrying pause is next polled. The first retry comes one poll interval
+// When a retrying pause comes due. The first retry comes one poll interval
 // after the failure that paused it, and each failed retry doubles the wait, up
 // to PAUSE_RETRY_MAX_MS. A retry never comes sooner than a normal poll would.
 // Null when there is no failure time to count from.
-function pauseRetryDueAt(
+/** @internal Used by tests. */
+export function pauseRetryDueAt(
   tracker: { lastErrorAt?: Date | string | null; consecutiveFailures: number },
   pollIntervalMinutes: number
 ): Date | null {
@@ -156,6 +162,29 @@ function pauseRetryDueAt(
   const retries = tracker.consecutiveFailures - POLL_FAILURE_THRESHOLD
   const wait = Math.max(intervalMs, Math.min(intervalMs * 2 ** retries, PAUSE_RETRY_MAX_MS))
   return new Date(new Date(tracker.lastErrorAt).getTime() + wait)
+}
+
+// The first moment a scheduler check picks the retry up, which polls trackers
+// due within the batch tolerance of it.
+function pauseRetryPickupAt(
+  tracker: { lastErrorAt?: Date | string | null; consecutiveFailures: number },
+  pollIntervalMinutes: number
+): Date | null {
+  const dueAt = pauseRetryDueAt(tracker, pollIntervalMinutes)
+  return dueAt && new Date(dueAt.getTime() - POLL_BATCH_TOLERANCE_MS)
+}
+
+// When the retry runs: the first check at or after its pickup time. Checks fall
+// on whole multiples of the tick from the epoch, the same instants on the server
+// and in any browser, since every UTC offset is a whole number of 15 minutes.
+function pauseRetryRunsAt(
+  tracker: { lastErrorAt?: Date | string | null; consecutiveFailures: number },
+  pollIntervalMinutes: number
+): Date | null {
+  const pickupAt = pauseRetryPickupAt(tracker, pollIntervalMinutes)
+  if (!pickupAt) return null
+  const tickMs = POLL_TICK_MINUTES * 60_000
+  return new Date(Math.ceil(pickupAt.getTime() / tickMs) * tickMs)
 }
 
 // The lastError a backup restore pauses a tracker with when the registry cannot
@@ -334,7 +363,8 @@ export {
   isRetryingPause,
   NEW_KEY_RESET,
   PAUSE_RESET,
-  pauseRetryDueAt,
+  pauseRetryPickupAt,
+  pauseRetryRunsAt,
   resolveRequiredRatio,
   TRACKER_ALREADY_LINKED_ERROR,
   TRACKER_DEFUNCT_ERROR,

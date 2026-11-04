@@ -109,7 +109,11 @@ import { db } from "@/lib/db"
 import { POLL_FAILURE_THRESHOLD } from "@/lib/limits"
 import { getAdapter } from "@/lib/tracker-platforms"
 import { pollAllTrackers, pollTracker } from "@/lib/tracker-scheduler"
-import { TRACKER_UNLINKED_ERROR, UNLINKED_RESTORE_ERROR } from "@/lib/tracker-status"
+import {
+  pauseRetryRunsAt,
+  TRACKER_UNLINKED_ERROR,
+  UNLINKED_RESTORE_ERROR,
+} from "@/lib/tracker-status"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -763,6 +767,24 @@ describe("pollAllTrackers: retries a tracker paused while unreachable", () => {
     ["waits with a minute and a millisecond left", HOUR - 60_001, 0],
   ])("%s", async (_, sinceFailure, polls) => {
     mockPollCycle(pausedRow({ lastErrorAt: ago(sinceFailure) }))
+    const adapter = mockSuccessAdapter()
+    mockUpdateChain()
+
+    await pollAllTrackers(MOCK_KEY)
+
+    expect(adapter.fetchStats).toHaveBeenCalledTimes(polls)
+  })
+
+  // A manual poll failed between the five-minute marks. The banner names the
+  // noon check, and the cycle polls at that one and not the one before.
+  it.each([
+    ["polls at the check the banner names", 0, 1],
+    ["waits at the check before it", 5 * 60_000, 0],
+  ])("%s, after a manual poll off the marks", async (_, early, polls) => {
+    const row = pausedRow({ lastErrorAt: new Date("2026-11-01T10:58:30Z") })
+    expect(pauseRetryRunsAt(row, 60)).toEqual(NOW)
+    vi.setSystemTime(new Date(NOW.getTime() - early))
+    mockPollCycle(row)
     const adapter = mockSuccessAdapter()
     mockUpdateChain()
 

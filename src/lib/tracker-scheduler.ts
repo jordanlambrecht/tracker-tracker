@@ -24,7 +24,13 @@ import {
 } from "@/lib/db/schema"
 import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
-import { POLL_CYCLE_DEADLINE_MS, POLL_FAILURE_THRESHOLD, POLL_INTERVAL_DEFAULT } from "@/lib/limits"
+import {
+  POLL_BATCH_TOLERANCE_MS,
+  POLL_CYCLE_DEADLINE_MS,
+  POLL_FAILURE_THRESHOLD,
+  POLL_INTERVAL_DEFAULT,
+  POLL_TICK_MINUTES,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { isOutboundDisabled } from "@/lib/network"
 import { dispatchNotifications } from "@/lib/notifications/dispatch"
@@ -36,7 +42,7 @@ import {
   getPauseState,
   isRetryablePollError,
   isRetryingPause,
-  pauseRetryDueAt,
+  pauseRetryPickupAt,
   resolveRequiredRatio,
 } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
@@ -137,14 +143,6 @@ async function pauseUnlinked(tracker: {
     )
   }
 }
-
-/**
- * Tolerance window for the overdue check. Trackers that would become overdue
- * within this window are included in the current batch instead of waiting for
- * the next cron cycle. Prevents permanent drift caused by manual polls or
- * missed batches from keeping a tracker in its own solo cycle forever.
- */
-const BATCH_TOLERANCE_MS = 60_000
 
 export async function pollTracker(
   trackerId: number,
@@ -640,8 +638,10 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
   const overdue = allTrackers.filter((tracker) => {
     const pause = getPauseState(tracker)
     if (pause.isPaused) {
-      const retryAt = isRetryingPause(tracker) ? pauseRetryDueAt(tracker, intervalMinutes) : null
-      if (retryAt && now >= retryAt.getTime() - BATCH_TOLERANCE_MS) {
+      const pickupAt = isRetryingPause(tracker)
+        ? pauseRetryPickupAt(tracker, intervalMinutes)
+        : null
+      if (pickupAt && now >= pickupAt.getTime()) {
         log.info(
           {
             tracker: tracker.name,
@@ -665,7 +665,7 @@ export async function pollAllTrackers(encryptionKey: Buffer): Promise<void> {
       return false
     }
     const lastPoll = tracker.lastPolledAt?.getTime() ?? 0
-    return now - lastPoll >= globalIntervalMs - BATCH_TOLERANCE_MS
+    return now - lastPoll >= globalIntervalMs - POLL_BATCH_TOLERANCE_MS
   })
 
   if (overdue.length === 0) return
@@ -792,7 +792,7 @@ export function startTrackerPolling(encryptionKey: Buffer): void {
   // Then check every 5 minutes for overdue trackers. The latch below is only
   // released by the finally, so the await is bounded: a cycle whose promise
   // never settles must not lock every later tick out.
-  const task = cron.schedule("*/5 * * * *", async () => {
+  const task = cron.schedule(`*/${POLL_TICK_MINUTES} * * * *`, async () => {
     if (getPollInFlight()) return
     setPollInFlight(true)
     try {

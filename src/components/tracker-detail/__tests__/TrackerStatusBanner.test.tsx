@@ -162,13 +162,23 @@ describe("TrackerStatusBanner on a tracker paused while unreachable", () => {
     expect(screen.queryByText(/Verify your API key/)).not.toBeInTheDocument()
   })
 
-  it("shows the next try once the poll interval has loaded", async () => {
-    answerSettings()
-    const tracker = retrying()
-    renderBanner(tracker)
+  // A manual poll failed at 11:52:30, so the retry is due at 12:52:30. The check
+  // at 12:50 is too early for it, even with its minute of tolerance, and the one
+  // at 12:55 runs it.
+  it("shows the check that will run the retry once the poll interval has loaded", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-11-01T12:00:00Z"))
+    try {
+      answerSettings()
+      renderBanner(retrying({ lastErrorAt: "2026-11-01T11:52:30.000Z" }))
 
-    const due = new Date(Date.parse(tracker.lastErrorAt as string) + 60 * 60_000)
-    expect(await screen.findByText(`Next try around ${formatDateTime(due)}`)).toBeInTheDocument()
+      const runsAt = new Date("2026-11-01T12:55:00Z")
+      expect(
+        await screen.findByText(`Next try around ${formatDateTime(runsAt)}`)
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("shows no time before the poll interval loads", () => {
