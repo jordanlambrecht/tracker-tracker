@@ -42,6 +42,7 @@ import {
 import { errMsg } from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
+  BACKUP_PASSWORD_MISMATCH_ERROR,
   BACKUP_RESTORE_MAX_BYTES,
   BACKUP_RESTORE_TOO_LARGE_ERROR,
   LOCKOUT_DURATION_DEFAULT,
@@ -72,6 +73,12 @@ type TxType = Parameters<typeof db.transaction>[0] extends (tx: infer T) => unkn
 
 function hashFileName(fileName: string): string {
   return createHash("sha256").update(fileName).digest("hex").substring(0, 16)
+}
+
+// A wrong backup password fails only the AES-GCM tag check, which can't tell it
+// from a damaged ciphertext. Either way that password doesn't open the file.
+function failedTagCheck(err: unknown): boolean {
+  return err instanceof Error && /unable to authenticate data/.test(err.message)
 }
 
 async function batchInsert<T extends Record<string, unknown>>(
@@ -306,7 +313,11 @@ async function runRestore(request: Request, auth: { encryptionKey: string }) {
       { route: "POST /api/settings/backup/restore", error: String(err) },
       "backup file validation or decryption failed"
     )
-    return NextResponse.json({ error: "Invalid or corrupted backup file" }, { status: 400 })
+    const mismatch = isEncrypted && failedTagCheck(err)
+    return NextResponse.json(
+      { error: mismatch ? BACKUP_PASSWORD_MISMATCH_ERROR : "Invalid or corrupted backup file" },
+      { status: 400 }
+    )
   }
 
   // Step 5: Get current settings for ID

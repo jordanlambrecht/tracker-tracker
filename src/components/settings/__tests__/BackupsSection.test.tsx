@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { BackupsSection } from "@/components/settings/BackupsSection"
-import { BACKUP_RESTORE_MAX_BYTES } from "@/lib/limits"
+import { BACKUP_PASSWORD_MISMATCH_ERROR, BACKUP_RESTORE_MAX_BYTES } from "@/lib/limits"
 
 const INITIAL_CONFIG = {
   encryptBackups: false,
@@ -331,5 +331,52 @@ describe("BackupsSection unlinked trackers after a restore", () => {
     await user.click(confirm)
 
     await waitFor(() => expect(sessionStorage.getItem(KEY)).toBe(JSON.stringify(["Old Tracker"])))
+  })
+})
+
+describe("BackupsSection wrong backup password", () => {
+  const encryptedFile = () =>
+    new File(
+      ['{"format":"tracker-tracker-encrypted-backup","encryptionSalt":"aa","ciphertext":"bb"}'],
+      "backup.json",
+      { type: "application/json" }
+    )
+
+  function answerRestore(error: string, status = 400) {
+    fetchMock.mockImplementation(async (url: string) =>
+      url === RESTORE_URL ? new Response(JSON.stringify({ error }), { status }) : new Response("[]")
+    )
+  }
+
+  async function enterBothPasswords(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByRole("heading", { name: "Confirm Restore" })
+    await user.type(screen.getByLabelText("Master password"), CANARY)
+    await user.type(screen.getByLabelText("Backup password"), "not-the-backup-password")
+    await user.tab()
+  }
+
+  it("names a backup password that doesn't open the file, from the backup check", async () => {
+    answerRestore(BACKUP_PASSWORD_MISMATCH_ERROR)
+    const user = await openRestoreForm(encryptedFile())
+    await enterBothPasswords(user)
+
+    expect(await screen.findByText(BACKUP_PASSWORD_MISMATCH_ERROR)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText("Backup password"), "x")
+    expect(screen.queryByText(BACKUP_PASSWORD_MISMATCH_ERROR)).not.toBeInTheDocument()
+  })
+
+  it("keeps the backup check's other failures silent", async () => {
+    answerRestore("Invalid or corrupted backup file")
+    const user = await openRestoreForm(encryptedFile())
+    await enterBothPasswords(user)
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        RESTORE_URL,
+        expect.objectContaining({ method: "POST" })
+      )
+    )
+    expect(screen.queryByText("Invalid or corrupted backup file")).not.toBeInTheDocument()
   })
 })

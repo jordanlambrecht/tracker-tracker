@@ -140,6 +140,9 @@ export const UPLOAD_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 const BACKUP_RESTORE_MAX_MB = 400
 export const BACKUP_RESTORE_MAX_BYTES = BACKUP_RESTORE_MAX_MB * 1024 * 1024
 export const BACKUP_RESTORE_TOO_LARGE_ERROR = `Backup file exceeds maximum size of ${BACKUP_RESTORE_MAX_MB} MB`
+// What a restore and its preview answer when the backup password fails the
+// encrypted backup's tag check.
+export const BACKUP_PASSWORD_MISMATCH_ERROR = "That backup password doesn't open this file"
 export const AVATAR_FETCH_MAX_BYTES = 5 * 1024 * 1024
 
 /**

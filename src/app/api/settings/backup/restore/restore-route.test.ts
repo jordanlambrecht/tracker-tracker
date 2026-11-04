@@ -19,7 +19,11 @@ import { type BackupPayload, encryptBackupPayload } from "@/lib/backup"
 import { decrypt, deriveKey, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { backfillRegistrySlugs } from "@/lib/db/backfill-registry-slug"
-import { BACKUP_RESTORE_MAX_BYTES, BACKUP_RESTORE_TOO_LARGE_ERROR } from "@/lib/limits"
+import {
+  BACKUP_PASSWORD_MISMATCH_ERROR,
+  BACKUP_RESTORE_MAX_BYTES,
+  BACKUP_RESTORE_TOO_LARGE_ERROR,
+} from "@/lib/limits"
 import { checkLockout } from "@/lib/lockout"
 import { log } from "@/lib/logger"
 import { NOTIFY_TOGGLE_KEYS } from "@/lib/notifications/types"
@@ -1782,9 +1786,25 @@ describe("POST /api/settings/backup/restore — credential re-encryption", () =>
     const res = await POST(makeRequest(envelope, PASSWORD, "not-the-envelope-password"))
 
     expect(res.status).toBe(400)
-    await expect(res.json()).resolves.toEqual({ error: "Invalid or corrupted backup file" })
+    await expect(res.json()).resolves.toEqual({ error: BACKUP_PASSWORD_MISMATCH_ERROR })
     expect(db.transaction).not.toHaveBeenCalled()
     expect(stopScheduler).not.toHaveBeenCalled()
+  })
+
+  // Opened with the right password, but what it holds won't read as a backup.
+  it("keeps the corrupt-file answer for an encrypted backup whose contents are damaged", async () => {
+    const envelope = await encryptBackupPayload(
+      makeBackupPayload(SALT_A, encryptAll(await deriveKey(PASSWORD, SALT_A))),
+      ENVELOPE_PASSWORD
+    )
+    const key = await deriveKey(ENVELOPE_PASSWORD, envelope.encryptionSalt)
+    const damaged = { ...envelope, ciphertext: encrypt("not a backup", key) }
+    mockCurrentSettings({ encryptionSalt: SALT_B })
+
+    const res = await POST(makeRequest(damaged, PASSWORD, ENVELOPE_PASSWORD))
+
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: "Invalid or corrupted backup file" })
   })
 
   it("rejects an encrypted envelope submitted without a backup password", async () => {

@@ -26,6 +26,7 @@ import { downloadResponseBlob } from "@/lib/download"
 import { extractApiError } from "@/lib/extract-api-error"
 import { formatBytesNum, formatDateTime } from "@/lib/formatters"
 import {
+  BACKUP_PASSWORD_MISMATCH_ERROR,
   BACKUP_RESTORE_MAX_BYTES,
   BACKUP_RESTORE_TOO_LARGE_ERROR,
   BACKUP_RETENTION_MAX,
@@ -329,7 +330,18 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
         // The dry run reads the whole file, so allow a second per MB for a slow link or a NAS.
         signal: AbortSignal.timeout(30_000 + Math.ceil(restoreFile.size / (1024 * 1024)) * 1000),
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        // A backup password that doesn't open the file is the one failure worth
+        // naming before the restore. The rest stay silent, as below.
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        if (
+          data?.error === BACKUP_PASSWORD_MISMATCH_ERROR &&
+          generation === preflightGeneration.current
+        ) {
+          setBackupError({ section: "restore", message: BACKUP_PASSWORD_MISMATCH_ERROR })
+        }
+        return
+      }
       const result = (await res.json()) as PreflightResult
       if (generation === preflightGeneration.current) {
         setPreflight(result)
@@ -681,6 +693,9 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                 onChange={(e) => {
                   setBackupPassword(e.target.value)
                   invalidatePreflight()
+                  setBackupError((current) =>
+                    current?.message === BACKUP_PASSWORD_MISMATCH_ERROR ? null : current
+                  )
                 }}
                 onBlur={runPreflight}
                 data-1p-ignore
