@@ -16,9 +16,9 @@ import {
   BugIcon,
   ExternalLinkSmallIcon,
   GearIcon,
+  KeyIcon,
   PauseIcon,
   PlayIcon,
-  VaultIcon,
 } from "@/components/ui/Icons"
 import { StatusDot } from "@/components/ui/StatusDot"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -176,7 +176,7 @@ export function TrackerDetailHeader({
             onClick={onOpenCredentials}
             aria-label="Tracker credentials"
           >
-            <VaultIcon width="16" height="16" />
+            <KeyIcon width="16" height="16" />
           </Button>
           <Button
             variant="secondary"

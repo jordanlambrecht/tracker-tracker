@@ -7,7 +7,7 @@
 //            LeechingIcon, SeedingIcon, TriangleWarningIcon, RatioIcon, GridIcon,
 //            ClockIcon, BoxIcon, ServerIcon, TagIcon, BookIcon, BugIcon, XIcon,
 //            TransitPapersIcon, SpinnerIcon, InfoIcon, QuestionIcon, LockIcon, UnlockIcon,
-//            VaultIcon, FavoriteStarIcon, HeartIcon, InfinitySign
+//            KeyIcon, FavoriteStarIcon, HeartIcon, InfinitySign
 
 import type { SVGProps } from "react"
 
@@ -886,9 +886,9 @@ function UnlockIcon(props: IconProps) {
   )
 }
 
-// Safe door with a dial and four bolts (Lucide's vault). Used for the tracker
-// credentials button in TrackerDetailHeader
-function VaultIcon(props: IconProps) {
+// A key (Lucide's key-round). Used for the tracker credentials button in
+// TrackerDetailHeader; the vault it replaced read as a missing-glyph box at 16 px
+function KeyIcon(props: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -900,16 +900,8 @@ function VaultIcon(props: IconProps) {
       aria-hidden="true"
       {...props}
     >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
-      <path d="m7.9 7.9 2.7 2.7" />
+      <path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" />
       <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
-      <path d="m13.4 10.6 2.7-2.7" />
-      <circle cx="7.5" cy="16.5" r=".5" fill="currentColor" />
-      <path d="m7.9 16.1 2.7-2.7" />
-      <circle cx="16.5" cy="16.5" r=".5" fill="currentColor" />
-      <path d="m13.4 13.4 2.7 2.7" />
-      <circle cx="12" cy="12" r="2" />
     </svg>
   )
 }
@@ -957,6 +949,7 @@ export {
   HeartIcon,
   InfinitySign,
   InfoIcon,
+  KeyIcon,
   LeechingIcon,
   LockIcon,
   PauseIcon,
@@ -979,6 +972,5 @@ export {
   UnlockIcon,
   UploadArrowIcon,
   UserIcon,
-  VaultIcon,
   XIcon,
 }
