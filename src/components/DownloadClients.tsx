@@ -396,6 +396,7 @@ function ClientCard({ client, onSaved, onRemove, onSetDefault }: ClientCardProps
             {client.errorSince && (
               <span className="text-3xs font-mono text-danger">
                 Down since {formatTimeAgo(client.errorSince)}
+                {client.lastError && `: ${client.lastError}`}
               </span>
             )}
             {client.lastError && !client.errorSince && (

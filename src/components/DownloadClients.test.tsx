@@ -158,6 +158,31 @@ describe("client card", () => {
     expect(await screen.findByText(lastError)).toBeTruthy()
     expect(screen.queryByText(/Down since/)).toBeNull()
   })
+
+  it("says why a client is down beside how long it has been down", async () => {
+    clients = [
+      {
+        id: 4,
+        name: "Home qBT",
+        type: "qbittorrent",
+        authMethod: "password",
+        hasCredentials: true,
+        hasUrlPath: false,
+        enabled: true,
+        isDefault: true,
+        host: "localhost",
+        port: 8080,
+        useSsl: false,
+        pollIntervalSeconds: 300,
+        crossSeedTags: [],
+        lastError: "Connection refused",
+        errorSince: new Date(Date.now() - 10 * 60_000).toISOString(),
+      },
+    ]
+    renderClients()
+
+    expect(await screen.findByText(/^Down since .+: Connection refused$/)).toBeTruthy()
+  })
 })
 
 describe("section header", () => {
