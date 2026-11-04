@@ -1,6 +1,6 @@
 # Local Development
 
-Requires Node.js 24+, pnpm, and PostgreSQL.
+Requires Node.js 22.12 or later (CI and the Docker image use 24), pnpm, and PostgreSQL.
 
 ```bash
 pnpm install
