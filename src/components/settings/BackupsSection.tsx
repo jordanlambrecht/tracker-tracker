@@ -32,6 +32,7 @@ import {
   BACKUP_RETENTION_MAX,
   BACKUP_RETENTION_MIN,
 } from "@/lib/limits"
+import { postWithUploadProgress } from "@/lib/upload-with-progress"
 
 export interface BackupRecord {
   id: number
@@ -60,6 +61,14 @@ function describeClearedCredentials(cleared: { tokens: number; clients: number }
 }
 
 // "A", "A and B", "A, B and C"
+// A large file takes a while to send, and the button is the only sign the click took.
+function restoreButtonLabel(restoring: boolean, uploadPercent: number | null): string {
+  if (!restoring) return "Confirm Restore"
+  return uploadPercent !== null && uploadPercent < 100
+    ? `Uploading… ${uploadPercent}%`
+    : "Restoring…"
+}
+
 function joinNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? ""
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
@@ -128,6 +137,8 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
   const [backupHistory, setBackupHistory] = useState<BackupRecord[]>([])
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  // Null until a restore starts sending its file.
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null)
   // One error at a time, shown in the card whose action failed.
   const [backupError, setBackupError] = useState<{
     section: "export" | "config" | "restore" | "history"
@@ -360,6 +371,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
     if (!restorePassword) return
     if (isEncryptedBackup && !backupPassword) return
     setRestoring(true)
+    setUploadPercent(0)
     setBackupError(null)
     try {
       const formData = new FormData()
@@ -368,10 +380,11 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       if (isEncryptedBackup && backupPassword) {
         formData.append("backupPassword", backupPassword)
       }
-      const res = await fetch("/api/settings/backup/restore", {
-        method: "POST",
-        body: formData,
-      })
+      const res = await postWithUploadProgress(
+        "/api/settings/backup/restore",
+        formData,
+        setUploadPercent
+      )
       const data = await res.json()
       if (!res.ok) {
         throw new Error((data as { error?: string }).error ?? "Restore failed")
@@ -411,6 +424,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
       })
     } finally {
       setRestoring(false)
+      setUploadPercent(null)
     }
   }
 
@@ -743,7 +757,7 @@ export function BackupsSection({ initialConfig }: BackupsSectionProps) {
                   (isEncryptedBackup && !backupPassword) ||
                   restoreConfirmPhrase !== "RESTORE ALL DATA"
                 }
-                text={restoring ? "Restoring…" : "Confirm Restore"}
+                text={restoreButtonLabel(restoring, uploadPercent)}
               />
               <Button
                 size="sm"

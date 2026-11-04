@@ -1,6 +1,6 @@
 // src/components/settings/__tests__/BackupsSection.test.tsx
 
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { BackupsSection } from "@/components/settings/BackupsSection"
@@ -26,10 +26,43 @@ const ALL_RECOVERABLE = {
 
 const fetchMock = vi.fn()
 
+// The restore POST goes through XMLHttpRequest for its upload progress. This
+// stand-in answers it from fetchMock, as fetch would, once the upload is done,
+// and lets a test report progress by hand before that.
+class FakeXhr {
+  static last: FakeXhr | null = null
+  upload: { onprogress: ((e: ProgressEvent) => void) | null; onload: (() => void) | null } = {
+    onprogress: null,
+    onload: null,
+  }
+  onload: (() => void) | null = null
+  onerror: (() => void) | null = null
+  status = 0
+  responseText = ""
+  private url = ""
+  open(_method: string, url: string) {
+    this.url = url
+  }
+  send(body: unknown) {
+    FakeXhr.last = this
+    Promise.resolve(fetchMock(this.url, { method: "POST", body })).then(
+      async (res: Response) => {
+        this.upload.onload?.()
+        this.status = res.status
+        this.responseText = await res.text()
+        this.onload?.()
+      },
+      () => this.onerror?.()
+    )
+  }
+}
+
 beforeEach(() => {
   fetchMock.mockReset()
   fetchMock.mockImplementation(async () => new Response("[]"))
   vi.stubGlobal("fetch", fetchMock)
+  FakeXhr.last = null
+  vi.stubGlobal("XMLHttpRequest", FakeXhr)
 })
 
 afterEach(() => {
@@ -378,5 +411,41 @@ describe("BackupsSection wrong backup password", () => {
       )
     )
     expect(screen.queryByText("Invalid or corrupted backup file")).not.toBeInTheDocument()
+  })
+})
+
+describe("BackupsSection upload progress", () => {
+  async function startRestore() {
+    const respond = holdRestoreRequests()
+    const user = await openRestoreForm(backupFile(1024))
+    await enterPasswordAndPhrase(user)
+    respond(ALL_RECOVERABLE)
+    const confirm = screen.getByRole("button", { name: "Confirm Restore" })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    await user.click(confirm)
+    const xhr = FakeXhr.last
+    if (!xhr) throw new Error("the restore did not start")
+    return { respond, xhr }
+  }
+
+  it("counts the upload up, then says it is restoring once the file is sent", async () => {
+    const { xhr } = await startRestore()
+
+    expect(screen.getByRole("button", { name: "Uploading… 0%" })).toBeDisabled()
+    act(() =>
+      xhr.upload.onprogress?.({ lengthComputable: true, loaded: 40, total: 100 } as ProgressEvent)
+    )
+    expect(screen.getByRole("button", { name: "Uploading… 40%" })).toBeDisabled()
+    act(() => xhr.upload.onload?.())
+    expect(screen.getByRole("button", { name: "Restoring…" })).toBeDisabled()
+  })
+
+  it("still shows the restore's error after the upload", async () => {
+    const { respond } = await startRestore()
+
+    respond({ error: BACKUP_PASSWORD_MISMATCH_ERROR }, 400)
+
+    expect(await screen.findByText(BACKUP_PASSWORD_MISMATCH_ERROR)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Confirm Restore" })).toBeInTheDocument()
   })
 })
