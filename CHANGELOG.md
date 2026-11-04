@@ -1,5 +1,109 @@
 # Changelog
 
+## [2.16.0](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.15.1...v2.16.0) (2026-11-04)
+
+### Features
+
+* add DISABLE_OUTBOUND_REQUESTS so an instance contacts nothing outside
+* **backups:** name the trackers a restore left unlinked
+* **scheduler:** retry unreachable trackers
+* **settings:** remove PTPImg, which shut down, and drop its stored API key
+* **settings:** selfishly show sponsor buttons in the about section
+* **trackers:** offer the proxy in Add Tracker and test keys on the route polls take
+* **trackers:** show the upload count for AnimeBytes and RetroToon World
+
+### Bug Fixes
+
+* **api:** answer a Prowlarr test with no stored key with a 422
+* **api:** answer Prowlarr test failures with fixed messages
+* ask again for a stored credential that's cut short
+* **auth:** refuse a session or stored scheduler key that is not 32 bytes
+* **backups:** rebuild Today at a Glance's history during a restore so it isn't lost
+* **backups:** refuse a backup with a bad byte count or impossible timestamp before restoring
+* **backups:** refuse a backup with a bad date before the restore deletes anything
+* **backups:** register the backup schedule once when two starts race
+* **backups:** report the rows a restore wrote, not the rows the file held
+* **backups:** restore backups up to 400 MB instead of failing on anything over 10 MB
+* **backups:** say when the backup password doesn't open the file
+* **backups:** show each backup error once, in the card whose action failed
+* **backups:** show upload progress while a restore sends its file
+* **backups:** skip a malformed dismissed alert instead of failing the restore
+* **backups:** skip the backup check when nothing changed since the last one
+* **backups:** tell an encrypted backup from its first bytes instead of reading it whole
+* **dashboard:** say so when Poll All has nothing to poll
+* **db-fleet:** log a client outage as cleared only when one was open
+* **db-fleet:** name qBittorrent, not a tracker, when its torrent list comes back malformed
+* **db-fleet:** read a qBittorrent login or error page as an unexpected response, not unreachable
+* **db-fleet:** refuse a qBittorrent transfer info answer without both speeds
+* **db-fleet:** say why a download client is down
+* **db:** load postgres.js 4 in tt-recover and tt-backfill-buffer through its default export
+* login error message changes
+* **scheduler:** only read the app's own proxy errors as a proxy failure
+* **scheduler:** read a socket code as unreachable only from the transport's own wrapper
+* **scheduler:** read more dropped connections as unreachable
+* **scheduler:** show the check that will run an unreachable tracker's retry
+* **scheduler:** stop reading BTN's rate limit as an IP ban
+* **security:** audit that an API route the proxy skips authenticates before reading the body
+* **security:** stop reading a key of the wrong size as an unreadable stored credential
+* **security:** stop the audit's handler scan from looping on a handler with no parameter list
+* **settings:** count the rows a username scrub changes
+* **settings:** make Webhooks a named region like the other settings sections
+* **settings:** point the image hosting link at its docs section
+* **tracker-adapters:** read a Cloudflare challenge behind a JSON API's 403 or 503
+* **trackers:** answer 404 for a missing tracker before encrypting anything
+* **trackers:** ask for the cookie again when it holds a control character, not "Poll failed"
+* **trackers:** attribute torrents by the registry's host for linked trackers
+* **trackers:** count a failed poll as failed in Poll All
+* **trackers:** explain each kind of bad stored cookie instead of "Poll failed"
+* **trackers:** flag BroadcasTheNet and Zenith as untested against a live account
+* **trackers:** hide the poll controls on a tracker that shut down
+* **trackers:** let an unlinked tracker be linked to one in the list
+* **trackers:** link trackers stored on a tracker's old domain at startup
+* **trackers:** point the Prowlarr card's link at the indexer list, not a missing page
+* **trackers:** poll a tracker as soon as it's linked
+* **trackers:** poll all now skips user-paused and restore-paused trackers
+* **trackers:** poll from the registry entry, never the stored address
+* **trackers:** put the Mousehole help beside each field's label
+* **trackers:** read "Invalid credentials" only from the app's own refusal phrases
+* **trackers:** refuse a role date that doesn't exist instead of rolling it into the next month
+* **trackers:** refuse joined and last-access dates that don't exist
+* **trackers:** report a failed Poll Now in its response body
+* **trackers:** require each registry url to be exactly its origin
+* **trackers:** round requirement ratios to two places like the card
+* **trackers:** show trackers already added and refuse duplicates on add
+* **trackers:** show unlinked trackers as not in the list, with archive and delete
+* **trackers:** skip trackers already added when the picker's arrow keys move
+* **trackers:** stop a failed Poll Now from showing the tracker as polled just now
+* **trackers:** write one day, hour or warning in the singular in Key Rules
+* **transmission:** allow RPC calls 120s instead of 15s, since a heavily loaded Transmission answers slowly
+* **ui:** group the digits of large ratios
+* **ui:** hold Delete while Archive runs, and the other way round
+* **ui:** hold the status-dot pulse still when the system asks for reduced motion
+* **ui:** open an info tip's documentation from the icon, so the keyboard can reach it
+* **ui:** show byte amounts under a MiB in KiB and B
+* **ui:** widen the changelog dialog and style every dialog's scrollbar
+* **user-proxy:** count a 407 as the proxy's only when it came from the proxy
+* **user-proxy:** explain a proxy test that fails on a host it can't use
+* **user-proxy:** let a saved proxy be switched off from Settings
+* **user-proxy:** log an unreadable proxy password once instead of on every page load
+* **user-proxy:** log unusable proxy settings once instead of on every page load
+* **user-proxy:** poll directly while the proxy is off, keeping each tracker's choice
+* **user-proxy:** refuse a proxy host the proxy can't use whenever the proxy is on
+* **user-proxy:** refuse proxied requests when the proxy settings can't be used
+* **user-proxy:** refuse proxied requests when the stored proxy password can't be read
+* **user-proxy:** refuse turning the proxy on with no host
+* **user-proxy:** resume trackers paused for an unreadable proxy password once a new one is saved
+* **webhooks:** word a webhook fetch failure by its cause
+
+### Refactoring
+
+* **alerts:** remove the dismissed-alerts DELETE handler, which nothing calls since 411e98e4
+* clear the remaining Biome warnings
+* **settings:** share one section heading across the settings sections
+* **trackers:** move normalizeUrl into tracker-validation-rules, beside its only user
+* **trackers:** share the Use proxy description between Add Tracker and the settings sheet
+* **ui:** draw the last hand-built status dots with StatusDot
+
 ## [2.15.1](https://github.com/jordanlambrecht/tracker-tracker/compare/v2.15.0...v2.15.1) (2026-10-30)
 
 ### Bug Fixes
