@@ -52,7 +52,7 @@ describe("parseLogLine", () => {
     const line = JSON.stringify({
       level: 50,
       time: 1711100000000,
-      msg: "Poll failed for tracker 3: ECONNREFUSED 10.0.0.5:443",
+      msg: "Failed to connect to 10.0.0.5: connect ECONNREFUSED 10.0.0.5:443",
     })
     const event = parseLogLine(line)
     expect(event).not.toBeNull()
@@ -267,7 +267,7 @@ describe("parseLogLine — warn/error title sanitization", () => {
     const line = JSON.stringify({
       level: 50,
       time: 1711100000000,
-      msg: "Poll failed: ECONNREFUSED 10.0.0.5:443",
+      msg: "Failed to connect to 10.0.0.5: connect ECONNREFUSED 10.0.0.5:443",
       trackerId: 3,
     })
     const event = parseLogLine(line)

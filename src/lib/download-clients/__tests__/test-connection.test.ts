@@ -250,7 +250,9 @@ describe("testClientConnection", () => {
 
   it("returns 422 with descriptive message on ECONNREFUSED", async () => {
     setupDbSelect([makeClientRow()])
-    mockAdapter.testConnection.mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:8080"))
+    mockAdapter.testConnection.mockRejectedValue(
+      new Error("Failed to connect to http://127.0.0.1:8080: ECONNREFUSED")
+    )
 
     const result = await testClientConnection(1, FAKE_KEY)
 

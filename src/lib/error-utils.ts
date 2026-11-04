@@ -278,16 +278,14 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // text, and a refused key must not read as a timeout that gets retried.
   if (/API error: 40[13]\b/i.test(raw)) return "Authentication failed"
   if (/timed?\s*out/i.test(raw)) return "Request timed out"
-  if (/ECONNREFUSED/i.test(raw)) return "Connection refused"
-  // EAI_AGAIN is a DNS lookup that failed for now, not a name that is gone.
-  if (/ENOTFOUND|EAI_AGAIN/i.test(raw)) return "Host not found"
-  if (/EHOSTUNREACH/i.test(raw)) return "Host unreachable"
-  if (/ECONNRESET/i.test(raw)) return "Connection reset"
   // Socket faults from Node and undici, matched only inside the transport
   // wrappers' "Failed to connect to <host>" shape. A tracker's own text can
-  // quote its backend's errors.
-  if (/^Failed to connect to .*\bENETUNREACH\b/.test(raw)) return "Host unreachable"
-  if (/^Failed to connect to .*\b(ECONNABORTED|EPIPE|UND_ERR_SOCKET)\b/.test(raw)) {
+  // quote its backend's errors. EAI_AGAIN is a DNS lookup that failed for now,
+  // not a name that is gone.
+  if (/^Failed to connect to .*\bECONNREFUSED\b/.test(raw)) return "Connection refused"
+  if (/^Failed to connect to .*\b(ENOTFOUND|EAI_AGAIN)\b/.test(raw)) return "Host not found"
+  if (/^Failed to connect to .*\b(EHOSTUNREACH|ENETUNREACH)\b/.test(raw)) return "Host unreachable"
+  if (/^Failed to connect to .*\b(ECONNRESET|ECONNABORTED|EPIPE|UND_ERR_SOCKET)\b/.test(raw)) {
     return "Connection reset"
   }
   if (/ip.*ban|ban.*ip|rate.?limit/i.test(raw)) return "IP temporarily banned by tracker"

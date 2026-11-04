@@ -167,30 +167,18 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError("Connection timeout")).toBe("Request timed out")
   })
 
-  it("maps 'ECONNREFUSED' to 'Connection refused'", () => {
-    expect(sanitizeNetworkError("ECONNREFUSED 127.0.0.1:8080")).toBe("Connection refused")
-  })
-
-  it("maps 'ENOTFOUND' to 'Host not found'", () => {
-    expect(sanitizeNetworkError("getaddrinfo ENOTFOUND example.invalid")).toBe("Host not found")
-  })
-
   it("maps a DNS lookup that failed for now, EAI_AGAIN, to 'Host not found'", () => {
     expect(sanitizeNetworkError("Failed to connect to aither.cc: EAI_AGAIN", "Poll failed")).toBe(
       "Host not found"
     )
   })
 
-  it("maps 'EHOSTUNREACH' to 'Host unreachable'", () => {
-    expect(sanitizeNetworkError("EHOSTUNREACH")).toBe("Host unreachable")
-  })
-
-  it("maps 'ECONNRESET' to 'Connection reset'", () => {
-    expect(sanitizeNetworkError("ECONNRESET")).toBe("Connection reset")
-  })
-
   // Through classifyFetchError, which words every direct transport fault.
   it.each([
+    ["ECONNREFUSED", "Connection refused"],
+    ["ENOTFOUND", "Host not found"],
+    ["EHOSTUNREACH", "Host unreachable"],
+    ["ECONNRESET", "Connection reset"],
     ["ENETUNREACH", "Host unreachable"],
     ["ECONNABORTED", "Connection reset"],
     ["EPIPE", "Connection reset"],
@@ -202,17 +190,31 @@ describe("sanitizeNetworkError", () => {
     expect(sanitizeNetworkError(raw, "Poll failed")).toBe(message)
   })
 
-  it("maps a socket fault behind the proxy too", () => {
-    const raw = classifyProxyFetchError(new Error("write EPIPE"), "aither.cc").message
-    expect(sanitizeNetworkError(raw, "Poll failed")).toBe("Connection reset")
+  it.each([
+    ["write EPIPE", "Connection reset"],
+    ["connect ECONNREFUSED 127.0.0.1:1080", "Connection refused"],
+    ["getaddrinfo ENOTFOUND proxy.example.test", "Host not found"],
+  ])("maps a socket fault behind the proxy too, %s", (cause, message) => {
+    const raw = classifyProxyFetchError(new Error(cause), "aither.cc").message
+    expect(sanitizeNetworkError(raw, "Poll failed")).toBe(message)
   })
 
-  it("leaves a socket fault quoted in a tracker's own answer to the status", () => {
+  // The qBittorrent login names the client by its whole address.
+  it("maps a socket fault after a client's URL", () => {
     expect(
-      sanitizeNetworkError(
-        "Tracker API error: 500 Internal Server Error: write EPIPE",
-        "Poll failed"
-      )
+      sanitizeNetworkError("Failed to connect to http://192.168.1.50:8080: ECONNREFUSED")
+    ).toBe("Connection refused")
+  })
+
+  it.each([
+    "write EPIPE",
+    "connect ECONNREFUSED 10.0.0.5:5432",
+    "getaddrinfo ENOTFOUND db.internal",
+    "connect EHOSTUNREACH 10.0.0.5:5432",
+    "read ECONNRESET",
+  ])("leaves a socket fault quoted in a tracker's own answer to the status, %s", (quoted) => {
+    expect(
+      sanitizeNetworkError(`Tracker API error: 500 Internal Server Error: ${quoted}`, "Poll failed")
     ).toBe("API returned 500")
   })
 
@@ -767,17 +769,19 @@ describe("sanitizeNetworkError - unexpected response shape", () => {
 
 describe("isUnreachableMessage", () => {
   // Driven through the sanitizer so a reworded connectivity message fails
-  // here as well as in the sanitizeNetworkError tests above.
+  // here as well as in the sanitizeNetworkError tests above. The poll's own
+  // fallback is not an unreachable message, so a raw form that stops matching
+  // fails too.
   it.each([
     "Request timed out after 15s",
-    "ECONNREFUSED 127.0.0.1:443",
-    "getaddrinfo ENOTFOUND lst.gg",
-    "getaddrinfo EAI_AGAIN lst.gg",
-    "EHOSTUNREACH",
-    "ECONNRESET",
+    "Failed to connect to lst.gg: ECONNREFUSED",
+    "Failed to connect to lst.gg: ENOTFOUND",
+    "Failed to connect to lst.gg: EAI_AGAIN",
+    "Failed to connect to lst.gg: EHOSTUNREACH",
+    "Failed to connect to lst.gg: ECONNRESET",
     "Failed to connect to lst.gg via proxy: Socket closed",
   ])("is true for the sanitized form of %j", (raw) => {
-    expect(isUnreachableMessage(sanitizeNetworkError(raw))).toBe(true)
+    expect(isUnreachableMessage(sanitizeNetworkError(raw, "Poll failed"))).toBe(true)
   })
 
   it("is true for the sanitizer's own connection fallback", () => {

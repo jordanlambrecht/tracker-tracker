@@ -401,7 +401,9 @@ describe("deepPollClient per-tag optimization", () => {
 
   it("records sanitized error to DB when client connection fails and does not re-throw", async () => {
     mockDbSelectSequence(MOCK_CLIENT)
-    mockAdapter.getDeltaSync.mockRejectedValue(new Error("connect ECONNREFUSED 192.168.1.100:8080"))
+    mockAdapter.getDeltaSync.mockRejectedValue(
+      new Error("Failed to connect to 192.168.1.100: connect ECONNREFUSED 192.168.1.100:8080")
+    )
     const { mockSet } = mockDbUpdateClient()
 
     await expect(deepPollClient(1, makeEncryptionKey(), ["🕵️ Aither"])).resolves.toBeUndefined()
