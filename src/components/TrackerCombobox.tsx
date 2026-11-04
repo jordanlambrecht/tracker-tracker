@@ -57,13 +57,28 @@ function TrackerCombobox({ presets, held, value, onChange }: TrackerComboboxProp
       )
     : presets
 
+  // A tracker already added is listed but can't be picked, so the highlight
+  // steps over it and stays put at either end.
+  function isPickable(i: number): boolean {
+    const entry = filtered[i]
+    return entry !== undefined && !held.has(entry.slug)
+  }
+  function stepFrom(from: number, step: 1 | -1): number {
+    for (let i = from + step; i >= 0 && i < filtered.length; i += step) {
+      if (isPickable(i)) return i
+    }
+    return from
+  }
+  // Opening and typing start on the first row, which may be held.
+  const activeIndex = isPickable(highlightIndex) ? highlightIndex : stepFrom(-1, 1)
+
   useClickOutside(ref, () => setOpen(false), open)
 
   useEffect(() => {
     if (!open || !listRef.current) return
-    const item = listRef.current.children[highlightIndex] as HTMLElement | undefined
+    const item = listRef.current.children[activeIndex] as HTMLElement | undefined
     item?.scrollIntoView({ block: "nearest" })
-  }, [highlightIndex, open])
+  }, [activeIndex, open])
 
   function handleSelect(slug: string) {
     if (held.has(slug)) return
@@ -81,13 +96,13 @@ function TrackerCombobox({ presets, held, value, onChange }: TrackerComboboxProp
 
     if (e.key === "ArrowDown") {
       e.preventDefault()
-      setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1))
+      setHighlightIndex(stepFrom(activeIndex, 1))
     } else if (e.key === "ArrowUp") {
       e.preventDefault()
-      setHighlightIndex((i) => Math.max(i - 1, 0))
+      setHighlightIndex(stepFrom(activeIndex, -1))
     } else if (e.key === "Enter") {
       e.preventDefault()
-      if (filtered[highlightIndex]) handleSelect(filtered[highlightIndex].slug)
+      if (filtered[activeIndex]) handleSelect(filtered[activeIndex].slug)
     } else if (e.key === "Escape") {
       setOpen(false)
     }
@@ -171,14 +186,14 @@ function TrackerCombobox({ presets, held, value, onChange }: TrackerComboboxProp
                   aria-disabled={isHeld || undefined}
                   disabled={isHeld}
                   onClick={() => handleSelect(entry.slug)}
-                  onMouseEnter={() => setHighlightIndex(i)}
+                  onMouseEnter={isHeld ? undefined : () => setHighlightIndex(i)}
                   className={clsx(
                     "w-full text-left font-mono text-sm px-4 py-2.5 transition-colors duration-100 flex items-center gap-3",
                     isHeld
                       ? "text-muted cursor-not-allowed opacity-50"
                       : entry.slug === value
                         ? "text-accent bg-accent-dim cursor-pointer"
-                        : i === highlightIndex
+                        : i === activeIndex
                           ? "text-primary bg-overlay cursor-pointer"
                           : "text-secondary hover:text-primary hover:bg-overlay cursor-pointer"
                   )}
