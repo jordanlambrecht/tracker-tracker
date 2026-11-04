@@ -43,8 +43,11 @@ function mockFetchError(status: number, statusText: string, headers?: Record<str
   )
 }
 
-function mockFetchThrow(message: string) {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error(message)))
+// How undici rejects a request that never got an answer: "fetch failed", with
+// Node's socket error and its code as the cause.
+function mockFetchFault(code: string) {
+  const cause = Object.assign(new Error(`connect ${code} 192.168.1.100:443`), { code })
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
 }
 
 describe("notification delivery circuit breaker", () => {
@@ -197,25 +200,20 @@ describe("notification delivery circuit breaker", () => {
   // ─── Network errors ──────────────────────────────────────────────────
 
   it("handles fetch throw (network error) as failure", async () => {
-    mockFetchThrow("connect ECONNREFUSED")
+    mockFetchFault("ECONNREFUSED")
     const result = await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     expect(result.success).toBe(false)
     expect(result.status).toBe("failed")
     expect(getCircuitState(TARGET_ID).failures).toBe(1)
   })
 
-  it("sanitizes error messages from fetch failures", async () => {
-    const errorUtils = await import("@/lib/error-utils")
-    vi.spyOn(errorUtils, "sanitizeNetworkError")
-    mockFetchThrow("connect ECONNREFUSED 192.168.1.100:443")
+  it.each([
+    ["ECONNREFUSED", "Connection refused"],
+    ["ENOTFOUND", "Host not found"],
+  ])("words a fetch failure with %s in its cause as %j", async (code, message) => {
+    mockFetchFault(code)
     const result = await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
-    expect(errorUtils.sanitizeNetworkError).toHaveBeenCalledWith(
-      "connect ECONNREFUSED 192.168.1.100:443",
-      "Delivery failed"
-    )
-    // Raw IP/port details must not leak through, sanitizeNetworkError maps ECONNREFUSED → "Connection refused"
-    expect(result.error).not.toBe("connect ECONNREFUSED 192.168.1.100:443")
-    expect(result.error).toBe("Connection refused")
+    expect(result.error).toBe(message)
   })
 
   it("sanitizes error messages from non-ok HTTP responses", async () => {

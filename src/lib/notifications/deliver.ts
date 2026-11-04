@@ -1,6 +1,6 @@
 // src/lib/notifications/deliver.ts
 
-import { sanitizeNetworkError } from "@/lib/error-utils"
+import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import { NOTIFICATION_COOLDOWN_MAX_MS } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { isOutboundDisabled, OUTBOUND_DISABLED_ERROR } from "@/lib/network"
@@ -108,7 +108,9 @@ export async function deliverDiscordWebhook(
     recordFailure(targetId)
     return { success: false, status: "failed", error: sanitizeNetworkError(raw, "Delivery failed") }
   } catch (err) {
-    const raw = err instanceof Error ? err.message : "Unknown error"
+    // undici rejects with "fetch failed" and keeps the reason in the cause.
+    const host = URL.canParse(webhookUrl) ? new URL(webhookUrl).hostname : "webhook"
+    const raw = classifyFetchError(err, host).message
     log.error(`Notification delivery failed for target ${targetId}: ${raw}`)
     recordFailure(targetId)
     return { success: false, status: "failed", error: sanitizeNetworkError(raw, "Delivery failed") }
