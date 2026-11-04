@@ -43,7 +43,10 @@ export async function POST(_req: Request, { params }: RouteContext) {
   try {
     const raw = decryptNotificationConfig(target, key)
     if (!isDiscordConfig(raw)) {
-      return NextResponse.json({ error: "Invalid notification config shape" }, { status: 422 })
+      return NextResponse.json(
+        { error: "Stored webhook URL can't be read. Enter it again in this target's settings" },
+        { status: 422 }
+      )
     }
     config = raw
   } catch {
@@ -51,7 +54,10 @@ export async function POST(_req: Request, { params }: RouteContext) {
       { route: "POST /api/notifications/[id]/test", targetId: id },
       "notification test failed: config decrypt error"
     )
-    return NextResponse.json({ error: "Failed to decrypt notification config" }, { status: 422 })
+    return NextResponse.json(
+      { error: "Stored webhook URL can't be read. Enter it again in this target's settings" },
+      { status: 422 }
+    )
   }
 
   const testEmbed = {

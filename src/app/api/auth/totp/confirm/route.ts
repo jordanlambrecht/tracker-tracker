@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing setup token" }, { status: 400 })
   }
   if (!code || typeof code !== "string" || !TOTP_CODE_RE.test(code)) {
-    return NextResponse.json({ error: "Invalid TOTP code, must be 6 digits" }, { status: 400 })
+    return NextResponse.json({ error: "Authenticator code must be 6 digits" }, { status: 400 })
   }
 
   const setup = await verifySetupToken(setupToken)
@@ -42,14 +42,14 @@ export async function POST(request: Request) {
       "TOTP confirm rejected: expired or invalid setup token"
     )
     return NextResponse.json(
-      { error: "Setup token expired or invalid. Please restart enrollment." },
+      { error: "2FA setup is no longer valid. Start it again" },
       { status: 400 }
     )
   }
 
   if (!verifyTotpCode(setup.totpSecret, code)) {
     log.warn({ route: "POST /api/auth/totp/confirm" }, "TOTP confirm rejected: invalid code")
-    return NextResponse.json({ error: "Invalid TOTP code. Please try again." }, { status: 400 })
+    return NextResponse.json({ error: "Invalid authenticator code. Try again" }, { status: 400 })
   }
 
   // Encrypt the TOTP secret with the user's encryption key before saving

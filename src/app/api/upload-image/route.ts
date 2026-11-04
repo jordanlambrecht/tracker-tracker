@@ -126,7 +126,10 @@ export async function POST(request: Request) {
   try {
     apiKey = decrypt(encryptedKey, key)
   } catch {
-    return NextResponse.json({ error: "Failed to decrypt API key" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Stored API key for this image host can't be read. Enter it again in Settings" },
+      { status: 500 }
+    )
   }
 
   // Upload

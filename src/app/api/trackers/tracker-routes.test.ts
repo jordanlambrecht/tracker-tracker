@@ -1753,7 +1753,7 @@ describe("POST /api/trackers/[id]/poll", () => {
     const data = await response.json()
 
     expect(response.status).toBe(429)
-    expect(data.error).toMatch(/Poll cooldown/)
+    expect(data.error).toMatch(/Polled a moment ago/)
   })
 
   it("returns 404 without claiming a poll slot when the tracker does not exist", async () => {

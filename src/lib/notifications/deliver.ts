@@ -75,7 +75,11 @@ export async function deliverDiscordWebhook(
     return { success: false, status: "failed", error: OUTBOUND_DISABLED_ERROR }
   }
   if (isCircuitOpen(targetId)) {
-    return { success: false, status: "failed", error: "Circuit breaker open, skipping delivery" }
+    return {
+      success: false,
+      status: "failed",
+      error: "Paused after repeated failed deliveries. Try again in a few minutes",
+    }
   }
 
   try {

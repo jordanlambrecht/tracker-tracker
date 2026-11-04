@@ -94,7 +94,7 @@ export async function POST(request: Request) {
   } else {
     if (!TOTP_CODE_RE.test(code)) {
       await recordFailedAttempt(settings.id, settings)
-      return NextResponse.json({ error: "Invalid TOTP code, must be 6 digits" }, { status: 400 })
+      return NextResponse.json({ error: "Authenticator code must be 6 digits" }, { status: 400 })
     }
     let totpSecret: string
     try {

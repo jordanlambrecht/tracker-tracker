@@ -230,7 +230,9 @@ describe("GET /api/trackers/[id]/mousehole", () => {
     const response = await GET(new Request("http://localhost"), makeContext())
 
     expect(response.status).toBe(400)
-    await expect(response.json()).resolves.toEqual({ error: "Invalid Mousehole URL in database" })
+    await expect(response.json()).resolves.toEqual({
+      error: "Stored Mousehole URL isn't valid. Enter it again in this tracker's settings",
+    })
     expect(log.warn).toHaveBeenCalled()
     expect(requested).toEqual([])
   })

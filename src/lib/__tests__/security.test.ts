@@ -1970,7 +1970,7 @@ describe("Login route crypto failure handling", () => {
 
     expect(res.status).toBe(500)
     const data = await res.json()
-    expect(data.error).toBe("Login system error. Contact administrator.")
+    expect(data.error).toBe("Login failed on the server. Check the server logs")
     expect(JSON.stringify(data)).not.toContain("pchstr")
     expect(JSON.stringify(data)).not.toContain("argon2")
   })
@@ -2078,7 +2078,7 @@ describe("Backup export decrypt failure handling", () => {
 
     expect(res.status).toBe(500)
     const data = await res.json()
-    expect(data.error).toContain("Failed to decrypt backup password")
+    expect(data.error).toContain("Stored backup password can't be read")
     expect(JSON.stringify(data)).not.toContain("ciphertext")
   })
 })

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         log.error("Failed to decrypt stored backup password for manual export")
         return NextResponse.json(
           {
-            error: "Failed to decrypt backup password. Re-enter your backup password in settings.",
+            error: "Stored backup password can't be read. Enter it again in Settings",
           },
           { status: 500 }
         )

@@ -69,7 +69,7 @@ export function LoginForm({
 
       router.push("/")
     } catch {
-      setError("An unexpected error occurred. Please try again.")
+      setError("Couldn't reach the server. Try again.")
       setIsSubmitting(false)
     }
   }
@@ -103,7 +103,7 @@ export function LoginForm({
 
       router.push("/")
     } catch {
-      setError("An unexpected error occurred. Please try again.")
+      setError("Couldn't reach the server. Try again.")
       setIsSubmitting(false)
     }
   }

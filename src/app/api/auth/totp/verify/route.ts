@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid backup code format" }, { status: 400 })
     }
   } else if (!TOTP_CODE_RE.test(code)) {
-    return NextResponse.json({ error: "Invalid TOTP code, must be 6 digits" }, { status: 400 })
+    return NextResponse.json({ error: "Authenticator code must be 6 digits" }, { status: 400 })
   }
 
   const pending = await verifyPendingToken(pendingToken)
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
     if (!verifyTotpCode(totpSecret, code)) {
       await recordFailedAttempt(settings.id, settings)
       log.warn({ event: "totp_failed", method: "totp", ip: clientIp }, "Failed TOTP code attempt")
-      return NextResponse.json({ error: "Invalid TOTP code" }, { status: 401 })
+      return NextResponse.json({ error: "Invalid authenticator code" }, { status: 401 })
     }
   }
 

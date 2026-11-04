@@ -120,7 +120,7 @@ function buildDescription(
       return `${source} buffer reached **${label}**`
     }
     case "warned":
-      return `${source} has been issued a warning by the tracker`
+      return `${source} put a warning on your account`
     case "ratio_danger": {
       const curr = formatRatio(Number(data.currentRatio ?? 0))
       const min = formatRatio(Number(data.minimumRatio ?? 0))
@@ -158,7 +158,7 @@ function buildDescription(
     }
     case "active_hnrs": {
       const count = Number(data.count ?? 0)
-      return `${source} has **${count}** active Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
+      return `${source} has **${count}** inactive Hit & Run${count !== 1 ? "s" : ""}. Seed them to avoid penalties.`
     }
     case "download_disabled":
       return `${source} lost download privileges. The ratio may have dropped, or the account was restricted.`

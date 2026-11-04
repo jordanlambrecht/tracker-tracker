@@ -526,7 +526,7 @@ describe("classifyProxyFetchError", () => {
 describe("sanitizeNetworkError TorrentLeech auth outcomes", () => {
   it("lets the 2FA guidance through instead of the generic fallback", () => {
     const raw =
-      "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+      "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile › Alt 2FA Token) to this tracker's credentials"
     expect(sanitizeNetworkError(raw, "Tracker test failed")).toBe(raw)
   })
 

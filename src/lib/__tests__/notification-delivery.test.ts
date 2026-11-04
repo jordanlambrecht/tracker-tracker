@@ -124,7 +124,7 @@ describe("notification delivery circuit breaker", () => {
     // 4th attempt should be blocked
     const result = await deliverDiscordWebhook(TARGET_ID, WEBHOOK_URL, EMBEDS)
     expect(result.status).toBe("failed")
-    expect(result.error).toContain("Circuit breaker open")
+    expect(result.error).toContain("Paused after repeated failed deliveries")
     expect(result.success).toBe(false)
     // fetch should NOT have been called for the 4th attempt
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3)

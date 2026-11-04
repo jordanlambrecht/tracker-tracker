@@ -23,7 +23,7 @@ export interface TlCredentials {
   username: string
   password: string
   /**
-   * TorrentLeech's "Alt 2FA Token" (Site Profile => Alt 2FA Token), required
+   * TorrentLeech's "Alt 2FA Token" (Site Profile › Alt 2FA Token), required
    * only when the account has 2FA enabled.
    *
    * It is not a TOTP secret and nothing here computes a one-time code. The site
@@ -137,7 +137,7 @@ async function login(
 
     if (/One Time Password/i.test(html)) {
       throw new Error(
-        "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+        "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile › Alt 2FA Token) to this tracker's credentials"
       )
     }
     if (creds.alt2FAToken) {

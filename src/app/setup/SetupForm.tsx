@@ -79,7 +79,7 @@ export function SetupForm() {
 
       router.push("/")
     } catch {
-      setErrors({ form: "An unexpected error occurred. Please try again." })
+      setErrors({ form: "Couldn't reach the server. Try again." })
     } finally {
       setIsSubmitting(false)
     }

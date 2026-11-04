@@ -189,7 +189,7 @@ describe("auth abuse defenses", () => {
     )
 
     expect(response.status).toBe(401)
-    await expect(response.json()).resolves.toEqual({ error: "Invalid TOTP code" })
+    await expect(response.json()).resolves.toEqual({ error: "Invalid authenticator code" })
     expect(recordFailedAttempt).toHaveBeenCalledWith(1, expect.any(Object))
     expect(createSession).not.toHaveBeenCalled()
   })

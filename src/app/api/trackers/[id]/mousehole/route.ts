@@ -90,7 +90,10 @@ async function resolveMousehole(
 
   if (!URL.canParse(tracker.mouseholeUrl)) {
     log.warn({ route: ROUTE, trackerId }, "stored Mousehole URL does not parse")
-    return NextResponse.json({ error: "Invalid Mousehole URL in database" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Stored Mousehole URL isn't valid. Enter it again in this tracker's settings" },
+      { status: 400 }
+    )
   }
   const url = new URL(tracker.mouseholeUrl)
   if (url.protocol !== "http:" && url.protocol !== "https:") {

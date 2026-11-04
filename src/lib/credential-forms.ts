@@ -310,7 +310,7 @@ export const CREDENTIAL_FORMS = {
       alt2FA: {
         label: "Alt 2FA Token (optional)",
         tooltip:
-          "Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile => Alt 2FA Token. It is a static token, not a rotating 6-digit code.",
+          "Required only if your TorrentLeech account has 2FA enabled. Find it at Site Profile › Alt 2FA Token. It is a static token, not a rotating 6-digit code.",
         docs: true,
         placeholder: "Only if 2FA is enabled on your account",
       },

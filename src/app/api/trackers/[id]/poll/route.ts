@@ -75,7 +75,7 @@ export async function POST(_request: Request, props: RouteContext) {
 
   if (!claimed) {
     return NextResponse.json(
-      { error: "Poll cooldown: try again in a few seconds" },
+      { error: "Polled a moment ago. Try again in a few seconds" },
       { status: 429 }
     )
   }

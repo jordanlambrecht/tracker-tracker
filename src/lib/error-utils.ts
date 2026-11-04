@@ -235,7 +235,7 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // TorrentLeech auth outcomes. Static strings the adapter throws verbatim,
   // kept because each needs different user action, like the qBittorrent rules.
   if (/requires 2FA/i.test(raw)) {
-    return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile => Alt 2FA Token) to this tracker's credentials"
+    return "TorrentLeech requires 2FA. Add your Alt 2FA Token (Site Profile › Alt 2FA Token) to this tracker's credentials"
   }
   if (/Alt 2FA Token/i.test(raw)) return "Invalid credentials or Alt 2FA Token"
   // Luminance login refusals, the same kind of static strings. A wrong password

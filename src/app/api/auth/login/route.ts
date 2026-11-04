@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       "Crypto operation failed during login"
     )
     return NextResponse.json(
-      { error: "Login system error. Contact administrator." },
+      { error: "Login failed on the server. Check the server logs" },
       { status: 500 }
     )
   }
