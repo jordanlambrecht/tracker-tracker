@@ -130,6 +130,22 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
     })
   }
 
+  // Shown with the toggle off too, so a saved proxy can be switched off, and
+  // with no host needed then.
+  const saveBar = (
+    <SaveDiscardBar
+      dirty={proxyHasChanges}
+      saving={savingProxy}
+      onSave={handleSaveProxy}
+      saveDisabled={proxyEnabled && !proxyHost.trim()}
+      error={proxyError}
+      success={proxySuccess ? "Proxy settings saved." : null}
+      saveLabel="Save Proxy"
+      justify="end"
+      showDivider={false}
+    />
+  )
+
   return (
     <SettingsSection
       id="proxy"
@@ -229,17 +245,7 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
 
           <div className="border-t border-border" />
 
-          <SaveDiscardBar
-            dirty={proxyHasChanges}
-            saving={savingProxy}
-            onSave={handleSaveProxy}
-            saveDisabled={!proxyHost.trim()}
-            error={proxyError}
-            success={proxySuccess ? "Proxy settings saved." : null}
-            saveLabel="Save Proxy"
-            justify="end"
-            showDivider={false}
-          />
+          {saveBar}
 
           <div className="border-t border-border" />
 
@@ -269,6 +275,7 @@ export function ProxySection({ initialProxy, trackers }: ProxySectionProps) {
           </div>
         </>
       )}
+      {!proxyEnabled && saveBar}
 
       <div className="border-t border-border" />
 
