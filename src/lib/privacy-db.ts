@@ -52,5 +52,5 @@ export async function scrubSnapshotUsernames(): Promise<number> {
       (username IS NOT NULL AND username NOT LIKE ${`${prefix}%`})
       OR (group_name IS NOT NULL AND group_name NOT LIKE ${`${prefix}%`})
   `)
-  return (result as { rowCount?: number }).rowCount ?? 0
+  return result.count
 }
