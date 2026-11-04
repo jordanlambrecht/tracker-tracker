@@ -11,8 +11,13 @@ import { SectionToggle } from "@/components/ui/SectionToggle"
 import { Tooltip } from "@/components/ui/Tooltip"
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 import { hexToRgba } from "@/lib/color-utils"
-import { formatCount, formatRatio } from "@/lib/formatters"
+import { formatCount, formatRatio, formatUnitCount } from "@/lib/formatters"
 import type { TrackerLatestStats } from "@/types/api"
+
+// Whole days when the hours divide evenly, as the registry writes most rules.
+function hoursOrDays(hours: number): string {
+  return hours % 24 === 0 ? formatUnitCount(hours / 24, "day") : formatUnitCount(hours, "hour")
+}
 
 const Markdown = dynamic(
   () => import("@/components/tracker-detail/GfmMarkdown").then((m) => m.GfmMarkdown),
@@ -63,9 +68,7 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 label: "Seed Time",
                 value:
                   registryEntry.rules.seedTimeHours > 0
-                    ? registryEntry.rules.seedTimeHours % 24 === 0
-                      ? `${registryEntry.rules.seedTimeHours / 24} days`
-                      : `${registryEntry.rules.seedTimeHours} hours`
+                    ? hoursOrDays(registryEntry.rules.seedTimeHours)
                     : "None",
                 tip: "The minimum amount of time you must seed each torrent after downloading it.",
               },
@@ -73,22 +76,20 @@ export function TrackerInfoTab({ registryEntry, stats, accentColor: tc }: Tracke
                 label: "Fulfillment Period",
                 value:
                   registryEntry.rules.fulfillmentPeriodHours != null
-                    ? registryEntry.rules.fulfillmentPeriodHours % 24 === 0
-                      ? `${registryEntry.rules.fulfillmentPeriodHours / 24} days`
-                      : `${registryEntry.rules.fulfillmentPeriodHours} hours`
+                    ? hoursOrDays(registryEntry.rules.fulfillmentPeriodHours)
                     : null,
                 tip: "The total window you have to complete the required seed time. Seeding doesn't have to be continuous, but must be met within this period.",
               },
               {
                 label: "Login Interval",
-                value: `${registryEntry.rules.loginIntervalDays} days`,
+                value: formatUnitCount(registryEntry.rules.loginIntervalDays, "day"),
                 tip: "How long you can go without logging in before your account is parked, pruned, or disabled.",
               },
               {
                 label: "H&R Ban Limit",
                 value:
                   registryEntry.rules.hnrBanLimit != null
-                    ? `${registryEntry.rules.hnrBanLimit} warnings`
+                    ? formatUnitCount(registryEntry.rules.hnrBanLimit, "warning")
                     : null,
                 tip: "The number of Hit & Run violations allowed before your account is banned or download privileges are revoked.",
               },
