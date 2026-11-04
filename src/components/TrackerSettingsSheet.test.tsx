@@ -268,6 +268,19 @@ describe("TrackerSettingsSheet Mousehole API token", () => {
     expect(body).toMatchObject({ mouseholeUrl: "" })
     expect(body).not.toHaveProperty("mouseholeToken")
   })
+
+  // In the label row, as on every other field, and on the masked token too.
+  it("puts each field's help beside its label, with the Mousehole docs on the URL's", () => {
+    renderSheet({ tracker: MAM })
+
+    const urlRow = screen.getByText("Mousehole URL (optional)", { selector: "label" })
+      .parentElement as HTMLElement
+    expect(
+      within(urlRow).getByRole("button", { name: "More info, opens documentation" })
+    ).toBeInTheDocument()
+    const tokenRow = screen.getByText("Mousehole API token").parentElement as HTMLElement
+    expect(within(tokenRow).getByRole("button", { name: "More info" })).toBeInTheDocument()
+  })
 })
 
 describe("TrackerSettingsSheet shared tracker cache", () => {

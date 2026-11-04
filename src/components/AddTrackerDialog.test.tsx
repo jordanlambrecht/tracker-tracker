@@ -7,7 +7,7 @@
 // silently revert the tracker to the app default.
 // TrackerSettingsSheet.test.tsx guards the other half.
 
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -289,7 +289,29 @@ describe("AddTrackerDialog Mousehole fields", () => {
       mouseholeToken: "tok-7f3a",
     })
   })
+
+  // In the label row, as on every other field, not off the end of the input.
+  it("puts each field's help beside its label, with the Mousehole docs on the URL's", async () => {
+    const user = userEvent.setup()
+    render(<AddTrackerDialog open heldSlugs={NONE_HELD} onClose={vi.fn()} onAdded={vi.fn()} />)
+
+    await pickPreset(user, "MyAnonaMouse")
+
+    const urlRow = labelRow("Mousehole URL (optional)")
+    expect(
+      within(urlRow).getByRole("button", { name: "More info, opens documentation" })
+    ).toBeInTheDocument()
+    expect(
+      within(labelRow("Mousehole API token")).getByRole("button", { name: "More info" })
+    ).toBeInTheDocument()
+  })
 })
+
+function labelRow(label: string): HTMLElement {
+  const row = screen.getByText(label, { selector: "label" }).parentElement
+  if (!row) throw new Error(`no label row for ${label}`)
+  return row
+}
 
 describe("AddTrackerDialog request bodies", () => {
   it("names the tracker by slug and sends no URL or platform to either route", async () => {

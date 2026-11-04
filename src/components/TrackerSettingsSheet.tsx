@@ -32,7 +32,12 @@ import {
   validateCredentialValues,
 } from "@/lib/credential-forms"
 import { localDateStr } from "@/lib/formatters"
-import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
+import {
+  MOUSEHOLE_DOCS,
+  MOUSEHOLE_TOKEN_TIP,
+  MOUSEHOLE_URL_PLACEHOLDER,
+  MOUSEHOLE_URL_TIP,
+} from "@/lib/mousehole"
 import { matchTrackerIndexers } from "@/lib/prowlarr/matching"
 import { prowlarrIndexerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
@@ -390,58 +395,52 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
 
           {tracker.platformType === "mam" && (
             <>
-              <div className="flex items-center gap-1">
-                <Input
-                  label="Mousehole URL (optional)"
-                  value={form.mouseholeUrl}
-                  onChange={(e) => updateField("mouseholeUrl", e.target.value)}
-                  placeholder={MOUSEHOLE_URL_PLACEHOLDER}
-                />
-                <InfoTip
-                  content={MOUSEHOLE_URL_TIP}
-                  size="sm"
-                  docs={{
-                    href: "https://github.com/t-mart/mousehole",
-                    description: "Mousehole on GitHub",
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-1">
-                {tracker.hasMouseholeToken && !changingMouseholeToken ? (
-                  <div className="flex flex-col gap-1 w-full">
+              <Input
+                label="Mousehole URL (optional)"
+                tooltip={MOUSEHOLE_URL_TIP}
+                docs={MOUSEHOLE_DOCS}
+                value={form.mouseholeUrl}
+                onChange={(e) => updateField("mouseholeUrl", e.target.value)}
+                placeholder={MOUSEHOLE_URL_PLACEHOLDER}
+              />
+              {tracker.hasMouseholeToken && !changingMouseholeToken ? (
+                <div className="flex flex-col gap-1 w-full">
+                  {/* The label row Input draws, for a field that has no input yet. */}
+                  <div className="flex items-center gap-1">
                     <span className="text-xs font-sans font-medium text-secondary uppercase tracking-wider">
                       Mousehole API token
                     </span>
-                    <MaskedSecret onChangeClick={() => setChangingMouseholeToken(true)} />
+                    <InfoTip content={MOUSEHOLE_TOKEN_TIP} size="sm" />
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-2 w-full">
-                    <Input
-                      type="password"
-                      label="Mousehole API token"
-                      name="tracker-mousehole-token"
-                      autoComplete="off"
-                      data-1p-ignore
-                      value={mouseholeToken}
-                      onChange={(e) => setMouseholeToken(e.target.value)}
-                      placeholder="••••••••"
+                  <MaskedSecret onChangeClick={() => setChangingMouseholeToken(true)} />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 w-full">
+                  <Input
+                    type="password"
+                    label="Mousehole API token"
+                    tooltip={MOUSEHOLE_TOKEN_TIP}
+                    name="tracker-mousehole-token"
+                    autoComplete="off"
+                    data-1p-ignore
+                    value={mouseholeToken}
+                    onChange={(e) => setMouseholeToken(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                  {changingMouseholeToken && (
+                    <Button
+                      variant="minimal"
+                      size="sm"
+                      text="Cancel"
+                      className="self-start"
+                      onClick={() => {
+                        setChangingMouseholeToken(false)
+                        setMouseholeToken("")
+                      }}
                     />
-                    {changingMouseholeToken && (
-                      <Button
-                        variant="minimal"
-                        size="sm"
-                        text="Cancel"
-                        className="self-start"
-                        onClick={() => {
-                          setChangingMouseholeToken(false)
-                          setMouseholeToken("")
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-                <InfoTip content={MOUSEHOLE_TOKEN_TIP} size="sm" />
-              </div>
+                  )}
+                </div>
+              )}
             </>
           )}
 

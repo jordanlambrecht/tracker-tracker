@@ -10,7 +10,12 @@ import { InfoTip } from "@/components/ui/InfoTip"
 import { Notice } from "@/components/ui/Notice"
 import { StatusDot, type StatusDotTone } from "@/components/ui/StatusDot"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
-import { type MouseholeStatusResponse, mouseholeStatus, stripUrlCredentials } from "@/lib/mousehole"
+import {
+  MOUSEHOLE_DOCS,
+  type MouseholeStatusResponse,
+  mouseholeStatus,
+  stripUrlCredentials,
+} from "@/lib/mousehole"
 
 export interface MamMouseholeCardProps {
   trackerId: number
@@ -280,7 +285,7 @@ export function MamMouseholeCard({ trackerId, mouseholeUrl }: MamMouseholeCardPr
               content="Mousehole keeps your MAM seedbox IP updated automatically."
               size="sm"
               className="ml-1 translate-y-px"
-              docs={{ href: "https://github.com/t-mart/mousehole", description: "Mousehole docs" }}
+              docs={MOUSEHOLE_DOCS}
             />
           </div>
         </div>

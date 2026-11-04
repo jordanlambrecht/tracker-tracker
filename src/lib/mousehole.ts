@@ -1,7 +1,9 @@
 // src/lib/mousehole.ts
 //
 // Functions: stripUrlCredentials, mouseholeStatus
-// Constants: MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP, MOUSEHOLE_TOKEN_TIP
+// Constants: MOUSEHOLE_DOCS, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP, MOUSEHOLE_TOKEN_TIP
+
+import type { DocsEntry } from "@/lib/constants"
 
 export type MouseholeResult =
   "ok" | "throttled" | "no-cookie" | "pending" | "rejected" | "unreachable"
@@ -17,6 +19,8 @@ export interface MouseholeStatusResponse {
   lastMessage: string | null
   stateError: string | null
 }
+
+export const MOUSEHOLE_DOCS: DocsEntry = { href: "https://github.com/t-mart/mousehole" }
 
 export const MOUSEHOLE_URL_PLACEHOLDER = "http://mousehole:5010"
 

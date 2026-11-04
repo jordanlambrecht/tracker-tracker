@@ -10,7 +10,6 @@ import { ADDABLE_TRACKERS, TrackerCombobox } from "@/components/TrackerCombobox"
 import { Button } from "@/components/ui/Button"
 import { ColorPicker } from "@/components/ui/ColorPicker"
 import { Dialog } from "@/components/ui/Dialog"
-import { InfoTip } from "@/components/ui/InfoTip"
 import { Input } from "@/components/ui/Input"
 import { Notice } from "@/components/ui/Notice"
 import { QbtTagWarning } from "@/components/ui/QbtTagWarning"
@@ -26,7 +25,12 @@ import {
   validateCredentialValues,
 } from "@/lib/credential-forms"
 import { localDateStr } from "@/lib/formatters"
-import { MOUSEHOLE_TOKEN_TIP, MOUSEHOLE_URL_PLACEHOLDER, MOUSEHOLE_URL_TIP } from "@/lib/mousehole"
+import {
+  MOUSEHOLE_DOCS,
+  MOUSEHOLE_TOKEN_TIP,
+  MOUSEHOLE_URL_PLACEHOLDER,
+  MOUSEHOLE_URL_TIP,
+} from "@/lib/mousehole"
 
 // ---------------------------------------------------------------------------
 // AddTrackerDialog
@@ -299,38 +303,28 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
 
         {selectedEntry?.platform === "mam" && (
           <>
-            <div className="flex items-center gap-1">
-              <Input
-                label="Mousehole URL (optional)"
-                name="tracker-mousehole-url"
-                autoComplete="off"
-                data-1p-ignore
-                value={mouseholeUrl}
-                onChange={(e) => setMouseholeUrl(e.target.value)}
-                placeholder={MOUSEHOLE_URL_PLACEHOLDER}
-              />
-              <InfoTip
-                content={MOUSEHOLE_URL_TIP}
-                size="sm"
-                docs={{
-                  href: "https://github.com/t-mart/mousehole",
-                  description: "Mousehole on GitHub",
-                }}
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <Input
-                type="password"
-                label="Mousehole API token"
-                name="tracker-mousehole-token"
-                autoComplete="off"
-                data-1p-ignore
-                value={mouseholeToken}
-                onChange={(e) => setMouseholeToken(e.target.value)}
-                placeholder="••••••••"
-              />
-              <InfoTip content={MOUSEHOLE_TOKEN_TIP} size="sm" />
-            </div>
+            <Input
+              label="Mousehole URL (optional)"
+              tooltip={MOUSEHOLE_URL_TIP}
+              docs={MOUSEHOLE_DOCS}
+              name="tracker-mousehole-url"
+              autoComplete="off"
+              data-1p-ignore
+              value={mouseholeUrl}
+              onChange={(e) => setMouseholeUrl(e.target.value)}
+              placeholder={MOUSEHOLE_URL_PLACEHOLDER}
+            />
+            <Input
+              type="password"
+              label="Mousehole API token"
+              tooltip={MOUSEHOLE_TOKEN_TIP}
+              name="tracker-mousehole-token"
+              autoComplete="off"
+              data-1p-ignore
+              value={mouseholeToken}
+              onChange={(e) => setMouseholeToken(e.target.value)}
+              placeholder="••••••••"
+            />
           </>
         )}
 
