@@ -26,16 +26,16 @@ if (process.env.BASE_URL) {
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Do NOT add "postgres" here to make scripts/recover.cjs work. That was tried
-  // with postgres.js 3 and measured against a real build of the production
-  // image: the tracer emitted no top-level node_modules/postgres symlink for a
-  // config-listed package the way it does for builtin externals like argon2, so
-  // a bare require("postgres") could not even find the package.
+  // "postgres" stays off this list so the server keeps its own database driver
+  // bundled, and the recovery tooling can't change how production loads
+  // Postgres. The CLI gets a complete, self-contained copy of postgres.js that
+  // the Dockerfile copies into /app/node_modules instead.
   //
-  // The CLI gets a complete, self-contained copy of postgres.js copied straight
-  // into /app/node_modules by the Dockerfile instead. That leaves the server's
-  // own database driver exactly where it is, bundled, so the recovery tooling
-  // carries no risk of changing how production loads Postgres.
+  // Listing it would not have helped scripts/recover.cjs either. On a real build
+  // of the production image with postgres.js 3, not re-run since 4, the tracer
+  // emitted no top-level node_modules/postgres symlink for a config-listed
+  // package the way it does for builtin externals like argon2, so a bare
+  // require("postgres") could not find the package.
   serverExternalPackages: ["argon2"],
   // next/dist/server/require-hook.js pulls @swc/helpers/esm/* at runtime, which
   // static tracing cannot see, so standalone ships only the package's cjs/
