@@ -58,6 +58,8 @@ export const PROXY_UNUSABLE_ERROR =
 // parse alike.
 export const PROXY_HOST_UNUSABLE_ERROR =
   "Proxy host can't be used. Enter a hostname or IP address without a port (use the Port field), and write an IPv6 address in brackets, like [::1]"
+// What a proxy save answers when it would leave the proxy on with no host.
+export const PROXY_HOST_REQUIRED_ERROR = "Enter a proxy host, or turn the proxy off"
 // What tunnel.ts's refusing agent fails every proxied request with, one per fault.
 export const PROXY_PASSWORD_UNREADABLE_CAUSE = "Unreadable stored proxy password"
 export const PROXY_UNUSABLE_CAUSE = "Unusable proxy settings"

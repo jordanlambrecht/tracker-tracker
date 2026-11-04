@@ -18,7 +18,7 @@ import { encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
 import { appSettings } from "@/lib/db/schema"
 import { QBITMANAGE_KEYS } from "@/lib/download-clients/qbt/qbitmanage-defaults"
-import { errMsg, PROXY_HOST_UNUSABLE_ERROR } from "@/lib/error-utils"
+import { errMsg, PROXY_HOST_REQUIRED_ERROR, PROXY_HOST_UNUSABLE_ERROR } from "@/lib/error-utils"
 import {
   BACKUP_PASSWORD_MAX,
   BACKUP_RETENTION_MAX,
@@ -282,12 +282,12 @@ export async function PATCH(request: Request) {
     }
   }
 
-  // The pattern passes hosts the agent build then refuses, such as one with a port
-  // in it or a bare IPv6 address, and every proxied request would fail. Checked
-  // against what the row will hold, since the proxy type decides whether some fit,
-  // and only when that row has the proxy on. A save that leaves it off goes through
-  // whatever the host, so a broken proxy can always be switched off, and turning it
-  // on later is checked then.
+  // With no host, or one the pattern passes and the agent build then refuses,
+  // such as one with a port in it or a bare IPv6 address, every proxied request
+  // would fail. Checked against what the row will hold, since the proxy type
+  // decides whether some fit, and only when that row has the proxy on. A save that
+  // leaves it off goes through whatever the host, so a broken proxy can always be
+  // switched off, and turning it on later is checked then.
   if (
     body.proxyEnabled === true ||
     body.proxyType !== undefined ||
@@ -295,7 +295,10 @@ export async function PATCH(request: Request) {
     body.proxyPort !== undefined
   ) {
     const endpoint = { ...settings, ...updates }
-    if (endpoint.proxyEnabled && endpoint.proxyHost && !makesProxyAgent(endpoint)) {
+    if (endpoint.proxyEnabled && !endpoint.proxyHost) {
+      return NextResponse.json({ error: PROXY_HOST_REQUIRED_ERROR }, { status: 400 })
+    }
+    if (endpoint.proxyEnabled && !makesProxyAgent(endpoint)) {
       return NextResponse.json({ error: PROXY_HOST_UNUSABLE_ERROR }, { status: 400 })
     }
   }

@@ -451,6 +451,50 @@ describe("PATCH /api/settings route validation", () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  const HOST_REQUIRED = "Enter a proxy host, or turn the proxy off"
+
+  it.each<[string, Record<string, unknown>, Record<string, unknown>]>([
+    ["turning the proxy on with no host stored", {}, { proxyEnabled: true }],
+    [
+      "clearing the host while the proxy is on",
+      { proxyEnabled: true, proxyHost: "proxy.example.test" },
+      { proxyHost: "" },
+    ],
+    [
+      "the proxy form keeping the proxy on with the host emptied",
+      { proxyEnabled: true, proxyHost: "proxy.example.test" },
+      { ...formSave(true), proxyHost: null },
+    ],
+  ])("refuses %s", async (_case, stored, body) => {
+    mockSettingsSelect(stored)
+    const set = vi.fn()
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue(body)
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: HOST_REQUIRED })
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it("saves the proxy form turning the proxy off with the host emptied", async () => {
+    mockSettingsSelect({ proxyEnabled: true, proxyHost: "proxy.example.test" })
+    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) })
+    ;(db.update as ReturnType<typeof vi.fn>).mockReturnValue({ set })
+    ;(parseJsonBody as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...formSave(false),
+      proxyHost: null,
+    })
+
+    const response = await PATCH(new Request("http://localhost/api/settings", { method: "PATCH" }))
+
+    expect(response.status).toBe(200)
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({ proxyEnabled: false, proxyHost: null })
+    )
+  })
+
   it("returns 401 when unauthenticated", async () => {
     ;(authenticate as ReturnType<typeof vi.fn>).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
