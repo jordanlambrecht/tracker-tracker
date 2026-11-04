@@ -83,22 +83,32 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// ChangelogContent comes through next/dynamic, and its first import can take
+// seconds on a loaded machine, past findByText's 1 s default.
+const CONTENT_IMPORT_WAIT_MS = 10_000
+
 describe("ChangelogDialog", () => {
-  it("opens from the sidebar version number as a wide shared dialog with a styled scrollbar", async () => {
-    render(<Sidebar collapsed={false} onToggle={vi.fn()} />)
+  it(
+    "opens from the sidebar version number as a wide shared dialog with a styled scrollbar",
+    async () => {
+      render(<Sidebar collapsed={false} onToggle={vi.fn()} />)
 
-    await userEvent.click(screen.getByRole("button", { name: "v2.15.1" }))
+      await userEvent.click(screen.getByRole("button", { name: "v2.15.1" }))
 
-    const entry = await screen.findByText(/answer Prowlarr test failures/)
-    const dialog = entry.closest("dialog")
-    expect(dialog).not.toBeNull()
+      const entry = await screen.findByText(/answer Prowlarr test failures/, undefined, {
+        timeout: CONTENT_IMPORT_WAIT_MS,
+      })
+      const dialog = entry.closest("dialog")
+      expect(dialog).not.toBeNull()
 
-    const scrollArea = dialog?.querySelector(".overflow-y-auto")
-    expect(scrollArea).toContainElement(entry)
-    expect(scrollArea).toHaveClass("styled-scrollbar")
+      const scrollArea = dialog?.querySelector(".overflow-y-auto")
+      expect(scrollArea).toContainElement(entry)
+      expect(scrollArea).toHaveClass("styled-scrollbar")
 
-    const panel = scrollArea?.parentElement
-    expect(panel).toHaveClass("max-w-2xl")
-    expect(panel).not.toHaveClass("max-w-md")
-  })
+      const panel = scrollArea?.parentElement
+      expect(panel).toHaveClass("max-w-2xl")
+      expect(panel).not.toHaveClass("max-w-md")
+    },
+    2 * CONTENT_IMPORT_WAIT_MS
+  )
 })
