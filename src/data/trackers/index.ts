@@ -27,6 +27,7 @@ export * from "./empornium"
 export * from "./exoticaz"
 export * from "./fearnopeer"
 export * from "./filelist"
+export * from "./g3mini"
 export * from "./gazellegames"
 export * from "./greatposterwall"
 export * from "./hawkeuno"
@@ -47,6 +48,7 @@ export * from "./phoenixproject"
 export * from "./portugas"
 export * from "./privatehd"
 export * from "./racing4everyone"
+export * from "./rastastugan"
 export * from "./redacted"
 export * from "./reelflix"
 export * from "./retromoviesclub"
@@ -90,6 +92,7 @@ import { empornium } from "./empornium"
 import { exoticaz } from "./exoticaz"
 import { fearnopeer } from "./fearnopeer"
 import { filelist } from "./filelist"
+import { g3mini } from "./g3mini"
 import { gazellegames } from "./gazellegames"
 import { greatposterwall } from "./greatposterwall"
 import { hawkeuno } from "./hawkeuno"
@@ -110,6 +113,7 @@ import { phoenixproject } from "./phoenixproject"
 import { portugas } from "./portugas"
 import { privatehd } from "./privatehd"
 import { racing4everyone } from "./racing4everyone"
+import { rastastugan } from "./rastastugan"
 import { redacted } from "./redacted"
 import { reelflix } from "./reelflix"
 import { retromoviesclub } from "./retromoviesclub"
@@ -154,6 +158,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   exoticaz,
   fearnopeer,
   filelist,
+  g3mini,
   gazellegames,
   greatposterwall,
   hawkeuno,
@@ -174,6 +179,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   portugas,
   privatehd,
   racing4everyone,
+  rastastugan,
   redacted,
   reelflix,
   retromoviesclub,
