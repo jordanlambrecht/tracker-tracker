@@ -15,6 +15,7 @@ export const DOCS = {
 
   // Features
   PROXIES: { href: `${DOCS_URL}/features/proxies/` },
+  FLARESOLVERR: { href: `${DOCS_URL}/reference/settings/#flaresolverr` },
   TOTP: { href: `${DOCS_URL}/reference/settings/#two-factor-authentication` },
   BACKUPS: { href: `${DOCS_URL}/features/backups/` },
   DOWNLOAD_CLIENTS: { href: `${DOCS_URL}/features/download-clients/` },

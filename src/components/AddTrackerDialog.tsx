@@ -62,6 +62,8 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
   // sent and the server's own default keeps a set-up proxy in use.
   const [proxyUsable, setProxyUsable] = useState<boolean | null>(null)
   const [useProxy, setUseProxy] = useState(true)
+  const [useFlaresolverr, setUseFlaresolverr] = useState(false)
+  const [flaresolverrAvailable, setFlaresolverrAvailable] = useState(false)
 
   const setCredentialField = useCallback((field: keyof CredentialValues, value: string) => {
     setCredentials((prev) => ({ ...prev, [field]: value }))
@@ -71,8 +73,14 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
     if (!open || proxyUsable !== null) return
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setProxyUsable(data?.proxyUsable === true))
-      .catch(() => setProxyUsable(false))
+      .then((data) => {
+        setProxyUsable(data?.proxyUsable === true)
+        setFlaresolverrAvailable(!!data?.flaresolverrUrl)
+      })
+      .catch(() => {
+        setProxyUsable(false)
+        setFlaresolverrAvailable(false)
+      })
   }, [open, proxyUsable])
 
   const resetForm = useCallback(() => {
@@ -90,6 +98,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
     // Read again on the next open, since the proxy can be set up between adds.
     setProxyUsable(null)
     setUseProxy(true)
+    setUseFlaresolverr(false)
   }, [])
 
   const handleDialogClose = useCallback(() => {
@@ -160,6 +169,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
           slug: selectedPreset,
           apiToken: effectiveApiToken,
           ...proxyChoice,
+          useFlaresolverr,
         }),
       })
 
@@ -185,6 +195,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
           mouseholeUrl: mouseholeUrl.trim() || undefined,
           mouseholeToken: mouseholeToken.trim() || undefined,
           ...proxyChoice,
+          useFlaresolverr,
         }),
       })
 
@@ -327,6 +338,18 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
             />
           </>
         )}
+
+        <Toggle
+          label="Use FlareSolverr"
+          checked={useFlaresolverr}
+          onChange={setUseFlaresolverr}
+          disabled={!flaresolverrAvailable}
+          description={
+            flaresolverrAvailable
+              ? "Read this tracker's pages through FlareSolverr, which solves Cloudflare challenges."
+              : "For trackers behind a Cloudflare challenge. Set a FlareSolverr URL in Settings to use it."
+          }
+        />
 
         <ColorPicker label="Color" value={color} onChange={setColor} />
 

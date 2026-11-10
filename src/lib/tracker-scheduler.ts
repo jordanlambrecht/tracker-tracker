@@ -23,6 +23,7 @@ import {
   trackers,
 } from "@/lib/db/schema"
 import { errMsg, isDecryptionError, sanitizeNetworkError } from "@/lib/error-utils"
+import { flareSolverrFor } from "@/lib/flaresolverr-config"
 import { localDateStr, trackerDateStr } from "@/lib/formatters"
 import {
   POLL_BATCH_TOLERANCE_MS,
@@ -102,6 +103,7 @@ const POLL_TRACKER_COLUMNS = {
   registrySlug: trackers.registrySlug,
   baseUrl: trackers.baseUrl,
   useProxy: trackers.useProxy,
+  useFlaresolverr: trackers.useFlaresolverr,
   remoteUserId: trackers.remoteUserId,
   platformMeta: trackers.platformMeta,
   joinedAt: trackers.joinedAt,
@@ -188,12 +190,14 @@ export async function pollTracker(
       throw new Error(`API key is missing or invalid for tracker "${tracker.name}": token is empty`)
     }
     const adapter = getAdapter(site.platform)
+    const flaresolverr = await flareSolverrFor(tracker)
     // With the proxy off there is no agent, so a row set to use it polls directly.
     // A proxy that is on but unusable hands over an agent that refuses everything.
     const fetchOptions = buildFetchOptions({
       entry: site.entry,
       proxyAgent: tracker.useProxy ? proxyAgent : undefined,
       remoteUserId: tracker.remoteUserId ?? undefined,
+      flaresolverr,
     })
     const stats = await adapter.fetchStats(site.url, apiToken, site.apiPath, fetchOptions)
 
