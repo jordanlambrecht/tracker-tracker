@@ -17,22 +17,20 @@ const STATS_HTML = `
 const FULL_PAGE = `<!doctype html><html><head></head><body>${STATS_HTML}</body></html>`
 
 // The signed-in member's own profile: the stats bar every page carries, then the
-// class badge and dates. Shapes from the live page on 2026-10-24, values invented.
+// class badge and dates. Shapes from the live page on 2026-11-10, values invented.
 const PROFILE_PAGE = `<!doctype html><html><body>${STATS_HTML}
-  <div class="up-header-info">
-    <h1 class="up-username">testuser</h1>
-    <div class="up-class-line"><span class="up-class-badge"><svg viewBox="0 0 16 16"></svg>Power User</span></div>
-  </div>
-  <div class="up-section">
-    <div class="up-field">
-      <span class="up-field-label">Join Date</span>
-      <span class="up-field-value">2024-05-06 07:08:09 (<span class="elapsedDate" title="Monday, May 6, 2024 at 7:08am">2 years ago</span>)</span>
+  <header class="ipx-card upf-hero">
+    <div class="upf-id">
+      <h1 class="upf-name ">testuser</h1>
+      <div class="upf-tags">
+        <span class="ipx-pill upf-class" style="--c: var(--ipx-info);"><svg viewBox="0 0 24 24"></svg>Power User</span>
+      </div>
+      <p class="upf-meta">
+        <span><svg viewBox="0 0 24 24"></svg>Joined <time datetime="2024-05-06T07:08:09+00:00" title="2024-05-06 07:08 UTC">6 May 2024</time> <span class="ipx-muted">· 2 years ago</span></span>
+        <span><svg viewBox="0 0 24 24"></svg>Last seen <time datetime="2026-01-02T03:04:05+00:00" title="2026-01-02 03:04 UTC">3 minutes ago</time></span>
+      </p>
     </div>
-    <div class="up-field">
-      <span class="up-field-label">Last Seen</span>
-      <span class="up-field-value">2026-01-02 03:04:05 (<span class="elapsedDate" title="Friday, January 2, 2026 at 3:04am">3 minutes ago</span>)</span>
-    </div>
-  </div>
+  </header>
 </body></html>`
 
 const HOSTNAME = "iptorrents.com"
@@ -257,7 +255,7 @@ describe("parseIptProfile on a profile page", () => {
   it("prefers the badge, then the header's VIP flag, then unknown", () => {
     const vipFlag = '<span class="hdr-vip" title="VIP active - expires in 30 days"></span>'
     const withFlag = PROFILE_PAGE.replace('<div class="stats">', `<div class="stats">${vipFlag}`)
-    const noBadge = (page: string) => page.replace(/<span class="up-class-badge">.*?<\/span>/, "")
+    const noBadge = (page: string) => page.replace(/<span[^>]*upf-class.*?<\/span>/, "")
 
     expect(parseIptProfile(withFlag, HOSTNAME, 12345).group).toBe("Power User")
     expect(parseIptProfile(noBadge(withFlag), HOSTNAME, 12345).group).toBe("VIP")
