@@ -12,6 +12,7 @@ function instance(overrides: Partial<SafeProwlarrInstance> = {}): SafeProwlarrIn
     id: 3,
     name: "Home Prowlarr",
     url: "http://prowlarr.test:9696",
+    publicUrl: null,
     hasApiKey: true,
     enabled: true,
     indexerCount: 2,

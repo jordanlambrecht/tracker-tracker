@@ -117,4 +117,20 @@ describe("MamMouseholeCard", () => {
     const link = screen.getByRole("link", { name: /mousehole/i })
     expect(link).toHaveAttribute("href", "http://mousehole-test:5010")
   })
+
+  it("links to the public URL when one is set", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(STATUS_OK))
+
+    render(
+      <MamMouseholeCard
+        trackerId={1}
+        mouseholeUrl="http://mousehole-test:5010"
+        mouseholePublicUrl="https://mousehole.example.com/"
+      />
+    )
+
+    await screen.findByText("OK")
+    const link = screen.getByRole("link", { name: /mousehole/i })
+    expect(link).toHaveAttribute("href", "https://mousehole.example.com")
+  })
 })

@@ -17,6 +17,7 @@ import {
   validateMaxLength,
   validateMouseholeToken,
   validateMouseholeUrl,
+  validatePublicUrl,
 } from "@/lib/api-helpers"
 import { maxTokenLengthFor } from "@/lib/credential-forms"
 import { encrypt } from "@/lib/crypto"
@@ -25,6 +26,7 @@ import { prowlarrInstances, trackers } from "@/lib/db/schema"
 import { errMsg } from "@/lib/error-utils"
 import { LONG_STRING_MAX, TRACKER_NAME_MAX, TRACKER_TAG_MAX } from "@/lib/limits"
 import { log } from "@/lib/logger"
+import { normalizePublicUrl } from "@/lib/public-url"
 import { getTrackerForClient } from "@/lib/server-data"
 import { NEW_KEY_RESET, PAUSE_RESET, TRACKER_UNLINKED_ERROR } from "@/lib/tracker-status"
 import { isIntegerInRange } from "@/lib/validators"
@@ -104,7 +106,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.qbtTag = body.qbtTag.trim() || null
   }
 
-  // Clearing the URL clears the token with it, so no token outlives its URL.
+  // Clearing the URL clears the token and public URL with it, so neither outlives it.
   if (typeof body.mouseholeUrl === "string") {
     const trimmed = body.mouseholeUrl.trim()
     if (trimmed) {
@@ -114,7 +116,28 @@ export async function PATCH(request: Request, props: RouteContext) {
       if (mouseUrlErr) return mouseUrlErr
     }
     updates.mouseholeUrl = trimmed || null
-    if (!trimmed) updates.encryptedMouseholeToken = null
+    if (!trimmed) {
+      updates.encryptedMouseholeToken = null
+      updates.mouseholePublicUrl = null
+    }
+  }
+
+  // An empty string clears the public URL; a body without the key leaves it alone.
+  if (typeof body.mouseholePublicUrl === "string" && updates.mouseholeUrl !== null) {
+    const publicUrl = normalizePublicUrl(body.mouseholePublicUrl)
+    if (publicUrl) {
+      const publicUrlErr = validatePublicUrl(publicUrl)
+      if (publicUrlErr) return publicUrlErr
+      const mouseholeUrl =
+        typeof body.mouseholeUrl === "string" ? body.mouseholeUrl.trim() : existing.mouseholeUrl
+      if (!mouseholeUrl) {
+        return NextResponse.json(
+          { error: "Mousehole public URL needs a Mousehole URL" },
+          { status: 400 }
+        )
+      }
+    }
+    updates.mouseholePublicUrl = publicUrl
   }
 
   // An empty string clears the token; a body without the key leaves it alone.

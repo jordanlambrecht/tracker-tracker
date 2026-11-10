@@ -643,6 +643,23 @@ describe("POST /api/clients", () => {
     expect((await res.json()).error).toMatch(/Host must not include a port/)
     expect(inserted).toBeNull()
   })
+
+  it("stores a normalized public URL, and null without one", async () => {
+    await POST(
+      postBody({ name: "qBT", host: "qbittorrent", publicUrl: "https://qbt.example.com/" })
+    )
+    expect(inserted?.publicUrl).toBe("https://qbt.example.com")
+
+    await POST(postBody({ name: "qBT", host: "qbittorrent" }))
+    expect(inserted?.publicUrl).toBeNull()
+  })
+
+  it("rejects an invalid public URL", async () => {
+    const res = await POST(postBody({ name: "qBT", host: "qbittorrent", publicUrl: "qbt" }))
+
+    expect(res.status).toBe(400)
+    expect(inserted).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -685,6 +702,16 @@ describe("PATCH /api/clients/[id] credential handling", () => {
   }
 
   const routeProps = { params: Promise.resolve({ id: "1" }) }
+
+  it("sets and clears the public URL", async () => {
+    await PATCH(patchBody({ publicUrl: "https://qbt.example.com" }), routeProps)
+    expect(updates?.publicUrl).toBe("https://qbt.example.com")
+
+    await PATCH(patchBody({ publicUrl: "" }), routeProps)
+    expect(updates?.publicUrl).toBeNull()
+    // Only the browser opens it, so the scheduler keeps its session.
+    expect(disposeClient).not.toHaveBeenCalled()
+  })
 
   it("refuses to switch to apikey without a key", async () => {
     const res = await PATCH(patchBody({ authMethod: "apikey" }), routeProps)

@@ -39,6 +39,7 @@ import {
   MOUSEHOLE_URL_TIP,
 } from "@/lib/mousehole"
 import { matchTrackerIndexers } from "@/lib/prowlarr/matching"
+import { PUBLIC_URL_PLACEHOLDER, PUBLIC_URL_TIP } from "@/lib/public-url"
 import { prowlarrIndexerQueryOptions } from "@/lib/query-options"
 import type { TrackerSummary } from "@/types/api"
 
@@ -64,6 +65,7 @@ interface FormState {
   countCrossSeedUnsatisfied: boolean
   hideUnreadBadges: boolean
   mouseholeUrl: string
+  mouseholePublicUrl: string
   /** AUTO_INDEXER, NO_INDEXER or pinValue(instanceId, indexerId) */
   prowlarrIndexer: string
 }
@@ -100,6 +102,7 @@ function formStateFromTracker(t: TrackerSummary): FormState {
     countCrossSeedUnsatisfied: t.countCrossSeedUnsatisfied ?? false,
     hideUnreadBadges: t.hideUnreadBadges ?? false,
     mouseholeUrl: t.mouseholeUrl ?? "",
+    mouseholePublicUrl: t.mouseholePublicUrl ?? "",
     prowlarrIndexer: indexerValue(t),
   }
 }
@@ -274,6 +277,7 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
       countCrossSeedUnsatisfied: form.countCrossSeedUnsatisfied,
       hideUnreadBadges: form.hideUnreadBadges,
       mouseholeUrl: form.mouseholeUrl.trim(),
+      mouseholePublicUrl: form.mouseholePublicUrl.trim(),
     }
 
     if (changingKey && trimmedToken) {
@@ -402,6 +406,13 @@ function TrackerSettingsSheet({ open, tracker, onClose, onUpdated }: TrackerSett
                 value={form.mouseholeUrl}
                 onChange={(e) => updateField("mouseholeUrl", e.target.value)}
                 placeholder={MOUSEHOLE_URL_PLACEHOLDER}
+              />
+              <Input
+                label="Mousehole public URL (optional)"
+                tooltip={PUBLIC_URL_TIP}
+                value={form.mouseholePublicUrl}
+                onChange={(e) => updateField("mouseholePublicUrl", e.target.value)}
+                placeholder={PUBLIC_URL_PLACEHOLDER}
               />
               {tracker.hasMouseholeToken && !changingMouseholeToken ? (
                 <div className="flex flex-col gap-1 w-full">

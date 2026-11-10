@@ -5,7 +5,7 @@ import { useQueries, useQuery } from "@tanstack/react-query"
 import clsx from "clsx"
 import { useEffect, useMemo } from "react"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
-import { DownloadArrowIcon, UploadArrowIcon } from "@/components/ui/Icons"
+import { DownloadArrowIcon, ExternalLinkSmallIcon, UploadArrowIcon } from "@/components/ui/Icons"
 import { MarqueeText } from "@/components/ui/MarqueeText"
 import { Sparkline } from "@/components/ui/Sparkline"
 import { useCarousel } from "@/hooks/useCarousel"
@@ -21,6 +21,7 @@ interface ClientInfo {
   lastError: string | null
   errorSince: string | null
   lastPolledAt: string | null
+  publicUrl: string | null
 }
 
 interface SpeedPoint {
@@ -76,22 +77,37 @@ function ClientSlide({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onPointerDown={(e) => e.stopPropagation()}
-      className="flex items-center gap-2 cursor-pointer w-full text-left"
-    >
-      <span
-        className={clsx("color-dot", isDown ? "bg-danger" : isFailing ? "bg-warn" : "bg-success")}
-        style={isDown || isFailing ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
-      />
-      <div className="flex flex-col flex-1 min-w-0">
-        <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
-        <span className="text-3xs font-mono text-tertiary">{renderSubline()}</span>
-      </div>
-      <ChevronToggle expanded={expanded} variant="flip" />
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="flex items-center gap-2 cursor-pointer flex-1 min-w-0 text-left"
+      >
+        <span
+          className={clsx("color-dot", isDown ? "bg-danger" : isFailing ? "bg-warn" : "bg-success")}
+          style={isDown || isFailing ? undefined : { boxShadow: "0 0 6px var(--color-success)" }}
+        />
+        <div className="flex flex-col flex-1 min-w-0">
+          <MarqueeText className="text-xs font-mono text-secondary">{client.name}</MarqueeText>
+          <span className="text-3xs font-mono text-tertiary">{renderSubline()}</span>
+        </div>
+        <ChevronToggle expanded={expanded} variant="flip" />
+      </button>
+      {client.publicUrl && (
+        <a
+          href={client.publicUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onPointerDown={(e) => e.stopPropagation()}
+          className="shrink-0 text-tertiary hover:text-secondary transition-colors"
+          title={`Open ${client.name}`}
+          aria-label={`Open ${client.name}`}
+        >
+          <ExternalLinkSmallIcon width="10" height="10" />
+        </a>
+      )}
+    </div>
   )
 }
 

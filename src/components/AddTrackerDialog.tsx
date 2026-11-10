@@ -31,6 +31,7 @@ import {
   MOUSEHOLE_URL_PLACEHOLDER,
   MOUSEHOLE_URL_TIP,
 } from "@/lib/mousehole"
+import { PUBLIC_URL_PLACEHOLDER, PUBLIC_URL_TIP } from "@/lib/public-url"
 
 // ---------------------------------------------------------------------------
 // AddTrackerDialog
@@ -50,6 +51,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
   const [credentials, setCredentials] = useState<CredentialValues>(EMPTY_CREDENTIAL_VALUES)
   const [qbtTag, setQbtTag] = useState("")
   const [mouseholeUrl, setMouseholeUrl] = useState("")
+  const [mouseholePublicUrl, setMouseholePublicUrl] = useState("")
   const [mouseholeToken, setMouseholeToken] = useState("")
   const [color, setColor] = useState<string>(CHART_THEME.accent)
   const [joinedAt, setJoinedAt] = useState("")
@@ -81,6 +83,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
     setCredentials(EMPTY_CREDENTIAL_VALUES)
     setQbtTag("")
     setMouseholeUrl("")
+    setMouseholePublicUrl("")
     setMouseholeToken("")
     setColor(CHART_THEME.accent)
     setJoinedAt("")
@@ -111,6 +114,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
     // across a switch would send it to the next tracker's host on submit.
     setCredentials(EMPTY_CREDENTIAL_VALUES)
     setMouseholeUrl("")
+    setMouseholePublicUrl("")
     setMouseholeToken("")
   }
 
@@ -183,6 +187,7 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
           qbtTag: qbtTag.trim() || undefined,
           joinedAt: joinedAt || undefined,
           mouseholeUrl: mouseholeUrl.trim() || undefined,
+          mouseholePublicUrl: mouseholePublicUrl.trim() || undefined,
           mouseholeToken: mouseholeToken.trim() || undefined,
           ...proxyChoice,
         }),
@@ -313,6 +318,16 @@ function AddTrackerDialog({ open, onClose, onAdded, heldSlugs }: AddTrackerDialo
               value={mouseholeUrl}
               onChange={(e) => setMouseholeUrl(e.target.value)}
               placeholder={MOUSEHOLE_URL_PLACEHOLDER}
+            />
+            <Input
+              label="Mousehole public URL (optional)"
+              tooltip={PUBLIC_URL_TIP}
+              name="tracker-mousehole-public-url"
+              autoComplete="off"
+              data-1p-ignore
+              value={mouseholePublicUrl}
+              onChange={(e) => setMouseholePublicUrl(e.target.value)}
+              placeholder={PUBLIC_URL_PLACEHOLDER}
             />
             <Input
               type="password"
