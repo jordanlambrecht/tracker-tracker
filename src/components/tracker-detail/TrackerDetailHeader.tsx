@@ -75,6 +75,7 @@ export function TrackerDetailHeader({
     (tracker.platformType === "mam" && tracker.mouseholeUrl) ||
     prowlarrIndexers.length > 0
   )
+  const account = stats ?? tracker.overview ?? null
 
   return (
     <div className="flex flex-col gap-10">
@@ -190,12 +191,12 @@ export function TrackerDetailHeader({
       </div>
 
       {/* The status cards sit beside the user card when there is room, below it otherwise */}
-      {(stats || hasStatusCards) && (
+      {(account || hasStatusCards) && (
         <div className="flex flex-wrap items-start gap-4">
-          {stats && (
+          {account && (
             <UserProfileCard
               tracker={tracker}
-              stats={stats}
+              account={account}
               registryEntry={registryEntry}
               accentColor={tc}
             />

@@ -206,6 +206,29 @@ describe("getTrackerHealth — seedingCount the adapter does not report", () => 
   })
 })
 
+describe("getTrackerHealth: overview-only trackers", () => {
+  const overview = { username: "someone", group: "User" }
+
+  it("reads a polled overview with no stats as healthy, not offline", () => {
+    expect(getTrackerHealth(makeTracker({ latestStats: null, overview }))).toBe("healthy")
+  })
+
+  it("stays offline until the overview has been polled", () => {
+    expect(getTrackerHealth(makeTracker({ latestStats: null, overview, lastPolledAt: null }))).toBe(
+      "offline"
+    )
+  })
+
+  it("reports a failing poll as an error", () => {
+    const tracker = makeTracker({ latestStats: null, overview, lastError: "Session expired" })
+    expect(getTrackerHealth(tracker)).toBe("error")
+  })
+
+  it("stays offline with neither stats nor an overview", () => {
+    expect(getTrackerHealth(makeTracker({ latestStats: null, overview: null }))).toBe("offline")
+  })
+})
+
 describe("health metadata", () => {
   it("gives 'no-seeds' its own label and description", () => {
     expect(getHealthLabel("no-seeds")).toBe("No Seeds")

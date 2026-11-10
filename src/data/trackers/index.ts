@@ -52,6 +52,7 @@ export * from "./reelflix"
 export * from "./retromoviesclub"
 export * from "./retrotoon"
 export * from "./rockethd"
+export * from "./rutracker"
 export * from "./secretcinema"
 export * from "./seedcore"
 export * from "./seedpool"
@@ -115,6 +116,7 @@ import { reelflix } from "./reelflix"
 import { retromoviesclub } from "./retromoviesclub"
 import { retrotoon } from "./retrotoon"
 import { rockethd } from "./rockethd"
+import { rutracker } from "./rutracker"
 import { secretcinema } from "./secretcinema"
 import { seedcore } from "./seedcore"
 import { seedpool } from "./seedpool"
@@ -179,6 +181,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   retromoviesclub,
   retrotoon,
   rockethd,
+  rutracker,
   secretcinema,
   seedcore,
   seedpool,

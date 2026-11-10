@@ -36,6 +36,27 @@ export interface TrackerStats {
   platformMeta?: PlatformMeta
 }
 
+/**
+ * What a poll returns for a tracker that shows the account but no byte totals.
+ * It writes no snapshot: the username and class are kept on the tracker row.
+ */
+export interface TrackerOverview {
+  kind: "overview"
+  username: string
+  group: string | null
+  remoteUserId?: number
+  joinedDate?: string
+  lastAccessDate?: string
+  avatarUrl?: string
+  platformMeta?: PlatformMeta
+}
+
+export type TrackerPollResult = TrackerStats | TrackerOverview
+
+export function isTrackerOverview(result: TrackerPollResult): result is TrackerOverview {
+  return "kind" in result && result.kind === "overview"
+}
+
 export interface GGnPlatformMeta {
   achievements?: {
     userLevel: string
@@ -273,6 +294,42 @@ export interface AnimeBytesPlatformMeta {
   freeleechUntil?: number
 }
 
+/**
+ * RuTracker shows no download figure, so its polls are overviews and every
+ * figure is stored here. Byte counts are plain numbers: platformMeta is
+ * JSON-serialized, and JSON cannot represent bigint.
+ */
+export interface RuTrackerPlatformMeta {
+  /** "Роль", in English where known: User, Moderator, ... */
+  role?: string
+  /** "Звание", in English where known; absent when the profile shows none */
+  title?: string
+  /** The profile's red ban notice was not empty */
+  restricted?: boolean
+  restrictionNote?: string
+  /** "Стаж", in English when every unit is known, such as "18 years 6 months" */
+  tenure?: string
+  posts?: number
+  /** False when the profile shows upload statistics as switched off */
+  statsEnabled?: boolean
+  /** "Всего": counted total plus today */
+  uploadedBytes?: number
+  uploadedTodayBytes?: number
+  uploadedYesterdayBytes?: number
+  /** Uploaded on torrents with three or fewer peers, which Top Bonus counts */
+  rareUploadedBytes?: number
+  rareUploadedTodayBytes?: number
+  rareUploadedYesterdayBytes?: number
+  seedingCount?: number
+  /** The seeding list stops at 100, so the real count may be higher */
+  seedingCapped?: boolean
+  releases?: number
+  releasesBytes?: number
+  /** Releases with the "проверено" status, which Top Seed and Top Loader count */
+  verifiedReleases?: number
+  verifiedReleasesBytes?: number
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -287,6 +344,7 @@ export type PlatformMeta =
   | RetrotoonPlatformMeta
   | C411PlatformMeta
   | AnimeBytesPlatformMeta
+  | RuTrackerPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -302,6 +360,7 @@ export interface PlatformMetaMap {
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
   animebytes: AnimeBytesPlatformMeta
+  rutracker: RuTrackerPlatformMeta
 }
 
 /**

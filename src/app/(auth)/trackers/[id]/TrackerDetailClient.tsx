@@ -14,6 +14,7 @@ import { AnalyticsTab } from "@/components/tracker-detail/AnalyticsTab"
 import type { DebugData } from "@/components/tracker-detail/DebugResponseDialog"
 import { DebugResponseDialog } from "@/components/tracker-detail/DebugResponseDialog"
 import { resolveSlots } from "@/components/tracker-detail/resolve-slots"
+import { TrackerCaptchaPrompt } from "@/components/tracker-detail/TrackerCaptchaPrompt"
 import { TrackerDetailHeader } from "@/components/tracker-detail/TrackerDetailHeader"
 import { TrackerInfoTab } from "@/components/tracker-detail/TrackerInfoTab"
 import { TrackerStatusBanner } from "@/components/tracker-detail/TrackerStatusBanner"
@@ -293,7 +294,7 @@ export function TrackerDetailClient({
       {/* Rank Progression */}
       <RankProgress
         userClasses={registryEntry?.userClasses ?? []}
-        currentRank={stats?.group ?? null}
+        currentRank={stats?.group ?? tracker.overview?.group ?? null}
         snapshots={allTimeSnapshots}
         accentColor={tc}
         joinedAt={tracker.joinedAt}
@@ -318,6 +319,8 @@ export function TrackerDetailClient({
         onLinked={handleTrackerUpdated}
         onDeleted={() => router.push("/")}
       />
+
+      <TrackerCaptchaPrompt tracker={tracker} onSolved={setTracker} />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border">

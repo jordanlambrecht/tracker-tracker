@@ -18,6 +18,9 @@
 //             dc-unconnectable, dc-seedbox-donor, dc-invites, dc-hearts
 //   c411 badge: c411-download-disabled
 //   hawke badge: hawke-download-disabled
+//   rutracker stat-card: rutracker-uploaded, rutracker-rare-upload, rutracker-seeding,
+//                        rutracker-releases, rutracker-role, rutracker-posts
+//   rutracker badge: rutracker-restricted, rutracker-stats-off
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -49,6 +52,8 @@ import type { GgnShareScoreProgressProps } from "./platform/GgnShareScoreProgres
 import { GgnShareScoreProgress } from "./platform/GgnShareScoreProgress"
 import type { MamHealthOverviewProps } from "./platform/MamHealthOverview"
 import { MamHealthOverview } from "./platform/MamHealthOverview"
+import type { RutrackerRareUploadProps } from "./platform/RutrackerRareUpload"
+import { RutrackerRareUpload } from "./platform/RutrackerRareUpload"
 import type { LoginDeadlineCardProps } from "./slots/LoginDeadlineCard"
 import { LoginDeadlineCard } from "./slots/LoginDeadlineCard"
 import type { SlotBadgeProps } from "./slots/SlotBadge"
@@ -1058,6 +1063,136 @@ const hawkeDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   },
 }
 
+const bytesOrDash = (bytes: number | undefined) =>
+  bytes === undefined ? "—" : formatBytesNum(bytes)
+
+const rutrackerUploadedSlot: SlotDefinition<StatCardStackedProps> = {
+  id: "rutracker-uploaded",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 10,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "rutracker")
+    if (meta?.uploadedBytes === undefined) return null
+    return {
+      type: "stacked" as const,
+      title: "Uploaded",
+      rows: [
+        { label: "Total", value: formatBytesNum(meta.uploadedBytes) },
+        { label: "Today", value: bytesOrDash(meta.uploadedTodayBytes) },
+        { label: "Yesterday", value: bytesOrDash(meta.uploadedYesterdayBytes) },
+      ],
+      accentColor: ctx.accentColor,
+      icon: icon16(UploadArrowIcon),
+    }
+  },
+}
+
+const rutrackerRareUploadSlot: SlotDefinition<RutrackerRareUploadProps> = {
+  id: "rutracker-rare-upload",
+  category: "stat-card",
+  component: RutrackerRareUpload as ComponentType<RutrackerRareUploadProps>,
+  priority: 11,
+  span: 2,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "rutracker")
+    if (meta?.rareUploadedBytes === undefined) return null
+    return { meta, accentColor: ctx.accentColor }
+  },
+}
+
+const rutrackerSeedingSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "rutracker-seeding",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 12,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "rutracker")
+    if (meta?.seedingCount === undefined) return null
+    return {
+      label: "Seeding",
+      value: meta.seedingCapped
+        ? `${formatCount(meta.seedingCount)}+`
+        : formatCount(meta.seedingCount),
+      accentColor: ctx.accentColor,
+      icon: icon16(UploadArrowIcon),
+    }
+  },
+}
+
+const rutrackerReleasesSlot: SlotDefinition<StatCardStackedProps> = {
+  id: "rutracker-releases",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardStackedProps>,
+  priority: 13,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "rutracker")
+    if (meta?.releases === undefined) return null
+    const withSize = (count: number | undefined, bytes: number | undefined) =>
+      count === undefined
+        ? "—"
+        : bytes === undefined
+          ? formatCount(count)
+          : `${formatCount(count)} · ${formatBytesNum(bytes)}`
+    return {
+      type: "stacked" as const,
+      title: "Releases",
+      rows: [
+        { label: "All", value: withSize(meta.releases, meta.releasesBytes) },
+        { label: "Verified", value: withSize(meta.verifiedReleases, meta.verifiedReleasesBytes) },
+      ],
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
+const rutrackerRoleSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "rutracker-role",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 14,
+  resolve(ctx) {
+    const role = metaFor(ctx, "rutracker")?.role
+    if (!role) return null
+    return { label: "Role", value: role, accentColor: ctx.accentColor, icon: icon16(UserIcon) }
+  },
+}
+
+const rutrackerPostsSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "rutracker-posts",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 15,
+  resolve(ctx) {
+    const posts = metaFor(ctx, "rutracker")?.posts
+    if (posts === undefined) return null
+    return { label: "Posts", value: formatCount(posts), accentColor: ctx.accentColor }
+  },
+}
+
+const rutrackerRestrictedBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "rutracker-restricted",
+  category: "badge",
+  component: SlotBadge,
+  priority: 12,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "rutracker")
+    if (meta?.restricted !== true) return null
+    return { variant: "danger", label: meta.restrictionNote || "Restricted" }
+  },
+}
+
+const rutrackerStatsOffBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "rutracker-stats-off",
+  category: "badge",
+  component: SlotBadge,
+  priority: 30,
+  resolve(ctx) {
+    if (metaFor(ctx, "rutracker")?.statsEnabled !== false) return null
+    return { variant: "default", label: "Upload Stats Hidden" }
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Exported registry
 // ---------------------------------------------------------------------------
@@ -1127,6 +1262,16 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   c411DownloadDisabledBadgeSlot,
   // HAWKE-UNO slots (badge)
   hawkeDownloadDisabledBadgeSlot,
+  // RuTracker slots (stat-card)
+  rutrackerUploadedSlot,
+  rutrackerRareUploadSlot,
+  rutrackerSeedingSlot,
+  rutrackerReleasesSlot,
+  rutrackerRoleSlot,
+  rutrackerPostsSlot,
+  // RuTracker slots (badge)
+  rutrackerRestrictedBadgeSlot,
+  rutrackerStatsOffBadgeSlot,
 ]
 
 // Shared component lookup: single source for rendering resolved slots

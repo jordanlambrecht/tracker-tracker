@@ -292,6 +292,25 @@ export const CREDENTIAL_FORMS = {
     },
   },
 
+  rutracker: {
+    kind: "login",
+    hidesJoinDate: true,
+    dialog: {
+      username: { label: "RuTracker Username", placeholder: "Your RuTracker username" },
+      password: {
+        label: "RuTracker Password",
+        tooltip:
+          "RuTracker has no API, so Tracker Tracker logs in on your behalf and reads your profile. Your password is encrypted at rest with the same key as every other tracker credential.",
+        docs: true,
+        placeholder: "Your RuTracker password",
+      },
+    },
+    sheet: {
+      username: { label: "Username" },
+      password: { label: "Password" },
+    },
+  },
+
   torrentleech: {
     kind: "login",
     hidesJoinDate: false,

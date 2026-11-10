@@ -1,7 +1,7 @@
 // src/lib/tracker-scheduler.ts
 //
 // Functions: pollTracker, pollAllTrackers, pruneOldSnapshots, pruneOldCheckpoints,
-// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning
+// startTrackerPolling, stopTrackerPolling, isTrackerPollingRunning, isOtherAccount
 // Constants: POLL_TRACKER_COLUMNS
 import type { Agent as HttpAgent } from "node:http"
 
@@ -46,12 +46,13 @@ import {
   resolveRequiredRatio,
 } from "@/lib/tracker-status"
 import { buildProxyAgentFromSettings } from "@/lib/tunnel"
-import type {
-  AvistazPlatformMeta,
-  C411PlatformMeta,
-  DigitalCorePlatformMeta,
-  HawkePlatformMeta,
-  MamPlatformMeta,
+import {
+  type AvistazPlatformMeta,
+  type C411PlatformMeta,
+  type DigitalCorePlatformMeta,
+  type HawkePlatformMeta,
+  isTrackerOverview,
+  type MamPlatformMeta,
 } from "@/types/tracker-stats"
 
 // Platforms whose only platform alert is download-revoked, read from
@@ -144,6 +145,55 @@ async function pauseUnlinked(tracker: {
   }
 }
 
+/**
+ * True when the poll returned a different remote user id than the stored one,
+ * i.e. the credentials now belong to another account. Its join date then
+ * replaces the stored one, including one entered by hand.
+ */
+function isOtherAccount(
+  tracker: { remoteUserId: number | null },
+  stats: { remoteUserId?: number }
+): boolean {
+  return Boolean(
+    stats.remoteUserId && tracker.remoteUserId && stats.remoteUserId !== tracker.remoteUserId
+  )
+}
+
+/** Clears the failure state after a successful poll, closing the circuit breaker. */
+async function recordPollSuccess(
+  tracker: { id: number; name: string; pausedAt: Date | null; consecutiveFailures: number },
+  timestamp: Date,
+  isManual: boolean
+): Promise<void> {
+  const wasPaused = !!tracker.pausedAt
+  const hadFailures = tracker.consecutiveFailures > 0
+
+  await db
+    .update(trackers)
+    .set({
+      lastPolledAt: timestamp,
+      lastError: null,
+      lastErrorAt: null,
+      consecutiveFailures: 0,
+      pausedAt: null,
+      updatedAt: timestamp,
+    })
+    .where(eq(trackers.id, tracker.id))
+
+  if (wasPaused || hadFailures) {
+    log.info(
+      {
+        trackerId: tracker.id,
+        trackerName: tracker.name,
+        previousFailures: tracker.consecutiveFailures,
+        wasPaused,
+        source: isManual ? "manual" : "scheduled",
+      },
+      "circuit breaker reset by successful poll"
+    )
+  }
+}
+
 export async function pollTracker(
   trackerId: number,
   encryptionKey: Buffer,
@@ -216,7 +266,7 @@ export async function pollTracker(
     if (stats.remoteUserId && stats.remoteUserId !== tracker.remoteUserId) {
       metaUpdates.remoteUserId = stats.remoteUserId
     }
-    if (stats.joinedDate && !tracker.joinedAt) {
+    if (stats.joinedDate && (!tracker.joinedAt || isOtherAccount(tracker, stats))) {
       const joined = trackerDateStr(stats.joinedDate)
       if (joined) metaUpdates.joinedAt = joined
     }
@@ -224,7 +274,14 @@ export async function pollTracker(
       const lastAccess = trackerDateStr(stats.lastAccessDate)
       if (lastAccess) metaUpdates.lastAccessAt = lastAccess
     }
-    if (stats.platformMeta) {
+    // An overview has no snapshot to store the username in, so it goes with the
+    // platform data, masked in privacy mode like a snapshot's.
+    if (isTrackerOverview(stats)) {
+      metaUpdates.platformMeta = JSON.stringify({
+        ...stats.platformMeta,
+        username: privacyMode ? maskUsername(stats.username) : stats.username,
+      })
+    } else if (stats.platformMeta) {
       metaUpdates.platformMeta = JSON.stringify(stats.platformMeta)
     }
     if (stats.avatarUrl) {
@@ -232,6 +289,12 @@ export async function pollTracker(
     }
     if (Object.keys(metaUpdates).length > 0) {
       await db.update(trackers).set(metaUpdates).where(eq(trackers.id, tracker.id))
+    }
+
+    // No byte totals means no snapshot, daily checkpoint or stat alerts.
+    if (isTrackerOverview(stats)) {
+      await recordPollSuccess(tracker, timestamp, isManual)
+      return true
     }
 
     // Fetch previous snapshot before inserting the new one (used for change detection in notifications)
@@ -416,33 +479,7 @@ export async function pollTracker(
       )
     }
 
-    const wasPaused = !!tracker.pausedAt
-    const hadFailures = tracker.consecutiveFailures > 0
-
-    await db
-      .update(trackers)
-      .set({
-        lastPolledAt: timestamp,
-        lastError: null,
-        lastErrorAt: null,
-        consecutiveFailures: 0,
-        pausedAt: null,
-        updatedAt: timestamp,
-      })
-      .where(eq(trackers.id, tracker.id))
-
-    if (wasPaused || hadFailures) {
-      log.info(
-        {
-          trackerId: tracker.id,
-          trackerName: tracker.name,
-          previousFailures: tracker.consecutiveFailures,
-          wasPaused,
-          source: isManual ? "manual" : "scheduled",
-        },
-        "circuit breaker reset by successful poll"
-      )
-    }
+    await recordPollSuccess(tracker, timestamp, isManual)
     return true
   } catch (error) {
     const raw = error instanceof Error ? error.message : "Unknown error"

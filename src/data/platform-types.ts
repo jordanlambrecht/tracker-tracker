@@ -19,8 +19,12 @@ export const VALID_PLATFORM_TYPES = [
   "c411",
   "animebytes",
   "luminance",
+  "rutracker",
 ] as const
 export type PlatformType = (typeof VALID_PLATFORM_TYPES)[number]
+
+/** Platforms whose login can require a captcha, which the user enters on the tracker page. */
+export const CAPTCHA_PLATFORMS: ReadonlySet<string> = new Set(["rutracker"])
 
 export const MAM_BONUS_CAP = 99999
 
@@ -42,6 +46,7 @@ export const DEFAULT_API_PATHS: Record<string, string> = {
   c411: "/api/user/profile",
   animebytes: "/api/stats/personal",
   luminance: "/user.php",
+  rutracker: "/forum/index.php",
 }
 
 /**

@@ -16,6 +16,7 @@ import type {
   HawkePlatformMeta,
   NebulancePlatformMeta,
   RetrotoonPlatformMeta,
+  RuTrackerPlatformMeta,
   Unit3dPlatformMeta,
 } from "@/types/tracker-stats"
 
@@ -1346,5 +1347,63 @@ describe("bonus name", () => {
     for (const registry of [undefined, { ...torrentleech, bonusName: "" }]) {
       expect(seedbonusCard(ctx(registry))?.props).toMatchObject({ label: "Seedbonus", unit: "BON" })
     }
+  })
+})
+
+// RuTracker context: an overview-only tracker with its figures in platformMeta.
+
+describe("RuTracker context", () => {
+  function rutrackerCtx(meta: RuTrackerPlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "rutracker", latestStats: null }),
+      latestSnapshot: null,
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("shows the upload, rare-upload and seeding cards when statistics are on", () => {
+    const ids = slotIds(
+      rutrackerCtx({
+        statsEnabled: true,
+        uploadedBytes: 2 ** 40,
+        rareUploadedBytes: 2 ** 40,
+        seedingCount: 100,
+        seedingCapped: true,
+        role: "User",
+        posts: 0,
+      }),
+      "stat-card"
+    )
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "rutracker-uploaded",
+        "rutracker-rare-upload",
+        "rutracker-seeding",
+        "rutracker-role",
+        "rutracker-posts",
+      ])
+    )
+  })
+
+  it("marks a capped seeding count as a lower bound", () => {
+    const card = resolveSlots(rutrackerCtx({ seedingCount: 100, seedingCapped: true }))
+      .get("stat-card")
+      ?.find((s) => s.id === "rutracker-seeding")
+    expect(card?.props.value).toBe("100+")
+  })
+
+  it("shows only the overview cards and the hidden-stats badge when statistics are off", () => {
+    const ctx = rutrackerCtx({ statsEnabled: false, role: "User", posts: 0 })
+    expect(slotIds(ctx, "stat-card")).not.toContain("rutracker-uploaded")
+    expect(slotIds(ctx, "badge")).toContain("rutracker-stats-off")
+  })
+
+  it("flags a restricted account", () => {
+    expect(slotIds(rutrackerCtx({ restricted: true }), "badge")).toContain("rutracker-restricted")
+    expect(slotIds(rutrackerCtx({ restricted: false }), "badge")).not.toContain(
+      "rutracker-restricted"
+    )
   })
 })
