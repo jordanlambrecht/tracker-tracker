@@ -62,6 +62,7 @@ export async function PATCH(request: Request, props: RouteContext) {
     updates.encryptedApiKey = encrypt(body.apiKey.trim(), decodeKey(auth))
   }
   if (typeof body.enabled === "boolean") updates.enabled = body.enabled
+  if (typeof body.affectsHealth === "boolean") updates.affectsHealth = body.affectsHealth
 
   // The last error applies to the old address or key, so changing either clears
   // it and the next poll records a new one.

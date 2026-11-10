@@ -2,6 +2,8 @@
 "use client"
 
 import clsx from "clsx"
+import { useState } from "react"
+import { Button } from "@/components/ui/Button"
 import { ChevronToggle } from "@/components/ui/ChevronToggle"
 import { StatusDot, type StatusDotTone } from "@/components/ui/StatusDot"
 import { Tooltip } from "@/components/ui/Tooltip"
@@ -130,18 +132,24 @@ function StatusDetail({ indexer }: { indexer: TrackerProwlarrIndexer }) {
   return <>{describeIndexerStatus(indexer)}</>
 }
 
+type ResumeIndexer = (indexer: TrackerProwlarrIndexer) => Promise<string | null>
+
 // Laid out like the TrackerHub card: a header that collapses the details below it.
 function IndexerCard({
   indexer,
   expanded,
   onToggle,
+  onResume,
 }: {
   indexer: TrackerProwlarrIndexer
   expanded: boolean
   onToggle: () => void
+  onResume?: ResumeIndexer
 }) {
   const status = getIndexerStatus(indexer)
   const style = STATUS_STYLE[status]
+  const [resuming, setResuming] = useState(false)
+  const [resumeError, setResumeError] = useState<string | null>(null)
   const hasStats =
     indexer.stats24h !== null || indexer.stats7d !== null || indexer.statsStaleSince !== null
   return (
@@ -186,6 +194,26 @@ function IndexerCard({
                 <StatusDetail indexer={indexer} />
               </p>
             )}
+            {status === "failing" && onResume && (
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
+                  text="Resume"
+                  loading={resuming}
+                  disabled={resuming}
+                  onClick={async () => {
+                    setResuming(true)
+                    setResumeError(await onResume(indexer))
+                    setResuming(false)
+                  }}
+                />
+                {resumeError && (
+                  <p className="text-xs font-mono text-danger/80">Test failed: {resumeError}</p>
+                )}
+              </div>
+            )}
             <IndexerStats indexer={indexer} />
           </div>
         </div>
@@ -196,9 +224,16 @@ function IndexerCard({
 
 /**
  * The status and stats of the tracker's matched Prowlarr indexers, one card
- * each. It never changes the tracker's health.
+ * each. Resume runs Prowlarr's test for a failing one, which clears its
+ * backoff when it passes.
  */
-export function ProwlarrIndexerCard({ indexers }: { indexers: TrackerProwlarrIndexer[] }) {
+export function ProwlarrIndexerCard({
+  indexers,
+  onResume,
+}: {
+  indexers: TrackerProwlarrIndexer[]
+  onResume?: ResumeIndexer
+}) {
   const [expanded, setExpanded] = useLocalStorage("tracker-tracker:prowlarr-expanded", true)
   if (indexers.length === 0) return null
   return (
@@ -209,6 +244,7 @@ export function ProwlarrIndexerCard({ indexers }: { indexers: TrackerProwlarrInd
           indexer={indexer}
           expanded={expanded}
           onToggle={() => setExpanded((prev) => !prev)}
+          onResume={onResume}
         />
       ))}
     </>

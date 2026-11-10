@@ -1,19 +1,23 @@
 // src/lib/prowlarr/client.ts
 //
 // Functions: prowlarrUrlError, normalizeProwlarrUrl, sanitizeProwlarrError, parseSystemStatus,
-//            parseIndexers, parseIndexerStatuses, parseIndexerStats, fetchSystemStatus,
-//            fetchIndexers, fetchIndexerStatuses, fetchIndexerStats
+//            parseIndexers, parseIndexerStatuses, parseIndexerStats, scrubTestMessage,
+//            parseTestFailures, fetchSystemStatus, fetchIndexers, fetchIndexerStatuses,
+//            fetchIndexerStats, retestIndexer
 //
-// Read-only client for Prowlarr's v1 API. An indexer's settings include its site
-// credentials, so only its URLs are read from them, and the indexer list is
-// fetched far less often than the status (see prowlarr/sync.ts).
+// Client for Prowlarr's v1 API. Everything is read-only except retestIndexer,
+// which runs Prowlarr's test for one indexer when the user asks. An indexer's
+// settings include its site credentials, so only its URLs are read from them,
+// and the indexer list is fetched far less often than the status.
 
 import "server-only"
 
 import { classifyFetchError, sanitizeNetworkError } from "@/lib/error-utils"
 import {
   ADAPTER_FETCH_TIMEOUT_MS,
+  PROWLARR_MESSAGE_MAX,
   PROWLARR_RESPONSE_MAX_BYTES,
+  PROWLARR_TEST_TIMEOUT_MS,
   TRACKER_URL_MAX,
 } from "@/lib/limits"
 import { assertOutboundAllowed } from "@/lib/network"
@@ -187,6 +191,39 @@ export function parseIndexerStats(body: unknown): Map<number, ProwlarrIndexerSta
   return out
 }
 
+/**
+ * A test failure message with every URL cut down to its host. Prowlarr's
+ * HttpException message includes the request URL, which carries the API key
+ * for UNIT3D and Torznab indexers.
+ */
+export function scrubTestMessage(message: string): string {
+  return message
+    .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi, (match) => {
+      // Prowlarr wraps URLs in brackets, so closing ones are kept after the host.
+      const [, url, tail] = /^(.*?)([\])},.;]*)$/.exec(match) ?? [match, match, ""]
+      try {
+        return (new URL(url).host || "[URL]") + tail
+      } catch {
+        return `[URL]${tail}`
+      }
+    })
+    .slice(0, PROWLARR_MESSAGE_MAX)
+}
+
+/**
+ * The messages in a failed indexer test's validation list. Each entry also
+ * contains the rejected value, which can be a credential, so only the messages
+ * are read.
+ */
+export function parseTestFailures(body: unknown): string[] {
+  if (!Array.isArray(body)) return []
+  return body
+    .filter(isRecord)
+    .map((item) => (typeof item.errorMessage === "string" ? item.errorMessage.trim() : ""))
+    .filter((message) => message.length > 0)
+    .map(scrubTestMessage)
+}
+
 async function readCappedJson(response: Response): Promise<unknown> {
   const body = response.body
   let text: string
@@ -225,20 +262,31 @@ async function readCappedJson(response: Response): Promise<unknown> {
  * one would send the X-Api-Key header to the redirect target. Error messages
  * name the host only.
  */
-async function prowlarrGet(conn: ProwlarrConnection, path: string): Promise<unknown> {
+async function prowlarrFetch(
+  conn: ProwlarrConnection,
+  path: string,
+  init: { body?: unknown; timeoutMs?: number } = {}
+): Promise<Response> {
   assertOutboundAllowed()
   const base = normalizeProwlarrUrl(conn.url)
   const hostname = new URL(base).hostname
-  let response: Response
+  const headers: Record<string, string> = { "X-Api-Key": conn.apiKey, Accept: "application/json" }
+  if (init.body !== undefined) headers["Content-Type"] = "application/json"
   try {
-    response = await fetch(`${base}/api/v1/${path}`, {
-      headers: { "X-Api-Key": conn.apiKey, Accept: "application/json" },
+    return await fetch(`${base}/api/v1/${path}`, {
+      method: init.body === undefined ? "GET" : "POST",
+      headers,
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
       redirect: "manual",
-      signal: AbortSignal.timeout(ADAPTER_FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(init.timeoutMs ?? ADAPTER_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
     throw classifyFetchError(err, hostname)
   }
+}
+
+async function prowlarrGet(conn: ProwlarrConnection, path: string): Promise<unknown> {
+  const response = await prowlarrFetch(conn, path)
   if (!response.ok) {
     await response.body?.cancel().catch(() => undefined)
     throw new Error(`Prowlarr API error: ${response.status}`)
@@ -261,4 +309,33 @@ export async function fetchIndexerStatuses(conn: ProwlarrConnection) {
 export async function fetchIndexerStats(conn: ProwlarrConnection, start: Date, end: Date) {
   const qs = `startDate=${encodeURIComponent(start.toISOString())}&endDate=${encodeURIComponent(end.toISOString())}`
   return parseIndexerStats(await prowlarrGet(conn, `indexerstats?${qs}`))
+}
+
+/**
+ * Runs Prowlarr's test for one indexer. A passing test clears the indexer's
+ * failure backoff; a failed one extends it. The test endpoint takes the whole
+ * indexer definition, so the definition fetched from Prowlarr is sent back
+ * unchanged. It includes the site's credentials, so it is not stored, logged
+ * or read here.
+ */
+export async function retestIndexer(
+  conn: ProwlarrConnection,
+  indexerId: number
+): Promise<{ ok: true } | { failures: string[] }> {
+  const definition = await prowlarrGet(conn, `indexer/${indexerId}`)
+  if (!isRecord(definition)) throw unexpected("indexer")
+  const response = await prowlarrFetch(conn, "indexer/test", {
+    body: definition,
+    timeoutMs: PROWLARR_TEST_TIMEOUT_MS,
+  })
+  if (response.ok) {
+    await response.body?.cancel().catch(() => undefined)
+    return { ok: true }
+  }
+  if (response.status === 400) {
+    const failures = parseTestFailures(await readCappedJson(response).catch(() => null))
+    return { failures: failures.length > 0 ? failures : ["Prowlarr reported the test as failed"] }
+  }
+  await response.body?.cancel().catch(() => undefined)
+  throw new Error(`Prowlarr API error: ${response.status}`)
 }

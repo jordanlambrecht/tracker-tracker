@@ -95,6 +95,8 @@ export interface TrackerProwlarrIndexer {
   instanceId: number
   instanceName: string
   instanceUrl: string
+  /** The instance's setting for whether a failing indexer changes tracker health. */
+  affectsHealth: boolean
   /** The instance's last poll error. While set, the fields below are stale. */
   instanceError: string | null
   /** True when the last reading is too old to show (the poller has stopped). */

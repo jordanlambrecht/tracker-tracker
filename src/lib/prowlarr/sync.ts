@@ -1,7 +1,7 @@
 // src/lib/prowlarr/sync.ts
 //
-// Functions: decryptInstanceKey, testProwlarrInstance, pollProwlarrInstance,
-//            loadTrackerProwlarrStates, listIndexerOptions
+// Functions: decryptInstanceKey, testProwlarrInstance, retestProwlarrIndexer,
+//            pollProwlarrInstance, loadTrackerProwlarrStates, listIndexerOptions
 //
 // Reads each Prowlarr instance into prowlarr_indexers and turns those rows into
 // the per-tracker state on TrackerSummary. A failed poll is recorded on the
@@ -32,6 +32,7 @@ import {
   fetchIndexers,
   fetchSystemStatus,
   type ProwlarrConnection,
+  retestIndexer,
   sanitizeProwlarrError,
 } from "@/lib/prowlarr/client"
 import { type MatchableTracker, matchTrackerIndexers } from "@/lib/prowlarr/matching"
@@ -137,6 +138,24 @@ async function readStats(
       )
     }
     return undefined
+  }
+}
+
+/**
+ * Runs Prowlarr's test for one indexer. A failed test is returned as a test
+ * result, not as a connection error. Decryption errors are thrown, as in
+ * testProwlarrInstance.
+ */
+export async function retestProwlarrIndexer(
+  instance: KeyedInstance,
+  indexerId: number,
+  key: Buffer
+): Promise<{ ok: true } | { failures: string[] } | { error: string }> {
+  const conn = decryptInstanceKey(instance, key)
+  try {
+    return await retestIndexer(conn, indexerId)
+  } catch (err) {
+    return { error: describeFailure(err) }
   }
 }
 
@@ -327,6 +346,7 @@ async function loadStoredIndexers(): Promise<StoredIndexer[]> {
       id: prowlarrInstances.id,
       name: prowlarrInstances.name,
       url: prowlarrInstances.url,
+      affectsHealth: prowlarrInstances.affectsHealth,
       lastError: prowlarrInstances.lastError,
       statsReadAt: prowlarrInstances.statsReadAt,
       stats7dReadAt: prowlarrInstances.stats7dReadAt,
@@ -365,6 +385,7 @@ async function loadStoredIndexers(): Promise<StoredIndexer[]> {
       instanceId: row.instanceId,
       instanceName: instance?.name ?? "",
       instanceUrl: instance?.url ?? "",
+      affectsHealth: instance?.affectsHealth ?? false,
       instanceError: instance?.lastError ?? null,
       stale: row.checkedAt.getTime() < staleBefore,
       indexerId: row.indexerId,

@@ -5,7 +5,8 @@
 // Single source of truth for tracker health status. Includes type, derivation
 // logic, and all visual mappings (StatusDot tone and glow, Badge variant,
 // labels, descriptions). Ratio bands are requirement-aware: each tracker is
-// judged against its own required ratio, not a global cutoff.
+// judged against its own required ratio, not a global cutoff. A failing
+// Prowlarr indexer changes a healthy status only where its instance opts in.
 
 import type { BadgeVariant } from "@/components/ui/Badge"
 import type { StatusDotProps, StatusDotTone } from "@/components/ui/StatusDot"
@@ -18,6 +19,7 @@ import {
   POLL_FAILURE_THRESHOLD,
   POLL_TICK_MINUTES,
 } from "@/lib/limits"
+import { describeIndexerStatus, getProwlarrFailures } from "@/lib/prowlarr/status"
 import type { TrackerSummary } from "@/types/api"
 
 // Ordered loosely by severity, ascending. "warning" and "no-seeds" are
@@ -25,6 +27,7 @@ import type { TrackerSummary } from "@/types/api"
 // fixes.
 type TrackerHealth =
   | "healthy"
+  | "indexer-failing"
   | "warning"
   | "no-seeds"
   | "critical"
@@ -47,6 +50,12 @@ const HEALTH_META: Record<TrackerHealth, HealthMeta> = {
     description: "Ratio at least double the required ratio",
     dot: { tone: "accent", glow: true },
     badge: "accent",
+  },
+  "indexer-failing": {
+    label: "Indexer Failing",
+    description: "Ratio healthy, but the tracker's indexer is failing in Prowlarr",
+    dot: { tone: "warn", glow: true },
+    badge: "warn",
   },
   warning: {
     // Named for what the model actually measures, which is ratio against the
@@ -300,7 +309,14 @@ function getTrackerHealth(tracker: TrackerSummary): TrackerHealth {
   // the strict === 0 check leaves those trackers on their ratio status.
   if (seedingCount === 0 && (status === "healthy" || status === "warning")) status = "no-seeds"
 
+  if (status === "healthy" && warningProwlarrFailure(tracker)) status = "indexer-failing"
+
   return status
+}
+
+// The longest-failing indexer whose instance opted in to changing tracker health.
+function warningProwlarrFailure(tracker: TrackerSummary) {
+  return getProwlarrFailures(tracker).find((i) => i.affectsHealth) ?? null
 }
 
 function getHealthBadgeVariant(status: TrackerHealth): BadgeVariant {
@@ -318,6 +334,12 @@ function getHealthLabel(status: TrackerHealth): string {
 function getHealthDescription(status: TrackerHealth, tracker?: TrackerSummary): string {
   if (status === "unlinked" && tracker?.duplicateOf) {
     return `Another of your trackers already uses ${tracker.duplicateOf}`
+  }
+  if (status === "indexer-failing") {
+    const failure = tracker ? warningProwlarrFailure(tracker) : null
+    return failure
+      ? `${failure.name}: ${describeIndexerStatus(failure)}`
+      : HEALTH_META[status].description
   }
   if (!tracker || (status !== "healthy" && status !== "warning" && status !== "critical")) {
     return HEALTH_META[status].description

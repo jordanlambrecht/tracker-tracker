@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authenticate } from "@/lib/api-helpers"
 import { decrypt, encrypt } from "@/lib/crypto"
 import { db } from "@/lib/db"
-import { testProwlarrInstance } from "@/lib/prowlarr/sync"
+import { retestProwlarrIndexer, testProwlarrInstance } from "@/lib/prowlarr/sync"
 import { requestProwlarrPoll } from "@/lib/prowlarr-scheduler"
+import { POST as RETEST } from "./[id]/indexers/[indexerId]/test/route"
 import { DELETE, PATCH } from "./[id]/route"
 import { POST as TEST } from "./[id]/test/route"
 import { GET as INDEXERS } from "./indexers/route"
@@ -26,6 +27,7 @@ vi.mock("@/lib/prowlarr/sync", async (importOriginal) => {
   return {
     ...actual,
     testProwlarrInstance: vi.fn(),
+    retestProwlarrIndexer: vi.fn(),
     listIndexerOptions: vi.fn(async () => []),
   }
 })
@@ -51,6 +53,9 @@ function jsonRequest(body: unknown, method = "POST"): Request {
 }
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
+const indexerParams = (id: string, indexerId: string) => ({
+  params: Promise.resolve({ id, indexerId }),
+})
 
 function mockInsertReturning(row: Record<string, unknown>) {
   const values = vi.fn(() => ({ returning: vi.fn(async () => [row]) }))
@@ -83,6 +88,10 @@ describe("auth gate", () => {
     ["PATCH /api/prowlarr/[id]", () => PATCH(jsonRequest({}, "PATCH"), params("1"))],
     ["DELETE /api/prowlarr/[id]", () => DELETE(new Request("http://localhost"), params("1"))],
     ["POST /api/prowlarr/[id]/test", () => TEST(new Request("http://localhost"), params("1"))],
+    [
+      "POST /api/prowlarr/[id]/indexers/[indexerId]/test",
+      () => RETEST(new Request("http://localhost"), indexerParams("1", "12")),
+    ],
   ])("%s returns 401 without a session", async (_name, call) => {
     vi.mocked(authenticate).mockResolvedValue(
       NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -273,5 +282,74 @@ describe("POST /api/prowlarr/[id]/test", () => {
     expect((await res.json()).error).toBe(
       "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
     )
+  })
+})
+
+describe("POST /api/prowlarr/[id]/indexers/[indexerId]/test", () => {
+  const INSTANCE = { id: 1, url: "http://prowlarr.test:9696", encryptedApiKey: "ciphertext" }
+  // Each test uses its own indexer id, because the cooldown outlives a test.
+  let nextIndexerId = 100
+  const retest = (indexerId = String(nextIndexerId++)) =>
+    RETEST(new Request("http://localhost"), indexerParams("1", indexerId))
+
+  it("tests the indexer, then re-reads the instance's status", async () => {
+    mockSelectRow(INSTANCE)
+    vi.mocked(retestProwlarrIndexer).mockResolvedValue({ ok: true })
+
+    const res = await retest("12")
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(retestProwlarrIndexer).mock.calls[0]?.[1]).toBe(12)
+    expect(requestProwlarrPoll).toHaveBeenCalledWith(1, expect.any(Buffer))
+  })
+
+  it("refuses a second test of the same indexer within the cooldown", async () => {
+    mockSelectRow(INSTANCE)
+    vi.mocked(retestProwlarrIndexer).mockResolvedValue({ ok: true })
+
+    expect((await retest("13")).status).toBe(200)
+    const again = await retest("13")
+
+    expect(again.status).toBe(429)
+    expect(again.headers.get("Retry-After")).toMatch(/^\d+$/)
+    expect(retestProwlarrIndexer).toHaveBeenCalledTimes(1)
+  })
+
+  it("answers a failed test with Prowlarr's reasons", async () => {
+    mockSelectRow(INSTANCE)
+    vi.mocked(retestProwlarrIndexer).mockResolvedValue({ failures: ["Unable to connect", "Bad"] })
+
+    const res = await retest()
+
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe("Unable to connect; Bad")
+  })
+
+  it("answers an unreachable Prowlarr as a 502", async () => {
+    mockSelectRow(INSTANCE)
+    vi.mocked(retestProwlarrIndexer).mockResolvedValue({ error: "Prowlarr unreachable: refused" })
+
+    expect((await retest()).status).toBe(502)
+    expect(requestProwlarrPoll).not.toHaveBeenCalled()
+  })
+
+  it("asks for a key that will not decrypt to be entered again", async () => {
+    const actual =
+      await vi.importActual<typeof import("@/lib/prowlarr/sync")>("@/lib/prowlarr/sync")
+    vi.mocked(retestProwlarrIndexer).mockImplementation(actual.retestProwlarrIndexer)
+    mockSelectRow({ ...INSTANCE, encryptedApiKey: encrypt(API_KEY, Buffer.alloc(32, 9)) })
+
+    const res = await retest()
+
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe(
+      "Stored API key can't be read. Enter it again in this Prowlarr instance's settings"
+    )
+  })
+
+  it("refuses a bad id and a missing instance", async () => {
+    expect((await retest("x")).status).toBe(400)
+    mockSelectRow(null)
+    expect((await retest()).status).toBe(404)
   })
 })

@@ -65,6 +65,7 @@ function renderHeader(tracker: TrackerSummary, registryEntry?: TrackerRegistryEn
       onTogglePause={vi.fn()}
       pauseLoading={false}
       settingsSaves={0}
+      onResumeIndexer={vi.fn()}
     />
   )
 }

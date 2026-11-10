@@ -29,7 +29,7 @@ import {
   getHealthDot,
   getTrackerHealth,
 } from "@/lib/tracker-status"
-import type { TrackerLatestStats, TrackerSummary } from "@/types/api"
+import type { TrackerLatestStats, TrackerProwlarrIndexer, TrackerSummary } from "@/types/api"
 import type { ResolvedSlot } from "@/types/slots"
 
 interface TrackerDetailHeaderProps {
@@ -50,6 +50,8 @@ interface TrackerDetailHeaderProps {
   onTogglePause: () => void
   pauseLoading: boolean
   settingsSaves: number
+  /** Tests an indexer in Prowlarr. Resolves to the reason it failed, or null. */
+  onResumeIndexer: (indexer: TrackerProwlarrIndexer) => Promise<string | null>
 }
 
 export function TrackerDetailHeader({
@@ -67,6 +69,7 @@ export function TrackerDetailHeader({
   onTogglePause,
   pauseLoading,
   settingsSaves,
+  onResumeIndexer,
 }: TrackerDetailHeaderProps) {
   const health = getTrackerHealth(tracker)
   const prowlarrIndexers = tracker.prowlarr?.indexers ?? []
@@ -217,7 +220,9 @@ export function TrackerDetailHeader({
                   mouseholeUrl={tracker.mouseholeUrl}
                 />
               )}
-              {prowlarrIndexers.length > 0 && <ProwlarrIndexerCard indexers={prowlarrIndexers} />}
+              {prowlarrIndexers.length > 0 && (
+                <ProwlarrIndexerCard indexers={prowlarrIndexers} onResume={onResumeIndexer} />
+              )}
             </div>
           )}
         </div>

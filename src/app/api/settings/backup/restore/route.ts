@@ -509,6 +509,7 @@ async function runRestore(request: Request, auth: { encryptionKey: string }) {
             encryptedApiKey: apiKey,
             // Anything but a boolean true restores the instance disabled.
             enabled: !keyCleared && fields.enabled === true,
+            affectsHealth: fields.affectsHealth === true,
             lastError: keyCleared ? "API key cleared during restore. Re-enter and re-enable" : null,
             createdAt: new Date(fields.createdAt as string),
             updatedAt: new Date(fields.updatedAt as string),

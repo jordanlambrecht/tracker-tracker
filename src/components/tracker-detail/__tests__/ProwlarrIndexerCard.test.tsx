@@ -1,6 +1,6 @@
 // src/components/tracker-detail/__tests__/ProwlarrIndexerCard.test.tsx
 
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ProwlarrIndexerCard } from "@/components/tracker-detail/ProwlarrIndexerCard"
 import type { TrackerProwlarrIndexer } from "@/types/api"
@@ -10,6 +10,7 @@ function indexer(overrides: Partial<TrackerProwlarrIndexer> = {}): TrackerProwla
     instanceId: 3,
     instanceName: "Home",
     instanceUrl: "http://prowlarr.test:9696",
+    affectsHealth: false,
     instanceError: null,
     stale: false,
     indexerId: 12,
@@ -146,6 +147,38 @@ describe("ProwlarrIndexerCard", () => {
   it("leaves the stats out until Prowlarr has reported them", () => {
     render(<ProwlarrIndexerCard indexers={[indexer()]} />)
     expect(screen.queryByText("Queries")).not.toBeInTheDocument()
+  })
+
+  describe("Resume", () => {
+    const failing = () =>
+      indexer({ disabledTill: "2026-08-14T13:00:00.000Z", initialFailure: "2026-08-14T10:00:00Z" })
+
+    it("tests the failing indexer", async () => {
+      const onResume = vi.fn(async (): Promise<string | null> => null)
+      const target = failing()
+      render(<ProwlarrIndexerCard indexers={[target]} onResume={onResume} />)
+
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }))
+
+      await waitFor(() => expect(onResume).toHaveBeenCalledWith(target))
+      expect(screen.queryByText(/Test failed/)).not.toBeInTheDocument()
+    })
+
+    it("shows why the test failed", async () => {
+      const onResume = vi.fn(async (): Promise<string | null> => "Unable to connect to indexer")
+      render(<ProwlarrIndexerCard indexers={[failing()]} onResume={onResume} />)
+
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }))
+
+      expect(
+        await screen.findByText("Test failed: Unable to connect to indexer")
+      ).toBeInTheDocument()
+    })
+
+    it("is not offered for a healthy indexer", () => {
+      render(<ProwlarrIndexerCard indexers={[indexer()]} onResume={vi.fn()} />)
+      expect(screen.queryByRole("button", { name: "Resume" })).not.toBeInTheDocument()
+    })
   })
 })
 
