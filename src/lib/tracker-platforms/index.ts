@@ -13,6 +13,7 @@ import { BtnAdapter } from "./adapters/btn"
 import { C411Adapter } from "./adapters/c411"
 import { DigitalCoreAdapter } from "./adapters/digitalcore"
 import { FilelistAdapter } from "./adapters/filelist"
+import { FunfileAdapter } from "./adapters/funfile"
 import { GazelleAdapter } from "./adapters/gazelle"
 import { GGnAdapter } from "./adapters/ggn"
 import { HawkeAdapter } from "./adapters/hawke"
@@ -33,6 +34,7 @@ const adapters: Record<string, TrackerAdapter> = {
   c411: new C411Adapter(),
   digitalcore: new DigitalCoreAdapter(),
   filelist: new FilelistAdapter(),
+  funfile: new FunfileAdapter(),
   gazelle: new GazelleAdapter(),
   ggn: new GGnAdapter(),
   hawke: new HawkeAdapter(),
