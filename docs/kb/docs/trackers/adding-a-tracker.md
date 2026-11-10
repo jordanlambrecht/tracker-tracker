@@ -148,6 +148,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | ---------------- | ------------ |
     | Cathode-Ray.Tube | CRT          |
 
+=== "V3X"
+
+    | Name | Abbreviation |
+    | ---- | ------------ |
+    | V3X  | V3X          |
+
 !!! note "Draft entries"
     Some trackers show a dashed border saying "Stats tracking not yet supported." You can use them as quicklinks, but they won't poll yet.
 
@@ -316,6 +322,16 @@ Location varies by platform:
 
     !!! warning "Unverified"
         Luminance support hasn't been tested against a live account. If a poll fails or a stat looks wrong, open an issue naming the tracker.
+
+=== "V3X"
+
+    V3X reads your stats from its read-only profile API at `api.v3x.club/api/me`, with a key that can do nothing else.
+
+    1. On [v3x.club](https://v3x.club), go to **Réglages → Intégrations → Clés API à droits limités**
+    2. Create a key with only **Mon profil (lecture)** checked
+    3. Copy the key, which is shown once, and paste it into the Add Tracker dialog
+
+    The class shown is your V3X rank (Figurant, Second rôle, ...), named from your level. Seeding and leeching counts, H&R, warnings, freeleech tokens, last visit, remaining invites, a running global freeleech and the download that freeleech kept off your ratio are read too. V3X allows 30 calls a minute, and each poll makes one.
 
 !!! warning "Keep your token private"
     Your API token works like a password. Tracker Tracker encrypts it before storing it.

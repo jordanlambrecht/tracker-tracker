@@ -10,6 +10,7 @@ import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import { RankProgress } from "@/components/dashboard/RankProgress"
 import type { TrackerUserClass } from "@/data/tracker-registry"
+import { v3xClassLevel, v3xUserClasses } from "@/data/v3x-levels"
 import type { Snapshot } from "@/types/api"
 
 const classes: TrackerUserClass[] = [
@@ -161,5 +162,39 @@ describe("RankProgress timeline direction", () => {
     expect(screen.getByText("Member")).toBeInTheDocument()
     expect(screen.queryByText("▲")).not.toBeInTheDocument()
     expect(screen.queryByText("▼")).not.toBeInTheDocument()
+  })
+})
+
+// V3X names a level inside each rank, so a level-up within a rank is a promotion.
+describe("RankProgress with levels inside ranks", () => {
+  function renderLevels(from: string, to: string, currentRank: string | null = null) {
+    return render(
+      <RankProgress
+        userClasses={v3xUserClasses()}
+        currentRank={currentRank}
+        classLevel={v3xClassLevel}
+        snapshots={[
+          { ...baseSnapshot, group: from },
+          { ...baseSnapshot, polledAt: "2026-08-14T12:00:00.000Z", group: to },
+        ]}
+        accentColor="#00d4ff"
+      />
+    )
+  }
+
+  it("reads a level-up inside a rank as a promotion", () => {
+    renderLevels("Figurant N4", "Figurant N5")
+    expect(screen.getByText("▲")).toBeInTheDocument()
+  })
+
+  it("reads a prestige restart as a demotion", () => {
+    renderLevels("Palme d'Or N100", "Figurant N1")
+    expect(screen.getByText("▼")).toBeInTheDocument()
+  })
+
+  it("lists the five ranks and highlights the one the level is in", () => {
+    renderLevels("Second rôle N13", "Second rôle N14", "Second rôle N14")
+    expect(screen.getByText("Tête d'affiche")).toBeInTheDocument()
+    expect(screen.queryByText("Figurant N1")).not.toBeInTheDocument()
   })
 })

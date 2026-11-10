@@ -6,7 +6,7 @@
 //              gazelle-tokens, perfect-flacs, snatched-gazelle, torrents-uploaded,
 //              requests-filled, groups-contributed, invited, gazelle-bounty, gazelle-comments,
 //              mam-wedges, mam-completed, mam-tracker-errors
-//   badge: warned, donor, disabled, ggn-parked, ggn-invites, ggn-irc,
+//   badge: warned, donor, disabled, global-freeleech, ggn-parked, ggn-invites, ggn-irc,
 //          gazelle-paranoia, gazelle-unread, gazelle-announcement,
 //          mam-vip, mam-connectable, mam-unread
 //   progress: ggn-achievement-progress, ggn-share-score-progress, ggn-buffs,
@@ -18,6 +18,9 @@
 //             dc-unconnectable, dc-seedbox-donor, dc-invites, dc-hearts
 //   c411 badge: c411-download-disabled
 //   hawke badge: hawke-download-disabled
+//   v3x stat-card: v3x-freeleech
+//   v3x progress: v3x-level-progress
+//   v3x badge: v3x-invites
 
 import type { ComponentType, ReactNode } from "react"
 import { createElement } from "react"
@@ -49,6 +52,8 @@ import type { GgnShareScoreProgressProps } from "./platform/GgnShareScoreProgres
 import { GgnShareScoreProgress } from "./platform/GgnShareScoreProgress"
 import type { MamHealthOverviewProps } from "./platform/MamHealthOverview"
 import { MamHealthOverview } from "./platform/MamHealthOverview"
+import type { V3xLevelProgressProps } from "./platform/V3xLevelProgress"
+import { V3xLevelProgress } from "./platform/V3xLevelProgress"
 import type { LoginDeadlineCardProps } from "./slots/LoginDeadlineCard"
 import { LoginDeadlineCard } from "./slots/LoginDeadlineCard"
 import type { SlotBadgeProps } from "./slots/SlotBadge"
@@ -564,6 +569,25 @@ const ggnIrcBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   },
 }
 
+// A site-wide freeleech, counted down to its end. A stale snapshot whose end
+// has passed shows nothing.
+const globalFreeleechBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "global-freeleech",
+  category: "badge",
+  component: SlotBadge,
+  priority: 13,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "v3x")
+    if (meta?.globalFreeleech !== true) return null
+    if (!meta.globalFreeleechEndsAt) return { variant: "accent", label: "Global Freeleech" }
+    const ms = new Date(meta.globalFreeleechEndsAt).getTime() - Date.now()
+    if (Number.isNaN(ms) || ms <= 0) return null
+    const hours = Math.ceil(ms / 3_600_000)
+    const left = hours < 24 ? `${hours}h` : `${Math.ceil(hours / 24)}d`
+    return { variant: "accent", label: `Global Freeleech (${left})` }
+  },
+}
+
 const gazelleParanoiaBadgeSlot: SlotDefinition<SlotBadgeProps> = {
   id: "gazelle-paranoia",
   category: "badge",
@@ -1062,6 +1086,56 @@ const hawkeDownloadDisabledBadgeSlot: SlotDefinition<SlotBadgeProps> = {
 // Exported registry
 // ---------------------------------------------------------------------------
 
+// V3X slot definitions
+
+const v3xFreeleechSlot: SlotDefinition<StatCardBasicProps> = {
+  id: "v3x-freeleech",
+  category: "stat-card",
+  component: StatCard as ComponentType<StatCardBasicProps>,
+  priority: 11,
+  resolve(ctx) {
+    const bytes = metaFor(ctx, "v3x")?.freeleechDownloadedBytes
+    if (bytes === undefined) return null
+    const [value, unit] = formatBytesNum(bytes).split(" ")
+    return {
+      label: "Freeleech Downloaded",
+      value,
+      unit,
+      accentColor: ctx.accentColor,
+      icon: icon16(DownloadArrowIcon),
+    }
+  },
+}
+
+const v3xLevelProgressSlot: SlotDefinition<V3xLevelProgressProps> = {
+  id: "v3x-level-progress",
+  category: "progress",
+  component: V3xLevelProgress as ComponentType<V3xLevelProgressProps>,
+  priority: 10,
+  resolve(ctx) {
+    const meta = metaFor(ctx, "v3x")
+    if (meta?.level === undefined || meta.xp === undefined) return null
+    return {
+      level: meta.level,
+      xp: meta.xp,
+      prestige: meta.prestige ?? 0,
+      accentColor: ctx.accentColor,
+    }
+  },
+}
+
+const v3xInvitesBadgeSlot: SlotDefinition<SlotBadgeProps> = {
+  id: "v3x-invites",
+  category: "badge",
+  component: SlotBadge,
+  priority: 21,
+  resolve(ctx) {
+    const invites = metaFor(ctx, "v3x")?.invites
+    if (typeof invites !== "number" || invites <= 0) return null
+    return { variant: "default", label: `${invites} Invites` }
+  },
+}
+
 export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   // stat-card slots
   loginDeadlineSlot,
@@ -1088,6 +1162,7 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   warnedBadgeSlot,
   donorBadgeSlot,
   disabledBadgeSlot,
+  globalFreeleechBadgeSlot,
   ggnParkedBadgeSlot,
   ggnInvitesBadgeSlot,
   ggnIrcBadgeSlot,
@@ -1127,6 +1202,10 @@ export const SLOT_DEFINITIONS: AnySlotDefinition[] = [
   c411DownloadDisabledBadgeSlot,
   // HAWKE-UNO slots (badge)
   hawkeDownloadDisabledBadgeSlot,
+  // V3X slots
+  v3xFreeleechSlot,
+  v3xInvitesBadgeSlot,
+  v3xLevelProgressSlot,
 ]
 
 // Shared component lookup: single source for rendering resolved slots

@@ -265,6 +265,8 @@ export const CREDENTIAL_FORMS = {
     },
   },
 
+  v3x: tokenForm("Your V3X API key with « Mon profil (lecture) »", true),
+
   retrotoon: {
     kind: "cookies",
     example: "PHPSESSID=abc123def456",

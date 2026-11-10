@@ -17,6 +17,7 @@ import type {
   NebulancePlatformMeta,
   RetrotoonPlatformMeta,
   Unit3dPlatformMeta,
+  V3xPlatformMeta,
 } from "@/types/tracker-stats"
 
 // ---------------------------------------------------------------------------
@@ -1346,5 +1347,42 @@ describe("bonus name", () => {
     for (const registry of [undefined, { ...torrentleech, bonusName: "" }]) {
       expect(seedbonusCard(ctx(registry))?.props).toMatchObject({ label: "Seedbonus", unit: "BON" })
     }
+  })
+})
+
+describe("V3X context", () => {
+  function v3xCtx(meta: V3xPlatformMeta): SlotContext {
+    return {
+      tracker: makeTracker({ platformType: "v3x" }),
+      latestSnapshot: makeSnapshot(),
+      meta,
+      registry: undefined,
+      accentColor: BASE_ACCENT,
+    }
+  }
+
+  it("shows the freeleech download and invites", () => {
+    const ctx = v3xCtx({ freeleechDownloadedBytes: 0, invites: 2 })
+    expect(slotIds(ctx, "stat-card")).toContain("v3x-freeleech")
+    expect(slotIds(ctx, "badge")).toContain("v3x-invites")
+  })
+
+  it("hides the invites at zero, and the freeleech card without the figure", () => {
+    expect(slotIds(v3xCtx({ invites: 0 }), "badge")).not.toContain("v3x-invites")
+    expect(slotIds(v3xCtx({}), "stat-card")).not.toContain("v3x-freeleech")
+  })
+
+  it("shows the level progress with the level and XP", () => {
+    expect(slotIds(v3xCtx({ level: 14, xp: 28020, prestige: 0 }), "progress")).toContain(
+      "v3x-level-progress"
+    )
+    expect(slotIds(v3xCtx({}), "progress")).not.toContain("v3x-level-progress")
+  })
+
+  it("shows a global freeleech that is running", () => {
+    const endsAt = new Date(Date.now() + 5 * 3_600_000).toISOString()
+    const running = v3xCtx({ globalFreeleech: true, globalFreeleechEndsAt: endsAt })
+    expect(slotIds(running, "badge")).toContain("global-freeleech")
+    expect(slotIds(v3xCtx({ globalFreeleech: false }), "badge")).not.toContain("global-freeleech")
   })
 })
