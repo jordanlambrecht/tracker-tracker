@@ -101,15 +101,11 @@ function parseUpStatCards(doc: ParsedElement): {
   return result
 }
 
-/** A profile field's date, such as "2024-05-06 07:08:09 (2 years ago)", as "2024-05-06". */
+/** The date of a profile header entry, such as "Joined <time datetime=…>", as "2024-05-06". */
 function profileDate(doc: ParsedElement, label: string): string | undefined {
-  for (const field of doc.querySelectorAll(".up-field")) {
-    if (normalizeWhitespace(field.querySelector(".up-field-label")?.textContent ?? "") !== label) {
-      continue
-    }
-    return datePrefix(
-      normalizeWhitespace(field.querySelector(".up-field-value")?.textContent ?? "")
-    )
+  for (const entry of doc.querySelectorAll(".upf-meta > span")) {
+    if (!normalizeWhitespace(entry.textContent ?? "").startsWith(label)) continue
+    return datePrefix(entry.querySelector("time")?.getAttribute("datetime") ?? "")
   }
   return undefined
 }
@@ -211,7 +207,7 @@ export function parseIptProfile(html: string, hostname: string, profileId?: numb
   }
 
   const badge = ownProfile
-    ? normalizeWhitespace(doc.querySelector("span.up-class-badge")?.textContent ?? "")
+    ? normalizeWhitespace(doc.querySelector(".upf-class")?.textContent ?? "")
     : ""
   // The header's VIP flag stands in when there is no badge to read.
   const vipEl = doc.querySelector(".hdr-vip")
@@ -232,8 +228,8 @@ export function parseIptProfile(html: string, hostname: string, profileId?: numb
     requiredRatio: null,
     warned: null,
     freeleechTokens: null,
-    joinedDate: ownProfile ? profileDate(doc, "Join Date") : undefined,
-    lastAccessDate: ownProfile ? profileDate(doc, "Last Seen") : undefined,
+    joinedDate: ownProfile ? profileDate(doc, "Joined") : undefined,
+    lastAccessDate: ownProfile ? profileDate(doc, "Last seen") : undefined,
     // Returned so the scheduler persists it and later polls skip the homepage.
     remoteUserId: ownId,
   }
