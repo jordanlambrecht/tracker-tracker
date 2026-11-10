@@ -135,6 +135,8 @@ export interface TrackerRegistryEntry {
   gazelleAuthStyle?: GazelleAuthStyle
   gazelleEnrich?: boolean
   unit3dAuthStyle?: Unit3dAuthStyle
+  /** A UNIT3D fork's global freeleech endpoint, which UNIT3D itself lacks. */
+  unit3dGlobalFreeleechPath?: string
   /** Anthelion spells the key parameter without an underscore. Defaults to api_key. */
   nebulanceAuthParam?: NebulanceAuthParam
   /**
