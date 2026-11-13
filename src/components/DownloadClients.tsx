@@ -69,11 +69,16 @@ const URL_PATH_HINTS: Record<ClientType, string> = {
   transmission:
     "Replaces Transmission's default /transmission path, for a custom rpc-url or a reverse " +
     "proxy. /rpc is added after it. Always stored encrypted.",
+  // rtorrent/transport.ts rpcEndpoint: the path replaces /RPC2.
+  rtorrent:
+    "The path rTorrent's XML-RPC is served under. Leave blank for /RPC2. On Whatbox, use " +
+    "/xmlrpc. Always stored encrypted.",
 }
 
 const URL_PATH_PLACEHOLDERS: Record<ClientType, string> = {
   qbittorrent: "/proxy/<client API key>",
   transmission: "/transmission",
+  rtorrent: "/RPC2",
 }
 
 const AUTH_METHOD_OPTIONS: { value: AuthMethod; label: string }[] = [

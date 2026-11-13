@@ -1,6 +1,6 @@
 // src/lib/download-clients/types.ts
 
-export const VALID_CLIENT_TYPES = ["qbittorrent", "transmission"] as const
+export const VALID_CLIENT_TYPES = ["qbittorrent", "transmission", "rtorrent"] as const
 
 export type ClientType = (typeof VALID_CLIENT_TYPES)[number]
 
@@ -8,9 +8,11 @@ export type ClientType = (typeof VALID_CLIENT_TYPES)[number]
 export const DEFAULT_CLIENT_PORTS: Record<ClientType, number> = {
   qbittorrent: 8080,
   transmission: 9091,
+  // rTorrent has no web API of its own; a web server mounts its XML-RPC.
+  rtorrent: 80,
 }
 
-/** Transmission's RPC takes HTTP Basic and nothing else. */
+/** Transmission's RPC and the web server in front of rTorrent take HTTP Basic and nothing else. */
 export function clientSupportsApiKey(type: string): boolean {
   return type === "qbittorrent"
 }

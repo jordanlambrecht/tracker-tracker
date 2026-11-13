@@ -1,6 +1,7 @@
 // src/lib/download-clients/__tests__/rtorrent-transport.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
 import { RTORRENT_RESPONSE_MAX_BYTES } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTorrents, getTransferStats, testClient } from "../rtorrent/transport"
@@ -325,5 +326,80 @@ describe("getTorrents", () => {
   it("refuses a d.multicall2 answer that is not a list", async () => {
     stubFetch(ok("nope"))
     await expect(getTorrents(BASE, CREDS)).rejects.toThrow(/unexpected response/)
+  })
+})
+
+describe("what the user sees when the transport refuses a response", () => {
+  // Each refusal reaches a card through sanitizeNetworkError. Without an
+  // rTorrent rule it names qBittorrent, or reads "Connection failed", which
+  // this codebase reserves for a host that never answered.
+  it.each<{ name: string; creds?: ClientCredentials; responses: () => Response[]; card: string }>([
+    {
+      name: "a rejected password",
+      responses: () => [new Response("", { status: 401 })],
+      card: "Credentials rejected by rTorrent. Check the username and password",
+    },
+    {
+      name: "blank credentials on an endpoint that requires them",
+      creds: { ...CREDS, username: "", password: "" },
+      responses: () => [new Response("", { status: 401 })],
+      card: "Credentials rejected by rTorrent. Check the username and password",
+    },
+    {
+      name: "an API-key credential",
+      creds: { authMethod: "apikey", apiKey: "k", urlPath: "", credentialKey: "apikey:enc-k" },
+      responses: () => [],
+      card: "rTorrent has no API key login. Set this client to username and password",
+    },
+    {
+      name: "a 403 from the web server's access rules",
+      responses: () => [new Response("Forbidden", { status: 403 })],
+      card: "rTorrent refused the connection. Check the proxy's access rules",
+    },
+    {
+      name: "an oversized body",
+      responses: () => [oversized()],
+      card: "rTorrent returned an oversized response",
+    },
+    {
+      name: "a redirect",
+      responses: () => [
+        new Response(null, { status: 302, headers: { Location: "http://elsewhere.example/" } }),
+      ],
+      card: "rTorrent redirected the request. Check the URL path",
+    },
+    {
+      name: "a 404 from a wrong port or URL path",
+      responses: () => [new Response("404 page not found", { status: 404 })],
+      card: "rTorrent's XML-RPC was not found at this address. Check the port and URL path",
+    },
+    {
+      name: "a fault",
+      responses: () => [faultResponse(-506, "Method not defined")],
+      card: "rTorrent refused the request. Its XML-RPC may be too old or restricted",
+    },
+    {
+      name: "a login page instead of XML-RPC",
+      responses: () => [new Response("<html>login</html>")],
+      card: "rTorrent sent an unexpected response. Check the URL path points at its XML-RPC endpoint",
+    },
+    {
+      name: "a 502 from a proxy in front of it",
+      responses: () => [new Response("Bad Gateway", { status: 502, statusText: "Bad Gateway" })],
+      card: "rTorrent returned HTTP 502",
+    },
+  ])("words $name for the card", async ({ creds, responses, card }) => {
+    stubFetch(...responses())
+    const err = await rejection(testClient(BASE, creds ?? CREDS))
+    const shown = sanitizeNetworkError(err?.message ?? "")
+    expect(shown).toBe(card)
+    expect(isUnreachableMessage(shown)).toBe(false)
+  })
+
+  it("still reads a refused connection as one when the hostname says rtorrent", async () => {
+    const cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })))
+    const err = await rejection(testClient("http://rtorrent.local:80", CREDS))
+    expect(sanitizeNetworkError(err?.message ?? "")).toBe("Connection refused")
   })
 })

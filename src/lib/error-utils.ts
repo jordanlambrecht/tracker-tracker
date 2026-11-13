@@ -177,6 +177,33 @@ export function sanitizeNetworkError(raw: string, fallback = "Connection failed"
   // Any status left over. Only the digits are kept, never the status text.
   const transmissionStatus = raw.match(/Transmission RPC error: (\d{3})/i)
   if (transmissionStatus) return `Transmission returned HTTP ${transmissionStatus[1]}`
+  // rTorrent outcomes, for the same reasons and matched the same way.
+  if (/rTorrent (rejected the|requires a) username and password/i.test(raw)) {
+    return "Credentials rejected by rTorrent. Check the username and password"
+  }
+  if (/rTorrent has no API-key authentication/i.test(raw)) {
+    return "rTorrent has no API key login. Set this client to username and password"
+  }
+  if (/rTorrent returned an oversized response/i.test(raw)) {
+    return "rTorrent returned an oversized response"
+  }
+  if (/rTorrent XML-RPC error: 3\d\d/i.test(raw)) {
+    return "rTorrent redirected the request. Check the URL path"
+  }
+  if (/rTorrent XML-RPC error: 40[45]/i.test(raw)) {
+    return "rTorrent's XML-RPC was not found at this address. Check the port and URL path"
+  }
+  if (/rTorrent refused the XML-RPC call/i.test(raw)) {
+    return "rTorrent refused the request. Its XML-RPC may be too old or restricted"
+  }
+  if (/rTorrent sent an unexpected response/i.test(raw)) {
+    return "rTorrent sent an unexpected response. Check the URL path points at its XML-RPC endpoint"
+  }
+  if (/rTorrent refused the request/i.test(raw)) {
+    return "rTorrent refused the connection. Check the proxy's access rules"
+  }
+  const rtorrentStatus = raw.match(/rTorrent XML-RPC error: (\d{3})/i)
+  if (rtorrentStatus) return `rTorrent returned HTTP ${rtorrentStatus[1]}`
   // qBittorrent auth outcomes next. These need different user action from
   // each other and from a plain connection fault, so they must not fall
   // through to the generic ban/401 rules below (which would flatten them to
