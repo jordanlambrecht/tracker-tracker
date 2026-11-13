@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { isUnreachableMessage, sanitizeNetworkError } from "@/lib/error-utils"
-import { RTORRENT_RESPONSE_MAX_BYTES } from "@/lib/limits"
+import { RTORRENT_RESPONSE_MAX_BYTES, RTORRENT_TRACKER_BATCH } from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { getTorrents, getTransferStats, testClient } from "../rtorrent/transport"
 import { RTORRENT_FIELDS } from "../rtorrent/types"
@@ -321,6 +321,42 @@ describe("getTorrents", () => {
       { host: "seedbox.local", received: 2, kept: 1 },
       "rtorrent: dropped torrents that failed the shape check"
     )
+  })
+
+  it("reads trackers only for moving torrents when activeOnly", async () => {
+    const idle = row(PUBLIC_HASH, 1)
+    idle[8] = 0
+    idle[9] = 0
+    const fetchMock = stubFetch(ok([row(PRIVATE_HASH, 1), idle]), ok([[TRACKER_ROWS]]))
+    const torrents = await getTorrents(BASE, CREDS, { activeOnly: true })
+    expect(torrents.map((t) => t.hash)).toEqual([PRIVATE_HASH])
+    expect(bodyOf(fetchMock, 1)).not.toContain(PUBLIC_HASH)
+  })
+
+  it("skips the tracker call when activeOnly and nothing moves", async () => {
+    const idle = row(PRIVATE_HASH, 1)
+    idle[8] = 0
+    const fetchMock = stubFetch(ok([idle]))
+    expect(await getTorrents(BASE, CREDS, { activeOnly: true })).toEqual([])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("reads trackers in batches of RTORRENT_TRACKER_BATCH", async () => {
+    const count = RTORRENT_TRACKER_BATCH + 1
+    const hashes = Array.from({ length: count }, (_, i) => i.toString(16).toUpperCase().padStart(40, "0"))
+    const lastTrackers: V[] = [["https://last.example.org/announce", 0, 1, 1, 1]]
+    const fetchMock = stubFetch(
+      ok(hashes.map((h) => row(h, 1))),
+      ok(Array.from({ length: RTORRENT_TRACKER_BATCH }, () => [TRACKER_ROWS])),
+      ok([[lastTrackers]])
+    )
+    const torrents = await getTorrents(BASE, CREDS)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(torrents).toHaveLength(count)
+    expect(torrents[0].trackers[0].url).toContain("tracker.example.org")
+    expect(torrents[count - 1].trackers[0].url).toBe("https://last.example.org/announce")
+    expect(bodyOf(fetchMock, 2)).toContain(hashes[count - 1])
+    expect(bodyOf(fetchMock, 2)).not.toContain(hashes[0])
   })
 
   it("refuses a d.multicall2 answer that is not a list", async () => {

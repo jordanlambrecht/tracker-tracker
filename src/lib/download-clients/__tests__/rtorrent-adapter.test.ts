@@ -91,21 +91,24 @@ describe("RtorrentClientAdapter", () => {
     expect(await adapter.getTorrents({ tag: "aither" })).toEqual([])
   })
 
-  it("active filter keeps moving torrents", async () => {
+  it("active filter asks the transport for moving torrents only", async () => {
     vi.mocked(getTorrents).mockResolvedValue([
       torrent({ hash: "UP", upRate: 10 }),
       torrent({ hash: "DOWN", complete: false, downRate: 10 }),
-      torrent({ hash: "IDLE" }),
     ])
     const active = await adapter.getTorrents({ filter: "active" })
     expect(active.map((t) => t.hash)).toEqual(["up", "down"])
+    expect(getTorrents).toHaveBeenCalledWith(adapter.baseUrl, CREDS, {
+      activeOnly: true,
+      signal: undefined,
+    })
   })
 
   it("passes the caller's signal to the transport", async () => {
     vi.mocked(getTorrents).mockResolvedValue([])
     const signal = new AbortController().signal
     await adapter.getTorrents({ signal })
-    expect(getTorrents).toHaveBeenCalledWith(adapter.baseUrl, CREDS, { signal })
+    expect(getTorrents).toHaveBeenCalledWith(adapter.baseUrl, CREDS, { activeOnly: false, signal })
   })
 
   it("reads transfer speeds", async () => {

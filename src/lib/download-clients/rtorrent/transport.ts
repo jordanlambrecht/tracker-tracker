@@ -6,7 +6,11 @@
 //   getTransferStats - Global upload and download rates in one system.multicall
 //   getTorrents      - Every private torrent with its trackers, in two calls
 
-import { RTORRENT_RESPONSE_MAX_BYTES, RTORRENT_RPC_TIMEOUT_MS } from "@/lib/limits"
+import {
+  RTORRENT_RESPONSE_MAX_BYTES,
+  RTORRENT_RPC_TIMEOUT_MS,
+  RTORRENT_TRACKER_BATCH,
+} from "@/lib/limits"
 import { log } from "@/lib/logger"
 import { assertOutboundAllowed } from "@/lib/network"
 import { resetStore } from "../sync-store"
@@ -194,12 +198,15 @@ export async function getTransferStats(
  * faulted, such as for a torrent removed between the two calls, leaves that
  * torrent with no trackers instead of failing the poll.
  *
- * Public torrents never reach the store, as with Transmission.
+ * Public torrents never reach the store, as with Transmission. With
+ * activeOnly, the 5s active poll, only torrents moving data now are kept, so
+ * the tracker read stays small. Trackers are read in batches to keep each
+ * request under rTorrent's XML-RPC size limit.
  */
 export async function getTorrents(
   baseUrl: string,
   creds: ClientCredentials,
-  options?: { signal?: AbortSignal }
+  options?: { activeOnly?: boolean; signal?: AbortSignal }
 ): Promise<RtorrentTorrent[]> {
   const rows = await call(
     baseUrl,
@@ -218,27 +225,31 @@ export async function getTorrents(
       "rtorrent: dropped torrents that failed the shape check"
     )
   }
-  const torrents = valid.filter((t) => t.isPrivate)
-  if (torrents.length === 0) return []
-
-  const result = await call(
-    baseUrl,
-    creds,
-    "system.multicall",
-    [
-      torrents.map((t) => ({
-        methodName: "t.multicall",
-        params: [t.hash, "", ...TRACKER_FIELDS],
-      })),
-    ],
-    options?.signal
+  const torrents = valid.filter(
+    (t) => t.isPrivate && (!options?.activeOnly || t.upRate > 0 || t.downRate > 0)
   )
-  const entries = Array.isArray(result) ? result : []
-  for (const [i, torrent] of torrents.entries()) {
-    const trackerRows = multicallResult(entries[i])
-    torrent.trackers = Array.isArray(trackerRows)
-      ? trackerRows.map(rowToTracker).filter((t): t is RtorrentTracker => t !== null)
-      : []
+
+  for (let start = 0; start < torrents.length; start += RTORRENT_TRACKER_BATCH) {
+    const batch = torrents.slice(start, start + RTORRENT_TRACKER_BATCH)
+    const result = await call(
+      baseUrl,
+      creds,
+      "system.multicall",
+      [
+        batch.map((t) => ({
+          methodName: "t.multicall",
+          params: [t.hash, "", ...TRACKER_FIELDS],
+        })),
+      ],
+      options?.signal
+    )
+    const entries = Array.isArray(result) ? result : []
+    for (const [i, torrent] of batch.entries()) {
+      const trackerRows = multicallResult(entries[i])
+      torrent.trackers = Array.isArray(trackerRows)
+        ? trackerRows.map(rowToTracker).filter((t): t is RtorrentTracker => t !== null)
+        : []
+    }
   }
   return torrents
 }

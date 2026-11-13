@@ -178,6 +178,12 @@ export const TRANSMISSION_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 3_072
 export const RTORRENT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_048
 
 /**
+ * Torrents per system.multicall of t.multicall. Each entry is about 0.4 KB of
+ * request, so a batch stays well under rTorrent's network.xmlrpc.size_limit.
+ */
+export const RTORRENT_TRACKER_BATCH = 500
+
+/**
  * Ceiling on a decoded proxied response when the caller set no maxBytes.
  * Tracker pages and API responses are kilobytes, so this only has to stop a
  * decompression bomb.

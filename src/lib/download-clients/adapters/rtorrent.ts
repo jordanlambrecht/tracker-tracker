@@ -36,14 +36,14 @@ export class RtorrentClientAdapter implements ClientAdapter {
     signal?: AbortSignal
   }): Promise<TorrentRecord[]> {
     if (options?.tag) return []
-    const raw = await getTorrents(this.baseUrl, this.creds, { signal: options?.signal })
-    const now = Math.floor(Date.now() / 1000)
-    const torrents = raw.map((t) => mapRtorrentTorrent(t, now))
     // "active" means bytes are moving now, the way qBittorrent's filter does.
-    if (options?.filter === "active") {
-      return torrents.filter((t) => t.uploadSpeed > 0 || t.downloadSpeed > 0)
-    }
-    return torrents
+    // The transport narrows before reading trackers, since this runs every 5s.
+    const raw = await getTorrents(this.baseUrl, this.creds, {
+      activeOnly: options?.filter === "active",
+      signal: options?.signal,
+    })
+    const now = Math.floor(Date.now() / 1000)
+    return raw.map((t) => mapRtorrentTorrent(t, now))
   }
 
   async getTransferInfo(): Promise<TransferStats> {
