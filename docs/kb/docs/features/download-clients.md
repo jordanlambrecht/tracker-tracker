@@ -52,6 +52,7 @@ Go to **Settings → Download Clients** and fill in your connection details:
     rTorrent has one label per torrent, which the \*arr apps and ruTorrent use like a qBittorrent category. Tracker Tracker shows it as the category, not as a tag, so rTorrent torrents are linked to trackers by announce domain.
     Swarm counts come from tracker scrapes, and fall back to the peers connected to you when a tracker has not answered one.
     Tracker Tracker reads only rTorrent's private torrents, as with Transmission.
+    rTorrent sends the whole torrent list in one XML-RPC response. If polls fail only with a large library, raise [`network.xmlrpc.size_limit`](https://rtorrent-docs.readthedocs.io/en/latest/cmd-ref.html#term-d-multicall2) in `rtorrent.rc`.
 
 After saving, use the **Test Connection** button to confirm Tracker Tracker can reach and authenticate with the client.
 
