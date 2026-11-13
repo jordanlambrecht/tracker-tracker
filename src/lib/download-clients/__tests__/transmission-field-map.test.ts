@@ -2,9 +2,9 @@
 
 import { describe, expect, it } from "vitest"
 import { LEECHING_STATES, SEEDING_STATES } from "@/lib/fleet"
+import { announceHost } from "../announce"
 import { slimTorrentForCache } from "../transforms"
 import {
-  announceHost,
   canonicalTrackerHost,
   mapTransmissionState,
   mapTransmissionTorrent,

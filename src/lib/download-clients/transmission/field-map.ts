@@ -2,10 +2,10 @@
 //
 // Functions:
 //   mapTransmissionState   - Transmission's numeric status in qBittorrent's state vocabulary
-//   announceHost           - An announce URL's host and port, its path, query and userinfo dropped
 //   canonicalTrackerHost   - The announce-list head's host, never its announce URL
 //   mapTransmissionTorrent - One torrent-get entry as a validated TorrentRecord
 
+import { announceHost } from "../announce"
 import { coerceRequiredNumeric, coerceRequiredString } from "../field-map"
 import type { TorrentRecord } from "../types"
 import { TransmissionStatus, type TransmissionTorrent, type TransmissionTracker } from "./types"
@@ -45,22 +45,6 @@ export function mapTransmissionState(status: number, torrent: TransmissionStateI
       return torrent.rateUpload > 0 ? "uploading" : "stalledUP"
     default:
       return "unknown"
-  }
-}
-
-/**
- * Host and port as `new URL` gives them, "tracker.example.org:6969", with no
- * port when it is the scheme's default. It drops the path, query and userinfo,
- * which is where a passkey sits, and keeps a udp:// tracker's host. "" for
- * anything it cannot parse.
- * @internal
- */
-export function announceHost(announce: unknown): string {
-  if (typeof announce !== "string") return ""
-  try {
-    return new URL(announce).host
-  } catch {
-    return ""
   }
 }
 
