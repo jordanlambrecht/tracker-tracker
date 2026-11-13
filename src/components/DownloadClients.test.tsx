@@ -100,6 +100,30 @@ describe("Add Client form", () => {
     expect(sent).toMatchObject({ type: "transmission", authMethod: "password" })
     expect(sent).not.toHaveProperty("apiKey")
   })
+
+  it("rTorrent is selectable and sends port 80 with password login", async () => {
+    const user = userEvent.setup()
+    await openAddForm(user)
+
+    await user.click(screen.getByRole("button", { name: "Authentication method" }))
+    await user.click(screen.getByRole("option", { name: "API Key" }))
+    await chooseType(user, "rTorrent")
+
+    expect(screen.queryByRole("button", { name: "Authentication method" })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Create Client" }))
+    expect(createdClient()).toMatchObject({ type: "rtorrent", port: 80, authMethod: "password" })
+  })
+
+  it("shows rTorrent's /RPC2 placeholder and credential hint", async () => {
+    const user = userEvent.setup()
+    await openAddForm(user)
+
+    await chooseType(user, "rTorrent")
+
+    expect(screen.getByPlaceholderText("/RPC2")).toBeTruthy()
+    expect(screen.getByText(/rTorrent has no API-key login/)).toBeTruthy()
+    expect(screen.queryByText(/rpc-authentication-required/)).toBeNull()
+  })
 })
 
 describe("client card", () => {

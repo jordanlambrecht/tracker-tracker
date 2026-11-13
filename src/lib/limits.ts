@@ -171,6 +171,19 @@ export const QBT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_560
 export const TRANSMISSION_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 3_072
 
 /**
+ * Ceiling on an rTorrent XML-RPC body, for the same reason. Measured on 0.16.11,
+ * a d.multicall2 row of 25 fields is about 1 KB, so 2 KB leaves room for long
+ * names and paths.
+ */
+export const RTORRENT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_048
+
+/**
+ * Torrents per system.multicall of t.multicall. Each entry is about 0.4 KB of
+ * request, so a batch stays well under rTorrent's network.xmlrpc.size_limit.
+ */
+export const RTORRENT_TRACKER_BATCH = 500
+
+/**
  * Ceiling on a decoded proxied response when the caller set no maxBytes.
  * Tracker pages and API responses are kilobytes, so this only has to stop a
  * decompression bomb.
@@ -200,6 +213,8 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000
 export const ADAPTER_FETCH_TIMEOUT_MS = 15_000
 // Transmission answers RPC from its single event loop, which stalls under heavy load
 export const TRANSMISSION_RPC_TIMEOUT_MS = 120_000
+// rTorrent answers XML-RPC on its main thread too, and a full d.multicall2 of a large library takes seconds
+export const RTORRENT_RPC_TIMEOUT_MS = 60_000
 
 /**
  * Upper bound on one scheduled poll cycle. Every adapter call is bounded by

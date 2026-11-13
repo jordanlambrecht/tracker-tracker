@@ -1,6 +1,7 @@
 // src/lib/download-clients/factory.ts
 
 import { QbtClientAdapter } from "./adapters/qbt"
+import { RtorrentClientAdapter } from "./adapters/rtorrent"
 import { TransmissionClientAdapter } from "./adapters/transmission"
 import { decryptClientCredentials } from "./credentials"
 import type { ClientAdapter, ClientCredentials, ClientType, DownloadClientRow } from "./types"
@@ -19,6 +20,8 @@ function createClientAdapter(
       return new QbtClientAdapter(host, port, ssl, creds)
     case "transmission":
       return new TransmissionClientAdapter(host, port, ssl, creds)
+    case "rtorrent":
+      return new RtorrentClientAdapter(host, port, ssl, creds)
     default:
       throw new Error(`Unsupported client type: "${type}"`)
   }

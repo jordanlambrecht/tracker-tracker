@@ -78,6 +78,27 @@ describe("createAdapterForClient", () => {
     expect(adapter.getDeltaSync).toBeUndefined()
   })
 
+  it("creates an RtorrentClientAdapter for type rtorrent", () => {
+    const adapter = createAdapterForClient(
+      {
+        name: "Test",
+        host: "localhost",
+        port: 80,
+        useSsl: false,
+        authMethod: "password",
+        encryptedUsername: "enc-user",
+        encryptedPassword: "enc-pass",
+        encryptedApiKey: "",
+        encryptedUrlPath: "",
+        crossSeedTags: null,
+        type: "rtorrent",
+      },
+      Buffer.alloc(32, 0xab)
+    )
+    expect(adapter.type).toBe("rtorrent")
+    expect(adapter.getDeltaSync).toBeUndefined()
+  })
+
   it("throws for unsupported client type", () => {
     const client = {
       name: "Bad",
