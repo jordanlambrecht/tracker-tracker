@@ -48,7 +48,6 @@ Go to **Settings → Download Clients** and fill in your connection details:
 !!! tip "rTorrent"
     rTorrent has no web API of its own. Tracker Tracker talks XML-RPC to the web server in front of it: ruTorrent's or rflood's `/RPC2`, or an nginx or lighttpd SCGI mount. A raw SCGI port is not supported.
     The username and password are that web server's. There is no API key login.
-    On a [Whatbox](https://whatbox.ca/wiki/transdroid) slot, use the WebUI host from your Manage page, port `443`, **Use SSL** on, URL path `/xmlrpc`, and your slot username and password.
     rTorrent has one label per torrent, which the \*arr apps and ruTorrent use like a qBittorrent category. Tracker Tracker shows it as the category, not as a tag, so rTorrent torrents are linked to trackers by announce domain.
     Swarm counts come from tracker scrapes, and fall back to the peers connected to you when a tracker has not answered one.
     Tracker Tracker reads only rTorrent's private torrents, as with Transmission.
