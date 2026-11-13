@@ -61,6 +61,16 @@ const TRANSMISSION_CREDENTIALS_HINT =
   'Leave both blank if Transmission has "rpc-authentication-required" set to false. Transmission ' +
   "has no API-key login, so the username and password are the only option."
 
+const RTORRENT_CREDENTIALS_HINT =
+  "The username and password of the web server in front of rTorrent's XML-RPC. Leave both " +
+  "blank if it has no authentication. rTorrent has no API-key login."
+
+const PASSWORD_ONLY_HINTS: Record<ClientType, string> = {
+  qbittorrent: BLANK_CREDENTIALS_HINT,
+  transmission: TRANSMISSION_CREDENTIALS_HINT,
+  rtorrent: RTORRENT_CREDENTIALS_HINT,
+}
+
 const URL_PATH_HINTS: Record<ClientType, string> = {
   qbittorrent:
     "For a reverse proxy that serves qBittorrent under a path, or Qui's client proxy. Always " +
@@ -158,7 +168,7 @@ function CredentialFields({
             </div>
           </div>
           <Subtext>
-            {supportsApiKey ? BLANK_CREDENTIALS_HINT : TRANSMISSION_CREDENTIALS_HINT}
+            {supportsApiKey ? BLANK_CREDENTIALS_HINT : PASSWORD_ONLY_HINTS[clientType]}
           </Subtext>
         </>
       ) : (
@@ -208,14 +218,14 @@ function UrlPathField({
 }
 
 const CLIENT_TYPE_OPTIONS: {
-  value: ClientType | "deluge" | "rtorrent"
+  value: ClientType | "deluge"
   label: string
   disabled?: boolean
 }[] = [
   { value: "qbittorrent", label: "qBittorrent" },
   { value: "deluge", label: "Deluge (coming soon)", disabled: true },
   { value: "transmission", label: "Transmission" },
-  { value: "rtorrent", label: "rTorrent (coming soon)", disabled: true },
+  { value: "rtorrent", label: "rTorrent" },
 ]
 
 function clientTypeLabel(type: string): string | undefined {
@@ -926,7 +936,7 @@ function DownloadClients() {
       <SettingsSectionHeading
         id="download-clients"
         title="Download Clients"
-        tooltip="Connect qBittorrent or Transmission to see your torrents per tracker."
+        tooltip="Connect qBittorrent, Transmission or rTorrent to see your torrents per tracker."
         docs={DOCS.DOWNLOAD_CLIENTS}
       />
       {clients.length === 0 && !showAddForm ? (
