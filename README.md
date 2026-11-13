@@ -15,7 +15,7 @@ Self-hosted dashboard for monitoring private tracker stats over time. Track uplo
 
 - Per-tracker and fleet-wide stats with 30+ charts
 - UNIT3D, Gazelle, GGn, Nebulance, MAM, and AvistaZ network support out of the box
-- qBittorrent and Transmission integration, with cross-seed tracking, activity heatmaps, and speed history ([download clients](https://jordanlambrecht.github.io/tracker-tracker/features/download-clients/))
+- qBittorrent, Transmission and rTorrent integration, with cross-seed tracking, activity heatmaps, and speed history ([download clients](https://jordanlambrecht.github.io/tracker-tracker/features/download-clients/))
 - Prowlarr integration that shows each tracker's indexer status and stats from one or more Prowlarr instances
 - Everything stays on your machine. No telemetry, no phoning home.
 
@@ -104,7 +104,7 @@ PRs welcome. To run the app from source, see [Local Development](https://jordanl
 
 Other places help is useful:
 
-- Download client adapters for Deluge and rTorrent. See [`src/lib/download-clients/`](https://github.com/jordanlambrecht/tracker-tracker/tree/main/src/lib/download-clients) for the pattern: an adapter under `adapters/`, its transport in a sibling folder, and one `case` in `factory.ts`.
+- A download client adapter for Deluge. See [`src/lib/download-clients/`](https://github.com/jordanlambrecht/tracker-tracker/tree/main/src/lib/download-clients) for the pattern: an adapter under `adapters/`, its transport in a sibling folder, and one `case` in `factory.ts`.
 - Adapters for trackers that do not run a supported platform (see the [adapter standard](https://jordanlambrecht.github.io/tracker-tracker/contributing/adapter-standard/))
 - Verifying a tracker from the unverified list above against a live account
 - Security review (see [SECURITY.md](https://github.com/jordanlambrecht/tracker-tracker/blob/main/SECURITY.md))

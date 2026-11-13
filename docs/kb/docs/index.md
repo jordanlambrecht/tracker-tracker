@@ -18,6 +18,6 @@ Supports UNIT3D, Gazelle, GGn, Nebulance, MAM, and AvistaZ networks. Over 40 tra
 
 - Upload, download, ratio, buffer, rank, and bonus points for every tracker in one place
 - Historical charts over days, weeks, and months
-- qBittorrent and Transmission integration with per-tracker torrent details, seeding counts, cross-seed stats, and live speeds
+- qBittorrent, Transmission and rTorrent integration with per-tracker torrent details, seeding counts, cross-seed stats, and live speeds
 - Tag groups that turn client tags into donut charts, bar charts, and treemaps
 - Discord alerts when your ratio drops, a tracker goes down, you hit a buffer milestone, or your rank changes
