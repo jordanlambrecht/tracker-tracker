@@ -157,6 +157,24 @@ export const CREDENTIAL_FORMS = {
     },
   },
 
+  ptp: {
+    kind: "token-username",
+    hidesJoinDate: false,
+    dialog: {
+      username: {
+        label: "ApiUser",
+        tooltip: "PTP: Edit profile › Security › API Keys. Generate a key and copy both values.",
+        docs: true,
+        placeholder: "Your PTP ApiUser",
+      },
+      secret: { label: "ApiKey", placeholder: "Your PTP ApiKey" },
+    },
+    sheet: {
+      username: { label: "ApiUser" },
+      secret: { label: "ApiKey", placeholder: "Paste ApiKey" },
+    },
+  },
+
   avistaz: {
     kind: "cookies-username",
     example: "cf_clearance=abc123; session=xyz",

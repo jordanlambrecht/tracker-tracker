@@ -11,9 +11,8 @@ export const passthepopcorn: TrackerRegistryEntry = {
   description: "Movie tracker with a large selection of popular and niche content.",
 
   // ── Platform & API ──────────────────────────────────────────────────
-  platform: "gazelle",
-  gazelleEnrich: true,
-  apiPath: "/ajax.php",
+  platform: "ptp",
+  apiPath: "/index.php",
 
   // ── Content ─────────────────────────────────────────────────────────
   specialty: "Movies",
@@ -43,7 +42,7 @@ export const passthepopcorn: TrackerRegistryEntry = {
 
   // ── Status ──────────────────────────────────────────────────────────
   warning: true,
-  warningNote: "Unvalidated",
+  warningNote: "PTP bans querying user info over its API",
 
   // ── Flags ───────────────────────────────────────────────────────────
   draft: false,

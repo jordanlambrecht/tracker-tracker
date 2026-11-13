@@ -78,6 +78,7 @@ const CREDENTIAL_REFUSALS: readonly RegExp[] = [
   /^Invalid (?:API token|username): /,
   /^Invalid (?:TorrentLeech|Luminance) credentials$/,
   /^Invalid BTN API key$/,
+  /^Invalid PTP API credentials$/,
   /^DigitalCore credentials: (?:uid|pass) contains invalid characters /,
   /^MAM session cookie \(mam_id\) contains invalid characters /,
 ]

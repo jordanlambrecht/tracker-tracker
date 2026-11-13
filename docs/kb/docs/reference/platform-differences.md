@@ -124,7 +124,6 @@ Field names vary across Gazelle forks. Here's what Tracker Tracker tracks:
 | -------------------- | --------------- | ---------------- | ------------------------------- |
 | Redacted (RED)       | `bonusPoints`   | Sometimes        | No                              |
 | Orpheus (OPS)        | `bonusPoints`   | Sometimes        | No                              |
-| PassThePopcorn (PTP) | Varies          | No               | No                              |
 
 GGn is a Gazelle fork but uses its own dedicated adapter due to significant API differences. It is not interchangeable with the `gazelle` platform type. BTN is not a Gazelle fork at all. It has its own adapter and a JSON-RPC API (see [BroadcasTheNet](../contributing/trackers/broadcasthenet.md)).
 
