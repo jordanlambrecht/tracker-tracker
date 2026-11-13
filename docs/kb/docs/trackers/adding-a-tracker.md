@@ -49,7 +49,6 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Great Poster Wall | GPW          |
     | MoreThanTV        | MTV          |
     | Orpheus           | OPS          |
-    | PassThePopcorn    | PTP          |
     | Phoenix Project   | PP           |
     | REDacted          | RED          |
 
@@ -58,6 +57,12 @@ Click the **+** button next to "Trackers" in the sidebar, or go to `/trackers/ne
     | Name           | Abbreviation |
     | -------------- | ------------ |
     | BroadcasTheNet | BTN          |
+
+=== "PTP"
+
+    | Name           | Abbreviation |
+    | -------------- | ------------ |
+    | PassThePopcorn | PTP          |
 
 === "GGn"
 
@@ -171,7 +176,7 @@ Location varies by platform:
 === "Gazelle"
 
     - **RED / OPS**: **Settings → Access Settings → API Keys**. Create a new key (read-only is fine).
-    - **PTP / others**: check **Settings → Security**, **Settings → API**, or your profile.
+    - **Others**: check **Settings → Security**, **Settings → API**, or your profile.
 
     Gazelle shows keys only once when created, so copy it right away.
 
@@ -299,6 +304,15 @@ Location varies by platform:
 
     !!! warning "Unverified"
         AnimeBytes support hasn't been tested against a live account. If a poll fails or a stat looks wrong, open an issue naming the tracker.
+
+=== "PTP"
+
+    On PassThePopcorn, open **Edit profile → Security → API Keys** and generate a key. Paste the **ApiUser** and **ApiKey** values into the Add Tracker dialog.
+
+    Stats are read from the user bar on `index.php`. Your class and seeding count only appear on `user.php`, which PTP blocks for API access, so those stay empty.
+
+    !!! danger "PTP forbids querying user information over its API"
+        The PTP wiki article "PTP API Documentation" lists "Scraping or querying any user information" among banned API uses, with a hard limit of 150 requests an hour. Adding PTP is at your own risk. Keep the poll interval long.
 
 === "Luminance"
 

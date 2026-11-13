@@ -18,7 +18,7 @@ about a site. Those live in `src/data/trackers/`, one file per site, as plain da
 ratio rules, user classes, content categories, logo. That folder holds 55 entries plus
 `_template.ts` and the `index.ts` barrel.
 
-**One adapter usually serves many sites.** `unit3d` serves 19, `gazelle` 9, `avistaz` 5,
+**One adapter usually serves many sites.** `unit3d` serves 19, `gazelle` 8, `avistaz` 5,
 `nebulance` 2. The other twelve adapters serve one site each today, but that is a fact about the
 world, not a licence to hardcode. If your site runs a platform that already has an adapter, you
 are adding a data file.

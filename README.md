@@ -33,9 +33,9 @@ More screenshots are in the [docs folder](https://github.com/jordanlambrecht/tra
 
 ## Supported trackers
 
-Verified (tested against a live account): Aither, AnimeZ, Anthelion, AvistaZ, Blutopia, C411, CinemaZ, Concertos, DarkPeers, DigitalCore.Club, FearNoPeer, FileList, GazelleGames, HAWKE-UNO, IPTorrents, LST, MyAnonaMouse, Nebulance, OldToons, OnlyEncodes, Orpheus, Phoenix Project, Racing4Everyone, REDacted, ReelFliX, RetroToon World, seedpool, SkipTheCommercials, TorrentLeech, Upload.cx, Yu-Scene.
+Verified (tested against a live account): Aither, AnimeZ, Anthelion, AvistaZ, Blutopia, C411, CinemaZ, Concertos, DarkPeers, DigitalCore.Club, FearNoPeer, FileList, GazelleGames, HAWKE-UNO, IPTorrents, LST, MyAnonaMouse, Nebulance, OldToons, OnlyEncodes, Orpheus, PassThePopcorn, Phoenix Project, Racing4Everyone, REDacted, ReelFliX, RetroToon World, seedpool, SkipTheCommercials, TorrentLeech, Upload.cx, Yu-Scene.
 
-Unverified (the adapter exists but has not been tested against a live account): AlphaRatio, AnimeBytes, BroadcasTheNet, Cathode-Ray.Tube, DreadVault, Empornium, ExoticaZ, Great Poster Wall, InfinityHD, Luminarr, MoreThanTV, PassThePopcorn, PrivateHD, Retro Movies Club, RocketHD, SeedCore, TR4KER, Zenith.
+Unverified (the adapter exists but has not been tested against a live account): AlphaRatio, AnimeBytes, BroadcasTheNet, Cathode-Ray.Tube, DreadVault, Empornium, ExoticaZ, Great Poster Wall, InfinityHD, Luminarr, MoreThanTV, PrivateHD, Retro Movies Club, RocketHD, SeedCore, TR4KER, Zenith.
 
 Not supported yet: 720pier, AB Torrents, AsianCinema, BeyondHD, Bibliotik, Cinemageddon, HDBits, HD-Torrents, Portugas, Secret Cinema, Sportscult, TV-Vault, UHDBits.
 

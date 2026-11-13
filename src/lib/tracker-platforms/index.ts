@@ -20,6 +20,7 @@ import { IptorrentsAdapter } from "./adapters/iptorrents"
 import { LuminanceAdapter } from "./adapters/luminance"
 import { MamAdapter } from "./adapters/mam"
 import { NebulanceAdapter } from "./adapters/nebulance"
+import { PtpAdapter } from "./adapters/ptp"
 import { RetrotoonAdapter } from "./adapters/retrotoon"
 import { TorrentleechAdapter } from "./adapters/torrentleech"
 import { Tr4kerAdapter } from "./adapters/tr4ker"
@@ -40,6 +41,7 @@ const adapters: Record<string, TrackerAdapter> = {
   luminance: new LuminanceAdapter(),
   mam: new MamAdapter(),
   nebulance: new NebulanceAdapter(),
+  ptp: new PtpAdapter(),
   retrotoon: new RetrotoonAdapter(),
   torrentleech: new TorrentleechAdapter(),
   tr4ker: new Tr4kerAdapter(),

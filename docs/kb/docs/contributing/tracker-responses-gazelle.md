@@ -163,7 +163,6 @@ If enrichment fails, the adapter keeps the index stats.
 | -------------------- | ----------------- | --------------- | --------------------- |
 | Redacted (RED)       | `bonusPoints`     | Sometimes       | No                    |
 | Orpheus (OPS)        | `bonusPoints`     | Sometimes       | No                    |
-| PassThePopcorn (PTP) | Varies            | No              | No                    |
 
 GGn uses a separate adapter. See the [GGn page](tracker-responses-ggn.md). BTN is not Gazelle either. See [BroadcasTheNet](trackers/broadcasthenet.md).
 
@@ -174,6 +173,5 @@ GGn uses a separate adapter. See the [GGn page](tracker-responses-ggn.md). BTN i
 - [Great Poster Wall](trackers/greatposterwall.md)
 - [MoreThanTV](trackers/morethantv.md)
 - [Orpheus](trackers/orpheus.md)
-- [PassThePopcorn](trackers/passthepopcorn.md)
 - [Phoenix Project](trackers/phoenixproject.md)
 - [REDacted](trackers/redacted.md)
