@@ -171,9 +171,9 @@ export const QBT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_560
 export const TRANSMISSION_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 3_072
 
 /**
- * Ceiling on an rTorrent XML-RPC body, for the same reason. XML-RPC wraps every
- * value in two elements, so a d.multicall2 row of 25 fields is about 1.3 KB
- * before long paths, and 2 KB leaves room for them.
+ * Ceiling on an rTorrent XML-RPC body, for the same reason. Measured on 0.16.11,
+ * a d.multicall2 row of 25 fields is about 1 KB, so 2 KB leaves room for long
+ * names and paths.
  */
 export const RTORRENT_RESPONSE_MAX_BYTES = SYNC_STORE_MAX_TORRENTS * 2_048
 
