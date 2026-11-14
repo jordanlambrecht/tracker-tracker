@@ -58,12 +58,22 @@ const CANONICAL_UNITS: Record<string, string> = {
   gib: "GiB",
   tib: "TiB",
   pib: "PiB",
+  // French octet units ("50.40 Go"). Read as the binary family, which is an
+  // assumption: trackers usually size in powers of 1024 whatever the label
+  // says, and no page seen so far prints a figure that settles it.
+  o: "B",
+  ko: "KiB",
+  mo: "MiB",
+  go: "GiB",
+  to: "TiB",
+  po: "PiB",
 }
 
 /**
  * `parseBytes` for site-printed totals, returning undefined instead of throwing
  * so one odd cell cannot abort a whole profile parse. Grouping commas are
- * stripped and the unit is canonicalised, so both "1,024 kB" and "1 GiB" parse.
+ * stripped and the unit is canonicalised, so "1,024 kB", "1 GiB" and the French
+ * "1 Go" all parse.
  */
 export function tryParseSiteBytes(value: string): bigint | undefined {
   const match = value.trim().match(/^([\d,.]+)\s*([A-Za-z]+)$/)

@@ -40,6 +40,16 @@ describe("tryParseSiteBytes", () => {
     expect(tryParseSiteBytes("1 GB")).toBe(1000000000n)
   })
 
+  it("parses the French octet units as the binary family", () => {
+    expect(tryParseSiteBytes("0 o")).toBe(0n)
+    expect(tryParseSiteBytes("512 o")).toBe(512n)
+    expect(tryParseSiteBytes("1 Ko")).toBe(1024n)
+    expect(tryParseSiteBytes("1 Mo")).toBe(parseBytes("1 MiB"))
+    expect(tryParseSiteBytes("50.40 Go")).toBe(parseBytes("50.40 GiB"))
+    expect(tryParseSiteBytes("2 To")).toBe(parseBytes("2 TiB"))
+    expect(tryParseSiteBytes("1 Po")).toBe(parseBytes("1 PiB"))
+  })
+
   it("strips grouping commas, which parseBytes rejects outright", () => {
     expect(tryParseSiteBytes("1,234.5 GB")).toBe(parseBytes("1234.5 GB"))
     expect(() => parseBytes("1,234.5 GB")).toThrow()

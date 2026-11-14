@@ -292,6 +292,33 @@ export const CREDENTIAL_FORMS = {
     },
   },
 
+  yggreborn: {
+    kind: "cookies",
+    example: "session=abc123def456",
+    extraCookieNames: ["session", "remember_token"],
+    hidesJoinDate: true,
+    dialog: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "YggReborn's passkey only searches torrents, so stats are read from your logged-in session. Open DevTools (F12) → Network → any request to the site → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "session=abc123def456...",
+        rows: 3,
+      },
+    },
+    sheet: {
+      secret: {
+        label: "Browser Cookies",
+        tooltip:
+          "Open DevTools (F12) → Network → any request to YggReborn → copy the full Cookie header value.",
+        docs: true,
+        placeholder: "session=abc123def456...",
+        rows: 3,
+      },
+    },
+  },
+
   torrentleech: {
     kind: "login",
     hidesJoinDate: false,

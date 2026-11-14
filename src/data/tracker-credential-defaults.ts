@@ -94,6 +94,8 @@ export const PLATFORM_CREDENTIAL_FIELDS: Partial<
     },
   ],
   luminance: [{ id: "username", label: "Username", secret: false }, PASSKEY_FIELD],
+  // The passkey doubles as the Torznab API key; stats come from the session cookie.
+  yggreborn: [{ id: "session_cookie", label: "Session cookie" }, PASSKEY_FIELD],
   // `custom` is deliberately absent. It falls through to the universal fallback,
   // which is the only honest default for a tracker we know nothing about.
 }

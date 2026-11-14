@@ -81,6 +81,7 @@ describe("AddTrackerDialog join date visibility", () => {
     ["retrotoon", "RetroToon World"],
     ["ggn", "GazelleGames"],
     ["iptorrents", "IPTorrents"],
+    ["yggreborn", "YggReborn"],
     ["gazelle with enrichment", "Orpheus"],
   ] as const
 
