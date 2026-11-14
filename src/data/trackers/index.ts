@@ -2,6 +2,7 @@
 
 import type { TrackerRegistryEntry } from "@/data/tracker-registry"
 
+export * from "./0dayfiles"
 export * from "./720pier"
 export * from "./abtorrents"
 export * from "./aither"
@@ -28,12 +29,14 @@ export * from "./exoticaz"
 export * from "./fearnopeer"
 export * from "./filelist"
 export * from "./gazellegames"
+export * from "./generationfree"
 export * from "./greatposterwall"
 export * from "./hawkeuno"
 export * from "./hdbits"
 export * from "./hdtorrents"
 export * from "./infinityhd"
 export * from "./iptorrents"
+export * from "./latteam"
 export * from "./lst"
 export * from "./luminarr"
 export * from "./morethantv"
@@ -43,6 +46,7 @@ export * from "./oldtoons"
 export * from "./onlyencodes"
 export * from "./orpheus"
 export * from "./passthepopcorn"
+export * from "./peergarden"
 export * from "./phoenixproject"
 export * from "./portugas"
 export * from "./privatehd"
@@ -57,6 +61,7 @@ export * from "./seedcore"
 export * from "./seedpool"
 export * from "./skipthecommercials"
 export * from "./sportscult"
+export * from "./theoldschool"
 export * from "./torrentleech"
 export * from "./tr4ker"
 export * from "./tvvault"
@@ -65,6 +70,7 @@ export * from "./uploadcx"
 export * from "./yuscene"
 export * from "./zenith"
 
+import { zerodayfiles } from "./0dayfiles"
 import { pier720 } from "./720pier"
 import { abtorrents } from "./abtorrents"
 import { aither } from "./aither"
@@ -91,12 +97,14 @@ import { exoticaz } from "./exoticaz"
 import { fearnopeer } from "./fearnopeer"
 import { filelist } from "./filelist"
 import { gazellegames } from "./gazellegames"
+import { generationfree } from "./generationfree"
 import { greatposterwall } from "./greatposterwall"
 import { hawkeuno } from "./hawkeuno"
 import { hdbits } from "./hdbits"
 import { hdtorrents } from "./hdtorrents"
 import { infinityhd } from "./infinityhd"
 import { iptorrents } from "./iptorrents"
+import { latteam } from "./latteam"
 import { lst } from "./lst"
 import { luminarr } from "./luminarr"
 import { morethantv } from "./morethantv"
@@ -106,6 +114,7 @@ import { oldtoons } from "./oldtoons"
 import { onlyencodes } from "./onlyencodes"
 import { orpheus } from "./orpheus"
 import { passthepopcorn } from "./passthepopcorn"
+import { peergarden } from "./peergarden"
 import { phoenixproject } from "./phoenixproject"
 import { portugas } from "./portugas"
 import { privatehd } from "./privatehd"
@@ -120,6 +129,7 @@ import { seedcore } from "./seedcore"
 import { seedpool } from "./seedpool"
 import { skipthecommercials } from "./skipthecommercials"
 import { sportscult } from "./sportscult"
+import { theoldschool } from "./theoldschool"
 import { torrentleech } from "./torrentleech"
 import { tr4ker } from "./tr4ker"
 import { tvvault } from "./tvvault"
@@ -129,6 +139,7 @@ import { yuscene } from "./yuscene"
 import { zenith } from "./zenith"
 
 export const ALL_TRACKERS: TrackerRegistryEntry[] = [
+  zerodayfiles,
   pier720,
   abtorrents,
   aither,
@@ -155,12 +166,14 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   fearnopeer,
   filelist,
   gazellegames,
+  generationfree,
   greatposterwall,
   hawkeuno,
   hdbits,
   hdtorrents,
   infinityhd,
   iptorrents,
+  latteam,
   lst,
   luminarr,
   morethantv,
@@ -170,6 +183,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   onlyencodes,
   orpheus,
   passthepopcorn,
+  peergarden,
   phoenixproject,
   portugas,
   privatehd,
@@ -184,6 +198,7 @@ export const ALL_TRACKERS: TrackerRegistryEntry[] = [
   seedpool,
   skipthecommercials,
   sportscult,
+  theoldschool,
   torrentleech,
   tr4ker,
   tvvault,
