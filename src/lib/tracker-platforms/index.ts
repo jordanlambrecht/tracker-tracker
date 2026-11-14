@@ -24,6 +24,7 @@ import { RetrotoonAdapter } from "./adapters/retrotoon"
 import { TorrentleechAdapter } from "./adapters/torrentleech"
 import { Tr4kerAdapter } from "./adapters/tr4ker"
 import { Unit3dAdapter } from "./adapters/unit3d"
+import { YggrebornAdapter } from "./adapters/yggreborn"
 import type { FetchOptions, TrackerAdapter } from "./contract"
 
 const adapters: Record<string, TrackerAdapter> = {
@@ -44,6 +45,7 @@ const adapters: Record<string, TrackerAdapter> = {
   torrentleech: new TorrentleechAdapter(),
   tr4ker: new Tr4kerAdapter(),
   unit3d: new Unit3dAdapter(),
+  yggreborn: new YggrebornAdapter(),
 }
 
 export function getAdapter(platformType: string): TrackerAdapter {

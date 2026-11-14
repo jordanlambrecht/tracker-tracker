@@ -51,7 +51,7 @@ Calculation varies:
 
 - UNIT3D: server-side calculation. Most accurate.
 - HAWKE-UNO: reported by the tracker, and it can be negative.
-- Gazelle, GGn, AnimeBytes, C411, DigitalCore, FileList, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, and TR4KER: upload minus download (net surplus). Doesn't account for your required ratio.
+- Gazelle, GGn, AnimeBytes, C411, DigitalCore, FileList, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, TR4KER, and YggReborn: upload minus download (net surplus). Doesn't account for your required ratio.
 
 A negative buffer means you're already in deficit.
 
@@ -63,7 +63,7 @@ A negative buffer means you're already in deficit.
 
 How many torrents you're currently uploading. Seeding builds upload credit. Some trackers require minimum seeding, i.e. seed each download for a set period.
 
-**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API. Also on AnimeBytes, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, Nebulance, RetroToon World, and TorrentLeech. Not on C411 or TR4KER.
+**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API. Also on AnimeBytes, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, Nebulance, RetroToon World, and TorrentLeech. Not on C411, TR4KER, or YggReborn.
 
 ### Leeching Count
 
@@ -104,7 +104,7 @@ Too many H&Rs lead to warnings or download loss.
 - AnimeBytes, DigitalCore, HAWKE-UNO, and TorrentLeech: available.
 - RetroToon World: partial (0 when none are pending; a count isn't read).
 - Nebulance: available. Anthelion does not send it.
-- C411, FileList, IPTorrents, Luminance, and TR4KER: not available.
+- C411, FileList, IPTorrents, Luminance, TR4KER, and YggReborn: not available.
 
 ---
 
@@ -121,7 +121,7 @@ Whether you're under a staff warning. Warnings come from H&Rs, ratio drops, or c
 - GGn: available from your profile.
 - DigitalCore: available.
 - HAWKE-UNO: reports a warning count, not a yes or no flag, so the flag stays unknown.
-- AnimeBytes, C411, FileList, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, and TR4KER: not available.
+- AnimeBytes, C411, FileList, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, TR4KER, and YggReborn: not available.
 
 ### Username
 

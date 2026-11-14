@@ -5,7 +5,7 @@ description: Stat availability and behavior differences across UNIT3D, Gazelle, 
 
 # Platform Differences
 
-Tracker Tracker works with UNIT3D, Gazelle, GGn, Nebulance and Anthelion, MAM (MyAnonaMouse), AvistaZ, BTN (BroadcasTheNet), AnimeBytes, C411, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, RetroToon World, TorrentLeech, and TR4KER. Each has different stats and authentication methods.
+Tracker Tracker works with UNIT3D, Gazelle, GGn, Nebulance and Anthelion, MAM (MyAnonaMouse), AvistaZ, BTN (BroadcasTheNet), AnimeBytes, C411, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, RetroToon World, TorrentLeech, TR4KER, and YggReborn. Each has different stats and authentication methods.
 
 ---
 
@@ -32,6 +32,7 @@ Paste your token when you add a tracker. Tracker Tracker handles authentication.
 | **Luminance**             | Your username and password. Tracker Tracker logs in for you. If the account uses two-factor login, paste the `sid` session cookie and its User-Agent instead. Uses HTML scraping. |
 | **RetroToon World**       | Browser cookies (for example `PHPSESSID`) plus the User-Agent they were issued to. The `rt_` API key only uploads and the passkey only signs searches, so neither gives stats. Uses HTML scraping. |
 | **TorrentLeech**          | Your username and password, plus the Alt 2FA Token if the account has 2FA. Tracker Tracker logs in and keeps the session. Uses HTML scraping. |
+| **YggReborn**             | Browser cookies plus the User-Agent they were issued to. The passkey only signs the Torznab search API, which returns no account figures. Uses HTML scraping. |
 
 ---
 
@@ -92,21 +93,21 @@ Same rows as above. "Yes" means Tracker Tracker reads it. "No" means the adapter
 
 ### Stat availability: cookie and login platforms
 
-| Stat                      | DigitalCore | FileList | IPTorrents | Luminance | RetroToon World | TorrentLeech |
-| ------------------------- | ----------- | -------- | ---------- | --------- | --------------- | ------------ |
-| Upload / Download / Ratio | Yes (ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) |
-| Buffer                    | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) |
-| Seeding count             | Yes | Yes | Yes | Yes | Yes | Yes |
-| Leeching count            | Yes | No | Yes | No | No | Yes |
-| Seedbonus / Bonus Points  | Yes | Yes (called "FLCoins") | Yes | Yes (called "credits") | Yes | Yes (called "TL Points") |
-| Required Ratio            | No | No | No | Yes | No | No |
-| Hit & Runs                | Yes | No | No | No | Partial (0 when none are pending; a count isn't read) | Yes |
-| Freeleech Tokens          | No | Yes | No | Yes | Yes | No |
-| Warned status             | Yes | No | No | No | No | No |
-| Class / Rank              | Yes | Yes | Yes | Yes | Yes | Yes |
-| Join date                 | Yes | Yes | Yes | Yes | Yes | No |
-| Last access date          | Yes | Yes | Yes | Yes | Yes | No |
-| Avatar                    | Yes | No | No | No | No | No |
+| Stat                      | DigitalCore | FileList | IPTorrents | Luminance | RetroToon World | TorrentLeech | YggReborn |
+| ------------------------- | ----------- | -------- | ---------- | --------- | --------------- | ------------ | --------- |
+| Upload / Download / Ratio | Yes (ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) |
+| Buffer                    | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) |
+| Seeding count             | Yes | Yes | Yes | Yes | Yes | Yes | No |
+| Leeching count            | Yes | No | Yes | No | No | Yes | No |
+| Seedbonus / Bonus Points  | Yes | Yes (called "FLCoins") | Yes | Yes (called "credits") | Yes | Yes (called "TL Points") | No |
+| Required Ratio            | No | No | No | Yes | No | No | No |
+| Hit & Runs                | Yes | No | No | No | Partial (0 when none are pending; a count isn't read) | Yes | No |
+| Freeleech Tokens          | No | Yes | No | Yes | Yes | No | No |
+| Warned status             | Yes | No | No | No | No | No | No |
+| Class / Rank              | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Join date                 | Yes | Yes | Yes | Yes | Yes | No | Yes |
+| Last access date          | Yes | Yes | Yes | Yes | Yes | No | Yes |
+| Avatar                    | Yes | No | No | No | No | No | No |
 
 ---
 
@@ -240,6 +241,10 @@ Three pages. The profile gives the core stats, `bonus.php` gives the seeding cou
 ### TorrentLeech
 
 Reads the top bar and profile page. Seeding, leeching, and H&R counts come from the top bar, and bonus points are the TL Points figure.
+
+### YggReborn
+
+One page, `/account/`. It gives upload, download, your rank, and the join and last login dates. Sizes are printed in French units (`Go`, `To`) and read as binary. The account page lists no seeding count, bonus points, or H&R, so those stay unknown. Extras include freeleech download, uploader score, and upload counts.
 
 ### AvistaZ Network
 

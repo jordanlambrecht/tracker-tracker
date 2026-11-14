@@ -273,6 +273,22 @@ export interface AnimeBytesPlatformMeta {
   freeleechUntil?: number
 }
 
+/**
+ * Figures from YggReborn's account page that fit no TrackerStats field. Plain
+ * numbers only: platformMeta is JSON-serialized, and bigint does not survive
+ * JSON.
+ */
+export interface YggrebornPlatformMeta {
+  /** The "Freeleech DL" card: bytes downloaded on freeleech torrents. */
+  freeleechDownloadedBytes?: number
+  /** The uploader "Score" card. Absent while the page prints a dash. */
+  uploaderScore?: number
+  /** The "Uploads" card: torrents the member has uploaded. */
+  uploadedTorrents?: number
+  /** The "Vérifiés" card: uploads staff have verified. */
+  verifiedUploads?: number
+}
+
 /** Union of all platform-specific metadata types */
 export type PlatformMeta =
   | GGnPlatformMeta
@@ -287,6 +303,7 @@ export type PlatformMeta =
   | RetrotoonPlatformMeta
   | C411PlatformMeta
   | AnimeBytesPlatformMeta
+  | YggrebornPlatformMeta
 
 /** Maps platformType string → the corresponding PlatformMeta variant */
 export interface PlatformMetaMap {
@@ -302,6 +319,7 @@ export interface PlatformMetaMap {
   retrotoon: RetrotoonPlatformMeta
   c411: C411PlatformMeta
   animebytes: AnimeBytesPlatformMeta
+  yggreborn: YggrebornPlatformMeta
 }
 
 /**
