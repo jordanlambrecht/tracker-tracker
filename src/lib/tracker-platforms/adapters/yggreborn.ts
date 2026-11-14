@@ -1,11 +1,12 @@
 // src/lib/tracker-platforms/adapters/yggreborn.ts
 //
 // Functions: parseYggrebornCredentials, assertAuthenticated, statCardValue,
-//            accountRowValue, userStatus, frenchDate, frenchCount,
-//            parseYggrebornAccount, fetchHtml, YggrebornAdapter
+//            accountRowValue, frenchDate, frenchCount, parseYggrebornAccount,
+//            parseYggrebornActiveTorrents, fetchHtml, YggrebornAdapter
 
 import { type HTMLElement as ParsedElement, parse as parseHtml } from "node-html-parser"
 import { computeBufferBytes, computeRatio } from "@/lib/data-transforms"
+import { log } from "@/lib/logger"
 import { validateCookieHeader } from "@/lib/tracker-credentials/cookie-header"
 import type {
   DebugApiCall,
@@ -33,8 +34,10 @@ import {
 // and RetroToon.
 // ---------------------------------------------------------------------------
 
-/** The page every figure is read from. Intrinsic to the site, so the adapter owns it. */
+/** Byte totals, role and dates. Intrinsic to the site, so the adapter owns it. */
 const ACCOUNT_PATH = "/account/"
+/** The member's active torrents, whose header carries the seeding and leeching totals. */
+const ACTIVE_PATH = "/account/torrents-actifs"
 
 export interface YggrebornCredentials {
   cookies: string
@@ -106,22 +109,6 @@ function accountRowValue(doc: ParsedElement, label: string): string | undefined 
   return undefined
 }
 
-/** The rank named in the "Statut Utilisateur" card, or null when the card is absent or blank. */
-function userStatus(doc: ParsedElement): string | null {
-  for (const heading of doc.querySelectorAll("h3")) {
-    if (normalizeWhitespace(heading.textContent ?? "") !== "Statut Utilisateur") continue
-    // The rank is the card's first <span>. The heading sits one or two wrappers
-    // below the card, so climb until a <span> is in reach.
-    let card: ParsedElement | null = heading.parentNode
-    for (let depth = 0; card && depth < 3; depth++) {
-      const rank = normalizeWhitespace(card.querySelector("span")?.textContent ?? "")
-      if (rank) return rank
-      card = card.parentNode
-    }
-  }
-  return null
-}
-
 /** `05/05/2026` or `14/11/2026 15:04` (day first) as `2026-05-05`. */
 function frenchDate(value: string | undefined): string | undefined {
   const match = value?.match(/^(\d{2})\/(\d{2})\/(\d{4})\b/)
@@ -184,16 +171,18 @@ export function parseYggrebornAccount(html: string, hostname: string): TrackerSt
 
   return {
     username: accountRowValue(doc, "Nom d'utilisateur") ?? "",
-    group: userStatus(doc),
+    // The "Rôle" row ("Membre"). The "Statut Utilisateur" card is the uploader
+    // ladder, a separate thing, and is not read.
+    group: accountRowValue(doc, "Rôle") || null,
     uploadedBytes,
     downloadedBytes,
     // Derived from byte totals, not the page's own two-decimal Ratio card.
     ratio: computeRatio(uploadedBytes, downloadedBytes),
     bufferBytes: computeBufferBytes(uploadedBytes, downloadedBytes),
-    // The account page prints none of these. Active torrents are listed on
-    // /account/torrents-actifs, which this adapter does not read.
+    // Not on this page. fetchStats fills both from /account/torrents-actifs.
     seedingCount: null,
     leechingCount: null,
+    // The site prints none of these anywhere this adapter reads.
     seedbonus: null,
     hitAndRuns: null,
     requiredRatio: null,
@@ -208,6 +197,40 @@ export function parseYggrebornAccount(html: string, hostname: string): TrackerSt
 }
 
 // ---------------------------------------------------------------------------
+// Active torrents page parser (/account/torrents-actifs)
+// ---------------------------------------------------------------------------
+
+export interface YggrebornActiveSummary {
+  seedingCount: number | null
+  leechingCount: number | null
+}
+
+/**
+ * The two header chips, "17 en partage" and "0 en téléchargement". They total
+ * the whole list, not the page of rows shown under them. A chip that is absent
+ * reads as unknown, never as zero.
+ *
+ * @internal Used by tests.
+ */
+export function parseYggrebornActiveTorrents(html: string): YggrebornActiveSummary {
+  if (isCloudflareChallenge(html)) {
+    throw new Error("Cloudflare challenge detected. Cookies need refreshing")
+  }
+
+  const summary: YggrebornActiveSummary = { seedingCount: null, leechingCount: null }
+  for (const el of parseHtml(html).querySelectorAll("span")) {
+    const match = normalizeWhitespace(el.textContent ?? "").match(
+      /^(\d[\d\s]*) en (partage|téléchargement)$/
+    )
+    if (!match) continue
+    const count = frenchCount(match[1]) ?? null
+    if (match[2] === "partage") summary.seedingCount ??= count
+    else summary.leechingCount ??= count
+  }
+  return summary
+}
+
+// ---------------------------------------------------------------------------
 // HTML fetcher, direct fetch or proxy
 // ---------------------------------------------------------------------------
 
@@ -216,7 +239,7 @@ function fetchHtml(
   creds: YggrebornCredentials,
   proxyAgent?: FetchOptions["proxyAgent"]
 ): Promise<string> {
-  // No followRedirects: /account/ answers a signed-in member directly, so any
+  // No followRedirects: both pages answer a signed-in member directly, so any
   // redirect is the bounce to the login page.
   return fetchTrackerHtml({
     url,
@@ -233,8 +256,8 @@ function fetchHtml(
 // ---------------------------------------------------------------------------
 
 export class YggrebornAdapter implements TrackerAdapter {
-  // _apiPath is ignored: /account/ is intrinsic to YggReborn, so the adapter
-  // owns it. One request covers a poll.
+  // _apiPath is ignored: both paths are intrinsic to YggReborn, so the adapter
+  // owns them. Two requests cover a poll.
   async fetchStats(
     baseUrl: string,
     apiToken: string,
@@ -245,7 +268,23 @@ export class YggrebornAdapter implements TrackerAdapter {
     const hostname = new URL(baseUrl).hostname
 
     const html = await fetchHtml(`${baseUrl}${ACCOUNT_PATH}`, creds, options?.proxyAgent)
-    return parseYggrebornAccount(html, hostname)
+    const stats = parseYggrebornAccount(html, hostname)
+
+    // The counts are an extra on top of the totals, so a failure here leaves
+    // them unknown instead of failing a poll that already has its figures.
+    try {
+      const activeHtml = await fetchHtml(`${baseUrl}${ACTIVE_PATH}`, creds, options?.proxyAgent)
+      const active = parseYggrebornActiveTorrents(activeHtml)
+      stats.seedingCount = active.seedingCount
+      stats.leechingCount = active.leechingCount
+    } catch (err) {
+      // A dead session is not a partial result: the next poll would fail on
+      // the account page anyway, so say so now.
+      if (err instanceof SessionExpiredError) throw err
+      log.warn({ err }, "yggreborn: active torrents lookup failed, core stats kept")
+    }
+
+    return stats
   }
 
   async fetchRaw(
@@ -257,28 +296,44 @@ export class YggrebornAdapter implements TrackerAdapter {
     // Outside any try: bad credentials are a caller error, not a call entry.
     const creds = parseYggrebornCredentials(apiToken)
     const hostname = new URL(baseUrl).hostname
+    const calls: DebugApiCall[] = []
 
     try {
       const html = await fetchHtml(`${baseUrl}${ACCOUNT_PATH}`, creds, options?.proxyAgent)
       // The parsed figures stand in for the raw artifact, which is a whole
       // HTML page carrying the member's email and announce URL.
-      return [
-        {
-          label: "Account Page",
-          endpoint: ACCOUNT_PATH,
-          data: parseYggrebornAccount(html, hostname),
-          error: null,
-        },
-      ]
+      calls.push({
+        label: "Account Page",
+        endpoint: ACCOUNT_PATH,
+        data: parseYggrebornAccount(html, hostname),
+        error: null,
+      })
     } catch (err) {
-      return [
-        {
-          label: "Account Page",
-          endpoint: ACCOUNT_PATH,
-          data: null,
-          error: err instanceof Error ? err.message : "Request failed",
-        },
-      ]
+      calls.push({
+        label: "Account Page",
+        endpoint: ACCOUNT_PATH,
+        data: null,
+        error: err instanceof Error ? err.message : "Request failed",
+      })
     }
+
+    try {
+      const html = await fetchHtml(`${baseUrl}${ACTIVE_PATH}`, creds, options?.proxyAgent)
+      calls.push({
+        label: "Active Torrents Page",
+        endpoint: ACTIVE_PATH,
+        data: parseYggrebornActiveTorrents(html),
+        error: null,
+      })
+    } catch (err) {
+      calls.push({
+        label: "Active Torrents Page",
+        endpoint: ACTIVE_PATH,
+        data: null,
+        error: err instanceof Error ? err.message : "Request failed",
+      })
+    }
+
+    return calls
   }
 }

@@ -63,7 +63,7 @@ A negative buffer means you're already in deficit.
 
 How many torrents you're currently uploading. Seeding builds upload credit. Some trackers require minimum seeding, i.e. seed each download for a set period.
 
-**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API. Also on AnimeBytes, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, Nebulance, RetroToon World, and TorrentLeech. Not on C411, TR4KER, or YggReborn.
+**Availability:** On UNIT3D. On some Gazelle forks. On GGn, it depends on your paranoia setting; high paranoia hides it from the API. Also on AnimeBytes, DigitalCore, FileList, HAWKE-UNO, IPTorrents, Luminance, Nebulance, RetroToon World, TorrentLeech, and YggReborn. Not on C411 or TR4KER.
 
 ### Leeching Count
 

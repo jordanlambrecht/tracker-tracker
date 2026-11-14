@@ -97,8 +97,8 @@ Same rows as above. "Yes" means Tracker Tracker reads it. "No" means the adapter
 | ------------------------- | ----------- | -------- | ---------- | --------- | --------------- | ------------ | --------- |
 | Upload / Download / Ratio | Yes (ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) | Yes (HTML scraped, ratio calculated) |
 | Buffer                    | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) | Approximate (calculated locally) |
-| Seeding count             | Yes | Yes | Yes | Yes | Yes | Yes | No |
-| Leeching count            | Yes | No | Yes | No | No | Yes | No |
+| Seeding count             | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Leeching count            | Yes | No | Yes | No | No | Yes | Yes |
 | Seedbonus / Bonus Points  | Yes | Yes (called "FLCoins") | Yes | Yes (called "credits") | Yes | Yes (called "TL Points") | No |
 | Required Ratio            | No | No | No | Yes | No | No | No |
 | Hit & Runs                | Yes | No | No | No | Partial (0 when none are pending; a count isn't read) | Yes | No |
@@ -244,7 +244,7 @@ Reads the top bar and profile page. Seeding, leeching, and H&R counts come from 
 
 ### YggReborn
 
-One page, `/account/`. It gives upload, download, your rank, and the join and last login dates. Sizes are printed in French units (`Go`, `To`) and read as binary. The account page lists no seeding count, bonus points, or H&R, so those stay unknown. Extras include freeleech download, uploader score, and upload counts.
+Two pages. `/account/` gives upload, download, your role (for example "Membre"), and the join and last login dates. `/account/torrents-actifs` gives the seeding and leeching counts. If that second page fails, the rest of the stats are kept and the counts stay unknown. Sizes are printed in French units (`Go`, `To`) and read as binary. Neither page lists bonus points or H&R. Extras include freeleech download, uploader score, and upload counts.
 
 ### AvistaZ Network
 
