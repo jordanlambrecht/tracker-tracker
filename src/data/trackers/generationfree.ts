@@ -31,8 +31,8 @@ export const generationfree: TrackerRegistryEntry = {
   language: "French",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#e11d48",
-  logo: "",
+  color: "#9c91ff",
+  logo: "/tracker-logos/generationfree_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

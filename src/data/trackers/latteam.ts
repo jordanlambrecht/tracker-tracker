@@ -35,8 +35,8 @@ export const latteam: TrackerRegistryEntry = {
   language: "Spanish",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#f59e0b",
-  logo: "",
+  color: "#ead6b7",
+  logo: "/tracker-logos/latteam_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

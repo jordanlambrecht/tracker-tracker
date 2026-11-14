@@ -31,7 +31,7 @@ export const peergarden: TrackerRegistryEntry = {
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#16a34a",
+  color: "#1f7906",
   logo: "",
   bonusName: "Beans",
 
