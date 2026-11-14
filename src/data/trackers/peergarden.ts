@@ -32,7 +32,7 @@ export const peergarden: TrackerRegistryEntry = {
 
   // ── Visual ──────────────────────────────────────────────────────────
   color: "#1f7906",
-  logo: "",
+  logo: "/tracker-logos/peergarden_logo.png",
   bonusName: "Beans",
 
   // ── External Links ──────────────────────────────────────────────────
