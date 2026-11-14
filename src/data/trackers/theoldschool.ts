@@ -21,8 +21,8 @@ export const theoldschool: TrackerRegistryEntry = {
   language: "French",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#d97706",
-  logo: "",
+  color: "#7fcbdf",
+  logo: "/tracker-logos/theoldschool_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",

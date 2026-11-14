@@ -33,8 +33,8 @@ export const zerodayfiles: TrackerRegistryEntry = {
   language: "English",
 
   // ── Visual ──────────────────────────────────────────────────────────
-  color: "#0ea5e9",
-  logo: "",
+  color: "#f5851f",
+  logo: "/tracker-logos/0dayfiles_logo.png",
 
   // ── External Links ──────────────────────────────────────────────────
   trackerHubSlug: "",
